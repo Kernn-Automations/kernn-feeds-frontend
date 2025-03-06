@@ -1,0 +1,56 @@
+.footer {
+  width: 100%;
+  position: sticky;
+  top: 98%;
+  
+}
+.footcontainer{
+  position: sticky;
+  top: 100%;
+}
+
+.p1 {
+  /* font-family: Montserrat; */
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 24.38px;
+  letter-spacing: 0.015em;
+  text-align: center;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: none;
+  margin-bottom: 0;
+}
+.pipe {
+  /* font-family: Montserrat; */
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24.38px;
+  letter-spacing: 0.015em;
+  text-align: left;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: none;
+}
+.pipe,
+.pwd span {
+  color: #a92427;
+  font-weight: 600;
+}
+
+.footer hr {
+  width: 40%;
+  opacity: 1 !important;
+  text-align: center;
+  margin: 5px 30% !important;
+  color: #a92427 !important;
+}
+.pwd {
+  text-align: center;
+  margin: 10px;
+  font-size: 12px;
+  /* font-family: Montserrat; */
+  font-weight: 500;
+  line-height: 14.63px;
+  letter-spacing: 0.015em;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: none;
+}

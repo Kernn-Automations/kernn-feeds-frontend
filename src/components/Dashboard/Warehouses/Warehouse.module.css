@@ -1,0 +1,54 @@
+.delsec {
+  width: 90% !important;
+  height: 40px !important;
+  margin: 5%;
+  margin-top: 10px;
+  /* font-family: Montserrat; */
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 29.26px;
+  text-align: left;
+  color: #a92427;
+}
+
+.intacc {
+  background-color: #a92427 !important;
+  color: white !important;
+  border-radius: none !important;
+  /* font-family: Montserrat; */
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 21.94px;
+  letter-spacing: 0.015em;
+  text-align: left;
+  border-radius: 10px !important;
+}
+.intbody {
+  box-shadow: 2px 2px 4px #a92427;
+  width: 60% !important;
+  margin-left: 40%;
+  border-radius: 0 0 10px 10px;
+}
+
+.box {
+  width: 95%;
+  margin: 4px 2.5%;
+  box-shadow: 2px 2px 4px #a92427;
+  padding: 7px 20px;
+  /* font-family: Montserrat; */
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 15.85px;
+  letter-spacing: 0.015em;
+  text-align: center;
+  background-color: white;
+  color: #a92427 !important;
+}
+
+.box > button {
+  width: fit-content;
+  padding: 4px 8px;
+  background-color: #34b233;
+  color: white;
+  border: none;
+}

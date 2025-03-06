@@ -1,0 +1,24 @@
+import React from 'react'
+import styles from "./Customer.module.css";
+
+function CustomerHome({navigate}) {
+  return (
+    <>
+       <div className="row m-0 p-3">
+        <div className="col">
+          <button className="homebtn" onClick={() => navigate("/customers/customer-list")}>
+            Customers
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/kyc-approvals")}
+          >
+            KYC Approvals
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+export default CustomerHome
