@@ -20,7 +20,7 @@ function App() {
 
   // ✅ Correct way to set islogin
   useEffect(() => {
-    setIslogin(!!token); // !! converts to true/false
+    setIslogin(!!token);
   }, [token, setIslogin]);
 
   // ✅ Handle role, dept, and admin state when islogin and user are available
