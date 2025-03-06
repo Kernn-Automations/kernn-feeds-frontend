@@ -8,7 +8,7 @@ import "./App.css"
 
 function App() {
   const { islogin, setIslogin } = useAuth();
-  const navigate = useNavigate();
+  
 
   const [role, setRole] = useState(null);
   const [dept, setDept] = useState(null);
