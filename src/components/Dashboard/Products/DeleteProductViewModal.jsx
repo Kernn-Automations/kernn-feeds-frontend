@@ -1,5 +1,5 @@
 import React from "react";
-import styles from "./products.module.css";
+import styles from "./Products.module.css";
 import { DialogBody, DialogCloseTrigger, DialogContent, DialogRoot, DialogTrigger } from "@/components/ui/dialog";
 import DeleteProductModal from "./DeleteProductModal";
 
