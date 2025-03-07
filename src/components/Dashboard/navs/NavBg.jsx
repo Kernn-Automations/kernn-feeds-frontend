@@ -294,7 +294,7 @@ function NavBg({ hover, setTab, tab }) {
           } `}
           onClick={() => setTab("product")}
         >
-          <Link to="/product">
+          <Link to="/products">
             <svg
               width="38"
               height="38"
