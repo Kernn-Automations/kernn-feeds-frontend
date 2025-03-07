@@ -1,4 +1,4 @@
-import styles from "./products.module.css";
+import styles from "./Products.module.css";
 import React, { useEffect, useState } from "react";
 import { DialogActionTrigger } from "@/components/ui/dialog";
 
