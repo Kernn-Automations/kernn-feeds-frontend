@@ -9,6 +9,7 @@ import { AuthProvider } from "./Auth";
 import { BrowserRouter } from "react-router-dom";
 import { Provider } from "./components/ui/provider";
 import { DarkMode, LightMode, useColorMode } from "@/components/ui/color-mode";
+import { LoadScript } from "@react-google-maps/api";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -18,7 +19,12 @@ createRoot(document.getElementById("root")).render(
       <BrowserRouter>
         <Provider>
           <LightMode>
-            <App />
+            <LoadScript
+              googleMapsApiKey={"AIzaSyBECI1LtDOO7wzXFu7yn7og0_NrRPEtISU"}
+              libraries={["places"]}
+            >
+              <App />
+            </LoadScript>
           </LightMode>
         </Provider>
       </BrowserRouter>

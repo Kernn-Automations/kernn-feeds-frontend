@@ -52,3 +52,15 @@
   color: white;
   border: none;
 }
+
+.locate {
+  width: 210px !important;
+  height: 25px !important;
+  border: none;
+  padding: 3px !important;
+  border-radius: 3px;
+  box-shadow: 1px 1px 4px black;
+  font-size: 14px;
+  color: white;
+  background-color: #fd3b3b;
+}

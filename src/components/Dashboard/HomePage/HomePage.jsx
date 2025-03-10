@@ -12,11 +12,11 @@ function HomePage() {
   const user = JSON.parse(localStorage.getItem("user"));
 
   if (hour < 12) {
-    wish = "Good Morning 🌅";
+    wish = "Good Morning";
   } else if (hour < 18) {
-    wish = "Good Afternoon ☀️";
+    wish = "Good Afternoon";
   } else {
-    wish = "Good Evening 🌙";
+    wish = "Good Evening";
   }
 
   return (

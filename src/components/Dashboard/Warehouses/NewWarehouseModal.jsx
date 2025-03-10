@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Warehouse.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
+import MapViewModal from "./MapViewModal";
 
 
 
@@ -83,7 +84,7 @@ function NewWarehouseModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Locate on Map :</label>
-           {/* <MapViewModal/> */}
+           <MapViewModal/>
           </div>
         </div>
         <div className="row pt-3 mt-3 justify-content-center">
