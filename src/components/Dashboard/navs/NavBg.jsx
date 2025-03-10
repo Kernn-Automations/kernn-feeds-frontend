@@ -340,7 +340,7 @@ function NavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
-        <div
+        {/* <div
           className={`${
             location.pathname.includes("settings") ? styles.active : ""
           } `}
@@ -368,7 +368,7 @@ function NavBg({ hover, setTab, tab }) {
 
             {hover && <p>Settings</p>}
           </Link>
-        </div>
+        </div> */}
 
         {/* <div
           className={`${location.pathname.includes("logout") ? styles.active : ""} `}

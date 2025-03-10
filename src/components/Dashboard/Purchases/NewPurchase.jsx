@@ -117,7 +117,7 @@ function NewPurchase({ navigate }) {
 
       <div className="row m-0 p-3 justify-content-center">
         <h5 className={styles.head}>Products</h5>
-        <div className="col-10">
+        <div className="col-9">
           <table className="table table-bordered borderedtable">
             <thead>
               <tr>
@@ -227,7 +227,7 @@ function NewPurchase({ navigate }) {
       </div>
 
       <div className="row m-0 p-3 pt-4 justify-content-center">
-        <div className={`col-4`}>
+        <div className={`col-3`}>
           <button className="submitbtn">Submit</button>
           <button className="cancelbtn" onClick={() => navigate(-1)}>
             Cancel

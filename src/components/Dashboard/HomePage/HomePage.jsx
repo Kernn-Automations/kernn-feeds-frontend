@@ -28,12 +28,13 @@ function HomePage() {
           </h2>
         </div>
       </div>
-      <div className="row m-0 p-5 justify-content-around">
+      <div className="row m-0 p-3 justify-content-around">
         <Productbox />
         <KYCApproval />
-        <ProductBarchart />
+
         <PaymentApprovals />
-        <ProductLineChart/>
+        <ProductBarchart />
+        <ProductLineChart />
       </div>
     </>
   );

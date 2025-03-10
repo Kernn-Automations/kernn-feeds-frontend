@@ -14,7 +14,7 @@ function DashHeader({ notifications, user, setAdmin, setTab, admin, orgadmin }) 
       <div className={styles.header}>
         <div className="row justify-content-between">
           <div className={`col-4 ${styles.headcontent}`}>
-            <p className={styles.brand}>Vallabha Feeds Pvt Ltd</p>
+            <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
             {orgadmin &&
               <p className={styles.reset}>
                 <span
