@@ -7,7 +7,7 @@ function PurchaseReport({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Purchase</span>{" "}
+        <span onClick={() => navigate("/purchases")}>Purchase</span>{" "}
         <i class="bi bi-chevron-right"></i> Purchase order Report
       </p>
 
@@ -33,7 +33,7 @@ function PurchaseReport({ navigate }) {
           <button className="submitbtn" onClick={() => setonsubmit(true)}>
             Submit
           </button>
-          <button className="cancelbtn" onClick={() => navigate(-1)}>
+          <button className="cancelbtn" onClick={() => navigate("/purchases")}>
             Cancel
           </button>
         </div>

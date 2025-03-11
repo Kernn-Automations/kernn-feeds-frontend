@@ -1,10 +1,5 @@
 import React, { useRef, useState } from "react";
-import {
-  GoogleMap,
-  MarkerF,
-  Autocomplete,
-  StandaloneSearchBox,
-} from "@react-google-maps/api";
+import { GoogleMap, MarkerF, StandaloneSearchBox } from "@react-google-maps/api";
 
 function GoogleMapLocator() {
   const containerStyle = {
@@ -12,13 +7,9 @@ function GoogleMapLocator() {
     height: "500px",
   };
 
-  const defaultCenter = { lat: 40.7128, lng: -74.006 }; // Default location
+  const defaultCenter = { lat: 40.7128, lng: -74.006 }; // Default location (New York)
 
-  const [map, setMap] = useState(null);
-  const [autocomplete, setAutocomplete] = useState(null);
-  const [location, setLocation] = useState(defaultCenter);
-
-  const [markerPosition, setMarkerPosition] = useState(defaultCenter);
+  const [location, setLocation] = useState(defaultCenter); // Center of the map and marker position
   const searchBoxRef = useRef(null);
 
   // Handle when the user selects a location from the search box
@@ -27,10 +18,11 @@ function GoogleMapLocator() {
     if (places && places.length > 0) {
       const place = places[0];
       const location = place.geometry.location;
-      setMarkerPosition({
+      const newLocation = {
         lat: location.lat(),
         lng: location.lng(),
-      });
+      };
+      setLocation(newLocation); // Update the map center and marker position
     }
   };
 
@@ -38,25 +30,6 @@ function GoogleMapLocator() {
   const onSearchBoxLoad = (ref) => {
     searchBoxRef.current = ref;
   };
-
-  // const onAutoCompleteLoad = (autocompleteInstance) => {
-  //   setAutocomplete(autocompleteInstance);
-  // };
-
-  // const onPlaceChanged = () => {
-  //   console.log("on place change caled");
-  //   if (autocomplete !== null) {
-  //     const place = autocomplete.getPlace();
-  //     if (place.geometry) {
-  //       const newLocation = {
-  //         lat: place.geometry.location.lat(),
-  //         lng: place.geometry.location.lng(),
-  //       };
-  //       setLocation(newLocation);
-  //       map.panTo(newLocation);
-  //     }
-  //   }
-  // };
 
   return (
     <div style={{ position: "relative" }}>
@@ -85,16 +58,17 @@ function GoogleMapLocator() {
               borderRadius: "4px",
               boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
               outline: "none",
+              zIndex: 1000,
             }}
           />
         </StandaloneSearchBox>
       </div>
+
       {/* 🔹 Google Map */}
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={location}
         zoom={12}
-       
       >
         <MarkerF position={location} />
       </GoogleMap>

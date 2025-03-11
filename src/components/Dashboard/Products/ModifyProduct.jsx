@@ -9,7 +9,7 @@ function ModifyProduct({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Products</span>{" "}
+        <span onClick={() => navigate("/products")}>Products</span>{" "}
         <i class="bi bi-chevron-right"></i> Modify Products
       </p>
 

@@ -46,7 +46,7 @@ function AddProduct({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Products</span>{" "}
+        <span onClick={() => navigate("/products")}>Products</span>{" "}
         <i class="bi bi-chevron-right"></i> Add Product
       </p>
 
@@ -161,7 +161,7 @@ function AddProduct({ navigate }) {
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className="col-3">
             <button className="submitbtn">Create</button>
-            <button className="cancelbtn" onClick={() => navigate(-1)}>Cancel</button>
+            <button className="cancelbtn" onClick={() => navigate("/products")}>Cancel</button>
         </div>
       </div>
     </>

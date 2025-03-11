@@ -47,7 +47,7 @@ function NewPurchase({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Purchase</span>{" "}
+        <span onClick={() => navigate("/purchases")}>Purchase</span>{" "}
         <i class="bi bi-chevron-right"></i> + New Purchase Order
       </p>
 
@@ -229,7 +229,7 @@ function NewPurchase({ navigate }) {
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-3`}>
           <button className="submitbtn">Submit</button>
-          <button className="cancelbtn" onClick={() => navigate(-1)}>
+          <button className="cancelbtn" onClick={() => navigate("/purchases")}>
             Cancel
           </button>
         </div>

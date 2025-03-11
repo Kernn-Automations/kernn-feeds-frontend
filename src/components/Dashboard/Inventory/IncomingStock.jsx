@@ -5,7 +5,7 @@ function IncomingStock({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Inventory</span>{" "}
+        <span onClick={() => navigate("/inventory")}>Inventory</span>{" "}
         <i class="bi bi-chevron-right"></i> Incoming Stock
       </p>
 
@@ -43,7 +43,7 @@ function IncomingStock({ navigate }) {
             <button className="submitbtn" onClick={() => setonsubmit(true)}>
               Submit
             </button>
-            <button className="cancelbtn" onClick={() => navigate(-1)}>
+            <button className="cancelbtn" onClick={() => navigate("/inventory")}>
               Cancel
             </button>
           </div>

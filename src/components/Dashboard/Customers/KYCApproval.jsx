@@ -6,7 +6,7 @@ function KYCApproval({navigate}) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Customers</span>{" "}
+        <span onClick={() => navigate("/customers")}>Customers</span>{" "}
         <i class="bi bi-chevron-right"></i> KYC-Approvals
       </p>
 

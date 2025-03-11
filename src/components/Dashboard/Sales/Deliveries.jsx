@@ -7,7 +7,7 @@ function Deliveries({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Sales</span>{" "}
+        <span onClick={() => navigate("/sales")}>Sales</span>{" "}
         <i class="bi bi-chevron-right"></i> Deliveries
       </p>
 
@@ -52,7 +52,7 @@ function Deliveries({ navigate }) {
             <button className="submitbtn" onClick={() => setonsubmit(true)}>
               Submit
             </button>
-            <button className="cancelbtn" onClick={() => navigate(-1)}>
+            <button className="cancelbtn" onClick={() => navigate("/sales")}>
               Cancel
             </button>
           </div>

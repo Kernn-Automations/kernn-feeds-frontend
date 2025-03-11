@@ -6,7 +6,7 @@ function PaymentApprovals({navigate}) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Payments</span>{" "}
+        <span onClick={() => navigate("/payments")}>Payments</span>{" "}
         <i class="bi bi-chevron-right"></i> Payment-approvals
       </p>
 

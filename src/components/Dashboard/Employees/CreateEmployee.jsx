@@ -5,7 +5,7 @@ function CreateEmployee({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Employees</span>{" "}
+        <span onClick={() => navigate("/employees")}>Employees</span>{" "}
         <i class="bi bi-chevron-right"></i> Create-Employee
       </p>
 
@@ -86,7 +86,7 @@ function CreateEmployee({ navigate }) {
       <div className="row m-0 p-3 justify-content-center">
         <div className={`col-3 ${styles.btnscol}`}>
           <button className="submitbtn" onClick>Submit</button>
-          <button className="cancelbtn" onClick={() => navigate(-1)}>Cancel</button>
+          <button className="cancelbtn" onClick={() => navigate("/employees")}>Cancel</button>
         </div>
       </div>
     </>

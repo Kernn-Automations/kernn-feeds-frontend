@@ -6,7 +6,7 @@ function OngoingWarehouse({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Warehouse</span>{" "}
+        <span onClick={() => navigate("/warehouses")}>Warehouse</span>{" "}
         <i class="bi bi-chevron-right"></i> Ongoing
       </p>
 

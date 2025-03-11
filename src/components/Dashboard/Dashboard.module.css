@@ -33,39 +33,6 @@
   z-index: 10;
 }
 
-.searchbar {
-  margin-top: 5px !important;
-  position: relative;
-  display: inline-block;
-}
-.searchbar input {
-  width: 240px;
-  height: 35px;
-  border: 2px solid #a92427;
-  border-radius: 17px;
-  padding-left: 15px;
-  font-size: 17px;
-  padding-right: 32px; /* Leave space for the icon */
-  font-family: sans-serif;
-  line-height: 0;
-  box-shadow: 2px 2px 4px gray;
-}
-
-.searchbar input:focus {
-  border: 2px solid #a92427;
-  outline: none;
-}
-.searchicon {
-  position: absolute;
-  right: 30px;
-  top: 18px;
-  transform: translateY(-50%);
-  font-size: 18px;
-  color: #555;
-  pointer-events: none; /* Makes the icon unclickable */
-}
-
-
 .brand {
   height: 30px;
   width: fit-content;

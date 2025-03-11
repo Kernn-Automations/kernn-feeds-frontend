@@ -45,7 +45,7 @@ function AssignRole({ navigate }) {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Employees</span>{" "}
+        <span onClick={() => navigate("/employees")}>Employees</span>{" "}
         <i class="bi bi-chevron-right"></i> Assign Role
       </p>
 
