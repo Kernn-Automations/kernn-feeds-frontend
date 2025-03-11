@@ -14,7 +14,7 @@ function SalesRoutes() {
       <Routes>
         <Route index element={<SalesHome navigate={navigate}/>}/>
         <Route path='/orders' element={<Orders navigate={navigate}/> }/>
-        <Route path='/dispaches' element={<Dispaches navigate={navigate}/>}/>
+        <Route path='/dispatches' element={<Dispaches navigate={navigate}/>}/>
         <Route path='/deliveries' element={<Deliveries navigate={navigate}/>}/>
       </Routes>
     </>

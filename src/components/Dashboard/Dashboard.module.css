@@ -50,8 +50,13 @@
   float: left;
 }
 .headcontent {
-  min-width: 430px !important;
-  width: 430px !important;
+  min-width: 440px !important;
+  width: 440px !important;
+  padding-right: 50px !important;
+}
+.headcontentTitle {
+  min-width: 300px !important;
+  width: 300px !important;
   padding-right: 40px !important;
 }
 

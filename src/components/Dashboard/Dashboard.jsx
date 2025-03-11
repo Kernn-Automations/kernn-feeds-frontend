@@ -16,6 +16,7 @@ import PaymentRoutes from "./Payments/PaymentRoutes";
 import EmployeeRoutes from "./Employees/EmployeeRoutes";
 import WarehouseRoutes from "./Warehouses/WarehouseRoutes";
 import ProductRoutes from "./Products/ProductRoutes";
+import LocationsHome from "./Locations/LocationsHome";
 
 function Dashboard({
   admin,
@@ -152,7 +153,7 @@ function Dashboard({
                       <Route path="/customers/*" element={<CustomerRoutes/>} />
                       <Route path="/payments/*" element={<PaymentRoutes/>} />
                       <Route path="/employees/*" element={<EmployeeRoutes/>} />
-                      <Route path="/location/*" element={<p>location</p>} />
+                      <Route path="/location/*" element={<LocationsHome/>} />
                       <Route path="/warehouses/*" element={<WarehouseRoutes/>} />
                       <Route path="/products/*" element={<ProductRoutes/>} />
                       <Route path="/settings/*" element={<p>settings</p>} />

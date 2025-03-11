@@ -117,7 +117,7 @@ function NewPurchase({ navigate }) {
 
       <div className="row m-0 p-3 justify-content-center">
         <h5 className={styles.head}>Products</h5>
-        <div className="col-9">
+        <div className="col-lg-9">
           <table className="table table-bordered borderedtable">
             <thead>
               <tr>

@@ -21,7 +21,7 @@ function DashHeader({
     <>
       <div className={styles.header}>
         <div className="row justify-content-between">
-          <div className={`col-4 ${styles.headcontent}`}>
+          <div className={`col-4 ${styles.headcontentTitle}`}>
             <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
             {orgadmin && (
               <p className={styles.reset}>
@@ -41,7 +41,6 @@ function DashHeader({
               <div className="col-2">
                 <Notification notifications={notifications} />
               </div>
-              <div className={`col ${styles.searchbar}`}>
                 {/* <input type="text" placeholder="search..." className={styles.search} />
               
               <button type="submit">
@@ -73,12 +72,9 @@ function DashHeader({
                   </InputRightElement>
                 </InputGroup> */}
 
-                {/* <input type="text" placeholder="Search..." />
-                <span className={styles.searchicon}>
-                  <IoSearch />
-                </span> */}
+                {/*  */}
                 <SearchBar />
-              </div>
+              
               <div className="col-2">
                 <ProfileAvthar user={user} setTab={setTab} />
               </div>
