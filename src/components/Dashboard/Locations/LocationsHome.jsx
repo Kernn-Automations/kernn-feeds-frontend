@@ -1,10 +1,21 @@
 import React from 'react'
 import LocationViewModal from './LocationViewModal'
+import styles from "./Location.module.css"
+import { IoSearch } from 'react-icons/io5'
 
 function LocationsHome() {
   return (
     <>
-      <div className="row m-0 p-3 pt-5 justify-content-center">
+     <div className="row m-0 p-3  pt-5 justify-content-end">
+            <div className={`col-4 ${styles.search}`}>
+              <input type="text" placeholder="Search..." />
+              <span className={styles.searchicon}>
+                <IoSearch />
+              </span>
+            </div>
+          </div>
+    
+      <div className="row m-0 p-3 justify-content-center">
         <div className="col-md-10">
             <table className='table table-bordered borderedtable'>
                 <thead>
