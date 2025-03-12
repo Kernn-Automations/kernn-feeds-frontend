@@ -1,39 +1,83 @@
-import React, { useRef, useState } from "react";
-import { GoogleMap, MarkerF, StandaloneSearchBox } from "@react-google-maps/api";
+import React, { useCallback, useRef, useState } from "react";
+import {
+  GoogleMap,
+  Marker,
+  MarkerF,
+  useLoadScript,
+} from "@react-google-maps/api";
+import usePlacesAutocomplete, {
+  getGeocode,
+  getLatLng,
+} from "use-places-autocomplete";
+import { Box, Typography, Button } from "@mui/material";
+import SearchBox from "./SearchBox";
+import {
+  DialogActionTrigger,
+  DialogCloseTrigger,
+} from "@/components/ui/dialog";
 
-function GoogleMapLocator() {
-  const containerStyle = {
-    width: "100%",
-    height: "500px",
-  };
+const containerStyle = {
+  width: "100%",
+  height: "500px",
+};
 
-  const defaultCenter = { lat: 40.7128, lng: -74.006 }; // Default location (New York)
+const GoogleMapLocator = () => {
+  const defaultLocation = { lat: 40.7128, lng: -74.006 };
 
-  const [location, setLocation] = useState(defaultCenter); // Center of the map and marker position
-  const searchBoxRef = useRef(null);
+  const [selectedPosition, setSelectedPosition] = useState(defaultLocation);
+  const [selectedAddress, setSelectedAddress] = useState("");
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
-  // Handle when the user selects a location from the search box
-  const onPlacesChanged = () => {
-    const places = searchBoxRef.current.getPlaces();
-    if (places && places.length > 0) {
-      const place = places[0];
-      const location = place.geometry.location;
-      const newLocation = {
-        lat: location.lat(),
-        lng: location.lng(),
-      };
-      setLocation(newLocation); // Update the map center and marker position
+  const mapRef = useRef(null);
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  const handleMapClick = async (event) => {
+    if (event.latLng) {
+      const lat = event.latLng.lat();
+      const lng = event.latLng.lng();
+      setSelectedPosition({ lat, lng });
+      console.log(event, lat, lng);
+
+      try {
+        const results = await getGeocode({ location: { lat, lng } });
+        setSelectedAddress(results[0].formatted_address);
+      } catch (error) {
+        console.error("Error fetching address:", error);
+      }
+
+      setConfirmVisible(true);
     }
   };
 
-  // Initialize the search box reference
-  const onSearchBoxLoad = (ref) => {
-    searchBoxRef.current = ref;
+  const handleConfirm = () => {
+    if (selectedPosition) {
+      setConfirmVisible(false);
+    }
   };
 
+  const handleCancel = () => {
+    setSelectedPosition(null);
+    setSelectedAddress("");
+    setConfirmVisible(false);
+  };
+
+  const handleSelectFromSearch = async (address) => {
+    try {
+      const results = await getGeocode({ address });
+      const { lat, lng } = await getLatLng(results[0]);
+      setSelectedPosition({ lat, lng });
+      setSelectedAddress(results[0].formatted_address);
+      setConfirmVisible(true);
+    } catch (error) {
+      console.error("Error fetching geocode:", error);
+    }
+  };
+  console.log(selectedPosition, selectedAddress);
   return (
     <div style={{ position: "relative" }}>
-      {/* 🔹 Search Input Box */}
       <div
         style={{
           position: "absolute",
@@ -43,37 +87,37 @@ function GoogleMapLocator() {
           zIndex: 1000,
         }}
       >
-        <StandaloneSearchBox
-          onLoad={onSearchBoxLoad}
-          onPlacesChanged={onPlacesChanged}
-        >
-          <input
-            type="text"
-            placeholder="Search for a location"
-            style={{
-              width: "300px",
-              padding: "10px",
-              fontSize: "16px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
-              outline: "none",
-              zIndex: 1000,
-            }}
-          />
-        </StandaloneSearchBox>
+        <SearchBox onSelectFromSearch={handleSelectFromSearch} />
       </div>
 
-      {/* 🔹 Google Map */}
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={location}
+        center={selectedPosition}
         zoom={12}
+        onLoad={onMapLoad}
+        onClick={handleMapClick}
       >
-        <MarkerF position={location} />
+        <MarkerF position={selectedPosition} />
       </GoogleMap>
+
+      <div className="row m-0 pt-3 pb-1 justify-content-center">
+        <div className="col-2">
+          <DialogActionTrigger>
+            <button
+              className="submitbtn"
+              onClick={() => {
+                confirm(
+                  `confirm your location : \nAddress - ${selectedAddress}`
+                );
+              }}
+            >
+              Confirm
+            </button>
+          </DialogActionTrigger>
+        </div>
+      </div>
     </div>
   );
-}
+};
 
 export default GoogleMapLocator;
