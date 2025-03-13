@@ -12,15 +12,15 @@ function Orders({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">To :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -29,7 +29,7 @@ function Orders({ navigate }) {
             <option value="">Warehouse 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -38,7 +38,7 @@ function Orders({ navigate }) {
             <option value="">Product 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Customer :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -47,14 +47,14 @@ function Orders({ navigate }) {
             <option value="">Customer 3</option>
           </select>
         </div>
-        {!onsubmit && <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <button className="submitbtn" onClick={() => setonsubmit(true)}>
             Submit
           </button>
           <button className="cancelbtn" onClick={() => navigate("/sales")}>
             Cancel
           </button>
-        </div>}
+        </div>
       </div>
 
       {onsubmit && (
@@ -72,7 +72,6 @@ function Orders({ navigate }) {
                   <th>Payment Mode</th>
                   <th>Status</th>
                   <th>Action</th>
-                 
                 </tr>
               </thead>
               <tbody>
@@ -85,10 +84,12 @@ function Orders({ navigate }) {
                   <td>2000</td>
                   <td>Online</td>
                   <td>Completed</td>
-                  <td><OrdersViewModal/></td>
+                  <td>
+                    <OrdersViewModal />
+                  </td>
                 </tr>
                 <tr>
-                <td>2</td>
+                  <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM23</td>
                   <td>4423</td>
@@ -96,17 +97,12 @@ function Orders({ navigate }) {
                   <td>4000</td>
                   <td>Offline</td>
                   <td>Pending</td>
-                  <td><OrdersViewModal/></td>
+                  <td>
+                    <OrdersViewModal />
+                  </td>
                 </tr>
               </tbody>
             </table>
-          </div>
-          <div className="row m-0 p-3 justify-content-center">
-            <div className="col-2">
-              <button className="cancelbtn" onClick={() => setonsubmit(false)}>
-                back
-              </button>
-            </div>
           </div>
         </div>
       )}

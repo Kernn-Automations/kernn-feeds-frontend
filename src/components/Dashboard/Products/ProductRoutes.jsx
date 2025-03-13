@@ -4,6 +4,7 @@ import { Route, Routes, useNavigate } from 'react-router-dom';
 import AddProduct from './AddProduct';
 import ModifyProduct from './ModifyProduct';
 import ProductHome from './ProductHome';
+import PricingList from './PricingList';
 function ProductRoutes() {
     const navigate = useNavigate();
     return (
@@ -14,6 +15,10 @@ function ProductRoutes() {
             <Route
               path="/modify"
               element={<ModifyProduct navigate={navigate} />}
+            />
+            <Route
+              path="/pricing-list"
+              element={<PricingList navigate={navigate} />}
             />
           </Routes>
       </>

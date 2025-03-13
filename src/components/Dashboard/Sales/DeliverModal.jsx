@@ -95,13 +95,13 @@ function DeliverModal() {
           </table>
         </div>
       </div>
-      <div className="row m-0 p-3 pt-4 justify-content-center">
+      {/* <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
           <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
           </DialogActionTrigger>
         </div>
-      </div>
+      </div> */}
     </>
   );
 }

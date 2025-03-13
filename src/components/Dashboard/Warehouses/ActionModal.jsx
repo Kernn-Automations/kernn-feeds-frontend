@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Warehouse.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
+import MapViewModal from "./MapViewModal";
 function ActionModal() {
   const onSubmit = (e) => e.preventDefault();
   return (
@@ -8,30 +9,14 @@ function ActionModal() {
       <h3 className={`px-3 pb-3 mdl-title`}>Warehouse</h3>
       <form action="" onSubmit={onSubmit}>
         <div className="row justify-content-center">
-          <div className={`col-6 inputcolumn-mdl`}>
-            <label htmlFor="">Plant Type :</label>
-            <select name="" id="" required>
-              <option value="">--select--</option>
-              <option value="BMC">plant 1</option>
-              <option value="CC">plant 2</option>
-            </select>
-          </div>
-        </div>
-        <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Plant Code :</label>
+            <label htmlFor="">Warehouse ID :</label>
             <input type="text" />
           </div>
         </div>{" "}
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Plant Name :</label>
-            <input type="text" />
-          </div>
-        </div>{" "}
-        <div className="row justify-content-center">
-          <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Storage Capacity :</label>
+            <label htmlFor="">Warehouse Name :</label>
             <input type="text" />
           </div>
         </div>{" "}
@@ -73,7 +58,7 @@ function ActionModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Locate on Map :</label>
-            {/* <MapViewModal/> */}
+            <MapViewModal/>
           </div>
         </div>
         <div className="row pt-3 mt-3 justify-content-center">

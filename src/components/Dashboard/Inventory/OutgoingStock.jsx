@@ -11,15 +11,15 @@ function OutgoingStock({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">To :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -28,7 +28,7 @@ function OutgoingStock({ navigate }) {
             <option value="">Warehouse 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -38,7 +38,7 @@ function OutgoingStock({ navigate }) {
           </select>
         </div>
       </div>
-      {!onsubmit && (
+   
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-4">
             <button className="submitbtn" onClick={() => setonsubmit(true)}>
@@ -49,7 +49,7 @@ function OutgoingStock({ navigate }) {
             </button>
           </div>
         </div>
-      )}
+    
       {onsubmit && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-lg-10">
@@ -96,13 +96,7 @@ function OutgoingStock({ navigate }) {
               </tbody>
             </table>
           </div>
-          <div className="row m-0 p-3 justify-content-center">
-            <div className="col-2">
-              <button className="cancelbtn" onClick={() => setonsubmit(false)}>
-                back
-              </button>
-            </div>
-          </div>
+          
         </div>
       )}
     </>

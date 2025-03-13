@@ -103,3 +103,26 @@
   text-align: left;
   color: #a92427;
 }
+
+
+.selectmode select{
+  width: 100px;
+  border-radius: 3px;
+  color: white;
+  /* padding-right: 10px; */
+}
+.selectmode select option{
+  background-color: white;
+  color: black;
+}
+.selectmode select:focus{
+  outline: none;
+}
+
+.enable{
+  background-color: #2fa924;
+}
+.disable{
+  background-color: #ff2727;
+}
+

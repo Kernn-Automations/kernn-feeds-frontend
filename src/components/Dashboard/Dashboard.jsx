@@ -156,7 +156,7 @@ function Dashboard({
                       <Route path="/location/*" element={<LocationsHome/>} />
                       <Route path="/warehouses/*" element={<WarehouseRoutes/>} />
                       <Route path="/products/*" element={<ProductRoutes/>} />
-                      <Route path="/settings/*" element={<p>settings</p>} />
+                      <Route path="/announcement/*" element={<p>announcement</p>} />
                     </Routes>
                     <Outlet />
                   </div>

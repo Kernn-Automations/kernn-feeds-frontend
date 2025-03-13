@@ -38,9 +38,9 @@ function DashHeader({
           </div>
           <div className={`col-4 ${styles.headcontent}`}>
             <div className="row pt-2 justify-content-center">
-              <div className="col-2">
+              {/* <div className="col-2">
                 <Notification notifications={notifications} />
-              </div>
+              </div> */}
                 {/* <input type="text" placeholder="search..." className={styles.search} />
               
               <button type="submit">

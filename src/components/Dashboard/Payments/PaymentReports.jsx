@@ -13,15 +13,15 @@ function PaymentReports({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">To :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -30,7 +30,7 @@ function PaymentReports({ navigate }) {
             <option value="">Warehouse 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Sales Executive :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -39,7 +39,7 @@ function PaymentReports({ navigate }) {
             <option value="">Executive 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Customer :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -48,7 +48,7 @@ function PaymentReports({ navigate }) {
             <option value="">Customer 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Payment Mode :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -56,16 +56,17 @@ function PaymentReports({ navigate }) {
             <option value="">Offline</option>
           </select>
         </div>
-        {!onsubmit && (
-          <div className={`col-3 ${styles.formcontent}`}>
-            <button className="submitbtn" onClick={() => setonsubmit(true)}>
-              Submit
-            </button>
-            <button className="cancelbtn" onClick={() => navigate(-1)}>
-              Cancel
-            </button>
-          </div>
-        )}
+      </div>
+
+      <div className="row m-0 p-2 justify-content-center">
+      <div className={`col-3 formcontent`}>
+          <button className="submitbtn" onClick={() => setonsubmit(true)}>
+            Submit
+          </button>
+          <button className="cancelbtn" onClick={() => navigate(-1)}>
+            Cancel
+          </button>
+        </div>
       </div>
 
       {onsubmit && (
@@ -111,13 +112,6 @@ function PaymentReports({ navigate }) {
                 </tr>
               </tbody>
             </table>
-          </div>
-          <div className="row m-0 p-3 justify-content-center">
-            <div className="col-2">
-              <button className="cancelbtn" onClick={() => setonsubmit(false)}>
-                back
-              </button>
-            </div>
           </div>
         </div>
       )}

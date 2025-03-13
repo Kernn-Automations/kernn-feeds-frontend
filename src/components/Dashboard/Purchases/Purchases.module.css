@@ -17,7 +17,7 @@
 .longform select {
   width: 150px;
   height: 27px;
-  padding-left: 10px;
+  padding-left: 4px;
   border-radius: 4px;
   /* background-color: #d9d9d9; */
   border: 1px solid #d9d9d9;
@@ -34,7 +34,7 @@
 .tableform select {
   width: 100%;
   height: 25px;
-  padding-left: 10px;
+  padding-left: 4px;
   border-radius: 4px;
   /* background-color: #d9d9d9; */
   border: 1px solid #d9d9d9;
@@ -42,6 +42,11 @@
 }
 .tableform{
   max-width: 200px !important;
+}
+
+.errorinput{
+  outline: 1px solid #ff2020 !important;
+  color: #ff2020 !important;
 }
 .head {
   font-weight: 600;
@@ -82,28 +87,6 @@
   border: 1px solid #bfbfbf !important;
 }
 
-.formcontent {
-  max-width: 340px !important;
-  min-width: 320px !important;
-  margin-bottom: 20px;
-}
-.formcontent label {
-    width: fit-content;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 26.82px;
-  letter-spacing: 0%;
-  text-align: right;
-  padding-right: 15px;
-}
-.formcontent input, .formcontent select{
-    width: 160px;
-    height: 32px;
-    outline: 1.5px solid #a92426;
-    padding: 2px 10px ;
-    border-radius: 16px;
-    box-shadow: 2px 2px 4px #333;
-}
 .longformmdl{
   max-width: 300px !important;
   min-width: 260px !important;
@@ -123,7 +106,7 @@
 .longformmdl select {
   width: 110px;
   height: 25px;
-  padding-left: 10px;
+  padding-left: 4px;
   border-radius: 4px;
   /* background-color: #d9d9d9; */
   border: 1px solid #d9d9d9;

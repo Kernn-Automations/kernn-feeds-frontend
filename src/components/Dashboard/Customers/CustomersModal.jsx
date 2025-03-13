@@ -76,7 +76,7 @@ function CustomersModal() {
           <input type="text" />
         </div>
       </div>
-      <div className="row m-0 p-0">
+      <div className="row m-0 p-0 pb-3">
         <h5 className={styles.headmdl}>Proofs</h5>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Aadhar :</label>
@@ -126,14 +126,33 @@ function CustomersModal() {
             </DialogContent>
           </DialogRoot>
         </div>
+        <div className={`col-4 ${styles.longformmdl}`}>
+        <label htmlFor="">Photo :</label>
+          <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
+            <DialogTrigger asChild>
+              <img src={img} alt="" className={styles.imagemd} />
+            </DialogTrigger>
+            <DialogContent className="mdl">
+              <DialogBody>
+                <h3 className={`px-3 mdl-title`}>Photo</h3>
+                <div className="row m-0 p-0 justify-content-center">
+                  <div className={`col-9 `}>
+                    <img src={img} alt="aadhar" className={styles} />
+                  </div>
+                </div>
+              </DialogBody>
+              <DialogCloseTrigger className="inputcolumn-mdl-close" />
+            </DialogContent>
+          </DialogRoot>
+        </div>
       </div>
-      <div className="row m-0 p-3 pt-4 justify-content-center">
+      {/* <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
           <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
           </DialogActionTrigger>
         </div>
-      </div>
+      </div> */}
     </>
   );
 }

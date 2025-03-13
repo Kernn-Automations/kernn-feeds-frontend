@@ -12,7 +12,7 @@ function CustomerList({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -21,7 +21,7 @@ function CustomerList({ navigate }) {
             <option value="">Warehouse 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Sales Executive :</label>
           <select name="" id="">
             <option value="">--select--</option>

@@ -93,9 +93,10 @@ function OrdersModal() {
       </div>
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
-          <DialogActionTrigger asChild>
+        <button className="submitbtn">Download</button>
+          {/* <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
-          </DialogActionTrigger>
+          </DialogActionTrigger> */}
         </div>
       </div>
     </>

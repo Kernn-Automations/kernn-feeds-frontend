@@ -15,7 +15,13 @@ function ProductHome({ navigate }) {
             className="homebtn"
             onClick={() => navigate("/products/modify")}
           >
-            Modify
+            Ongoing
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/products/pricing-list")}
+          >
+            Pricing List
           </button>
         </div>
       </div>

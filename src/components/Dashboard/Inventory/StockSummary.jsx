@@ -11,12 +11,12 @@ function StockSummary({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Date :</label>
           <input type="date" />
         </div>
 
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -25,7 +25,7 @@ function StockSummary({ navigate }) {
             <option value="">Warehouse 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -34,10 +34,7 @@ function StockSummary({ navigate }) {
             <option value="">Product 3</option>
           </select>
         </div>
-      </div>
-      {!onsubmit && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-4">
+        <div className="col-3 formcontent">
             <button className="submitbtn" onClick={() => setonsubmit(true)}>
               Submit
             </button>
@@ -45,8 +42,12 @@ function StockSummary({ navigate }) {
               Cancel
             </button>
           </div>
+      </div>
+     
+        <div className="row m-0 p-3 justify-content-center">
+          
         </div>
-      )}
+      
       {onsubmit && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-8">
@@ -84,13 +85,7 @@ function StockSummary({ navigate }) {
               </tbody>
             </table>
           </div>
-          <div className="row m-0 p-3 justify-content-center">
-            <div className="col-2">
-              <button className="cancelbtn" onClick={() => setonsubmit(false)}>
-                back
-              </button>
-            </div>
-          </div>
+          
         </div>
       )}
     </>

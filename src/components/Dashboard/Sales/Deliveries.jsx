@@ -12,15 +12,15 @@ function Deliveries({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">To :</label>
           <input type="date" />
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -29,7 +29,7 @@ function Deliveries({ navigate }) {
             <option value="">Warehouse 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -38,7 +38,7 @@ function Deliveries({ navigate }) {
             <option value="">Product 3</option>
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Customer :</label>
           <select name="" id="">
             <option value="">--select--</option>
@@ -47,8 +47,8 @@ function Deliveries({ navigate }) {
             <option value="">Customer 3</option>
           </select>
         </div>
-        {!onsubmit && (
-          <div className={`col-3 ${styles.formcontent}`}>
+     
+          <div className={`col-3 formcontent`}>
             <button className="submitbtn" onClick={() => setonsubmit(true)}>
               Submit
             </button>
@@ -56,7 +56,7 @@ function Deliveries({ navigate }) {
               Cancel
             </button>
           </div>
-        )}
+        
       </div>
 
       {onsubmit && (
@@ -103,13 +103,7 @@ function Deliveries({ navigate }) {
               </tbody>
             </table>
           </div>
-          <div className="row m-0 p-3 justify-content-center">
-            <div className="col-2">
-              <button className="cancelbtn" onClick={() => setonsubmit(false)}>
-                back
-              </button>
-            </div>
-          </div>
+          
         </div>
       )}
     </>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styles from "./Products.module.css";
 import ModifyProductForm from "./ModifyProductForm";
+import SelectMode from "./SelectMode";
 
 function ModifyProduct({ navigate }) {
     const [viewclick, setViewclick] = useState();
@@ -25,6 +26,7 @@ function ModifyProduct({ navigate }) {
                     <th>Created By</th>
                     <th>Product ID</th>
                     <th>Product Name</th>
+                    <th>Enable/Disable</th>
                     <th>Action</th>
                     </tr>
                 </thead>
@@ -35,6 +37,7 @@ function ModifyProduct({ navigate }) {
                         <td>Karthik</td>
                         <td>#23432</td>
                         <td>Product 1</td>
+                        <td className={styles.selectmode}><SelectMode val={"enable"}/></td>
                         <td><button onClick={onViewClick}>view</button></td>
                     </tr>
                     <tr>
@@ -43,6 +46,7 @@ function ModifyProduct({ navigate }) {
                         <td>Karthik</td>
                         <td>#23444</td>
                         <td>Product 2</td>
+                        <td className={styles.selectmode}><SelectMode val={"disable"}/></td>
                         <td><button onClick={onViewClick}>view</button></td>
                     </tr>
                 </tbody>

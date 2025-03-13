@@ -64,3 +64,36 @@
   color: white;
   background-color: #fd3b3b;
 }
+.lant{
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 14.82px;
+  letter-spacing: 0%;
+  text-align: left; 
+  margin-bottom: 15px;
+}
+.lant span{
+  color: #a92726;
+  padding-right: 10px;
+}
+
+.selectmode select{
+  width: 100px;
+  border-radius: 3px;
+  color: white;
+  /* padding-right: 10px; */
+}
+.selectmode select option{
+  background-color: white;
+  color: black;
+}
+.selectmode select:focus{
+  outline: none;
+}
+
+.enable{
+  background-color: #2fa924;
+}
+.disable{
+  background-color: #ff2727;
+}

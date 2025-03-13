@@ -71,7 +71,7 @@ const SearchBar = () => {
   };
 
   return (
-    <div className={`col ${styles.searchbar}`}>
+    <div className={`col-8 ${styles.searchbar}`}>
       <input
         type="text"
         placeholder="Search..."

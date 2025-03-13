@@ -1,16 +1,24 @@
-import React from 'react'
+import React from "react";
 import styles from "./Customer.module.css";
-import KYCViewModal from './KYCViewModal';
+import KYCViewModal from "./KYCViewModal";
+import { IoSearch } from "react-icons/io5";
 
-function KYCApproval({navigate}) {
+function KYCApproval({ navigate }) {
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/customers")}>Customers</span>{" "}
         <i class="bi bi-chevron-right"></i> KYC-Approvals
       </p>
-
-      <div className="row m-0 p-3 pt-5 justify-content-center">
+      <div className="row m-0 p-3 pt-5 justify-content-end">
+        <div className={`col-4 ${styles.search}`}>
+          <input type="text" placeholder="Search..." />
+          <span className={styles.searchicon}>
+            <IoSearch />
+          </span>
+        </div>
+      </div>
+      <div className="row m-0 p-3 justify-content-center">
         <div className="col-10">
           <table className={`table table-bordered borderedtable`}>
             <thead>
@@ -32,7 +40,9 @@ function KYCApproval({navigate}) {
                 <td>SE 1</td>
                 <td>2233</td>
                 <td>Warehouse 1</td>
-                <td><KYCViewModal/></td>
+                <td>
+                  <KYCViewModal />
+                </td>
               </tr>
               <tr>
                 <td>2</td>
@@ -41,14 +51,16 @@ function KYCApproval({navigate}) {
                 <td>SE 2</td>
                 <td>2234</td>
                 <td>Warehouse 2</td>
-                <td><KYCViewModal/></td>
+                <td>
+                  <KYCViewModal />
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </>
-  )
+  );
 }
 
-export default KYCApproval
+export default KYCApproval;

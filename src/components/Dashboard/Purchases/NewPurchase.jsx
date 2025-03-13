@@ -3,37 +3,43 @@ import styles from "./Purchases.module.css";
 
 function NewPurchase({ navigate }) {
   const [products, setProducts] = useState([]);
-  const [pid, setPid] = useState(null);
-  const [pname, setPname] = useState(null);
-  const [units, setUnits] = useState(null);
-  const [qty, setQty] = useState(null);
-  const [amount, setAmount] = useState(null);
+  const [pid, setPid] = useState("");
+  const [pname, setPname] = useState("");
+  const [units, setUnits] = useState("");
+  const [qty, setQty] = useState("");
+  const [amount, setAmount] = useState("");
+  const [errors, setErrors] = useState({});
+
+
+  const handleInputChange = (setter, field) => (e) => {
+    setter(e.target.value);
+    setErrors((prev) => ({ ...prev, [field]: false }));
+  };
 
   const onSaveClick = (e) => {
     e.preventDefault();
-    if (!pid || !pname || !units || !qty || !amount) {
-      alert("Please fill all fields before adding a product!");
-      return;
-    }
+
+    const newErrors = {};
+    if (!pid) newErrors.pid = true;
+    if (!pname) newErrors.pname = true;
+    if (!units) newErrors.units = true;
+    if (!qty) newErrors.qty = true;
+    if (!amount) newErrors.amount = true;
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     setProducts((prevProducts) => [
       ...prevProducts,
-      {
-        id: prevProducts.length + 1,
-        pid: pid,
-        pname: pname,
-        units: units,
-        qty: qty,
-        amount: amount,
-      },
+      { id: prevProducts.length + 1, pid, pname, units, qty, amount },
     ]);
 
-    // Reset input fields
-    setPid(null);
-    setPname(null);
-    setUnits(null);
-    setQty(null);
-    setAmount(null);
+    setPid("");
+    setPname("");
+    setUnits("");
+    setQty("");
+    setAmount("");
+    setErrors({});
   };
 
   const onDeleteClick = (id) => {
@@ -72,10 +78,6 @@ function NewPurchase({ navigate }) {
             <option value="">Warehouse 2</option>
             <option value="">Warehouse 3</option>
           </select>
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Purchase ID :</label>
-          <input type="text" />
         </div>
       </div>
 
@@ -158,8 +160,9 @@ function NewPurchase({ navigate }) {
                   <select
                     name=""
                     id=""
-                    onChange={(e) => setPid(e.target.value)}
+                    onChange={handleInputChange(setPid, "pid")}
                     value={pid}
+                    className={errors.pid ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
                     <option value="123">#123</option>
@@ -171,8 +174,9 @@ function NewPurchase({ navigate }) {
                   <select
                     name=""
                     id=""
-                    onChange={(e) => setPname(e.target.value)}
+                    onChange={handleInputChange(setPname, "pname")}
                     value={pname}
+                    className={errors.pname ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
                     <option value="product-1">product-1</option>
@@ -184,8 +188,9 @@ function NewPurchase({ navigate }) {
                   <select
                     name=""
                     id=""
-                    onChange={(e) => setUnits(e.target.value)}
+                    onChange={handleInputChange(setUnits, "units")}
                     value={units}
+                    className={errors.units ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
                     <option value="1">1</option>
@@ -197,16 +202,20 @@ function NewPurchase({ navigate }) {
                   <input
                     type="text"
                     required
-                    onChange={(e) => setQty(e.target.value)}
+                    placeholder="Enter Quantity"
+                    onChange={handleInputChange(setQty, "qty")}
                     value={qty}
+                    className={errors.qty ? styles.errorinput : ""}
                   />
                 </td>
                 <td>
                   <input
                     type="text"
                     required
-                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Enter Amount"
+                    onChange={handleInputChange(setAmount, "amount")}
                     value={amount}
+                    className={errors.amount ? styles.errorinput : ""}
                   />
                 </td>
               </tr>

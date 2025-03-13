@@ -13,8 +13,14 @@ import { Box, Typography, Button } from "@mui/material";
 import SearchBox from "./SearchBox";
 import {
   DialogActionTrigger,
+  DialogBody,
   DialogCloseTrigger,
+  DialogContent,
+  DialogRoot,
 } from "@/components/ui/dialog";
+
+import styles from "./Warehouse.module.css";
+import { DialogTrigger } from "@chakra-ui/react";
 
 const containerStyle = {
   width: "100%",
@@ -102,18 +108,42 @@ const GoogleMapLocator = () => {
 
       <div className="row m-0 pt-3 pb-1 justify-content-center">
         <div className="col-2">
-          <DialogActionTrigger>
-            <button
-              className="submitbtn"
-              onClick={() => {
-                confirm(
-                  `confirm your location : \nAddress - ${selectedAddress}`
-                );
-              }}
-            >
-              Confirm
-            </button>
-          </DialogActionTrigger>
+          <DialogRoot placement={"center"} className={styles.mdl}>
+            <DialogTrigger asChild>
+              <button className="submitbtn">Confirm</button>
+            </DialogTrigger>
+            <DialogContent className="mdl">
+              <DialogBody>
+                <h4>Confirm Location</h4>
+                <div className="row m-0 p-3 justify-content-center">
+                  <div className="col-12">
+                    <p className={styles.lant}>
+                      <span>Latitude : </span>
+                      {selectedPosition.lat}
+                    </p>
+                    <p className={styles.lant}>
+                      <span>Longitude : </span>
+                      {selectedPosition.lng}
+                    </p>
+                    <p className={styles.lant}>
+                      <span>Address : </span>
+                      {selectedAddress}
+                    </p>
+                  </div>
+                </div>
+                <div className="row m-0 p-3 justify-content-center">
+                  <div className="col-7">
+                    <button className="submitbtn">Confirm</button>
+                    <DialogActionTrigger>
+                      <button className="cancelbtn">Cancel</button>
+                    </DialogActionTrigger>
+                  </div>
+                </div>
+
+                <DialogCloseTrigger className="inputcolumn-mdl-close" />
+              </DialogBody>
+            </DialogContent>
+          </DialogRoot>
         </div>
       </div>
     </div>
