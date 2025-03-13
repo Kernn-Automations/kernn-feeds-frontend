@@ -15,11 +15,12 @@
 .formcontent input,
 .formcontent select {
   width: 160px;
-  height: 30px;
+  height: 32px;
   outline: 1.5px solid #a92426;
   padding: 2px 10px;
-  border-radius: 15px;
-  box-shadow: 1px 1px 3px #333;
+  border-radius: 16px;
+  box-shadow: 2px 2px 4px #333;
+  font-weight: 500;
 }
 
 .search {

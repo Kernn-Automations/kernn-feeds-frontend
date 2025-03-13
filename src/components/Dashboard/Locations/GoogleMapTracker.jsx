@@ -4,7 +4,7 @@ import { GoogleMap, MarkerF } from "@react-google-maps/api";
 function GoogleMapTracker() {
     const containerStyle = {
         width: "100%",
-        height: "400px",
+        height: "500px",
       };
       
       const center = {

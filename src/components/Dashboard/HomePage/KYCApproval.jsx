@@ -1,10 +1,12 @@
 import React from "react";
 import styles from "./HomePage.module.css";
+import { useNavigate } from "react-router-dom";
 
 function KYCApproval() {
+  const navigate = useNavigate();
   return (
     <>
-      <div className={`col-6 ${styles.smallbox}`}>
+      <div className={`col-6 ${styles.smallbox}`} onClick={() => navigate("/customers/kyc-approvals")}>
       <h4>KYC Approvals</h4>
       <div className={styles.kyccontent}>
         <div>

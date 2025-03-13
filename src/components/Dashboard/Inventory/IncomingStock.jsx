@@ -51,7 +51,7 @@ function IncomingStock({ navigate }) {
       )}
       {onsubmit && (
         <div className="row m-0 p-3 justify-content-center">
-          <div className="col-8">
+          <div className="col-lg-8">
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr>

@@ -16,7 +16,7 @@ function ModifyProduct({ navigate }) {
 
 
       {!viewclick && <div className="row m-0 p-3 pt-5 justify-content-center">
-        <div className="col-9">
+        <div className="col-lg-9">
             <table className='table table-bordered borderedtable'>
                 <thead>
                     <tr>

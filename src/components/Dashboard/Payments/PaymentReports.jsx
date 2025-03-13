@@ -70,7 +70,7 @@ function PaymentReports({ navigate }) {
 
       {onsubmit && (
         <div className="row m-0 p-3 justify-content-center">
-          <div className="col-10">
+          <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr>

@@ -13,7 +13,7 @@ function LocationViewModal() {
     <>
       
 
-      <DialogRoot placement={"center"} size={"lg"}>
+      <DialogRoot placement={"center"} size={"xl"}>
         <DialogTrigger asChild>
           <button>View</button>
         </DialogTrigger>

@@ -11,7 +11,7 @@ function PaymentApprovals({navigate}) {
       </p>
 
       <div className="row m-0 p-3 pt-5 justify-content-center">
-        <div className="col-10">
+        <div className="col-lg-10">
         <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr>
