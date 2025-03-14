@@ -64,17 +64,22 @@ function AddProduct({ navigate }) {
   const [selectedSide, setSelectedSide] = useState("");
   const fileInputRef = useRef(null);
 
-  const handleButtonClick = () => fileInputRef.current.click();
+  const handleButtonClick = (side) => {
+    setSelectedSide(side);
+    fileInputRef.current.click();
+  };
 
   const handleImageChange = (e) => {
-    console.log(e)
+    console.log(e);
     const file = e.target.files[0];
     if (file) {
       const imageURL = URL.createObjectURL(file);
       setNewImage(imageURL);
-      if(e.target.className === "Front" || e.target.className === "Back"){
-        setImages((prev) => ({ ...prev, [e.target.className]: imageURL }));
-        
+      if (selectedSide === "Front" || selectedSide === "Back") {
+        console.log("if called");
+        setImages((prev) => ({ ...prev, [selectedSide]: imageURL }));
+        setNewImage(null);
+        setSelectedSide("");
       }
     }
   };
@@ -85,6 +90,14 @@ function AddProduct({ navigate }) {
       setNewImage(null);
       setSelectedSide("");
     }
+  };
+
+  const onDeleteClick = (side) => {
+    setImages((prevImages) => {
+      const updatedImages = { ...prevImages };
+      delete updatedImages[side]; // Remove the key properly
+      return updatedImages; // Return a new object to trigger re-render
+    });
   };
   return (
     <>
@@ -139,54 +152,81 @@ function AddProduct({ navigate }) {
                 style={{ display: "none" }}
                 accept="image/png, image/gif, image/jpeg"
                 onChange={(e) => handleImageChange(e)}
-                className={side}
               />
-              <button onClick={handleButtonClick}>
+              <button
+                className={styles.uploadbutton}
+                onClick={() => handleButtonClick(side)}
+              >
                 {images[side] ? (
                   <img src={images[side]} alt={`${side} Side`} />
                 ) : (
-                  <p><RiAddLargeLine /></p>
+                  <p>
+                    <RiAddLargeLine />
+                  </p>
                 )}
               </button>
+              {Object.keys(images).length > 2 && side !== "Front" && (
+                <button
+                  className={styles.deletebtn}
+                  onClick={() => onDeleteClick(side)}
+                >
+                  <i class="bi bi-trash3"></i>
+                </button>
+              )}
             </div>
             <p className={styles.imglabel}>{side} Side</p>
           </div>
         ))}
 
         <div className="col-3">
-          <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
+          <DialogRoot placement={"center"} className={styles.mdl}>
             <DialogTrigger asChild>
               <button className="submitbtn">Add Another</button>
             </DialogTrigger>
             <DialogContent className="mdl">
               <DialogBody>
                 <h4>Select Image Side</h4>
-                <div className={`col-3 ${styles.upload}`}>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    accept="image/png, image/gif, image/jpeg"
-                    onChange={handleImageChange}
-                  />
-                  <button onClick={handleButtonClick}>
-                    {newImage ? (
-                      <img src={newImage} alt={`${selectedSide} Side`} />
-                    ) : (
-                      <p><RiAddLargeLine /></p>
-                    )}
-                  </button>
+                <div className="row m-0 p-3 justify-content-center">
+                  <div className={`col-3 ${styles.upload}`}>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      style={{ display: "none" }}
+                      accept="image/png, image/gif, image/jpeg"
+                      onChange={handleImageChange}
+                    />
+                    <button
+                      className={styles.uploadbutton}
+                      onClick={handleButtonClick}
+                    >
+                      {newImage ? (
+                        <img src={newImage} alt={`${selectedSide} Side`} />
+                      ) : (
+                        <p>
+                          <RiAddLargeLine />
+                        </p>
+                      )}
+                    </button>
+                    <select
+                      value={selectedSide}
+                      onChange={(e) => setSelectedSide(e.target.value)}
+                      className={styles.selectside}
+                    >
+                      <option value="">-- Select Side --</option>
+                      {SIDES.filter((side) => !images[side]).map((side) => (
+                        <option key={side} value={side}>
+                          {side}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <select
-                  value={selectedSide}
-                  onChange={(e) => setSelectedSide(e.target.value)}
-                >
-                  <option value="">-- Select Side --</option>
-                  {SIDES.filter((side) => !images[side]).map((side) => (
-                    <option key={side} value={side}>{side}</option>
-                  ))}
-                </select>
-                <button onClick={handleSaveImage}>Save</button>
+                <div className="row m-0 p-1 justify-content-center">
+                  <div className="col-3">
+                  <button onClick={handleSaveImage} className='submitbtn'>Save</button>
+                  </div>
+                </div>
+
                 <DialogCloseTrigger className="inputcolumn-mdl-close" />
               </DialogBody>
             </DialogContent>

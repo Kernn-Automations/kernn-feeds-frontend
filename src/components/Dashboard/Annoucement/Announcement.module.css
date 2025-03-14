@@ -1,0 +1,118 @@
+.longform {
+  max-width: 350px !important;
+  min-width: fit-content !important;
+  margin-bottom: 20px;
+}
+.longform label,
+.shortform label {
+  max-width: 150px;
+  min-width: fit-content;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 26.82px;
+  letter-spacing: 0%;
+  padding-right: 15px;
+  color: #a92726;
+}
+.longform input,
+.longform select,
+.multiselect {
+  width: 150px;
+  height: 27px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+}
+.longform span {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 16.26px;
+  letter-spacing: 1.5%;
+}
+.longform textarea,
+.shortform textarea {
+  box-shadow: 1px 1px 3px black;
+  border-radius: 4px;
+  padding-left: 4px;
+}
+.shortform {
+  max-width: 120px !important;
+  min-width: fit-content !important;
+  padding-right: 0;
+}
+.shortform label {
+  max-width: 150px !important;
+  min-width: fit-content;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 26.82px;
+  letter-spacing: 0%;
+  padding-right: 15px;
+  color: #a92726;
+}
+
+.upload {
+  max-width: 200px !important;
+  min-width: 180px !important;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.upload button {
+  width: 150px;
+  height: 100px;
+  background-color: transparent;
+  border: 2px solid #555;
+  border-radius: 4px;
+  font-size: 30px;
+  text-align: center;
+  overflow: hidden;
+}
+.upload p {
+  padding-left: 55px;
+  margin: 0;
+}
+
+.imglabel {
+  width: 150px;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 26.82px;
+  letter-spacing: 0%;
+  text-align: center;
+  color: #a92726;
+  padding: 0 !important;
+}
+.upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.selectside {
+  width: 150px;
+  height: 27px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 26.82px;
+  margin: 15px auto;
+}
+
+.selectopt {
+  width: 15px !important;
+  height: 15px !important;
+  margin-right: 10px;
+}
+.multiselect label {
+  text-align: left !important;
+  margin-left: 10px;
+}
+.multiselect{
+    overflow: auto;
+}

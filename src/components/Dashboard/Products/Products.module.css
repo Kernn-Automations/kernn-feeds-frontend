@@ -18,7 +18,7 @@
 .longform select {
   width: 150px;
   height: 27px;
-  padding-left: 10px;
+  padding-left: 4px;
   border-radius: 4px;
   /* background-color: #d9d9d9; */
   border: 1px solid #d9d9d9;
@@ -59,9 +59,10 @@
   max-width: 200px !important;
   min-width: 180px !important;
   margin-bottom: 20px;
+  position: relative;
 }
 
-.upload button {
+.uploadbutton {
   width: 150px;
   height: 100px;
   background-color: transparent;
@@ -74,6 +75,19 @@
 .upload p {
   padding-left: 55px;
   margin: 0;
+}
+
+.deletebtn {
+  position: absolute;
+  top: -8px;
+  right: 23px;
+  font-size: 13px;
+  width: fit-content;
+  padding: 2px 4px;
+  border-radius: 0.5px solid gray;
+  background-color: #ff2727;
+  color: white;
+  border-radius: 4px;
 }
 .imglabel {
   width: 150px;
@@ -90,6 +104,19 @@
   height: 100%;
   object-fit: contain;
 }
+.selectside {
+  width: 150px;
+  height: 27px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 26.82px;
+  margin: 15px auto;
+}
 
 .delsec {
   width: 90% !important;
@@ -104,25 +131,66 @@
   color: #a92427;
 }
 
-
-.selectmode select{
+.selectmode select {
   width: 100px;
   border-radius: 3px;
   color: white;
   /* padding-right: 10px; */
 }
-.selectmode select option{
+.selectmode select option {
   background-color: white;
   color: black;
 }
-.selectmode select:focus{
+.selectmode select:focus {
   outline: none;
 }
 
-.enable{
+.enable {
   background-color: #2fa924;
 }
-.disable{
+.disable {
   background-color: #ff2727;
 }
 
+.leavesfield {
+  max-width: 1000px !important;
+}
+.leavesfield input,
+.leavesfield select,
+.leavesfield label {
+  width: 160px;
+  margin-right: 20px;
+  padding-left: 4px;
+}
+
+.leavesfield input,
+.leavesfield select {
+  height: 30px;
+  border: none;
+  border-radius: 3px;
+  box-shadow: 1px 1px 4px black;
+  border: 1px solid #a92427;
+  border-radius: 5px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.leavesfield label {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 24.38px;
+  letter-spacing: 0.015em;
+  color: #a92427;
+}
+
+.switch {
+  width: 60px !important;
+}
+.bin {
+  padding-left: 15px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.bin:hover {
+  color: #fd3b3b;
+}
