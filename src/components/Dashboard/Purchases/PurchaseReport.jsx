@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import styles from "./Purchases.module.css";
 import ReportViewModal from "./ReportViewModal";
+import xls from "./../../../images/xls-png.png"
+import pdf from "./../../../images/pdf-png.png"
 
 function PurchaseReport({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
@@ -41,6 +43,16 @@ function PurchaseReport({ navigate }) {
 
       {onsubmit && (
         <div className="row m-0 p-3 justify-content-center">
+          <div className="col-lg-8">
+            <button className={styles.xls}>
+              <p>Export to </p>
+              <img src={xls} alt="" />
+            </button>
+            <button className={styles.xls}>
+              <p>Export to </p>
+              <img src={pdf} alt="" />
+            </button>
+          </div>
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
