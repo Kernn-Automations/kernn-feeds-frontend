@@ -54,34 +54,37 @@
 }
 
 .upload {
-  max-width: 200px !important;
-  min-width: 180px !important;
+  max-width: 350px !important;
+  min-width: fit-content !important;
   margin-bottom: 20px;
   position: relative;
+  display: flex;
+  gap: 10px;
 }
 
 .upload button {
   width: 150px;
-  height: 100px;
+  height: 27px;
   background-color: transparent;
-  border: 2px solid #555;
+  border: 1px solid #555;
   border-radius: 4px;
-  font-size: 30px;
+  font-size: 16px;
   text-align: center;
   overflow: hidden;
 }
 .upload p {
-  padding-left: 55px;
+  text-align: center;
   margin: 0;
 }
 
 .imglabel {
-  width: 150px;
+  width: 120px;
   font-weight: 600;
   font-size: 16px;
   line-height: 26.82px;
   letter-spacing: 0%;
-  text-align: center;
+  text-align: left;
+  float: left;
   color: #a92726;
   padding: 0 !important;
 }
@@ -115,4 +118,8 @@
 }
 .multiselect{
     overflow: auto;
+}
+
+.heading{
+    padding: 20px;
 }

@@ -194,3 +194,7 @@
 .bin:hover {
   color: #fd3b3b;
 }
+.errorinput{
+  outline: 1px solid #ff2020 !important;
+  color: #ff2020 !important;
+}

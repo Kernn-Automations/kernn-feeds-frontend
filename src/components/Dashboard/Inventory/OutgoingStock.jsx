@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import styles from "./Inventory.module.css";
+import xls from "./../../../images/xls-png.png";
+import pdf from "./../../../images/pdf-png.png";
 
 function OutgoingStock({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
@@ -38,21 +40,32 @@ function OutgoingStock({ navigate }) {
           </select>
         </div>
       </div>
-   
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-4">
-            <button className="submitbtn" onClick={() => setonsubmit(true)}>
-              Submit
-            </button>
-            <button className="cancelbtn" onClick={() => navigate("/inventory")}>
-              Cancel
-            </button>
-          </div>
+
+      <div className="row m-0 p-3 justify-content-center">
+        <div className="col-4">
+          <button className="submitbtn" onClick={() => setonsubmit(true)}>
+            Submit
+          </button>
+          <button className="cancelbtn" onClick={() => navigate("/inventory")}>
+            Cancel
+          </button>
         </div>
-    
+      </div>
+
       {onsubmit && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-lg-10">
+              <button className={styles.xls}>
+                <p>Export to </p>
+                <img src={xls} alt="" />
+              </button>
+              <button className={styles.xls}>
+                <p>Export to </p>
+                <img src={pdf} alt="" />
+              </button>
+            </div>
+          <div className="col-lg-10">
+            
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr>
@@ -82,7 +95,7 @@ function OutgoingStock({ navigate }) {
                   <td>2000</td>
                 </tr>
                 <tr>
-                <td>2</td>
+                  <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
                   <td>4420</td>
@@ -96,7 +109,6 @@ function OutgoingStock({ navigate }) {
               </tbody>
             </table>
           </div>
-          
         </div>
       )}
     </>

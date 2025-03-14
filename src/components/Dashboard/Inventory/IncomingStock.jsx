@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import styles from "./Inventory.module.css";
+import xls from "./../../../images/xls-png.png"
+import pdf from "./../../../images/pdf-png.png"
 function IncomingStock({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
   return (
@@ -49,7 +51,12 @@ function IncomingStock({ navigate }) {
         </div>
     
       {onsubmit && (
+        
         <div className="row m-0 p-3 justify-content-center">
+          <div className="col-lg-8">
+            <button className={styles.xls}><p>Export to </p><img src={xls} alt="" /></button>
+            <button className={styles.xls}><p>Export to </p><img src={pdf} alt="" /></button>
+          </div>
           <div className="col-lg-8">
             <table className={`table table-bordered borderedtable`}>
               <thead>
