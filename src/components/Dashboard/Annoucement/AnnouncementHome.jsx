@@ -1,6 +1,5 @@
 import React, { useRef, useState } from "react";
 import styles from "./Announcement.module.css";
-import { RiAddLargeLine } from "react-icons/ri";
 
 function AnnouncementHome() {
   const fileInputRef = useRef(null);

@@ -140,12 +140,15 @@
 .xls{
   width: 150px;
   height: 40px;
-  border: 1px solid #a92426;
   padding-left: 30px;
   border-radius: 6px;
   margin-right: 15px;
   margin-bottom: 20px;
-  box-shadow: 1px 1px 3px black;
+  /* box-shadow: 1px 1px 3px black; */
+  color: #555;
+}
+.xls:hover{
+  outline: 1px solid #555;
 }
 .xls p{
   float: left;

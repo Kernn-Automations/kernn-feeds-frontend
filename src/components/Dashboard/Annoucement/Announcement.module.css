@@ -1,21 +1,37 @@
 .longform {
-  max-width: 350px !important;
-  min-width: fit-content !important;
+  max-width: 400px !important;
+  min-width: 370px !important;
   margin-bottom: 20px;
 }
-.longform label,
-.shortform label {
-  max-width: 150px;
-  min-width: fit-content;
+.longform label {
+  width: 160px;
   font-weight: 600;
   font-size: 16px;
   line-height: 26.82px;
   letter-spacing: 0%;
+  text-align: right;
   padding-right: 15px;
   color: #a92726;
 }
 .longform input,
-.longform select,
+.longform select {
+  width: 180px;
+  height: 27px;
+  padding-left: 10px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+}
+.longform span {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 16.26px;
+  letter-spacing: 1.5%;
+}
+.btnscol {
+  width: 230px !important;
+}
 .multiselect {
   width: 150px;
   height: 27px;
@@ -116,10 +132,11 @@
   text-align: left !important;
   margin-left: 10px;
 }
-.multiselect{
-    overflow: auto;
+.multiselect {
+  overflow: auto;
 }
 
-.heading{
-    padding: 20px;
+.heading {
+  padding: 20px;
+  color: #555;
 }

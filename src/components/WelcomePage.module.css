@@ -6,9 +6,10 @@
   padding: 0 !important;
 }
 .img {
-  min-width: 150px;
+  min-width: 350px;
   max-width: 200px;
   justify-self: center;
+  margin-bottom: 30px;
 }
 .wel {
   font-family: Montserrat;
