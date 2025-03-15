@@ -6,9 +6,6 @@ function Header() {
       <div className={` ${styles.logocol}`}>
         <img className={styles.logo} src={bglogo} alt="logo-bg" />
       </div>
-      <div className={styles.wel}>
-        <h1>Welcome !</h1>
-      </div>
     </>
   );
 }

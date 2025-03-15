@@ -17,7 +17,7 @@
   letter-spacing: 0.015em;
   text-align: center;
   color: #a92427;
-  /* margin-bottom: 30px; */
+  margin-bottom: 30px;
 }
 .cont {
   height: 100vh !important;
@@ -121,7 +121,7 @@
 
 .inputbox{
   width: 400px;
-  height: auto;
+  min-height: 400px;
 }
 .logincontainer{
   width: 100%;

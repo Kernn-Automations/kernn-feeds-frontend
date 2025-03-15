@@ -1,9 +1,59 @@
 import React, { useState } from "react";
 import styles from "./Inventory.module.css";
-import xls from "./../../../images/xls-png.png"
-import pdf from "./../../../images/pdf-png.png"
+import xls from "./../../../images/xls-png.png";
+import pdf from "./../../../images/pdf-png.png";
+import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 function IncomingStock({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
+
+  const tableData = [
+    [
+      "S.No",
+      "Date",
+      "PO ID",
+      "Warehouse ID",
+      "Product ID",
+      "Quantity",
+      "Amount",
+    ],
+    ["1", "2025-02-28", "KM20", "3423", "#4545", "3", "2000"],
+    ["2", "2025-02-28", "KM20", "3423", "#4545", "3", "2000"],
+  ];
+
+  // Function to export as Excel
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.aoa_to_sheet(tableData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const excelFile = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(excelFile, "table_data.xlsx");
+  };
+
+  // Function to export as PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    autoTable(doc, {
+      headStyles: {
+        fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
+        textColor: [255, 255, 255], // White text
+        fontStyle: "bold",
+      },
+      // Use autoTable(doc, {}) instead of doc.autoTable({})
+      head: [tableData[0]], // Table Header
+      body: tableData.slice(1), // Table Data
+    });
+    doc.save("table_data.pdf");
+  };
+
   return (
     <>
       <p className="path">
@@ -39,23 +89,28 @@ function IncomingStock({ navigate }) {
           </select>
         </div>
       </div>
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-4">
-            <button className="submitbtn" onClick={() => setonsubmit(true)}>
-              Submit
-            </button>
-            <button className="cancelbtn" onClick={() => navigate("/inventory")}>
-              Cancel
-            </button>
-          </div>
+      <div className="row m-0 p-3 justify-content-center">
+        <div className="col-4">
+          <button className="submitbtn" onClick={() => setonsubmit(true)}>
+            Submit
+          </button>
+          <button className="cancelbtn" onClick={() => navigate("/inventory")}>
+            Cancel
+          </button>
         </div>
-    
+      </div>
+
       {onsubmit && (
-        
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-lg-8">
-            <button className={styles.xls}><p>Export to </p><img src={xls} alt="" /></button>
-            <button className={styles.xls}><p>Export to </p><img src={pdf} alt="" /></button>
+            <button className={styles.xls} onClick={exportToExcel}>
+              <p>Export to </p>
+              <img src={xls} alt="" />
+            </button>
+            <button className={styles.xls} onClick={exportToPDF}>
+              <p>Export to </p>
+              <img src={pdf} alt="" />
+            </button>
           </div>
           <div className="col-lg-8">
             <table className={`table table-bordered borderedtable`}>
@@ -81,7 +136,7 @@ function IncomingStock({ navigate }) {
                   <td>2000</td>
                 </tr>
                 <tr>
-                <td>2</td>
+                  <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
                   <td>3423</td>

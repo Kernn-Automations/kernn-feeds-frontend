@@ -60,6 +60,9 @@ function Input({ setLogin, setUser }) {
   return (
     <>
       <div className={styles.inputbox}>
+        <div className={styles.wel}>
+          <h1>Welcome !</h1>
+        </div>
         <div className={`${styles.inputContainer}`}>
           <form action="" onSubmit={onSubmit}>
             <p className={styles.p}>Login to continue</p>
