@@ -3,8 +3,8 @@ function Footer() {
   return (
     <>
     
-      <div className={`row ${styles.footcontainer}`}>
-      <div className={`col ${styles.footer}`}>
+      <div className={` ${styles.footcontainer}`}>
+      <div className={` ${styles.footer}`}>
         <p className={styles.p1}>
           <a href="" className="nav-link d-inline">Terms and Conditions</a> <span className={styles.pipe}>|</span> <a href=""  className="nav-link d-inline">Privacy
           Policy </a><span className={styles.pipe}>|</span><a href=""  className="nav-link d-inline"> Refunds </a>

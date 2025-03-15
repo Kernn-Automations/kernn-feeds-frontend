@@ -9,7 +9,7 @@
   min-width: 350px;
   max-width: 200px;
   justify-self: center;
-  margin-bottom: 30px;
+  margin-bottom: 50px;
 }
 .wel {
   font-family: Montserrat;
@@ -18,6 +18,7 @@
   line-height: 29.26px;
   text-align: center;
   margin-top: 20px;
+  margin-bottom: 30px;
 }
 .wel span {
   color: #a92427;
@@ -38,6 +39,7 @@
   color: #a92427;
   box-shadow: 3px 3px 6px gray;
   transition: 0.3s ease;
+  margin-top: 20px;
 }
 .get:hover {
   background-color: #a92427;
@@ -47,3 +49,15 @@
   background-color: #76181a;
   color: white;
 }
+.welcomebox{
+  width: 350px;
+  height: 350px;
+}
+.welcomecontainer{
+  width: 100%;
+  height: 90vh;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+}
+
