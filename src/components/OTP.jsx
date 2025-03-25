@@ -10,6 +10,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -18,7 +19,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
 
     try {
       const res = await axios.post(
-        "https://kernn.azurewebsites.net/api/v1/verify_otp",
+        "https://feed-bazaar-test.azurewebsites.net/auth/verify",
         {
           mobile: email,
           otp: otp,
@@ -31,9 +32,10 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
 
       if (res.status === 200) {
         setUser({
-          accesstoken: res.data.accesstoken,
-          refresh: res.data.refresh_token,
-          user: res.data.data,
+          accesstoken: res.data.accessToken,
+          refresh: res.data.refreshToken,
+          user: {...res.data.data, roles : res.data.roles}
+          
         });
         setLogin(true);
       } else {

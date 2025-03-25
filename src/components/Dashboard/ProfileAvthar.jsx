@@ -34,7 +34,7 @@ function ProfileAvthar({ user, setTab }) {
           <button>
             <Avatar
               className={styles.avatar}
-              name={user && user.employee_name}
+              name={user && user.name}
               colorPalette="red"
             />
           </button>

@@ -35,12 +35,17 @@ function PurchaseReport({ navigate }) {
       const excelFile = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      saveAs(excelFile, "table_data.xlsx");
+      saveAs(excelFile, "purchase_report_table_data.xlsx");
     };
   
     // Function to export as PDF
     const exportToPDF = () => {
       const doc = new jsPDF();
+
+      doc.setFont("helvetica", "bold"); // Set font style
+    doc.setFontSize(16); // Set font size for title
+    doc.text("Purchase Report", 14, 10); // Title text with position (X: 14, Y: 10)
+
       autoTable(doc, {
         headStyles: {
           fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
@@ -56,7 +61,7 @@ function PurchaseReport({ navigate }) {
         head: [tableData[0]], // Table Header
         body: tableData.slice(1), // Table Data
       });
-      doc.save("table_data.pdf");
+      doc.save("purchase_report_table_data.pdf");
     };
   return (
     <>

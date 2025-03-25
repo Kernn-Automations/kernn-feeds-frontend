@@ -36,12 +36,17 @@ function Dispaches({ navigate }) {
     const excelFile = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    saveAs(excelFile, "table_data.xlsx");
+    saveAs(excelFile, "dispatches_table_data.xlsx");
   };
 
   // Function to export as PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
+
+    doc.setFont("helvetica", "bold"); // Set font style
+    doc.setFontSize(16); // Set font size for title
+    doc.text("Dispatches", 14, 10); // Title text with position (X: 14, Y: 10)
+
     autoTable(doc, {
       headStyles: {
         fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
@@ -57,13 +62,13 @@ function Dispaches({ navigate }) {
       head: [tableData[0]], // Table Header
       body: tableData.slice(1), // Table Data
     });
-    doc.save("table_data.pdf");
+    doc.save("dispatches_table_data.pdf");
   };
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/sales")}>Sales</span>{" "}
-        <i class="bi bi-chevron-right"></i> Dispaches
+        <i class="bi bi-chevron-right"></i> Dispatches
       </p>
 
       <div className="row m-0 p-3">

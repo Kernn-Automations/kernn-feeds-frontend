@@ -13,7 +13,7 @@ function SalesHome({navigate}) {
             className="homebtn"
             onClick={() => navigate("/sales/dispatches")}
           >
-            Dispaches
+            Dispatches
           </button>
           <button
             className="homebtn"

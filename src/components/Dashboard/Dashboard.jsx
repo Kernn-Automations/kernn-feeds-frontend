@@ -18,6 +18,7 @@ import WarehouseRoutes from "./Warehouses/WarehouseRoutes";
 import ProductRoutes from "./Products/ProductRoutes";
 import LocationsHome from "./Locations/LocationsHome";
 import AnnouncementHome from "./Annoucement/AnnouncementHome";
+import TicketingService from "./TicketService/TicketingService";
 
 function Dashboard({
   admin,
@@ -67,24 +68,24 @@ function Dashboard({
     setStyle("navcont");
   };
 
-  useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await axiosAPI.post("/employees/mdashboard");
-        console.log(res);
+  // useEffect(() => {
+  //   async function fetch() {
+  //     try {
+  //       const res = await axiosAPI.post("/employees/mdashboard");
+  //       console.log(res);
 
-        setLeavebalance(res.data.data.leaveBalances);
-        setNotifications(res.data.data.latestNotifications);
-        setPendingtasks(res.data.data.pendingTasks);
-        setDashboard(res.data.data);
-      } catch (e) {
-        console.log(e);
-        removeLogin();
-      }
-    }
+  //       setLeavebalance(res.data.data.leaveBalances);
+  //       setNotifications(res.data.data.latestNotifications);
+  //       setPendingtasks(res.data.data.pendingTasks);
+  //       setDashboard(res.data.data);
+  //     } catch (e) {
+  //       console.log(e);
+  //       removeLogin();
+  //     }
+  //   }
 
-    fetch();
-  }, []);
+  //   fetch();
+  // }, []);
 
   console.log(leavebalance);
   return (
@@ -119,11 +120,11 @@ function Dashboard({
                     orgadmin={orgadmin}
                   />
                 </div>
-                {dept === "procurement" && role !== "Village Agent" && (
-                  // <div className={`col ${styles.tabs}`}>
-                  //   {tab === "home" && (
-                  //     <HomePage
-                  //       user={user}
+                
+                  {/* // <div className={`col ${styles.tabs}`}>
+                  //   {tab === "home" && ( */}
+                  {/* //     <HomePage */}
+                  {/* //       user={user}
                   //       leavebalance={leavebalance}
                   //       pendingtasks={pendingtasks}
                   //     />
@@ -141,7 +142,7 @@ function Dashboard({
                   //   {tab === "report" && <ReportsPage />}
                   //   {tab === "contracts" && <ContractsPage />}
                   //   {tab === "reimbursement" && <ReimbursementPage />}
-                  // </div>
+                  // </div> */}
                   <div className={`col ${styles.tabs}`}>
                     <Routes>
                       <Route index element={<HomePage />} />
@@ -161,11 +162,12 @@ function Dashboard({
                     </Routes>
                     <Outlet />
                   </div>
-                )}
+                
               </div>
             </div>
           </div>
           <FootLink />
+          <TicketingService/>
         </>
       )}
 

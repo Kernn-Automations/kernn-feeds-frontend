@@ -6,7 +6,7 @@ import OTP from "./OTP";
 import Loading from "./Loading";
 import ErrorModal from "./ErrorModal";
 
-function Input({ setLogin, setUser }) {
+function Input({ setLogin, setUser, setRole }) {
   const [ontap, setOntap] = useState(false);
   const [email, setEmail] = useState();
   const [res, setRes] = useState();
@@ -27,13 +27,14 @@ function Input({ setLogin, setUser }) {
 
     try {
       const response = await axios.post(
-        "https://kernn.azurewebsites.net/api/v1/login",
+        "https://feed-bazaar-test.azurewebsites.net/auth/login",
         {
           mobile: email,
         }
       );
       console.log(res);
       setRes(response.data);
+    
       console.log(res);
       if (response.status === 200) {
         setLoading(false);
@@ -90,6 +91,7 @@ function Input({ setLogin, setUser }) {
               resendOtp={onSubmit}
               setLogin={setLogin}
               setUser={setUser}
+              setRole={setRole}
             />
           )}
         </div>

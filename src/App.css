@@ -150,7 +150,7 @@ textarea {
   width: 210px;
   height: 24px;
   font-size: 15px;
-  padding-left: 10px;
+  padding-left: 4px;
   border-radius: 5px;
   box-shadow: 1px 1px 2px black;
   margin-bottom: 10px;
@@ -311,8 +311,8 @@ a {
 }
 
 .borderedtable thead th {
-  font-weight: 500;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
   line-height: 17.5px;
   letter-spacing: 1.5%;
   color: white;
@@ -320,7 +320,7 @@ a {
   text-align: center;
 }
 .borderedtable tbody td{
-  font-size: 14px;
+  font-size: 13px;
   line-height: 17.5px;
   letter-spacing: 1.5%;
   font-weight: 500;

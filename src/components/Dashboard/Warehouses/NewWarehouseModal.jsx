@@ -2,16 +2,44 @@ import React, { useEffect, useState } from "react";
 import styles from "./Warehouse.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
 import MapViewModal from "./MapViewModal";
+import { useAuth } from "@/Auth";
 
 
 
 function NewWarehouseModal() {
+  const [name, setName] = useState();
+  const [location, setLocation] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const onSubmitClick = () => {
+    console.log(name, location);
+
+    async function create() {
+      try{
+        const res = await axiosAPI.post("/warehouse",{
+          name : name,
+          location : location,
+          managerId : 10
+        });
+        console.log(res);
+      }
+      catch(e){
+        console.log(e);
+      }
+      finally{
+
+      }
+    }
+
+    create();
+  }
  
-  const onSubmit = (e) => e.preventDefault();
+  
   return (
     <>
       <h3 className={`px-3 pb-3 mdl-title`}>Add Warehouse</h3>
-      <form action="" onSubmit={onSubmit}>
+      
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Warehouse ID :</label>
@@ -21,7 +49,7 @@ function NewWarehouseModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Warehouse Name :</label>
-            <input type="text" />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}/>
           </div>
         </div>{" "}
        
@@ -69,7 +97,7 @@ function NewWarehouseModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Locate on Map :</label>
-           <MapViewModal/>
+           <MapViewModal setLocation={setLocation}/>
           </div>
         </div>
         <div className="row pt-3 mt-3 justify-content-center">
@@ -78,6 +106,7 @@ function NewWarehouseModal() {
               type="submit"
               className={`submitbtn`}
               data-bs-dismiss="modal"
+              onClick={onSubmitClick}
             >
               Submit
             </button>
@@ -92,7 +121,7 @@ function NewWarehouseModal() {
             </DialogActionTrigger>
           </div>
         </div>
-      </form>
+    
     </>
   );
 }

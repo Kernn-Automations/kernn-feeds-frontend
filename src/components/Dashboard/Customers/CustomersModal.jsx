@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styles from "./Customer.module.css";
 import {
   DialogActionTrigger,
@@ -10,42 +10,44 @@ import {
 } from "@/components/ui/dialog";
 import img from "./../../../images/dummy-img.jpeg";
 
-function CustomersModal() {
+function CustomersModal({ customerdata }) {
+  
+
   return (
     <>
       <h3 className={`px-3 mdl-title`}>Customer</h3>
       <div className="row m-0 p-0 ">
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Customer ID :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.customer_id}/>
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Customer Name :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.name} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Warehouse ID :</label>
-          <input type="text" />
+          <input type="text" value={"N/A"} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Warehouse Name :</label>
-          <input type="text" />
+          <input type="text" value={"N/A"} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">SE ID :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.salesExecutiveId} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">SE Name :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.salesExecutive.name} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Mobile Number :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.mobile}/>
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">WhatsApp Number :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.whatsapp}/>
         </div>
       </div>
 
@@ -53,7 +55,7 @@ function CustomersModal() {
         <h5 className={styles.headmdl}>Address</h5>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 1 :</label>
-          <input type="text" />
+          <input type="text" value={customerdata.address}/>
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 2 :</label>
@@ -73,7 +75,7 @@ function CustomersModal() {
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Pincode :</label>
-          <input type="text" />
+          <input type="text"  />
         </div>
       </div>
       <div className="row m-0 p-0 pb-3">
@@ -103,7 +105,7 @@ function CustomersModal() {
           </DialogRoot>
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
-        <label htmlFor="">PAN :</label>
+          <label htmlFor="">PAN :</label>
           <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
             <DialogTrigger asChild>
               <img src={img} alt="" className={styles.imagemd} />
@@ -127,7 +129,7 @@ function CustomersModal() {
           </DialogRoot>
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
-        <label htmlFor="">Photo :</label>
+          <label htmlFor="">Photo :</label>
           <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
             <DialogTrigger asChild>
               <img src={img} alt="" className={styles.imagemd} />

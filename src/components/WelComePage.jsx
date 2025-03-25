@@ -26,7 +26,7 @@ function WelcomePage({ data }) {
           />
         
         <p className={styles.wel}>
-          Welcome <span>{data.user.employee_name}</span>
+          Welcome <span>{data.user.name}</span>
         </p>
         <p className="text-center"><button onClick={onClick} className={styles.get} onKeyDown={onClick}>
           Get Started

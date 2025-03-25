@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import Login from './components/Login';
 import ProtectedRoute from './ProtectedRoute';
 import "./App.css"
+import { logEvent } from './utils/logger';
 
 function App() {
   const { islogin, setIslogin } = useAuth();
@@ -17,6 +18,47 @@ function App() {
 
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('access_token');
+
+  // Loggers
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    // Load logs from localStorage on mount
+    const storedLogs = JSON.parse(localStorage.getItem("logs")) || [];
+    setLogs(storedLogs);
+
+    // Event Listeners
+    const handleClick = (e) => {
+      if(e.target.tagName === "BUTTON"){
+        console.log("if called")
+        logEvent("Click", `Clicked on ${e.target.textContent}`);
+      }
+      else{
+        console.log("else called")
+        logEvent("Click", `Clicked on ${e.target.tagName}`);
+      }
+      setLogs(JSON.parse(localStorage.getItem("logs")));
+      console.log(e)
+    };
+
+    const handleError = (e) => {
+      logEvent("Error", e.message);
+      setLogs(JSON.parse(localStorage.getItem("logs")));
+    };
+
+    window.addEventListener("click", handleClick);
+    window.addEventListener("error", handleError);
+
+    return () => {
+      window.removeEventListener("click", handleClick);
+      window.removeEventListener("error", handleError);
+    };
+  }, []);
+
+  const clearLogs = () => {
+    setLogs([]);
+    localStorage.removeItem("logs");
+  };
 
   // ✅ Correct way to set islogin
   useEffect(() => {
@@ -38,7 +80,7 @@ function App() {
       } else {
         setAdmin(false);
         setOrgadmin(false);
-        setRole(user.role.role_name);
+        setRole(user.roles[0].name);
 
         switch (user.department) {
           case 1:

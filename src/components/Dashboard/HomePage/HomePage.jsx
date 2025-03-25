@@ -24,7 +24,7 @@ function HomePage() {
       <div className="row m-0 p-0">
         <div className="col p-3">
           <h2 className={styles.wish}>
-            Hello, {wish} {user.employee_name} !!
+            Hello, {wish} {user.name} !!
           </h2>
         </div>
       </div>

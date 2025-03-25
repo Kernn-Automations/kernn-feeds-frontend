@@ -3,7 +3,7 @@ import styles from "./Warehouse.module.css";
 import { DialogBody, DialogCloseTrigger, DialogContent, DialogRoot, DialogTrigger } from "@/components/ui/dialog";
 import GoogleMapLocator from "./GoogleMapLocator";
 
-function MapViewModal() {
+function MapViewModal({setLocation}) {
   return (
     <>
       {/* <button
@@ -55,7 +55,7 @@ function MapViewModal() {
           <h3 className={`px-3 mdl-title`}>Locate on Map</h3>
             <div className="row justify-content-center">
                 <div className="col-11 pb-3">
-                <GoogleMapLocator/>
+                <GoogleMapLocator setLocation={setLocation}/>
                 </div>
             </div>
           </DialogBody>

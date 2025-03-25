@@ -27,7 +27,7 @@ const containerStyle = {
   height: "500px",
 };
 
-const GoogleMapLocator = () => {
+const GoogleMapLocator = ({ setLocation }) => {
   const defaultLocation = { lat: 40.7128, lng: -74.006 };
 
   const [selectedPosition, setSelectedPosition] = useState(defaultLocation);
@@ -133,7 +133,14 @@ const GoogleMapLocator = () => {
                 </div>
                 <div className="row m-0 p-3 justify-content-center">
                   <div className="col-7">
-                    <button className="submitbtn">Confirm</button>
+                    <DialogActionTrigger asChild>
+                      <button
+                        className="submitbtn"
+                        onClick={setLocation(selectedAddress)}
+                      >
+                        Confirm
+                      </button>
+                    </DialogActionTrigger>
                     <DialogActionTrigger>
                       <button className="cancelbtn">Cancel</button>
                     </DialogActionTrigger>

@@ -11,7 +11,7 @@ function ModifyProduct({ navigate }) {
     <>
       <p className="path">
         <span onClick={() => navigate("/products")}>Products</span>{" "}
-        <i class="bi bi-chevron-right"></i> Modify Products
+        <i class="bi bi-chevron-right"></i> Ongoing Products
       </p>
 
 

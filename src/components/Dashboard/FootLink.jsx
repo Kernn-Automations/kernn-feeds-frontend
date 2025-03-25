@@ -19,7 +19,7 @@ function FootLink() {
             </span>
           </p>
         </div>
-        <TicketingService/>
+       
       </footer>
     </>
   );

@@ -1,8 +1,39 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Warehouse.module.css";
 import ActionViewModal from "./ActionViewModal";
 import SelectMode from "./SelectMode";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
 function OngoingWarehouse({ navigate }) {
+  const [warehouses, setWarehouses] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/warehouse");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, []);
+
   let count = 1;
   return (
     <>
@@ -84,51 +115,52 @@ function OngoingWarehouse({ navigate }) {
         </div>
       </div> */}
 
-      <div className="row m-0 p-3 pt-5 justify-content-center">
-        <div className="col-lg-10">
-          <table className="table table-bordered borderedtable">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Warehouse ID</th>
-                <th>Warehouse Name</th>
-                <th>Enable/Disable</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>1</td>
-                <td>#3454</td>
-                <td>Warehouse 1</td>
-                <td className={styles.selectmode}><SelectMode val={"enable"}/></td>
-                <td><ActionViewModal/></td>
-              </tr>
-              <tr>
-                <td>2</td>
-                <td>#3455</td>
-                <td>Warehouse 2</td>
-                <td className={styles.selectmode}><SelectMode val={"enable"}/></td>
-                <td><ActionViewModal/></td>
-              </tr>
-              <tr>
-                <td>3</td>
-                <td>#3456</td>
-                <td>Warehouse 3</td>
-                <td className={styles.selectmode}><SelectMode val={"disable"}/></td>
-                <td><ActionViewModal/></td>
-              </tr>
-              <tr>
-                <td>4</td>
-                <td>#3457</td>
-                <td>Warehouse 4</td>
-                <td className={styles.selectmode}><SelectMode val={"disable"}/></td>
-                <td><ActionViewModal/></td>
-              </tr>
-            </tbody>
-          </table>
+      
+        <div className="row m-0 p-3 pt-5 justify-content-center">
+          <div className="col-lg-10">
+          {warehouses && (
+            <table className="table table-bordered borderedtable">
+              <thead>
+                <tr>
+                  <th>S.No</th>
+                  <th>Warehouse ID</th>
+                  <th>Warehouse Name</th>
+                  <th>Enable/Disable</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {warehouses.length === 0 && <tr>
+                    <td colSpan={5}>No Data Found</td>
+                  </tr>}
+                {warehouses.length > 0 &&
+                  warehouses.map((warehouse) => (
+                    <tr>
+                      <td>{count++}</td>
+                      <td>{warehouse.id}</td>
+                      <td>{warehouse.name}</td>
+                      <td className={styles.selectmode}>
+                        <SelectMode
+                          val={warehouse.managerId ? "enable" : "disable"}
+                        />
+                      </td>
+                      <td>
+                        <ActionViewModal />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+              )}
+          </div>
         </div>
-      </div>
+    
+
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+
+      {loading && <Loading />}
     </>
   );
 }
