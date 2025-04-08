@@ -22,7 +22,7 @@
   border-radius: 16px;
   margin: 40px 20px;
   padding: 15px 20px;
-  box-shadow: 0 8px 10px 0 rgba(31, 38, 135, 0.37);
+  box-shadow: 0 4px 6px 0 rgba(31, 38, 135, 0.37);
   border: 1px solid #ffffff2e;
   transition: transform 0.3s ease;
 }
@@ -31,6 +31,7 @@
 .smallbox:hover {
   /* border: 1px solid #a92426; */
   transform: scale(1.03);
+  box-shadow: 0 10px 12px 0 rgba(31, 38, 135, 0.37);
 }
 .bigbox {
   max-width: 550px !important;

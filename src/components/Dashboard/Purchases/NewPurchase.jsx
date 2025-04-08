@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
+import { useAuth } from "@/Auth";
 
 function NewPurchase({ navigate }) {
   const [products, setProducts] = useState([]);
@@ -10,11 +11,50 @@ function NewPurchase({ navigate }) {
   const [amount, setAmount] = useState("");
   const [errors, setErrors] = useState({});
 
+  const [total, setTotal] = useState(0);
 
-  const handleInputChange = (setter, field) => (e) => {
-    setter(e.target.value);
-    setErrors((prev) => ({ ...prev, [field]: false }));
+
+  const [apiproducts, setApiproducts] = useState([]);
+  const [product, setProduct] = useState([]);
+  const {axiosAPI} = useAuth();
+  useEffect(() => {
+    async function fetch() {
+      try{
+        const res = await axiosAPI.get("/products/list");
+        console.log(res);
+        setApiproducts(res.data.products);
+      }catch(e){
+        console.log(e)
+      }
+    }
+
+    fetch()
+  },[])
+
+
+  const handleInputChange = (e) => {
+    const newQty = e.target.value;
+    setQty(newQty);
+    setAmount(Number(product.basePrice) * Number(newQty || 1));
+    setErrors((prev) => ({ ...prev, [qty]: false }));
   };
+
+  const handleProductChange = (e) => {
+    console.log(e)
+    const selectedId = e.target.value;
+    const product = apiproducts.find((p) => p.SKU === selectedId || p.name === selectedId);
+    setProduct(product)
+    setPid(product.SKU);
+    setPname(product.name);
+    setUnits(product.unit);
+    setAmount(product.basePrice);
+    setErrors((prev) => ({ ...prev, [pid]: false }));
+    setErrors((prev) => ({ ...prev, [pname]: false }));
+    setErrors((prev) => ({ ...prev, [units]: false }));
+    setErrors((prev) => ({ ...prev, [amount]: false }));
+    
+    
+  }
 
   const onSaveClick = (e) => {
     e.preventDefault();
@@ -34,6 +74,8 @@ function NewPurchase({ navigate }) {
       { id: prevProducts.length + 1, pid, pname, units, qty, amount },
     ]);
 
+    setTotal((prevTotal) => prevTotal + Number(amount));
+
     setPid("");
     setPname("");
     setUnits("");
@@ -44,6 +86,10 @@ function NewPurchase({ navigate }) {
 
   const onDeleteClick = (id) => {
     console.log("delete called");
+    const product = products.find((p) => p.id === id);
+
+    setTotal((prevTotal) => prevTotal - Number(product.amount));
+
     setProducts((prevProducts) =>
       prevProducts.filter((product) => product.id !== id)
     );
@@ -124,7 +170,7 @@ function NewPurchase({ navigate }) {
             <thead>
               <tr>
                 <th>S.No</th>
-                <th>Product ID</th>
+                <th>Product SKU</th>
                 <th>Product Name</th>
                 <th>Units</th>
                 <th>Quantity</th>
@@ -160,50 +206,41 @@ function NewPurchase({ navigate }) {
                   <select
                     name=""
                     id=""
-                    onChange={handleInputChange(setPid, "pid")}
+                    onChange={(e) => handleProductChange(e)}
                     value={pid}
                     className={errors.pid ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
-                    <option value="123">#123</option>
-                    <option value="124">#124</option>
-                    <option value="125">#125</option>
+                    {apiproducts && apiproducts.map((prod) => <option value={prod.SKU}>{prod.SKU}</option>)}
                   </select>
                 </td>
                 <td>
                   <select
                     name=""
                     id=""
-                    onChange={handleInputChange(setPname, "pname")}
+                    onChange={(e) => handleProductChange(e)}
                     value={pname}
                     className={errors.pname ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
-                    <option value="product-1">product-1</option>
-                    <option value="product-2">product-2</option>
-                    <option value="product-3">product-3</option>
+                    {apiproducts && apiproducts.map((prod) => <option value={prod.name}>{prod.name}</option>)}
                   </select>
                 </td>
                 <td>
-                  <select
-                    name=""
-                    id=""
-                    onChange={handleInputChange(setUnits, "units")}
+                <input
+                    type="text"
+                    required
+                    placeholder="Units"
                     value={units}
-                    className={errors.units ? styles.errorinput : ""}
-                  >
-                    <option value="">--select--</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                  </select>
+                    className={errors.amount ? styles.errorinput : ""}
+                  />
                 </td>
                 <td>
                   <input
                     type="text"
                     required
                     placeholder="Enter Quantity"
-                    onChange={handleInputChange(setQty, "qty")}
+                    onChange={(e) => handleInputChange(e)}
                     value={qty}
                     className={errors.qty ? styles.errorinput : ""}
                   />
@@ -213,7 +250,6 @@ function NewPurchase({ navigate }) {
                     type="text"
                     required
                     placeholder="Enter Amount"
-                    onChange={handleInputChange(setAmount, "amount")}
                     value={amount}
                     className={errors.amount ? styles.errorinput : ""}
                   />
@@ -230,7 +266,7 @@ function NewPurchase({ navigate }) {
         <div className="row m-0 p-3 pt-4">
           <div className={`col-3 ${styles.longform}`}>
             <label htmlFor="">Total Amount :</label>
-            <span> 1,30,000/-</span>
+            <span> {total}/-</span>
           </div>
         </div>
       </div>
