@@ -42,6 +42,8 @@ function ManageEmployees({ navigate }) {
       role: "",
     },
   ];
+
+  let index = 1;
   return (
     <>
       <p className="path">
@@ -66,7 +68,8 @@ function ManageEmployees({ navigate }) {
               </thead>
               <tbody>
                 {emps.map((emp) => (
-                  <tr>
+                  <tr className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}>
                     <td>{emp.sn}</td>
                     <td>{emp.id}</td>
                     <td>{emp.name}</td>

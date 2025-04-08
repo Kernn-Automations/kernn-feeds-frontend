@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './Auth';
 import Dashboard from './components/Dashboard/Dashboard';
@@ -106,6 +106,10 @@ function App() {
   }, [islogin, user]);
 
   console.log(user);
+
+
+
+
 
   return (
     <>

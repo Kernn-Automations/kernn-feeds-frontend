@@ -22,9 +22,7 @@ function CustomerList({ navigate }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get(
-          "/customers"
-        );
+        const res = await axiosAPI.get("/customers");
         console.log(res);
         setCustomers(res.data.customers);
       } catch (e) {
@@ -93,13 +91,19 @@ function CustomerList({ navigate }) {
                 </thead>
                 <tbody>
                   {customers.length === 0 && (
-                    <tr>
+                    <tr
+                      className="animated-row"
+                      style={{ animationDelay: `${count * 0.1}s` }}
+                    >
                       <td colSpan={7}>NO DATA FOUND</td>
                     </tr>
                   )}
                   {customers.length > 1 &&
                     customers.map((customer) => (
-                      <tr>
+                      <tr
+                        className="animated-row"
+                        style={{ animationDelay: `${count * 0.1}s` }}
+                      >
                         <td>{count++}</td>
                         <td>{customer.customer_id}</td>
                         <td>{customer.name}</td>

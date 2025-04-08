@@ -59,6 +59,8 @@ function IncomingStock({ navigate }) {
     doc.save("incoming_stock_table_data.pdf");
   };
 
+  let index = 1;
+
   return (
     <>
       <p className="path">
@@ -131,7 +133,8 @@ function IncomingStock({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                   <td>1</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
@@ -140,7 +143,8 @@ function IncomingStock({ navigate }) {
                   <td>3</td>
                   <td>2000</td>
                 </tr>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                   <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>

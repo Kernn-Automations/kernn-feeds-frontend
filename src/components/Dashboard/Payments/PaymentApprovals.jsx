@@ -4,6 +4,8 @@ import ApprovalsViewModal from "./ApprovalsViewModal";
 import { IoSearch } from "react-icons/io5";
 
 function PaymentApprovals({ navigate }) {
+
+  let index = 1;
   return (
     <>
       <p className="path">
@@ -36,7 +38,8 @@ function PaymentApprovals({ navigate }) {
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                 <td>1</td>
                 <td>2025-02-28</td>
                 <td>KM20</td>
@@ -48,7 +51,60 @@ function PaymentApprovals({ navigate }) {
                   <ApprovalsViewModal />
                 </td>
               </tr>
-              <tr>
+              <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <td>2</td>
+                <td>2025-02-28</td>
+                <td>KM23</td>
+                <td>4423</td>
+                <td>2324</td>
+                <td>Warehouse 2</td>
+                <td>32000</td>
+                <td>
+                  <ApprovalsViewModal />
+                </td>
+              </tr>
+              <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <td>2</td>
+                <td>2025-02-28</td>
+                <td>KM23</td>
+                <td>4423</td>
+                <td>2324</td>
+                <td>Warehouse 2</td>
+                <td>32000</td>
+                <td>
+                  <ApprovalsViewModal />
+                </td>
+              </tr>
+              <tr className="animated-row"
+              style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <td>2</td>
+                <td>2025-02-28</td>
+                <td>KM23</td>
+                <td>4423</td>
+                <td>2324</td>
+                <td>Warehouse 2</td>
+                <td>32000</td>
+                <td>
+                  <ApprovalsViewModal />
+                </td>
+              </tr>
+              <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <td>2</td>
+                <td>2025-02-28</td>
+                <td>KM23</td>
+                <td>4423</td>
+                <td>2324</td>
+                <td>Warehouse 2</td>
+                <td>32000</td>
+                <td>
+                  <ApprovalsViewModal />
+                </td>
+              </tr>
+              <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                 <td>2</td>
                 <td>2025-02-28</td>
                 <td>KM23</td>

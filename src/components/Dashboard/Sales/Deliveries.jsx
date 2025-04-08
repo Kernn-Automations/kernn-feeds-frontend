@@ -39,6 +39,8 @@ function Deliveries({ navigate }) {
     saveAs(excelFile, "deliveries_table_data.xlsx");
   };
 
+  let index = 1;
+
   // Function to export as PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -145,7 +147,8 @@ function Deliveries({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                   <td>1</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
@@ -157,7 +160,8 @@ function Deliveries({ navigate }) {
                     <DeliveryViewModal />
                   </td>
                 </tr>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                   <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM23</td>

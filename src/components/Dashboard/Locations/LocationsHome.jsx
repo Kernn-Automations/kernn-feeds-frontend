@@ -6,6 +6,7 @@ import { IoSearch } from "react-icons/io5";
 function LocationsHome() {
   const [type, setType] = useState("employee");
 
+  let index = 1;
   return (
     <>
       <div className="row m-0 p-3 pt-5">
@@ -41,7 +42,10 @@ function LocationsHome() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>1</td>
                   <td>EMP2034</td>
                   <td>Employee 1</td>
@@ -51,7 +55,10 @@ function LocationsHome() {
                     <LocationViewModal />
                   </td>
                 </tr>
-                <tr>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>1</td>
                   <td>EMP2035</td>
                   <td>Employee 2</td>
@@ -77,7 +84,10 @@ function LocationsHome() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>1</td>
                   <td>TS02AB2332</td>
                   <td>tracker 1</td>
@@ -87,7 +97,10 @@ function LocationsHome() {
                     <LocationViewModal />
                   </td>
                 </tr>
-                <tr>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>2</td>
                   <td>TS03TR0032</td>
                   <td>Tracker 2</td>

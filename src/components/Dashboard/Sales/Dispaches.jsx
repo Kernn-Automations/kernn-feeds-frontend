@@ -64,6 +64,8 @@ function Dispaches({ navigate }) {
     });
     doc.save("dispatches_table_data.pdf");
   };
+
+  let index = 1;
   return (
     <>
       <p className="path">
@@ -145,7 +147,8 @@ function Dispaches({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                   <td>1</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
@@ -157,7 +160,8 @@ function Dispaches({ navigate }) {
                     <DispachViewModal />
                   </td>
                 </tr>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                   <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM23</td>

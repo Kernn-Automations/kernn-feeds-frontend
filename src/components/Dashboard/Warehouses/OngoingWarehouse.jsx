@@ -27,6 +27,7 @@ function OngoingWarehouse({ navigate }) {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
+        setIsModalOpen(true)
       } finally {
         setLoading(false);
       }
@@ -135,7 +136,8 @@ function OngoingWarehouse({ navigate }) {
                   </tr>}
                 {warehouses.length > 0 &&
                   warehouses.map((warehouse) => (
-                    <tr>
+                    <tr className="animated-row"
+                    style={{ animationDelay: `${count * 0.1}s` }}>
                       <td>{count++}</td>
                       <td>{warehouse.id}</td>
                       <td>{warehouse.name}</td>

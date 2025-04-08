@@ -60,6 +60,8 @@ function PricingList({ navigate }) {
       return prevPrices;
     });
   };
+
+  let index = 1;
   return (
     <>
       <p className="path">
@@ -82,7 +84,8 @@ function PricingList({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index * 0.1}s` }}>
                   <td>1</td>
                   <td>2025-03-07</td>
                   <td>Karthik</td>
@@ -93,7 +96,8 @@ function PricingList({ navigate }) {
                     <button onClick={onViewClick}>view</button>
                   </td>
                 </tr>
-                <tr>
+                <tr className="animated-row"
+                        style={{ animationDelay: `${index * 0.1}s` }}>
                   <td>2</td>
                   <td>2025-03-06</td>
                   <td>Karthik</td>

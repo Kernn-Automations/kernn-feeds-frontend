@@ -7,6 +7,8 @@ function ModifyProduct({ navigate }) {
     const [viewclick, setViewclick] = useState();
 
     const onViewClick = () => viewclick ? setViewclick(false) : setViewclick(true)
+
+    let index = 1;
   return (
     <>
       <p className="path">
@@ -31,7 +33,8 @@ function ModifyProduct({ navigate }) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
+                    <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                         <td>1</td>
                         <td>2025-03-07</td>
                         <td>Karthik</td>
@@ -40,7 +43,8 @@ function ModifyProduct({ navigate }) {
                         <td className={styles.selectmode}><SelectMode val={"enable"}/></td>
                         <td><button onClick={onViewClick}>view</button></td>
                     </tr>
-                    <tr>
+                    <tr className="animated-row"
+                        style={{ animationDelay: `${index++ * 0.1}s` }}>
                         <td>2</td>
                         <td>2025-03-06</td>
                         <td>Karthik</td>

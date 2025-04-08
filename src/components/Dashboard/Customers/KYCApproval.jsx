@@ -4,6 +4,7 @@ import KYCViewModal from "./KYCViewModal";
 import { IoSearch } from "react-icons/io5";
 
 function KYCApproval({ navigate }) {
+  let index;
   return (
     <>
       <p className="path">
@@ -33,7 +34,10 @@ function KYCApproval({ navigate }) {
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <tr
+                className="animated-row"
+                style={{ animationDelay: `${index++ * 0.1}s` }}
+              >
                 <td>1</td>
                 <td>KM20</td>
                 <td>Customer 1</td>
@@ -44,7 +48,10 @@ function KYCApproval({ navigate }) {
                   <KYCViewModal />
                 </td>
               </tr>
-              <tr>
+              <tr
+                className="animated-row"
+                style={{ animationDelay: `${index++ * 0.1}s` }}
+              >
                 <td>2</td>
                 <td>KM23</td>
                 <td>Customer 2</td>

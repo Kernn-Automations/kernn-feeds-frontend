@@ -42,6 +42,8 @@ function AssignRole({ navigate }) {
       role: "",
     },
   ];
+  
+  let count;
   return (
     <>
       <p className="path">
@@ -66,7 +68,8 @@ function AssignRole({ navigate }) {
               </thead>
               <tbody>
                 {emps.map((emp) => (
-                  <tr>
+                  <tr className="animated-row"
+                  style={{ animationDelay: `${count++ * 0.1}s` }}>
                     <td>{emp.sn}</td>
                     <td>{emp.id}</td>
                     <td>{emp.name}</td>

@@ -36,6 +36,8 @@ export const AuthProvider = ({ children }) => {
     delete: (url) => api.delete(url),
   };
 
+
+
   useEffect(() => {
     const refreshAccessToken = async () => {
       try {

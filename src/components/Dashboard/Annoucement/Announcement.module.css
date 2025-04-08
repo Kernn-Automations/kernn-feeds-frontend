@@ -1,10 +1,10 @@
 .longform {
-  max-width: 400px !important;
-  min-width: 370px !important;
+  max-width: 430px !important;
+  min-width: 430px !important;
   margin-bottom: 20px;
 }
 .longform label {
-  width: 160px;
+  width: 180px;
   font-weight: 600;
   font-size: 16px;
   line-height: 26.82px;
@@ -33,7 +33,7 @@
   width: 230px !important;
 }
 .multiselect {
-  width: 150px;
+  width: 180px;
   height: 27px;
   padding-left: 4px;
   border-radius: 4px;
@@ -54,19 +54,20 @@
   padding-left: 4px;
 }
 .shortform {
-  max-width: 120px !important;
-  min-width: fit-content !important;
+  max-width: 180px !important;
+  min-width: 180px !important;
   padding-right: 0;
 }
 .shortform label {
-  max-width: 150px !important;
-  min-width: fit-content;
+  max-width: 180px !important;
+  min-width: 180px !important;
   font-weight: 600;
   font-size: 16px;
   line-height: 26.82px;
   letter-spacing: 0%;
   padding-right: 15px;
   color: #a92726;
+  text-align: right !important;
 }
 
 .upload {
@@ -129,7 +130,6 @@
   margin-right: 10px;
 }
 .multiselect label {
-  text-align: left !important;
   margin-left: 10px;
 }
 .multiselect {
