@@ -21,7 +21,7 @@
   margin-bottom: 30px;
 }
 .wel span {
-  color: #a92427;
+  color: var(--secondary-color);
 }
 .getcol {
   min-width: 230px !important;
@@ -33,20 +33,20 @@
   font-weight: 500;
   width: 230px;
   height: 40px;
-  border: 2px solid #a92427;
+  border: 2px solid var(--primary-color);
   border-radius: 5px;
   background-color: transparent;
-  color: #a92427;
+  color: var(--primary-color);
   box-shadow: 3px 3px 6px gray;
   transition: 0.3s ease;
   margin-top: 20px;
 }
 .get:hover {
-  background-color: #a92427;
+  background-color: var(--primary-color);
   color: white;
 }
 .get:active {
-  background-color: #76181a;
+  background-color: var(--primary-active);
   color: white;
 }
 .welcomebox{

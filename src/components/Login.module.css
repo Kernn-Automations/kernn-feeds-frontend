@@ -16,7 +16,7 @@
   /* line-height: 73.14px; */
   letter-spacing: 0.015em;
   text-align: center;
-  color: #a92427;
+  color: var(--primary-color);
   margin-bottom: 30px;
 }
 .cont {
@@ -36,6 +36,7 @@
   font-weight: 500;
   line-height: 34.13px;
   text-align: center;
+  color: var(--secondary-color);
 }
 .error {
   /* font-family: Montserrat; */
@@ -43,7 +44,7 @@
   font-weight: 500;
   line-height: 34.13px;
   text-align: center;
-  color: #a92427;
+  color: red;
 }
 
 .label {
@@ -60,11 +61,14 @@
   border-bottom: 1px solid #292929;
   width: 350px;
   height: 35px;
-  font-size: 18px;
+  font-size: 20px;
+  letter-spacing: 2px;
   margin-left: 10px;
   margin-bottom: 20px;
   /* background: #faecec; */
   background-color: transparent;
+  font-weight: 600;
+  color: var(--secondary-color);
 }
 .input:focus,
 .otps input:focus {
@@ -79,13 +83,13 @@
   border-radius: 7px;
   border: none;
   color: white;
-  background-color: #a92427;
+  background-color: var(--primary-color);
 }
 .button:active {
-  background-color: #801b1d;
+  background-color: var(--primary-active);
 }
 .button:hover {
-  background-color: #9f1f21;
+  background-color: var(--primary-hover);
 }
 
 .otps input {
@@ -98,6 +102,8 @@
   font-size: 20px;
   /* background: #faecec; */
   background-color: transparent;
+  font-weight: 600;
+  color: var(--secondary-color);
 }
 
 .otplabel {
@@ -112,7 +118,7 @@
 .resend {
   margin: 20px;
   text-align: right;
-  color: #a92427;
+  color: var(--secondary-color);
   font-size: 15px;
   font-weight: 500;
   line-height: 22.5px;

@@ -44,7 +44,7 @@
   font-weight: 500;
   line-height: 19.5px;
   text-align: left;
-  background-color: #a92427;
+  background-color: var(--primary-color);
   color: white;
   margin: 15px;
   float: left;
@@ -88,7 +88,7 @@
   letter-spacing: 0.015em; 
 }
 .foot p span{
-  color: #a92427;
+  color: #a92426;
   font-weight: 700;
 }
 
@@ -104,9 +104,9 @@
  overflow: hidden;
 }
 .profilebody div:hover, .profilebody div:hover p, .profilebody div:hover svg path{
-  background-color: #faecec;
-  color: #a92427;
-  stroke: #a92427;
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  stroke: var(--primary-color);
   cursor: pointer;
 }
 .profilebody span{

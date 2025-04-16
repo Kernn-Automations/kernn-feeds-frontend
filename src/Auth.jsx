@@ -13,9 +13,11 @@ export const AuthProvider = ({ children }) => {
   let token = localStorage.getItem("access_token") || null;
   let reftoken = localStorage.getItem("refresh_token") || null;
 
+  const VITE_API = import.meta.env.VITE_API_URL;
+
   // API Initialization
   const api = axios.create({
-    baseURL: "https://feed-bazaar-test.azurewebsites.net", // Change to your actual API URL
+    baseURL: VITE_API, // Change to your actual API URL
     headers: {
       "Content-Type": "application/json",
     },
@@ -54,7 +56,7 @@ export const AuthProvider = ({ children }) => {
         };
 
         const response = await axios.post(
-          "https://feed-bazaar-test.azurewebsites.net/auth/refresh",
+          `${VITE_API}/auth/refresh`,
           {
             refreshToken: reftokenfromst,
           },
@@ -126,7 +128,7 @@ export const AuthProvider = ({ children }) => {
   const removeToken = async () => {
     try {
       const res = await axios.post(
-        "https://kernn.azurewebsites.net/api/v1/logout",
+        `${VITE_API}/api/v1/logout`,
         config
       );
 

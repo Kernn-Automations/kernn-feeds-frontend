@@ -8,6 +8,7 @@ import {
   DialogRoot,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { RxCross2 } from "react-icons/rx";
 
 function AddProduct({ navigate }) {
   // const filefrontInputRef = useRef(null);
@@ -99,6 +100,97 @@ function AddProduct({ navigate }) {
       return updatedImages; // Return a new object to trigger re-render
     });
   };
+
+  //  taxes ----------------------------
+
+  const [selections, setSelections] = useState([""]);
+
+  const allOptions = ["CGST", "SGST", "VAT", "CESS"];
+
+  const getAvailableOptions = (index) => {
+    return allOptions.filter(
+      (option) => !selections.includes(option) || selections[index] === option
+    );
+  };
+
+  const handleChange = (value, index) => {
+    const updatedSelections = [...selections];
+    updatedSelections[index] = value;
+
+    // Add a new field only if it's the last field and not already at max
+    if (
+      index === selections.length - 1 &&
+      selections.length < allOptions.length &&
+      value !== ""
+    ) {
+      updatedSelections.push("");
+    }
+
+    setSelections(updatedSelections);
+  };
+
+  const handleDelete = (index) => {
+    const updated = [...selections];
+    updated.splice(index, 1);
+    setSelections(updated);
+  };
+
+
+
+  // Pricing----------------------
+
+  const [conditions, setConditions] = useState([{ type: '', value: '' }]);
+
+  const allPricingOptions = ['Exact', 'Greater than', 'Less than', 'Range'];
+
+  const getallAvailableOptions = (index) => {
+    const used = conditions.map((c) => c.type).filter(Boolean);
+    return allPricingOptions.map((opt) => ({
+      value: opt,
+      disabled: used.includes(opt) && conditions[index].type !== opt
+    }));
+  };
+
+  const handleTypeChange = (value, index) => {
+    const updated = [...conditions];
+    updated[index].type = value;
+    updated[index].value = value === 'Range' ? ['', ''] : '';
+    
+    // Add new field if it's the last one
+    if (index === conditions.length - 1 && conditions.length < allOptions.length) {
+      updated.push({ type: '', value: '' });
+    }
+
+    setConditions(updated);
+  };
+
+  const handleValueChange = (val, index, subIndex = null) => {
+    const updated = [...conditions];
+    if (Array.isArray(updated[index].value) && subIndex !== null) {
+      updated[index].value[subIndex] = val;
+    } else {
+      updated[index].value = val;
+    }
+    setConditions(updated);
+  };
+
+  const handletoDelete = (index) => {
+    const updated = [...conditions];
+    updated.splice(index, 1);
+    setConditions(updated);
+  };
+
+
+  // Backend
+
+  const [productName, setproductName] = useState();
+  const [productSKU, setproductSKU] = useState();
+  const [category, setCategory] = useState();
+  const [salesPrice, setSalesPrice] = useState();
+  const [purchasePrice, setPurchasePrice] = useState();
+  const [taxes, setTaxes] = useState();
+  const [pricingList, setPricingList] = useState();
+
   return (
     <>
       <p className="path">
@@ -137,6 +229,14 @@ function AddProduct({ navigate }) {
             <option value="">Category 1</option>
             <option value="">Category 2</option>
             <option value="">Category 3</option>
+          </select>
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Units :</label>
+          <select name="" id="">
+            <option value="">Kgs</option>
+            <option value="">grams</option>
+            <option value="">Litres</option>
           </select>
         </div>
       </div>
@@ -223,7 +323,9 @@ function AddProduct({ navigate }) {
                 </div>
                 <div className="row m-0 p-1 justify-content-center">
                   <div className="col-3">
-                  <button onClick={handleSaveImage} className='submitbtn'>Save</button>
+                    <button onClick={handleSaveImage} className="submitbtn">
+                      Save
+                    </button>
                   </div>
                 </div>
 
@@ -232,6 +334,47 @@ function AddProduct({ navigate }) {
             </DialogContent>
           </DialogRoot>
         </div>
+      </div>
+
+      <div className="row m-0 p-3">
+        <h5 className={styles.head}>TAXES</h5>
+
+        
+          {selections.map((selected, index) => (
+            <div className={`col-3 ${styles.taxform}`}>
+              <select
+                value={selected}
+                onChange={(e) => handleChange(e.target.value, index)}
+              >
+                <option value="">-- Select Tax --</option>
+                {getAvailableOptions(index).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+
+              {selections.length > 1 && (
+                <button
+                  onClick={() => handleDelete(index)}
+                  className=""
+                  title="Delete this field"
+                >
+                  <RxCross2/>
+                </button>
+              )}
+            </div>
+          ))}
+
+          {selections.length === allOptions.length &&
+            !selections.includes("") && (
+              <div>
+                ✅ All options selected
+              </div>
+            )}
+        
+
+        
       </div>
 
       <div className="row m-0 p-3">
@@ -245,7 +388,7 @@ function AddProduct({ navigate }) {
           <input type="text" />
         </div>
         <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Taxes :</label>
+          <label htmlFor="">Min. stock :</label>
           <input type="text" />
         </div>
         <div className={`col-3 ${styles.longform}`}>
@@ -258,7 +401,68 @@ function AddProduct({ navigate }) {
         </div>
       </div>
 
-      <div className="row m-0 p-3 pt-4 justify-content-center">
+      <div className="p-4 space-y-4 max-w-md mx-auto">
+      {conditions.map((cond, index) => (
+        <div key={index} className="flex items-center gap-2">
+          {/* Dropdown */}
+          <select
+            value={cond.type}
+            onChange={(e) => handleTypeChange(e.target.value, index)}
+            className="p-2 border rounded w-40"
+          >
+            <option value="">-- Select --</option>
+            {getallAvailableOptions(index).map((opt) => (
+              <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+                {opt.value}
+              </option>
+            ))}
+          </select>
+
+          {/* Input(s) */}
+          {cond.type && cond.type !== 'Range' && (
+            <input
+              type="number"
+              value={cond.value}
+              onChange={(e) => handleValueChange(e.target.value, index)}
+              className="p-2 border rounded flex-1"
+              placeholder="Enter value"
+            />
+          )}
+          {cond.type === 'Range' && (
+            <>
+              <input
+                type="number"
+                value={cond.value[0]}
+                onChange={(e) => handleValueChange(e.target.value, index, 0)}
+                className="p-2 border rounded w-20"
+                placeholder="Min"
+              />
+              <input
+                type="number"
+                value={cond.value[1]}
+                onChange={(e) => handleValueChange(e.target.value, index, 1)}
+                className="p-2 border rounded w-20"
+                placeholder="Max"
+              />
+            </>
+          )}
+
+          {/* Delete button */}
+          {conditions.length > 1 && (
+            <button
+              onClick={() => handletoDelete(index)}
+              className="text-red-600 hover:text-red-800 text-lg"
+              title="Delete condition"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+
+    
+    <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className="col-3">
           <button className="submitbtn">Create</button>
           <button className="cancelbtn" onClick={() => navigate("/products")}>

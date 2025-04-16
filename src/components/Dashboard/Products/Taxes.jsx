@@ -1,80 +1,87 @@
 import React, { useState } from "react";
-
 import styles from "./Products.module.css";
 
-function PricingList({ navigate }) {
-  const [addclick, setAddclick] = useState();
+function Taxes() {
+    const [addclick, setAddclick] = useState();
+    const [viewclick, setViewclick] = useState();
 
-  const dummyprice = [10, 20, 30, 40, 50];
-  const [viewclick, setViewclick] = useState();
-  const onViewClick = () => {
-    setAddclick(false);
-    viewclick ? setViewclick(false) : setViewclick(true);
+
+
+    const onViewClick = () => {
+        setAddclick(false);
+        viewclick ? setViewclick(false) : setViewclick(true)
+    }
+    const onAddClick = () => {
+        setViewclick(false)
+        addclick ? setAddclick(false) : setAddclick(true)
+    }
+
+
+    const dummyprice = [10, 20, 30, 40, 50];
+     
+      const [prices, setPrices] = useState([10, 20, 30, 40, 50]);
     
-  };
-  const [prices, setPrices] = useState([10, 20, 30, 40, 50]);
-
-  const [count, setCount] = useState([1]);
-  const [i, seti] = useState(1);
-
-  const [products, setProducts] = useState([]);
-  const [price, setPrice] = useState("");
-  const [units, setUnits] = useState("");
-  const [errors, setErrors] = useState({});
-
-  const handleInputChange = (setter, field) => (e) => {
-    setter(e.target.value);
-    setErrors((prev) => ({ ...prev, [field]: false }));
-  };
-
-  const onSaveClick = (e) => {
-    e.preventDefault();
-    console.log(products);
-    const newErrors = {};
-    if (!price) newErrors.price = true;
-    if (!units) newErrors.units = true;
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-
-    setProducts((prevProducts) => [
-      ...prevProducts,
-      { id: prevProducts.length + 1, price: Number(price), units },
-    ]);
-
-    // Convert price to Number and remove from prices array
-    setPrices((prevPrices) => prevPrices.filter((p) => p !== Number(price)));
-
-    setPrice("");
-    setUnits("");
-    setErrors({});
-  };
-
-  const onDeleteClick = (id, price) => {
-    console.log("delete called", price);
-    setProducts((prevProducts) =>
-      prevProducts.filter((product) => product.id !== id)
-    );
-
-    setPrices((prevPrices) => {
-      if (!prevPrices.includes(price)) {
-        return [...prevPrices, price].sort((a, b) => a - b); // Keep it sorted
-      }
-      return prevPrices;
-    });
-  };
-
-  let index = 1;
+      const [count, setCount] = useState([1]);
+      const [i, seti] = useState(1);
+    
+      const [products, setProducts] = useState([]);
+      const [price, setPrice] = useState("");
+      const [units, setUnits] = useState("");
+      const [errors, setErrors] = useState({});
+    
+      const handleInputChange = (setter, field) => (e) => {
+        setter(e.target.value);
+        setErrors((prev) => ({ ...prev, [field]: false }));
+      };
+    
+      const onSaveClick = (e) => {
+        e.preventDefault();
+        console.log(products);
+        const newErrors = {};
+        if (!price) newErrors.price = true;
+        if (!units) newErrors.units = true;
+    
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) return;
+    
+        setProducts((prevProducts) => [
+          ...prevProducts,
+          { id: prevProducts.length + 1, price: Number(price), units },
+        ]);
+    
+        // Convert price to Number and remove from prices array
+        setPrices((prevPrices) => prevPrices.filter((p) => p !== Number(price)));
+    
+        setPrice("");
+        setUnits("");
+        setErrors({});
+      };
+    
+      const onDeleteClick = (id, price) => {
+        console.log("delete called", price);
+        setProducts((prevProducts) =>
+          prevProducts.filter((product) => product.id !== id)
+        );
+    
+        setPrices((prevPrices) => {
+          if (!prevPrices.includes(price)) {
+            return [...prevPrices, price].sort((a, b) => a - b); // Keep it sorted
+          }
+          return prevPrices;
+        });
+      };
+    
+      let index = 1;
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/products")}>Products</span>{" "}
-        <i class="bi bi-chevron-right"></i> Pricing List
+        <i class="bi bi-chevron-right"></i> Taxes
       </p>
 
-      {(!viewclick && !addclick) && (
+      {!viewclick && !addclick && (
         <>
-          <button className="homebtn" onClick={() => setAddclick(true)}>
+          <button className="homebtn" onClick={onAddClick}>
             + Add
           </button>
 
@@ -84,10 +91,8 @@ function PricingList({ navigate }) {
                 <thead>
                   <tr>
                     <th>S.No</th>
-                    <th>Date</th>
-                    <th>Created By</th>
-                    <th>Product ID</th>
-                    <th>Product Name</th>
+                    <th>Tax Name</th>
+                    <th>Tax Value</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -97,11 +102,8 @@ function PricingList({ navigate }) {
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <td>1</td>
-                    <td>2025-03-07</td>
-                    <td>Karthik</td>
-                    <td>#23432</td>
-                    <td>Product 1</td>
-
+                    <td>CGST</td>
+                    <td>18%</td>
                     <td>
                       <button onClick={onViewClick}>view</button>
                     </td>
@@ -111,11 +113,8 @@ function PricingList({ navigate }) {
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <td>2</td>
-                    <td>2025-03-06</td>
-                    <td>Karthik</td>
-                    <td>#23444</td>
-                    <td>Product 2</td>
-
+                    <td>SGST</td>
+                    <td>18%</td>
                     <td>
                       <button onClick={onViewClick}>view</button>
                     </td>
@@ -209,4 +208,4 @@ function PricingList({ navigate }) {
   );
 }
 
-export default PricingList;
+export default Taxes;

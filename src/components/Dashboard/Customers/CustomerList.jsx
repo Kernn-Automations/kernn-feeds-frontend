@@ -107,9 +107,9 @@ function CustomerList({ navigate }) {
                         <td>{count++}</td>
                         <td>{customer.customer_id}</td>
                         <td>{customer.name}</td>
-                        <td>{customer.salesExecutiveId}</td>
+                        <td>{customer.salesExecutive.id}</td>
                         <td>{customer.salesExecutive.name}</td>
-                        <td>{"N/A"}</td>
+                        <td>{customer.warehouse && customer.warehouse.name}</td>
                         <td>
                           <CustomersViewModal customer={customer} />
                         </td>

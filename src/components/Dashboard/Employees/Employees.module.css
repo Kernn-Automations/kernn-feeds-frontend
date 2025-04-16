@@ -11,7 +11,7 @@
   letter-spacing: 0%;
   text-align: right;
   padding-right: 15px;
-  color: #a92726;
+  color: var(--primary-color);
 }
 .longform input,
 .longform select {
@@ -44,7 +44,7 @@
   padding-right: 15px;
   text-underline-position: from-font;
   text-decoration-skip-ink: none;
-  color: #a92427;
+  color: var(--primary-color);
 }
 
 .h3 {
@@ -55,7 +55,7 @@
   text-align: left;
   text-underline-position: from-font;
   text-decoration-skip-ink: none;
-  color: #a92427;
+  color: var(--primary-color);
   padding-left: 30px;
   margin-top: 15px;
 }
@@ -75,7 +75,7 @@
   height: 150px;
   overflow: hidden;
   border-radius: 50%;
-  border: 1px solid #a92427;
+  border: 1px solid var(--primary-color);
   justify-self: center;
   margin-bottom: 20px;
 }
@@ -104,7 +104,7 @@
   text-align: left;
   text-underline-position: from-font;
   text-decoration-skip-ink: none;
-  color: #a92427;
+  color: var(--primary-color);
   border: none;
   border-bottom: 1px solid black;
 }
@@ -125,7 +125,7 @@
   text-align: left;
   text-underline-position: from-font;
   text-decoration-skip-ink: none;
-  color: #a92427;
+  color: var(--primary-color);
 }
 .value input {
   width: 170px;

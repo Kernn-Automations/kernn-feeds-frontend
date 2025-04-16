@@ -1,0 +1,8 @@
+.loadContainer{
+    max-width: 300px !important;
+    width: 15% !important;
+
+}
+.loadContainer img{
+    width: 100%;
+}

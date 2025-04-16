@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import styles from "./Warehouse.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
 import MapViewModal from "./MapViewModal";
-function ActionModal() {
+function ActionModal({warehouse}) {
   const onSubmit = (e) => e.preventDefault();
   return (
     <>
@@ -11,19 +11,19 @@ function ActionModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Warehouse ID :</label>
-            <input type="text" />
+            <input type="text" value={warehouse.id} />
           </div>
         </div>{" "}
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Warehouse Name :</label>
-            <input type="text" />
+            <input type="text" value={warehouse.name} />
           </div>
         </div>{" "}
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">State :</label>
-            <select name="" id="">
+            <select name="" id="" value={warehouse.state}>
               <option value="">--select--</option>
               <option value="">State 1</option>
               <option value="">State 2</option>
@@ -34,7 +34,7 @@ function ActionModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">District :</label>
-            <select name="" id="">
+            <select name="" id="" value={warehouse.district}>
               <option value="">--select--</option>
               <option value="">District 1</option>
               <option value="">District 2</option>
@@ -46,13 +46,13 @@ function ActionModal() {
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">Village/city/Town :</label>
-            <input type="text" name="" id="" required />
+            <input type="text" name="" id="" required value={warehouse.city}/>
           </div>
         </div>
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">PinCode :</label>
-            <input type="text" />
+            <label htmlFor="">Pincode :</label>
+            <input type="text" value={warehouse.pincode} />
           </div>
         </div>
         <div className="row justify-content-center">

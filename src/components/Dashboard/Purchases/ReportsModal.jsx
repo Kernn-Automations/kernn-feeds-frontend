@@ -1,20 +1,85 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
+import { useAuth } from "@/Auth";
 
-function ReportsModal() {
-  const onSubmit = (e) => e.preventDefault();
+function ReportsModal({ order, warehouses }) {
+  const { axiosAPI } = useAuth();
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    
+  };
+  const [pdf, setPdf] = useState();
+  useEffect(() => {
+    async function fetch() {
+      try{
+        const res = await axiosAPI.get(`/purchases/${order.id}/pdf`);
+        console.log(res)
+        setPdf(res.data);
+      }catch(e){
+        console.log(e)
+      }
+    }
+    fetch();
+  }, [])
+
+  const downloadPDF = async () => {
+    try {
+      const response = await axiosAPI.get(`/purchases/${order.id}/pdf`, {
+        responseType: 'arraybuffer', // Important to get raw binary
+      });
+  
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+  
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'document.pdf'; // Set your desired file name here
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+  
+      window.URL.revokeObjectURL(url); // Clean up
+    } catch (error) {
+      console.error('Download error:', error);
+    }
+  };
+
+  const [pdetails, setPdetails] = useState();
+
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+  
+  useEffect(() => {
+    async function fetch(params) {
+      try {
+        const res = await axiosAPI.get(`/purchases/${order.id}`);
+        console.log(res);
+        setPdetails(res.data.purchaseOrder);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
+
   return (
     <>
       <h3 className={`px-3 mdl-title`}>Purchase Report</h3>
       <div className="row m-0 p-0">
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Date :</label>
-          <input type="text" />
+          <input type="text" value={"na"} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Time :</label>
-          <input type="text" />
+          <input type="text" value={"na"} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">User ID :</label>
@@ -22,16 +87,11 @@ function ReportsModal() {
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Warehouse :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
-          </select>
+          <input type="text" value={pdetails && pdetails.warehouse.name} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Purchase ID :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.ordernumber} />
         </div>
       </div>
 
@@ -39,42 +99,44 @@ function ReportsModal() {
         <h5 className={styles.headmdl}>TO</h5>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Vendor Name :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierName} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Vendor ID :</label>
-          <input type="text" />
+          <input type="text" value={"na"} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 1 :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierPlot} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 2 :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierStreet} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Village/City :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierCity} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">District :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierDistrict} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">State :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierState} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Pincode :</label>
-          <input type="text" />
+          <input type="text" value={pdetails && pdetails.supplierPincode} />
         </div>
       </div>
 
       <div className="row m-0 p-0 justify-content-center">
         <h5 className={styles.headmdl}>Products</h5>
         <div className="col-10">
-          <table className={`table table-bordered borderedtable ${styles.mdltable}`}>
+          <table
+            className={`table table-bordered borderedtable ${styles.mdltable}`}
+          >
             <thead>
               <tr>
                 <th>S.No</th>
@@ -86,22 +148,17 @@ function ReportsModal() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>1</td>
-                <td>#234</td>
-                <td>Product 1</td>
-                <td>32</td>
-                <td>5</td>
-                <td>20000</td>
-              </tr>
-              <tr>
-                <td>2</td>
-                <td>#235</td>
-                <td>Product 2</td>
-                <td>34</td>
-                <td>5</td>
-                <td>25000</td>
-              </tr>
+              {pdetails &&
+                pdetails.items.map((item) => (
+                  <tr>
+                    <td>{item.id}</td>
+                    <td>{item.productId}</td>
+                    <td>{item.product.name}</td>
+                    <td>{item.unitPrice}</td>
+                    <td>{item.quantity}</td>
+                    <td>{"na"}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -109,19 +166,23 @@ function ReportsModal() {
         <div className="row m-0 p-3 pt-4">
           <div className={`col-3 ${styles.longformmdl}`}>
             <label htmlFor="">Total Amount :</label>
-            <span> 1,30,000/-</span>
+            <span> na/-</span>
           </div>
         </div>
       </div>
 
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
-          <button className="submitbtn">Download</button>
+          <button className="submitbtn" onClick={downloadPDF}>Download</button>
           {/* <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
           </DialogActionTrigger> */}
         </div>
       </div>
+
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
     </>
   );
 }

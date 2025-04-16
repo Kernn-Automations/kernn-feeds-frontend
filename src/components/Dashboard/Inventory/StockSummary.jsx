@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
 
 import xls from "./../../../images/xls-png.png";
@@ -7,9 +7,36 @@ import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
 
 function StockSummary({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
+
+  const [warehouses, setWarehouses] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/warehouse");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
 
   const tableData = [
     [
@@ -84,9 +111,10 @@ function StockSummary({ navigate }) {
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
@@ -164,6 +192,9 @@ function StockSummary({ navigate }) {
             </table>
           </div>
         </div>
+      )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
   );

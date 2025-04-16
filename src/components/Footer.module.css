@@ -31,18 +31,21 @@
   text-underline-position: from-font;
   text-decoration-skip-ink: none;
 }
-.pipe,
-.pwd span {
-  color: #a92427;
+.pipe{
+  color: var(--primary-color);
+  font-weight: 600;
+}
+.pwd span{
+  color: #a92426;
   font-weight: 600;
 }
 
 .footer hr {
-  width: 40%;
+  width: 50%;
   opacity: 1 !important;
   text-align: center;
-  margin: 5px 30% !important;
-  color: #a92427 !important;
+  margin: 5px 25% !important;
+  color: var(--primary-color) !important;
 }
 .pwd {
   text-align: center;

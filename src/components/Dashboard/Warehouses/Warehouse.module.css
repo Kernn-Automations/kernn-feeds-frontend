@@ -8,11 +8,11 @@
   font-weight: 600;
   line-height: 29.26px;
   text-align: left;
-  color: #a92427;
+  color: var(--primary-color);
 }
 
 .intacc {
-  background-color: #a92427 !important;
+  background-color: var(--primary-color) !important;
   color: white !important;
   border-radius: none !important;
   /* font-family: Montserrat; */
@@ -24,7 +24,7 @@
   border-radius: 10px !important;
 }
 .intbody {
-  box-shadow: 2px 2px 4px #a92427;
+  box-shadow: 2px 2px 4px var(--primary-color);
   width: 60% !important;
   margin-left: 40%;
   border-radius: 0 0 10px 10px;
@@ -33,7 +33,7 @@
 .box {
   width: 95%;
   margin: 4px 2.5%;
-  box-shadow: 2px 2px 4px #a92427;
+  box-shadow: 2px 2px 4px var(--primary-color);
   padding: 7px 20px;
   /* font-family: Montserrat; */
   font-size: 13px;
@@ -42,7 +42,7 @@
   letter-spacing: 0.015em;
   text-align: center;
   background-color: white;
-  color: #a92427 !important;
+  color: var(--primary-color) !important;
 }
 
 .box > button {

@@ -38,7 +38,7 @@ function ProductLineChart() {
               <Line
                 type="monotone"
                 dataKey="sales"
-                stroke="#a92426"
+                stroke="var(--primary-color)"
                 strokeWidth={2}
                 dot={{ r: 6 }}
               />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
 import xls from "./../../../images/xls-png.png";
 import pdf from "./../../../images/pdf-png.png";
@@ -7,6 +7,8 @@ import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import ErrorModal from "@/components/ErrorModal";
+import { useAuth } from "@/Auth";
 
 function OutgoingStock({ navigate }) {
   const tableData = [
@@ -22,8 +24,30 @@ function OutgoingStock({ navigate }) {
       "Quantity",
       "Amount",
     ],
-    ["1","2025-02-28", "KM20", "4420", "Product 1", "#4545", "2323", "customer 1", "3", "2000"],
-    ["2","2025-02-28", "KM20", "4420", "Product 2", "#4545", "2323", "customer 2", "3", "2000"],
+    [
+      "1",
+      "2025-02-28",
+      "KM20",
+      "4420",
+      "Product 1",
+      "#4545",
+      "2323",
+      "customer 1",
+      "3",
+      "2000",
+    ],
+    [
+      "2",
+      "2025-02-28",
+      "KM20",
+      "4420",
+      "Product 2",
+      "#4545",
+      "2323",
+      "customer 2",
+      "3",
+      "2000",
+    ],
   ];
 
   // Function to export as Excel
@@ -49,7 +73,6 @@ function OutgoingStock({ navigate }) {
     doc.setFontSize(16); // Set font size for title
     doc.text("Outgoing Stock", 14, 10); // Title text with position (X: 14, Y: 10)
 
-
     autoTable(doc, {
       headStyles: {
         fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
@@ -69,6 +92,31 @@ function OutgoingStock({ navigate }) {
   };
 
   const [onsubmit, setonsubmit] = useState(false);
+
+  const [warehouses, setWarehouses] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/warehouse");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
 
   let index = 1;
   return (
@@ -91,9 +139,10 @@ function OutgoingStock({ navigate }) {
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
@@ -147,8 +196,10 @@ function OutgoingStock({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>1</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
@@ -160,14 +211,16 @@ function OutgoingStock({ navigate }) {
                   <td>3</td>
                   <td>2000</td>
                 </tr>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
                   <td>4420</td>
                   <td>Product 2</td>
-                  
+
                   <td>#4545</td>
                   <td>2323</td>
                   <td>customer 2</td>
@@ -178,6 +231,9 @@ function OutgoingStock({ navigate }) {
             </table>
           </div>
         </div>
+      )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
   );

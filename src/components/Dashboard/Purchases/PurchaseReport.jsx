@@ -1,70 +1,111 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
 import ReportViewModal from "./ReportViewModal";
-import xls from "./../../../images/xls-png.png"
-import pdf from "./../../../images/pdf-png.png"
+import xls from "./../../../images/xls-png.png";
+import pdf from "./../../../images/pdf-png.png";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
 
 function PurchaseReport({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
+  
+
+  const [warehouses, setWarehouses] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/warehouse");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
+
+  const [purchaseorders, setPurchaseorders] = useState();
+
+  const onSubmit = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosAPI.get("/purchases");
+      console.log(res);
+      setPurchaseorders(res.data.purchaseOrders);
+    } catch (e) {
+      console.log(e);
+      setError(e.response.data.message);
+      isModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tableData = [
-      [
-        "S.No",
-        "Date",
-        "Purchase ID",
-        "Warehouse",
-        "Net Amount",
-      ],
-      ["1", "2025-02-28", "KM20", "Warehouse 1", "2000",],
-      ["2", "2025-02-28", "KM20", "Warehouse 2", "2000", ],
-    ];
-  
-    // Function to export as Excel
-    const exportToExcel = () => {
-      const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      });
-      const excelFile = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      saveAs(excelFile, "purchase_report_table_data.xlsx");
-    };
-  
-    // Function to export as PDF
-    const exportToPDF = () => {
-      const doc = new jsPDF();
+    ["S.No", "Date", "Purchase ID", "Warehouse", "Net Amount"],
+    ["1", "2025-02-28", "KM20", "Warehouse 1", "2000"],
+    ["2", "2025-02-28", "KM20", "Warehouse 2", "2000"],
+  ];
 
-      doc.setFont("helvetica", "bold"); // Set font style
+  // Function to export as Excel
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.aoa_to_sheet(tableData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const excelFile = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(excelFile, "purchase_report_table_data.xlsx");
+  };
+
+  // Function to export as PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    doc.setFont("helvetica", "bold"); // Set font style
     doc.setFontSize(16); // Set font size for title
     doc.text("Purchase Report", 14, 10); // Title text with position (X: 14, Y: 10)
 
-      autoTable(doc, {
-        headStyles: {
-          fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
-          textColor: [255, 255, 255], // White text
-          fontStyle: "bold",
-          fontSize: 10,
-        },
-        bodyStyles: {
-          textColor: [0, 0, 0], // Black text
-          fontSize: 10, // Reduce body font size
-        },
-        // Use autoTable(doc, {}) instead of doc.autoTable({})
-        head: [tableData[0]], // Table Header
-        body: tableData.slice(1), // Table Data
-      });
-      doc.save("purchase_report_table_data.pdf");
-    };
+    autoTable(doc, {
+      headStyles: {
+        fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
+        textColor: [255, 255, 255], // White text
+        fontStyle: "bold",
+        fontSize: 10,
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0], // Black text
+        fontSize: 10, // Reduce body font size
+      },
+      // Use autoTable(doc, {}) instead of doc.autoTable({})
+      head: [tableData[0]], // Table Header
+      body: tableData.slice(1), // Table Data
+    });
+    doc.save("purchase_report_table_data.pdf");
+  };
 
-    let index = 1;
+  let index = 1;
   return (
     <>
       <p className="path">
@@ -85,13 +126,14 @@ function PurchaseReport({ navigate }) {
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
           </select>
         </div>
         <div className={`col-3`}>
-          <button className="submitbtn" onClick={() => setonsubmit(true)}>
+          <button className="submitbtn" onClick={onSubmit}>
             Submit
           </button>
           <button className="cancelbtn" onClick={() => navigate("/purchases")}>
@@ -100,7 +142,7 @@ function PurchaseReport({ navigate }) {
         </div>
       </div>
 
-      {onsubmit && (
+      {purchaseorders && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-lg-8">
             <button className={styles.xls} onClick={exportToExcel}>
@@ -125,33 +167,36 @@ function PurchaseReport({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
-                  <td>1</td>
-                  <td>2025-02-28</td>
-                  <td>KM20</td>
-                  <td>Warehouse 1</td>
-                  <td>2000</td>
-                  <td>
-                    <ReportViewModal />
-                  </td>
-                </tr>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
-                  <td>2</td>
-                  <td>2025-02-28</td>
-                  <td>KM20</td>
-                  <td>Warehouse 2</td>
-                  <td>2000</td>
-                  <td>
-                    <ReportViewModal />
-                  </td>
-                </tr>
+                {purchaseorders.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>NO DATA FOUND</td>
+                  </tr>
+                )}
+                {purchaseorders.length > 0 &&
+                  purchaseorders.map((order) => (
+                    <tr
+                      className="animated-row"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <td>{index++}</td>
+                      <td>{order.date}</td>
+                      <td>{order.ordernumber}</td>
+                      <td>{order.warehouse.name}</td>
+                      <td>{order.amount}</td>
+                      <td>
+                        <ReportViewModal order={order} warehouses={warehouses} />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+      {loading && <Loading />}
     </>
   );
 }

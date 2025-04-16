@@ -19,8 +19,11 @@ function App() {
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('access_token');
 
+  
+
   // Loggers
   const [logs, setLogs] = useState([]);
+
 
   useEffect(() => {
     // Load logs from localStorage on mount

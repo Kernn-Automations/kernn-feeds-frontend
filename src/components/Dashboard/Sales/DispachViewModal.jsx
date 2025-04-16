@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Sales.module.css";
 import {
   DialogBody,
@@ -8,21 +8,55 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import DispatchModal from "./DispatchModal";
-function DispachViewModal() {
-  return (
-    <>
+import { useAuth } from "@/Auth";
+function DispachViewModal({order}) {
+  const [orderdata, setOrderdata] = useState();
+    const [error, setError] = useState();
+    const [loading, setLoading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const closeModal = () => {
+      setIsModalOpen(false);
+    };
+  
+    const { axiosAPI } = useAuth();
+    useEffect(() => {
+      async function fetch() {
+        try {
+          setLoading(true);
+          const res = await axiosAPI.get(`/sales-orders/order/${order.id}`);
+          console.log(res);
+          setOrderdata(res.data);
+        } catch (e) {
+          console.log(e);
+          setError(e.response.data.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetch();
+    }, []);
+    return (
+      <>
+        {!orderdata && <span className="text-denger"></span>}
+        {orderdata && (
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
         <DialogTrigger asChild>
           <button>view</button>
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <DispatchModal />
+            <DispatchModal orderdata={orderdata} />
           </DialogBody>
 
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>
       </DialogRoot>
+       )}
+
+       {isModalOpen && (
+         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+       )}
+       {loading && <span>loading..</span>}
     </>
   );
 }

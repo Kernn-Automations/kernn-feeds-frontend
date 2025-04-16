@@ -32,7 +32,7 @@ function ProductBarchart() {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="sales" fill="#a92426" barSize={40} />
+              <Bar dataKey="sales" fill="var(--primary-color)" barSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>

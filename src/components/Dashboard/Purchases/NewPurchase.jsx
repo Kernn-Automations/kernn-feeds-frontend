@@ -13,10 +13,34 @@ function NewPurchase({ navigate }) {
 
   const [total, setTotal] = useState(0);
 
+  const { axiosAPI } = useAuth();
+  const [warehouses, setWarehouses] = useState();
+  
+    const [error, setError] = useState();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const closeModal = () => {
+      setIsModalOpen(false);
+    };
+  
+    useEffect(() => {
+      async function fetch() {
+        try {
+          const res = await axiosAPI.get("/warehouse");
+          console.log(res);
+          setWarehouses(res.data.warehouses);
+        } catch (e) {
+          console.log(e);
+          setError(e.response.data.message);
+          setIsModalOpen(true);
+        }
+      }
+      fetch();
+    }, []);
+
 
   const [apiproducts, setApiproducts] = useState([]);
   const [product, setProduct] = useState([]);
-  const {axiosAPI} = useAuth();
+  
   useEffect(() => {
     async function fetch() {
       try{
@@ -104,6 +128,7 @@ function NewPurchase({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
+        
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Date :</label>
           <input type="date" />
@@ -120,9 +145,10 @@ function NewPurchase({ navigate }) {
           <label htmlFor="">Warehouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
           </select>
         </div>
       </div>

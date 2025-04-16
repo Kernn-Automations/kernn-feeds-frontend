@@ -17,9 +17,11 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
     setLoading(true);
     console.log("onSubmit called");
 
+    const VITE_API = import.meta.env.VITE_API_URL;
+
     try {
       const res = await axios.post(
-        "https://feed-bazaar-test.azurewebsites.net/auth/verify",
+        `${VITE_API}/auth/verify`,
         {
           mobile: email,
           otp: otp,

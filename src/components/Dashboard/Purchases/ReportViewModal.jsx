@@ -4,7 +4,7 @@ import { DialogBody, DialogCloseTrigger, DialogContent, DialogRoot, DialogTrigge
 import ReportsModal from "./ReportsModal";
 
 
-function ReportViewModal() {
+function ReportViewModal({order, warehouses}) {
   return (
     <>
       <DialogRoot placement={"center"} size={"xl"} className={styles.mdl}>
@@ -13,7 +13,7 @@ function ReportViewModal() {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-          <ReportsModal/>
+          <ReportsModal order={order} warehouses={warehouses}/>
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>

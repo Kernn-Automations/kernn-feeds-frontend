@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Sales.module.css";
 import DeliveryViewModal from "./DeliveryViewModal";
 import xls from "./../../../images/xls-png.png";
@@ -7,6 +7,13 @@ import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
+import deliverAni from "../../../images/animations/delivered_primary.gif"
+import { useAuth } from "@/Auth";
+import LoadingAnimation from "@/components/LoadingAnimation";
+
+
 function Deliveries({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
 
@@ -66,6 +73,39 @@ function Deliveries({ navigate }) {
     });
     doc.save("deliveries_table_data.pdf");
   };
+
+  // backend --------------------------
+    const [orders, setOrders] = useState();
+  
+    const { axiosAPI } = useAuth();
+  
+    const [error, setError] = useState();
+    const [loading, setLoading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const closeModal = () => {
+      setIsModalOpen(false);
+    };
+  
+    useEffect(() => {
+      async function fetch() {
+        try {
+          setLoading(true);
+          const res = await axiosAPI.get(
+            "/sales-orders?status=Delivered"
+          );
+          console.log(res);
+          setOrders(res.data.salesOrders);
+        } catch (e) {
+          console.log(e);
+          setError(e.response.data.message);
+          setIsModalOpen(true);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetch();
+    }, []);
+
   return (
     <>
       <p className="path">
@@ -120,7 +160,7 @@ function Deliveries({ navigate }) {
         </div>
       </div>
 
-      {onsubmit && (
+      {orders && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-lg-8">
             <button className={styles.xls} onClick={exportToExcel}>
@@ -139,7 +179,7 @@ function Deliveries({ navigate }) {
                   <th>S.No</th>
                   <th>Date</th>
                   <th>Order ID</th>
-                  <th>Warehouse ID</th>
+                  <th>Warehouse Name</th>
                   <th>Customer ID</th>
                   <th>Dispach Date</th>
                   <th>Dilivered Date</th>
@@ -147,37 +187,40 @@ function Deliveries({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
-                  <td>1</td>
-                  <td>2025-02-28</td>
-                  <td>KM20</td>
-                  <td>4420</td>
-                  <td>2323</td>
-                  <td>2025-02-20</td>
-                  <td>2025-02-28</td>
-                  <td>
-                    <DeliveryViewModal />
-                  </td>
-                </tr>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
-                  <td>2</td>
-                  <td>2025-02-28</td>
-                  <td>KM23</td>
-                  <td>4423</td>
-                  <td>2324</td>
-                  <td>2025-02-24</td>
-                  <td>2025-02-26</td>
-                  <td>
-                    <DeliveryViewModal />
-                  </td>
-                </tr>
+              {orders.length === 0 && (
+                  <tr>
+                    <td colSpan={8}>NO DATA FOUND</td>
+                  </tr>
+                )}
+                {orders.length > 0 &&
+                  orders.map((order) => (
+                    <tr
+                      className="animated-row"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <td>{index++}</td>
+                      <td>{order.createdAt.slice(0, 10)}</td>
+                      <td>{order.orderNumber}</td>
+                      <td>{order.warehouse.name}</td>
+                      <td>{order.customer.customer_id}</td>
+                      <td>{order.dispatchDate && order.dispatchDate.slice(0,10)}</td>
+                      <td>{order.deliveredDate && order.deliveredDate.slice(0,10)}</td>
+                      <td>
+                        <DeliveryViewModal order={order} />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
+
+       {isModalOpen && (
+              <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+            )}
+      
+            {loading && <LoadingAnimation gif={deliverAni} />}
     </>
   );
 }

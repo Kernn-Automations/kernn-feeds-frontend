@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
 import xls from "./../../../images/xls-png.png";
 import pdf from "./../../../images/pdf-png.png";
@@ -6,8 +6,34 @@ import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
 function IncomingStock({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
+  const [warehouses, setWarehouses] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/warehouse");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
 
   const tableData = [
     [
@@ -81,9 +107,10 @@ function IncomingStock({ navigate }) {
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
             <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
@@ -133,8 +160,10 @@ function IncomingStock({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>1</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
@@ -143,8 +172,10 @@ function IncomingStock({ navigate }) {
                   <td>3</td>
                   <td>2000</td>
                 </tr>
-                <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <td>2</td>
                   <td>2025-02-28</td>
                   <td>KM20</td>
@@ -157,6 +188,10 @@ function IncomingStock({ navigate }) {
             </table>
           </div>
         </div>
+      )}
+
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
   );

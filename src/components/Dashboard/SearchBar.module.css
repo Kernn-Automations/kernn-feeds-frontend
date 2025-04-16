@@ -9,7 +9,7 @@
 .searchbar input {
   width: 240px;
   height: 35px;
-  border: 2px solid #a92427;
+  border: 2px solid var(--primary-color);
   border-radius: 17px;
   padding-left: 15px;
   font-size: 17px;
@@ -20,7 +20,7 @@
 }
 
 .searchbar input:focus {
-  border: 2px solid #a92427;
+  border: 2px solid var(--primary-color);
   outline: none;
 }
 .searchicon {
@@ -36,7 +36,7 @@
 .dropdown {
   position: absolute;
   width: 100%;
-  background: #faecec;
+  background: var(--primary-light);
   border: 1px solid #b8b8b8;
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -69,5 +69,5 @@
 .active {
   padding: 10px;
   cursor: pointer;
-  background: #fdd9d9;
+  background: var(--primary-light-hover);
 }

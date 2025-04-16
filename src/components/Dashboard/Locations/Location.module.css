@@ -5,7 +5,7 @@
 .search input {
   width: 240px;
   height: 35px;
-  border: 1px solid #a92427;
+  border: 1px solid var(--primary-color);
   border-radius: 5px;
   padding-left: 4px;
   font-size: 15px;
@@ -14,7 +14,7 @@
 }
 
 .search input:focus {
-  border: 1px solid #a92427;
+  border: 1px solid var(--primary-color);
   outline: none;
 }
 .searchicon {

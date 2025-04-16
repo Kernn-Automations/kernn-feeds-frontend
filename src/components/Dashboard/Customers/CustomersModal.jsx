@@ -11,15 +11,13 @@ import {
 import img from "./../../../images/dummy-img.jpeg";
 
 function CustomersModal({ customerdata }) {
-  
-
   return (
     <>
       <h3 className={`px-3 mdl-title`}>Customer</h3>
       <div className="row m-0 p-0 ">
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Customer ID :</label>
-          <input type="text" value={customerdata.customer_id}/>
+          <input type="text" value={customerdata.customer_id} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Customer Name :</label>
@@ -43,39 +41,21 @@ function CustomersModal({ customerdata }) {
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Mobile Number :</label>
-          <input type="text" value={customerdata.mobile}/>
+          <input type="text" value={customerdata.mobile} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">WhatsApp Number :</label>
-          <input type="text" value={customerdata.whatsapp}/>
+          <input type="text" value={customerdata.whatsapp} />
         </div>
       </div>
 
       <div className="row m-0 p-0">
         <h5 className={styles.headmdl}>Address</h5>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Address Line 1 :</label>
-          <input type="text" value={customerdata.address}/>
+        <div className={`col-2 ${styles.textform}`}>
+          <label htmlFor="">Address :</label>
         </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Address Line 2 :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Village/City :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">District :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">State :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Pincode :</label>
-          <input type="text"  />
+        <div className={`col-5 ${styles.textform}`}>
+          <textarea name="" id="" value={customerdata.address}></textarea>
         </div>
       </div>
       <div className="row m-0 p-0 pb-3">
@@ -84,18 +64,42 @@ function CustomersModal({ customerdata }) {
           <label htmlFor="">Aadhar :</label>
           <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
             <DialogTrigger asChild>
-              <img src={img} alt="" className={styles.imagemd} />
+              <img
+                src={
+                  (customerdata.kycDocuments[1] &&
+                    customerdata.kycDocuments[0].frontImage) ||
+                  img
+                }
+                alt=""
+                className={styles.imagemd}
+              />
             </DialogTrigger>
             <DialogContent className="mdl">
               <DialogBody>
                 <h3 className={`px-3 mdl-title`}>Aadhar Card</h3>
                 <div className="row m-0 p-0 justify-content-center">
-                  <div className={`col-4 `}>
-                    <img src={img} alt="aadhar" className={styles.imagebg} />
+                  <div className={`col-5 `}>
+                    <img
+                      src={
+                        (customerdata.kycDocuments[0] &&
+                          customerdata.kycDocuments[0].frontImage) ||
+                        img
+                      }
+                      alt="aadhar"
+                      className={styles.imagebg}
+                    />
                     <span>Aadhar Front</span>
                   </div>
-                  <div className={`col-4 `}>
-                    <img src={img} alt="aadhar" className={styles.imagebg} />
+                  <div className={`col-5 `}>
+                    <img
+                      src={
+                        (customerdata.kycDocuments[0] &&
+                          customerdata.kycDocuments[0].backImage) ||
+                        img
+                      }
+                      alt="aadhar"
+                      className={styles.imagebg}
+                    />
                     <span>Aadhar Back</span>
                   </div>
                 </div>
@@ -108,18 +112,42 @@ function CustomersModal({ customerdata }) {
           <label htmlFor="">PAN :</label>
           <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
             <DialogTrigger asChild>
-              <img src={img} alt="" className={styles.imagemd} />
+              <img
+                src={
+                  (customerdata.kycDocuments[1] &&
+                    customerdata.kycDocuments[1].frontImage) ||
+                  img
+                }
+                alt=""
+                className={styles.imagemd}
+              />
             </DialogTrigger>
             <DialogContent className="mdl">
               <DialogBody>
                 <h3 className={`px-3 mdl-title`}>PAN Card</h3>
                 <div className="row m-0 p-0 justify-content-center">
-                  <div className={`col-4 `}>
-                    <img src={img} alt="aadhar" className={styles.imagebg} />
+                  <div className={`col-5 `}>
+                    <img
+                      src={
+                        (customerdata.kycDocuments[1] &&
+                          customerdata.kycDocuments[1].frontImage) ||
+                        img
+                      }
+                      alt="aadhar"
+                      className={styles.imagebg}
+                    />
                     <span>PAN Front</span>
                   </div>
-                  <div className={`col-4 `}>
-                    <img src={img} alt="aadhar" className={styles.imagebg} />
+                  <div className={`col-5 `}>
+                    <img
+                      src={
+                        (customerdata.kycDocuments[1] &&
+                          customerdata.kycDocuments[1].backImage) ||
+                        img
+                      }
+                      alt="aadhar"
+                      className={styles.imagebg}
+                    />
                     <span>PAN Back</span>
                   </div>
                 </div>
@@ -132,14 +160,22 @@ function CustomersModal({ customerdata }) {
           <label htmlFor="">Photo :</label>
           <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
             <DialogTrigger asChild>
-              <img src={img} alt="" className={styles.imagemd} />
+              <img
+                src={customerdata.photo || img}
+                alt=""
+                className={styles.imagemd}
+              />
             </DialogTrigger>
             <DialogContent className="mdl">
               <DialogBody>
                 <h3 className={`px-3 mdl-title`}>Photo</h3>
                 <div className="row m-0 p-0 justify-content-center">
-                  <div className={`col-9 `}>
-                    <img src={img} alt="aadhar" className={styles} />
+                  <div className={`col-6 pb-3`}>
+                    <img
+                      src={customerdata.photo || img}
+                      alt="aadhar"
+                      className={styles.imglg}
+                    />
                   </div>
                 </div>
               </DialogBody>

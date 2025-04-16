@@ -1,71 +1,126 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Customer.module.css";
 import KYCViewModal from "./KYCViewModal";
 import { IoSearch } from "react-icons/io5";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
+import {
+  DialogActionTrigger,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogRoot,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 function KYCApproval({ navigate }) {
-  let index;
+  const [customers, setCustomers] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/customers?kycStatus=Pending");
+        console.log(res);
+        setCustomers(res.data.customers);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, []);
+
+  let count;
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/customers")}>Customers</span>{" "}
         <i class="bi bi-chevron-right"></i> KYC-Approvals
       </p>
-      <div className="row m-0 p-3 pt-5 justify-content-end">
-        <div className={`col-4 ${styles.search}`}>
-          <input type="text" placeholder="Search..." />
-          <span className={styles.searchicon}>
-            <IoSearch />
-          </span>
+      {customers && (
+        <>
+          <div className="row m-0 p-3 pt-5 justify-content-end">
+            <div className={`col-4 ${styles.search}`}>
+              <input type="text" placeholder="Search..." />
+              <span className={styles.searchicon}>
+                <IoSearch />
+              </span>
+            </div>
+          </div>
+          <div className="row m-0 p-3 justify-content-center">
+            <div className="col-10">
+              <table className={`table table-bordered borderedtable`}>
+                <thead>
+                  <tr
+                    className="animated-row"
+                    style={{ animationDelay: `${count++ * 0.1}s` }}
+                  >
+                    <th>S.No</th>
+                    <th>Customer ID</th>
+                    <th>Customer Name</th>
+                    <th>SE ID</th>
+                    <th>SE Name</th>
+                    <th>Warehouse</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.length === 0 && (
+                    <tr
+                      className="animated-row"
+                      style={{ animationDelay: `${count * 0.1}s` }}
+                    >
+                      <td colSpan={7}>NO DATA FOUND</td>
+                    </tr>
+                  )}
+                  {customers.length > 1 &&
+                    customers.map((customer) => (
+                      <tr
+                        className="animated-row"
+                        style={{ animationDelay: `${count * 0.1}s` }}
+                      >
+                        <td>{count++}</td>
+                        <td>{customer.customer_id}</td>
+                        <td>{customer.name}</td>
+                        <td>{customer.salesExecutive.id}</td>
+                        <td>{customer.salesExecutive.name}</td>
+                        <td>{customer.warehouse && customer.warehouse.name}</td>
+                        <td>
+                          <KYCViewModal customer={customer} />
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+
+      {loading && (
+        <div className="row m-0 p-3 justify-content-center">
+          <div className="col-10 pt-5">
+            <Loading />
+          </div>
         </div>
-      </div>
-      <div className="row m-0 p-3 justify-content-center">
-        <div className="col-10">
-          <table className={`table table-bordered borderedtable`}>
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Customer ID</th>
-                <th>Customer Name</th>
-                <th>SE Name</th>
-                <th>SE ID</th>
-                <th>Warehouse</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                className="animated-row"
-                style={{ animationDelay: `${index++ * 0.1}s` }}
-              >
-                <td>1</td>
-                <td>KM20</td>
-                <td>Customer 1</td>
-                <td>SE 1</td>
-                <td>2233</td>
-                <td>Warehouse 1</td>
-                <td>
-                  <KYCViewModal />
-                </td>
-              </tr>
-              <tr
-                className="animated-row"
-                style={{ animationDelay: `${index++ * 0.1}s` }}
-              >
-                <td>2</td>
-                <td>KM23</td>
-                <td>Customer 2</td>
-                <td>SE 2</td>
-                <td>2234</td>
-                <td>Warehouse 2</td>
-                <td>
-                  <KYCViewModal />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </>
   );
 }

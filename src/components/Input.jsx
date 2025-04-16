@@ -25,9 +25,11 @@ function Input({ setLogin, setUser, setRole }) {
     console.log("use called");
     setLoading(true);
 
+    const VITE_API = import.meta.env.VITE_API_URL;
+
     try {
       const response = await axios.post(
-        "https://feed-bazaar-test.azurewebsites.net/auth/login",
+        `${VITE_API}/auth/login`,
         {
           mobile: email,
         }

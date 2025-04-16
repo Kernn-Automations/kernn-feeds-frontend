@@ -147,7 +147,7 @@ function OngoingWarehouse({ navigate }) {
                         />
                       </td>
                       <td>
-                        <ActionViewModal />
+                        <ActionViewModal warehouse={warehouse} />
                       </td>
                     </tr>
                   ))}

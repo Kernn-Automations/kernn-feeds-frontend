@@ -23,6 +23,12 @@ function ProductHome({ navigate }) {
           >
             Pricing List
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/products/taxes")}
+          >
+            Taxes
+          </button>
         </div>
       </div>
     </>
