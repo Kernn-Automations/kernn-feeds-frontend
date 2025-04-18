@@ -27,7 +27,7 @@ createRoot(document.getElementById("root")).render(
         <Provider theme={theme}>
           <LightMode>
             <LoadScript
-              googleMapsApiKey={"AIzaSyBECI1LtDOO7wzXFu7yn7og0_NrRPEtISU"}
+              googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API}
               libraries={["places"]}
             >
               <App />

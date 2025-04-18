@@ -8,6 +8,7 @@ import Loading from "@/components/Loading";
 
 function CustomerList({ navigate }) {
   const [customers, setCustomers] = useState();
+  const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
 
@@ -23,8 +24,10 @@ function CustomerList({ navigate }) {
       try {
         setLoading(true);
         const res = await axiosAPI.get("/customers");
+        const res2 = await axiosAPI.get("/warehouse");
         console.log(res);
         setCustomers(res.data.customers);
+        setWarehouses(res2.data.warehouses);
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
@@ -48,10 +51,8 @@ function CustomerList({ navigate }) {
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+            <option value={null}>--select--</option>
+            {warehouses && warehouses.map((warehouse) => <option value={warehouse.id}>{warehouse.name}</option>)}
           </select>
         </div>
         <div className={`col-3 formcontent`}>

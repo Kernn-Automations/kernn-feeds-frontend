@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styles from "./Products.module.css";
 
-function Taxes() {
+function Taxes({navigate}) {
     const [addclick, setAddclick] = useState();
     const [viewclick, setViewclick] = useState();
 
