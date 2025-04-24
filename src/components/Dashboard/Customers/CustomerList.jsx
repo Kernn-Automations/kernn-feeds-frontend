@@ -9,6 +9,7 @@ import Loading from "@/components/Loading";
 function CustomerList({ navigate }) {
   const [customers, setCustomers] = useState();
   const [warehouses, setWarehouses] = useState();
+  const [ses, setSes] = useState();
 
   const { axiosAPI } = useAuth();
 

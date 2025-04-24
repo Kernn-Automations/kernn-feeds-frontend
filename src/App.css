@@ -126,6 +126,7 @@ textarea {
 .mdl {
   background-color: var(--primary-light);
   padding: 20px;
+  z-index: 1600;
 }
 
 .inputcolumn-mdl {
@@ -320,7 +321,9 @@ a {
 .cancelbtn:hover {
   background-color: #ce3030;
 }
-
+.submitbtn:disabled {
+  background-color: #97ef8f;
+}
 
 
 .submitbtn:active, .cancelbtn:active {

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import ReportsModal from "./ReportsModal";
 
-function ReportsViewModal() {
+function ReportsViewModal({report}) {
   return (
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
@@ -19,7 +19,7 @@ function ReportsViewModal() {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <ReportsModal />
+            <ReportsModal report={report} />
           </DialogBody>
 
           <DialogCloseTrigger className="inputcolumn-mdl-close" />

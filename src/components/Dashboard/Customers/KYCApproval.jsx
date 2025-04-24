@@ -43,7 +43,7 @@ function KYCApproval({ navigate }) {
     fetch();
   }, []);
 
-  let count;
+  let count = 1;
   return (
     <>
       <p className="path">
@@ -66,7 +66,7 @@ function KYCApproval({ navigate }) {
                 <thead>
                   <tr
                     className="animated-row"
-                    style={{ animationDelay: `${count++ * 0.1}s` }}
+                    style={{ animationDelay: `${count * 0.1}s` }}
                   >
                     <th>S.No</th>
                     <th>Customer ID</th>

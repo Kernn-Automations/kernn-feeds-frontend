@@ -37,6 +37,7 @@
   border-radius: 10px;
   margin-right: 30px;
   overflow: hidden;
+  z-index: 1200;
 }
 .heading {
   display: flex;
@@ -284,5 +285,82 @@
   cursor: pointer;
 }
 
+
+
+
+
+.primaryBtn {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.primaryBtn:hover{
+  background-color: var(--secondary-color);
+}
+
+.grayBtn {
+  background-color: #efefef;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--primary-color);
+}
+
+.grayBtn:disabled{
+  background-color: #dddddd;
+  color: white;
+  border: 1px solid white;
+}
+
+.removeBtn {
+  background-color: #ff3939;
+  color: white;
+  margin-left: 10px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+
+
+.fileList {
+  list-style-type: none;
+  padding: 0;
+  margin-top: 10px;
+}
+
+.fileItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  background-color: #fefefe;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.errorText {
+  color: red;
+  margin-top: 10px;
+}
+
+.firstText {
+  color: var(--primary-color);
+  margin-top: 10px;
+}
+.firstText span{
+  color: red;
+}
 
 

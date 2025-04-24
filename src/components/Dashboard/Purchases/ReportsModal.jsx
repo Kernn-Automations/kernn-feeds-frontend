@@ -8,41 +8,40 @@ function ReportsModal({ order, warehouses }) {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    
   };
   const [pdf, setPdf] = useState();
   useEffect(() => {
     async function fetch() {
-      try{
+      try {
         const res = await axiosAPI.get(`/purchases/${order.id}/pdf`);
-        console.log(res)
-        setPdf(res.data);
-      }catch(e){
-        console.log(e)
+        console.log(res);
+        // setPdf(res.data);
+      } catch (e) {
+        console.log(e);
       }
     }
     fetch();
-  }, [])
+  }, []);
 
   const downloadPDF = async () => {
     try {
       const response = await axiosAPI.get(`/purchases/${order.id}/pdf`, {
-        responseType: 'arraybuffer', // Important to get raw binary
+        responseType: "arraybuffer", // Important to get raw binary
       });
-  
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-  
-      const a = document.createElement('a');
+
+      const a = document.createElement("a");
       a.href = url;
-      a.download = 'document.pdf'; // Set your desired file name here
+      a.download = "document.pdf"; // Set your desired file name here
       document.body.appendChild(a);
       a.click();
       a.remove();
-  
+
       window.URL.revokeObjectURL(url); // Clean up
     } catch (error) {
-      console.error('Download error:', error);
+      console.error("Download error:", error);
     }
   };
 
@@ -53,7 +52,7 @@ function ReportsModal({ order, warehouses }) {
   const closeModal = () => {
     setIsModalOpen(false);
   };
-  
+
   useEffect(() => {
     async function fetch(params) {
       try {
@@ -75,11 +74,11 @@ function ReportsModal({ order, warehouses }) {
       <div className="row m-0 p-0">
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Date :</label>
-          <input type="text" value={"na"} />
+          <input type="text" value={pdetails && pdetails.date} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Time :</label>
-          <input type="text" value={"na"} />
+          <input type="text" value={pdetails && pdetails.createdAt.slice(11, 16)} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">User ID :</label>
@@ -87,11 +86,14 @@ function ReportsModal({ order, warehouses }) {
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Warehouse :</label>
-          <input type="text" value={pdetails && pdetails.warehouse.name} />
+          <input
+            type="text"
+            value={pdetails && pdetails.warehouse && pdetails.warehouse.name}
+          />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Purchase ID :</label>
-          <input type="text" value={pdetails && pdetails.ordernumber} />
+          <input type="text" value={pdetails && pdetails.orderNumber} />
         </div>
       </div>
 
@@ -99,35 +101,35 @@ function ReportsModal({ order, warehouses }) {
         <h5 className={styles.headmdl}>TO</h5>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Vendor Name :</label>
-          <input type="text" value={pdetails && pdetails.supplierName} />
+          <input type="text" value={pdetails && pdetails.supplier.name} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Vendor ID :</label>
-          <input type="text" value={"na"} />
+          <input type="text" value={pdetails && pdetails.supplier.supplierCode} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 1 :</label>
-          <input type="text" value={pdetails && pdetails.supplierPlot} />
+          <input type="text" value={pdetails && pdetails.supplier.plot} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 2 :</label>
-          <input type="text" value={pdetails && pdetails.supplierStreet} />
+          <input type="text" value={pdetails && pdetails.supplier.street} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Village/City :</label>
-          <input type="text" value={pdetails && pdetails.supplierCity} />
+          <input type="text" value={pdetails && pdetails.supplier.city} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">District :</label>
-          <input type="text" value={pdetails && pdetails.supplierDistrict} />
+          <input type="text" value={pdetails && pdetails.supplier.district} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">State :</label>
-          <input type="text" value={pdetails && pdetails.supplierState} />
+          <input type="text" value={pdetails && pdetails.supplier.state} />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Pincode :</label>
-          <input type="text" value={pdetails && pdetails.supplierPincode} />
+          <input type="text" value={pdetails && pdetails.supplier.pincode} />
         </div>
       </div>
 
@@ -152,11 +154,11 @@ function ReportsModal({ order, warehouses }) {
                 pdetails.items.map((item) => (
                   <tr>
                     <td>{item.id}</td>
-                    <td>{item.productId}</td>
-                    <td>{item.product.name}</td>
+                    <td>{item.SKU}</td>
+                    <td>{item.name}</td>
                     <td>{item.unitPrice}</td>
                     <td>{item.quantity}</td>
-                    <td>{"na"}</td>
+                    <td>{item.totalAmount}</td>
                   </tr>
                 ))}
             </tbody>
@@ -166,14 +168,14 @@ function ReportsModal({ order, warehouses }) {
         <div className="row m-0 p-3 pt-4">
           <div className={`col-3 ${styles.longformmdl}`}>
             <label htmlFor="">Total Amount :</label>
-            <span> na/-</span>
+            <span>{(pdetails && pdetails.totalAmount) || 0}/-</span>
           </div>
         </div>
       </div>
 
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
-          <button className="submitbtn" onClick={downloadPDF}>Download</button>
+          <button className="submitbtn">Download</button>
           {/* <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
           </DialogActionTrigger> */}

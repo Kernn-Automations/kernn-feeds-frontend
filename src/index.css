@@ -31,9 +31,11 @@ body {
 }
 html {
   color-scheme: light !important;
+  --chakra-colors-bg: white;
 }
 html.dark {
   color-scheme: light !important;
+  --chakra-colors-bg: white;
 }
 
 .css-stllmd:is(

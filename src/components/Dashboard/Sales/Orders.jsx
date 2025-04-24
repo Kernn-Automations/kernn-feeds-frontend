@@ -227,7 +227,7 @@ function Orders({ navigate, warehouses, customers }) {
             <option value="">--select--</option>
             {customers &&
               customers.map((customer) => (
-                <option value={customer.customer_id}>{customer.name}</option>
+                <option value={customer.id}>{customer.name}</option>
               ))}
           </select>
         </div>

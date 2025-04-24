@@ -12,6 +12,8 @@ import {
 import styles from "./Tickets.module.css";
 import UserChat from "./UserChat";
 import TicketChat from "./TicketChat";
+import { FileUpload } from "@chakra-ui/react";
+import FileUploadDialog from "./FileUploadDialog";
 
 function TicketingService() {
   const [oldtickets, setoldtickets] = useState([
@@ -85,7 +87,7 @@ function TicketingService() {
                 >
                   <h3>
                     Raise New Ticket{" "}
-                    <span >
+                    <span>
                       <i class="bi bi-plus-circle"></i>
                     </span>
                   </h3>
@@ -117,7 +119,7 @@ function TicketingService() {
                 <hr />
 
                 <div className={styles.inputContainer}>
-                  <select name="" id="">
+                  {/* <select name="" id="">
                     <option value="">--select Module--</option>
                     <option value="">Module 1</option>
                     <option value="">Module 2</option>
@@ -129,7 +131,7 @@ function TicketingService() {
                     <option value="">Sub Module 1</option>
                     <option value="">Sub Module 2</option>
                     <option value="">Sub Module 3</option>
-                  </select>
+                  </select> */}
 
                   <input type="text" placeholder="Subject" />
                   <textarea name="" id="" placeholder="Description"></textarea>
@@ -145,7 +147,7 @@ function TicketingService() {
 
                     {/* Custom upload button */}
 
-                    <button
+                    {/* <button
                       onClick={handleButtonClick}
                       style={{
                         padding: "4px 20px",
@@ -159,7 +161,8 @@ function TicketingService() {
                     >
                       {!selectedFile && "Upload File"}
                       {selectedFile && selectedFile}
-                    </button>
+                    </button> */}
+                    <FileUploadDialog />
 
                     {/* Display the selected file name
                     {selectedFile && (

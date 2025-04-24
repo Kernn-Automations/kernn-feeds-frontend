@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Route, Router, Routes, useNavigate } from "react-router-dom";
-
+import React, { lazy, Suspense, useEffect, useState } from "react";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import styles from "./Sales.module.css";
-import SalesHome from "./SalesHome";
-import Orders from "./Orders";
-import Dispaches from "./Dispaches";
-import Deliveries from "./Deliveries";
+import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
 import { useAuth } from "@/Auth";
+
+// Lazy-loaded components
+const SalesHome = lazy(() => import("./SalesHome"));
+const Orders = lazy(() => import("./Orders"));
+const Dispaches = lazy(() => import("./Dispaches"));
+const Deliveries = lazy(() => import("./Deliveries"));
 
 function SalesRoutes() {
   const navigate = useNavigate();
@@ -35,50 +37,56 @@ function SalesRoutes() {
   }, []);
 
   return (
-    <>
-      <Routes>
-        <Route
-          index
-          element={
+    <Routes>
+      <Route
+        index
+        element={
+          <Suspense fallback={<PageSkeleton />}>
             <SalesHome
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
             />
-          }
-        />
-        <Route
-          path="/orders"
-          element={
+          </Suspense>
+        }
+      />
+      <Route
+        path="/orders"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
             <Orders
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
             />
-          }
-        />
-        <Route
-          path="/dispatches"
-          element={
+          </Suspense>
+        }
+      />
+      <Route
+        path="/dispatches"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
             <Dispaches
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
             />
-          }
-        />
-        <Route
-          path="/deliveries"
-          element={
+          </Suspense>
+        }
+      />
+      <Route
+        path="/deliveries"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
             <Deliveries
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
             />
-          }
-        />
-      </Routes>
-    </>
+          </Suspense>
+        }
+      />
+    </Routes>
   );
 }
 

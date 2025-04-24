@@ -1,21 +1,34 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
-import WarehouseHome from './WarehouseHome';
-import OngoingWarehouse from './OngoingWarehouse';
+import PageSkeleton from '../../SkeletonLoaders/PageSkeleton';
+
+// Lazy-loaded components
+const WarehouseHome = lazy(() => import('./WarehouseHome'));
+const OngoingWarehouse = lazy(() => import('./OngoingWarehouse'));
 
 function WarehouseRoutes() {
-    const navigate = useNavigate();
-    return (
-      <>
-        <Routes>
-          <Route index element={<WarehouseHome navigate={navigate} />} />
-          <Route
-            path="/ongoing"
-            element={<OngoingWarehouse navigate={navigate} />}
-          />
-        </Routes>
-      </>
-    );
+  const navigate = useNavigate();
+
+  return (
+    <Routes>
+      <Route
+        index
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <WarehouseHome navigate={navigate} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/ongoing"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <OngoingWarehouse navigate={navigate} />
+          </Suspense>
+        }
+      />
+    </Routes>
+  );
 }
 
-export default WarehouseRoutes
+export default WarehouseRoutes;
