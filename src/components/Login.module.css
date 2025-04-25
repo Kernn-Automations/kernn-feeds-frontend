@@ -1,140 +1,232 @@
+/* Base Styles */
+.cont {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.logincontainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+
+.formWrapper {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.inputContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Logo Styles */
 .logo {
   max-width: 370px !important;
   min-width: 100px !important;
   max-height: 130px;
   margin: 20px 20px 20px 0;
-  
 }
+
 .logocol {
   max-width: 370px !important;
   min-width: 100px !important;
 }
+
+/* Heading Styles */
 .wel h1 {
-  /* font-family: Montserrat; */
   font-size: 40px;
   font-weight: 700;
-  /* line-height: 73.14px; */
   letter-spacing: 0.015em;
   text-align: center;
   color: var(--primary-color);
   margin-bottom: 30px;
 }
-.cont {
-  height: 100vh !important;
-}
 
-.login {
-  width: 300px !important;
-}
-
-.inputContainer {
-  width: 400px !important;
-}
-.p {
-  /* font-family: Montserrat; */
-  font-size: 23px;
-  font-weight: 500;
-  line-height: 34.13px;
-  text-align: center;
-  color: var(--secondary-color);
-}
-.error {
-  /* font-family: Montserrat; */
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 34.13px;
-  text-align: center;
-  color: red;
-}
-
-.label {
-  /* font-family: Montserrat; */
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 26.82px;
-  text-align: left;
-  display: block;
-}
+/* Input Styles */
 .input {
   display: block;
   border: none;
   border-bottom: 1px solid #292929;
-  width: 350px;
+  width: 100%;
+  max-width: 350px;
   height: 35px;
   font-size: 20px;
   letter-spacing: 2px;
-  margin-left: 10px;
   margin-bottom: 20px;
-  /* background: #faecec; */
   background-color: transparent;
   font-weight: 600;
   color: var(--secondary-color);
 }
-.input:focus,
-.otps input:focus {
+
+.input:focus {
   border: none;
   outline: none;
   border-bottom: 2px solid #292929;
 }
-.button {
-  margin: 10px 30px 30px 30px;
-  width: 300px;
+
+/* Button Styles */
+.sendbutton, .verifybutton{
+  width: 100%;
+  max-width: 300px;
   height: 40px;
   border-radius: 7px;
   border: none;
   color: white;
   background-color: var(--primary-color);
 }
-.button:active {
+
+.sendbutton {
+  margin-bottom: 100px;
+}
+.verifybutton {
+  margin-bottom: 10px;
+}
+
+.sendbutton:active, .verifybutton:active {
   background-color: var(--primary-active);
 }
-.button:hover {
+
+.sendbutton:hover, .verifybutton:hover {
   background-color: var(--primary-hover);
 }
 
+/* Error Styles */
+.error {
+  font-size: 18px;
+  font-weight: 500;
+  text-align: center;
+  color: red;
+}
+
+.p {
+  font-size: 23px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--secondary-color);
+}
+
+.label {
+  font-size: 18px;
+  font-weight: 400;
+  text-align: left;
+  display: block;
+}
+
+/* OTP Styles */
 .otps input {
-  border: none;
-  width: 40px !important;
+  width: 30px !important;
   height: auto;
   margin: 0 10px;
   border-bottom: 1px solid #292929;
   text-align: center;
   font-size: 20px;
-  /* background: #faecec; */
   background-color: transparent;
   font-weight: 600;
   color: var(--secondary-color);
 }
+.otps input:focus{
+  outline: none;
+  border-bottom: 2px solid #292929;
+}
+
+.otps {
+  display: flex;
+  justify-content: center;
+  font-size: 20px;
+}
 
 .otplabel {
-  /* font-family: Montserrat; */
   font-size: 18px;
   font-weight: 400;
-  line-height: 26.82px;
   text-align: left;
   margin: 10px 0px;
 }
 
 .resend {
   margin: 20px;
+  margin-right: 0;
   text-align: right;
-  color: var(--secondary-color);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 22.5px;
-  letter-spacing: 0.015em;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.inputbox{
-  width: 400px;
-  min-height: 400px;
-}
-.logincontainer{
+/* Footer Styles */
+.footer {
   width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  
+  position: sticky;
+  bottom: 0;
+}
+
+.footcontainer {
+  width: 100%;
+  padding: 10px 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+  .input {
+    width: 90%;
+  }
+
+  .button {
+    width: 90%;
+  }
+
+  .formWrapper {
+    max-width: 100%;
+    margin: 0 15px;
+  }
+
+  .wel h1 {
+    font-size: 32px;
+  }
+
+  .p {
+    font-size: 18px;
+  }
+
+  .otps input {
+    width: 30px;
+    height: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .wel h1 {
+    font-size: 28px;
+  }
+
+  .p {
+    font-size: 16px;
+  }
+
+  .input {
+    font-size: 18px;
+  }
+
+  .button {
+    width: 90%;
+  }
+
+  .resend {
+    font-size: 14px;
+  }
+
+  .footer {
+    font-size: 10px;
+  }
 }

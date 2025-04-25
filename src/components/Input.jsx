@@ -1,7 +1,6 @@
 import { useState } from "react";
 import styles from "./Login.module.css";
 import axios from "axios";
-
 import OTP from "./OTP";
 import Loading from "./Loading";
 import ErrorModal from "./ErrorModal";
@@ -21,8 +20,6 @@ function Input({ setLogin, setUser, setRole }) {
     e.preventDefault();
     setOntap(true);
     setResp(true);
-
-    console.log("use called");
     setLoading(true);
 
     const VITE_API = import.meta.env.VITE_API_URL;
@@ -34,24 +31,18 @@ function Input({ setLogin, setUser, setRole }) {
           mobile: email,
         }
       );
-      console.log(res);
+
       setRes(response.data);
-    
-      console.log(res);
       if (response.status === 200) {
         setLoading(false);
         setResp(true);
       } else {
-        // <ErrorModal ErrorMessage={res}/>
         setResp(false);
         setOntap(false);
       }
     } catch (e) {
-      console.log(e);
       setOntap(false);
-      e.response.data.message
-        ? setError(e.response.data.message)
-        : setError(e.response.data);
+      setError(e.response?.data?.message || "Unknown error");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -64,12 +55,12 @@ function Input({ setLogin, setUser, setRole }) {
     <>
       <div className={styles.inputbox}>
         <div className={styles.wel}>
-          <h1>Welcome !</h1>
+          <h1>Welcome!</h1>
         </div>
-        <div className={`${styles.inputContainer}`}>
-          <form action="" onSubmit={onSubmit}>
+        <div className={styles.inputContainer}>
+          <form onSubmit={onSubmit}>
             <p className={styles.p}>Login to continue</p>
-            <label className={styles.label}>mobile number</label>
+            <label className={styles.label}>Mobile number</label>
             <input
               type="text"
               onChange={onChange}
@@ -80,7 +71,7 @@ function Input({ setLogin, setUser, setRole }) {
               <button
                 data-bs-toggle="modal"
                 data-bs-target="#exampleModal"
-                className={styles.button}
+                className={styles.sendbutton}
               >
                 Send OTP
               </button>

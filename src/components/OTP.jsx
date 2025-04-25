@@ -74,7 +74,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
           </a>
         </p>
 
-        {!loading && <button className={styles.button}>Verify OTP</button>}
+        {!loading && <button className={styles.verifybutton}>Verify OTP</button>}
         {loading && <Loading />}
       </form>
 

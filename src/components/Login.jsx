@@ -15,7 +15,9 @@ function Login() {
           <>
             <div className={styles.logincontainer}>
               <Header />
-              <Input setLogin={setLogin} setUser={setUser} />
+              <main className={styles.formWrapper}>
+                <Input setLogin={setLogin} setUser={setUser} />
+              </main>
               <Footer />
             </div>
           </>
