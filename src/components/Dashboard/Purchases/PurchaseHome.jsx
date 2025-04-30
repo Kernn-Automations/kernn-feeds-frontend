@@ -19,6 +19,12 @@ function PurchaseHome({navigate}) {
           >
             Purchase Order Report
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/purchases/vendors")}
+          >
+            Vendors
+          </button>
         </div>
       </div>
     </>

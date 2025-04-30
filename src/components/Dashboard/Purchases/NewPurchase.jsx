@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
 import { useAuth } from "@/Auth";
+import Loading from "@/components/Loading";
+import ErrorModal from "@/components/ErrorModal";
 
 function NewPurchase({ navigate }) {
   const [products, setProducts] = useState([]);
@@ -15,46 +17,69 @@ function NewPurchase({ navigate }) {
 
   const { axiosAPI } = useAuth();
   const [warehouses, setWarehouses] = useState();
-  
-    const [error, setError] = useState();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const closeModal = () => {
-      setIsModalOpen(false);
-    };
-  
-    useEffect(() => {
-      async function fetch() {
-        try {
-          const res = await axiosAPI.get("/warehouse");
-          console.log(res);
-          setWarehouses(res.data.warehouses);
-        } catch (e) {
-          console.log(e);
-          setError(e.response.data.message);
-          setIsModalOpen(true);
-        }
-      }
-      fetch();
-    }, []);
+  const [suppliers, setSuppliers] = useState();
 
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/warehouse");
+        const res2 = await axiosAPI.get("/suppliers");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+        setSuppliers(res2.data.suppliers);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
 
   const [apiproducts, setApiproducts] = useState([]);
   const [product, setProduct] = useState([]);
-  
+
+  // Date and time and user
+  const [currentDate, setCurrentDate] = useState("");
+  const [currentTime, setCurrentTime] = useState("");
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  useEffect(() => {
+    const now = new Date();
+
+    const options = { timeZone: "Asia/Kolkata" };
+    const indianTime = new Date(now.toLocaleString("en-US", options));
+
+    const year = indianTime.getFullYear();
+    const month = String(indianTime.getMonth() + 1).padStart(2, "0");
+    const day = String(indianTime.getDate()).padStart(2, "0");
+    const hours = String(indianTime.getHours()).padStart(2, "0");
+    const minutes = String(indianTime.getMinutes()).padStart(2, "0");
+
+    setCurrentDate(`${year}-${month}-${day}`); // Format: YYYY-MM-DD
+    setCurrentTime(`${hours}:${minutes}`);
+  }, []);
+
   useEffect(() => {
     async function fetch() {
-      try{
+      try {
         const res = await axiosAPI.get("/products/list");
         console.log(res);
         setApiproducts(res.data.products);
-      }catch(e){
-        console.log(e)
+      } catch (e) {
+        console.log(e);
       }
     }
 
-    fetch()
-  },[])
-
+    fetch();
+  }, []);
 
   const handleInputChange = (e) => {
     const newQty = e.target.value;
@@ -64,10 +89,12 @@ function NewPurchase({ navigate }) {
   };
 
   const handleProductChange = (e) => {
-    console.log(e)
+    console.log(e);
     const selectedId = e.target.value;
-    const product = apiproducts.find((p) => p.SKU === selectedId || p.name === selectedId);
-    setProduct(product)
+    const product = apiproducts.find(
+      (p) => p.SKU === selectedId || p.name === selectedId
+    );
+    setProduct(product);
     setPid(product.SKU);
     setPname(product.name);
     setUnits(product.unit);
@@ -76,9 +103,7 @@ function NewPurchase({ navigate }) {
     setErrors((prev) => ({ ...prev, [pname]: false }));
     setErrors((prev) => ({ ...prev, [units]: false }));
     setErrors((prev) => ({ ...prev, [amount]: false }));
-    
-    
-  }
+  };
 
   const onSaveClick = (e) => {
     e.preventDefault();
@@ -95,7 +120,7 @@ function NewPurchase({ navigate }) {
 
     setProducts((prevProducts) => [
       ...prevProducts,
-      { id: prevProducts.length + 1, pid, pname, units, qty, amount },
+      { id: prevProducts.length + 1, pid, pname, units, qty, amount, product },
     ]);
 
     setTotal((prevTotal) => prevTotal + Number(amount));
@@ -119,6 +144,41 @@ function NewPurchase({ navigate }) {
     );
   };
 
+  // Form Subbmission
+  const [warehouse, setWarehouse] = useState();
+  const [supplier, setSupplier] = useState();
+
+  const onSubmit = async () => {
+    console.log(warehouse, supplier);
+    console.log(products);
+
+    const items = [];
+
+    products.map((pd) =>
+      items.push({
+        productId: pd.product.id,
+        quantity: pd.qty,
+        purchasePrice: pd.product.purchasePrice,
+      })
+    );
+    console.log(items);
+    try {
+      setLoading(true);
+      const res = await axiosAPI.post("/purchases", {
+        warehouseId: warehouse,
+        supplierId: supplier,
+        items: items,
+      });
+      console.log(res);
+    } catch (e) {
+      console.log(e);
+      setError(e.response.data.message);
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   let sno = 1;
   return (
     <>
@@ -128,64 +188,41 @@ function NewPurchase({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Date :</label>
-          <input type="date" />
+          <input type="date" value={currentDate} />
         </div>
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Time :</label>
-          <input type="text" />
+          <input type="text" value={currentTime} />
         </div>
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">User ID :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Warehouse :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option value={warehouse.id}>{warehouse.name}</option>
-              ))}
-          </select>
+          <input type="text" value={user.employeeId} />
         </div>
       </div>
 
       <div className="row m-0 p-3">
         <h5 className={styles.head}>TO</h5>
         <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Vendor Name :</label>
-          <input type="text" />
+          <label htmlFor="">Warehouse :</label>
+          <select name="" id="" onChange={(e) => setWarehouse(e.target.value)}>
+            <option value={null}>--select--</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
+          </select>
         </div>
         <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Vendor ID :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Address Line 1 :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Address Line 2 :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Village/City :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">District :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">State :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Pincode :</label>
-          <input type="text" />
+          <label htmlFor="">Vendor :</label>
+          <select name="" id="" onChange={(e) => setSupplier(e.target.value)}>
+            <option value={null}>--select--</option>
+            {suppliers &&
+              suppliers.map((supplier) => (
+                <option value={supplier.id}>{supplier.name}</option>
+              ))}
+          </select>
         </div>
       </div>
 
@@ -237,7 +274,10 @@ function NewPurchase({ navigate }) {
                     className={errors.pid ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
-                    {apiproducts && apiproducts.map((prod) => <option value={prod.SKU}>{prod.SKU}</option>)}
+                    {apiproducts &&
+                      apiproducts.map((prod) => (
+                        <option value={prod.SKU}>{prod.SKU}</option>
+                      ))}
                   </select>
                 </td>
                 <td>
@@ -249,11 +289,14 @@ function NewPurchase({ navigate }) {
                     className={errors.pname ? styles.errorinput : ""}
                   >
                     <option value="">--select--</option>
-                    {apiproducts && apiproducts.map((prod) => <option value={prod.name}>{prod.name}</option>)}
+                    {apiproducts &&
+                      apiproducts.map((prod) => (
+                        <option value={prod.name}>{prod.name}</option>
+                      ))}
                   </select>
                 </td>
                 <td>
-                <input
+                  <input
                     type="text"
                     required
                     placeholder="Units"
@@ -297,14 +340,25 @@ function NewPurchase({ navigate }) {
         </div>
       </div>
 
-      <div className="row m-0 p-3 pt-4 justify-content-center">
-        <div className={`col-3`}>
-          <button className="submitbtn">Submit</button>
-          <button className="cancelbtn" onClick={() => navigate("/purchases")}>
-            Cancel
-          </button>
+      {!loading && (
+        <div className="row m-0 p-3 pt-4 justify-content-center">
+          <div className={`col-3`}>
+            <button className="submitbtn" onClick={onSubmit}>
+              Submit
+            </button>
+            <button
+              className="cancelbtn"
+              onClick={() => navigate("/purchases")}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+      {loading && <Loading />}
     </>
   );
 }
