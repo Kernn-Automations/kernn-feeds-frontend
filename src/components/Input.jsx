@@ -14,7 +14,9 @@ function Input({ setLogin, setUser, setRole }) {
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const onChange = (e) => setEmail(e.target.value);
+  const onChange = (e) => {
+    const onlyNums = e.target.value.replace(/[^0-9]/g, '');
+    setEmail(onlyNums)};
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -25,12 +27,9 @@ function Input({ setLogin, setUser, setRole }) {
     const VITE_API = import.meta.env.VITE_API_URL;
 
     try {
-      const response = await axios.post(
-        `${VITE_API}/auth/login`,
-        {
-          mobile: email,
-        }
-      );
+      const response = await axios.post(`${VITE_API}/auth/login`, {
+        mobile: email,
+      });
 
       setRes(response.data);
       if (response.status === 200) {
@@ -62,8 +61,12 @@ function Input({ setLogin, setUser, setRole }) {
             <p className={styles.p}>Login to continue</p>
             <label className={styles.label}>Mobile number</label>
             <input
-              type="text"
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]{10}"
+              maxLength={10}
               onChange={onChange}
+              value={email}
               className={styles.input}
               required
             />
@@ -77,7 +80,11 @@ function Input({ setLogin, setUser, setRole }) {
               </button>
             )}
           </form>
-          {loading && <Loading />}
+          {loading && (
+            <div className={styles.loadingdiv}>
+              <Loading />
+            </div>
+          )}
           {ontap && !loading && resp && (
             <OTP
               email={email}

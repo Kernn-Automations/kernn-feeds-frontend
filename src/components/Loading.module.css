@@ -1,8 +1,13 @@
-.loadContainer{
-    max-width: 300px !important;
-    width: 15% !important;
-
+.loadContainer {
+  max-width: 300px !important;
+  width: 15% !important;
+  height: 150px;
 }
-.loadContainer img{
-    width: 100%;
+.loadContainer img {
+  width: 100%;
+}
+.animsg {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
 }

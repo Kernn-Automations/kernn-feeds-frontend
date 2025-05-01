@@ -2,32 +2,87 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx"; // <-- THIS is important
 import { saveAs } from "file-saver";
-export const handleExportPDF = (columns, data, title) => {
-  if (data.length > 0) {
-    console.log(data);
-    const doc = new jsPDF();
+import imageBase64 from "../images/feeds-croped.png";
 
-    doc.text(title, 10, 10);
+export const handleExportPDF = async (columns, data, title) => {
+  if (data.length === 0) return;
 
-    autoTable(doc, {
-      headStyles: {
-        fillColor: [0, 49, 118], // Blue
-        //  Header background
-        textColor: [255, 255, 255], // White text
-        fontStyle: "bold",
-        fontSize: 10,
-      },
-      bodyStyles: {
-        textColor: [0, 0, 0], // Black text
-        fontSize: 10,
-      },
-      head: [columns], // Header row
-      body: data.map((row) => columns.map((col) => row[col])),
-      startY: 20,
-    });
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
-    doc.save(`${title}.pdf`);
-  }
+  autoTable(doc, {
+    headStyles: {
+      fillColor: [0, 49, 118],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 10,
+    },
+    bodyStyles: {
+      textColor: [0, 0, 0],
+      fontSize: 10,
+    },
+    head: [columns],
+    body: data.map((row) => columns.map((col) => row[col])),
+    startY: 50,
+    margin: { bottom: 40 },
+
+    didDrawPage: (data) => {
+      const pageNumber = doc.internal.getCurrentPageInfo().pageNumber;
+      const pageCount = doc.internal.getNumberOfPages();
+
+      // Header image (left side)
+      if (imageBase64) {
+        doc.addImage(imageBase64, "PNG", 10, 10, 50, 20); // x, y, width, height
+      }
+
+      // Header title (right side)
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, pageWidth - 10, 25, { align: "right" });
+
+      // Header line
+      doc.setDrawColor(0); // Black
+      doc.setLineWidth(0.1);
+      doc.setLineDashPattern([1, 0.5]); // Dash-gap pattern
+      doc.line(10, 32, pageWidth - 10, 32); // Header dashed line
+
+      // Footer line
+      doc.line(10, pageHeight - 30, pageWidth - 10, pageHeight - 30);
+
+      // Footer text
+      const footerLines = [
+        "Registered Address : Flat No. 203, Mar Homes, Annojiguda, Pocharam, Korremal, Hyderabad, Telangana, India - 500088.",
+        "This is an electronically generated document, no signature is required.",
+      ];
+
+      doc.setFontSize(8);
+      footerLines.forEach((line, i) => {
+        doc.setTextColor(150);
+        doc.text(line, pageWidth / 2, pageHeight - 22 + i * 4, {
+          align: "center",
+        });
+      });
+
+      // Red footer last line
+      doc.setTextColor("#a92427");
+      doc.text(
+        "© Kernn Automations Private Limited",
+        pageWidth / 2,
+        pageHeight - 22 + footerLines.length * 4,
+        {
+          align: "center",
+        }
+      );
+
+      // Page number (in black)
+      doc.setTextColor(0);
+      const pageText = `Page ${pageNumber} of ${pageCount}`;
+      doc.text(pageText, pageWidth - 40, pageHeight - 10);
+    },
+  });
+
+  doc.save(`${title}.pdf`);
 };
 
 export const handleExportExcel = (columns, data, title) => {

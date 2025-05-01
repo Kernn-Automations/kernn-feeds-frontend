@@ -2,71 +2,56 @@ import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/Auth";
+import axios from "axios";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
 
-function ReportsModal({ order, warehouses }) {
+function ReportsModal({ pdetails, warehouses }) {
   const { axiosAPI } = useAuth();
 
-  const onSubmit = (e) => {
-    e.preventDefault();
-  };
-  const [pdf, setPdf] = useState();
-  useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await axiosAPI.get(`/purchases/${order.id}/pdf`);
-        console.log(res);
-        // setPdf(res.data);
-      } catch (e) {
-        console.log(e);
-      }
-    }
-    fetch();
-  }, []);
-
-  const downloadPDF = async () => {
-    try {
-      const response = await axiosAPI.get(`/purchases/${order.id}/pdf`, {
-        responseType: "arraybuffer", // Important to get raw binary
-      });
-
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "document.pdf"; // Set your desired file name here
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
-      window.URL.revokeObjectURL(url); // Clean up
-    } catch (error) {
-      console.error("Download error:", error);
-    }
-  };
-
-  const [pdetails, setPdetails] = useState();
+  const VITE_API = import.meta.env.VITE_API_URL;
 
   const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const closeModal = () => {
     setIsModalOpen(false);
   };
 
-  useEffect(() => {
-    async function fetch(params) {
-      try {
-        const res = await axiosAPI.get(`/purchases/${order.id}`);
-        console.log(res);
-        setPdetails(res.data.purchaseOrder);
-      } catch (e) {
-        console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      }
+  const downloadPDF = async () => {
+    if (!pdetails?.id) return;
+
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `${VITE_API}/purchases/${pdetails.id}/pdf`,
+        {
+          responseType: "blob", // Important!
+        }
+      );
+
+      console.log(response);
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Purchase-${pdetails.orderNumber || pdetails.id}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url); // Clean up
+    } catch (error) {
+      console.log(e);
+      setError(e.response.data.message);
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
     }
-    fetch();
-  }, []);
+  };
 
   return (
     <>
@@ -78,7 +63,10 @@ function ReportsModal({ order, warehouses }) {
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Time :</label>
-          <input type="text" value={pdetails && pdetails.createdAt.slice(11, 16)} />
+          <input
+            type="text"
+            value={pdetails && pdetails.createdAt.slice(11, 16)}
+          />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">User ID :</label>
@@ -105,7 +93,10 @@ function ReportsModal({ order, warehouses }) {
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Vendor ID :</label>
-          <input type="text" value={pdetails && pdetails.supplier.supplierCode} />
+          <input
+            type="text"
+            value={pdetails && pdetails.supplier.supplierCode}
+          />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Address Line 1 :</label>
@@ -175,10 +166,15 @@ function ReportsModal({ order, warehouses }) {
 
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
-          <button className="submitbtn">Download</button>
+          {!loading && (
+            <button className="submitbtn" onClick={downloadPDF}>
+              Download
+            </button>
+          )}
           {/* <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
           </DialogActionTrigger> */}
+          {loading && <Loading />}
         </div>
       </div>
 

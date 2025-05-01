@@ -85,7 +85,7 @@ function OutgoingStock({ navigate }) {
           `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}${
-            product ? `&customerId=${customer}` : ""
+            product ? `&productId=${product}` : ""
           }`
         );
         console.log(res);
