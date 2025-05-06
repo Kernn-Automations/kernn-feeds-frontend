@@ -5,7 +5,7 @@ import SelectMode from "./SelectMode";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-function OngoingWarehouse({ navigate }) {
+function OngoingWarehouse({ navigate, managers }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
@@ -147,7 +147,7 @@ function OngoingWarehouse({ navigate }) {
                         />
                       </td>
                       <td>
-                        <ActionViewModal warehouse={warehouse} />
+                        <ActionViewModal warehouse={warehouse} managers={managers} />
                       </td>
                     </tr>
                   ))}

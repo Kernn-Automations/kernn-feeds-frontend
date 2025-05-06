@@ -1,5 +1,7 @@
 import React, { useRef, useState } from "react";
 import styles from "./Tickets.module.css";
+import axios from "axios";
+
 import {
   DialogRoot,
   DialogTrigger,
@@ -9,9 +11,10 @@ import {
   DialogActionTrigger,
 } from "@/components/ui/dialog";
 
-const FileUploadDialog = () => {
+const FileUploadDialog = ({ files, setFiles }) => {
   const inputRef = useRef(null);
-  const [files, setFiles] = useState([]);
+  
+  
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -21,20 +24,17 @@ const FileUploadDialog = () => {
     }
 
     setFiles((prev) => [...prev, ...selectedFiles]);
+
     if (inputRef.current) {
       inputRef.current.value = "";
     }
   };
 
   const handleRemove = (index) => {
-    const newFiles = files.filter((_, i) => i !== index);
-    setFiles(newFiles);
+    const updatedFiles = files.filter((_, i) => i !== index);
+    setFiles(updatedFiles);
   };
 
-  const handleUpload = () => {
-    console.log("Uploading files:", files);
-    // Upload logic here
-  };
 
   return (
     <DialogRoot placement="center" size="md">
@@ -51,10 +51,11 @@ const FileUploadDialog = () => {
               <input
                 type="file"
                 multiple
+                accept="image/*"
                 ref={inputRef}
                 onChange={handleFileChange}
                 style={{ display: "none" }}
-                disabled={files.length >= 6 && true}
+                disabled={files.length >= 6}
               />
 
               <button
@@ -86,7 +87,7 @@ const FileUploadDialog = () => {
 
           {files.length === 0 && (
             <p className={styles.firstText}>
-              Upload atleast one File<span>*</span>.
+              Upload at least one File<span>*</span>.
             </p>
           )}
 
@@ -95,7 +96,6 @@ const FileUploadDialog = () => {
               <DialogActionTrigger asChild>
                 <button
                   className="submitbtn"
-                  onClick={handleUpload}
                   disabled={files.length === 0}
                 >
                   Upload

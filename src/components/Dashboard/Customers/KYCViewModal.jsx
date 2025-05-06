@@ -24,9 +24,9 @@ function KYCViewModal({ customer }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get(`/customers/${customer.id}/kyc`);
+        const res = await axiosAPI.get(`/customers/${customer.id}`);
         console.log(res);
-        setCustomerdata(res.data);
+        setCustomerdata(res.data.customer);
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);

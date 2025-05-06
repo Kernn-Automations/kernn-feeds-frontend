@@ -33,13 +33,13 @@
   letter-spacing: 1.5%;
 }
 
-.taxform{
+.taxform {
   max-width: 170px !important;
   min-width: 150px !important;
   margin-bottom: 20px;
   position: relative;
 }
-.taxform select{
+.taxform select, .taxform input {
   width: 150px;
   height: 27px;
   padding-left: 4px;
@@ -51,7 +51,7 @@
   font-weight: 500;
   font-size: 14px;
 }
-.taxform button{
+.taxform button {
   position: absolute;
   top: -15px;
   right: -10px;
@@ -125,7 +125,7 @@
 .imglabel {
   width: 150px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 26.82px;
   letter-spacing: 0%;
   text-align: center;
@@ -227,7 +227,11 @@
 .bin:hover {
   color: #fd3b3b;
 }
-.errorinput{
+.errorinput {
   outline: 1px solid #ff2020 !important;
   color: #ff2020 !important;
+}
+
+.errorField {
+  outline: 1px solid #ff2727;
 }

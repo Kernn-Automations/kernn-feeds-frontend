@@ -94,6 +94,8 @@ export const AuthProvider = ({ children }) => {
       //  console.log("My token", config.headers.Authorization);
     };
 
+    refreshAccessToken();
+
     const interval = setInterval(() => {
       refreshAccessToken();
     }, 5 * 60 * 1000);

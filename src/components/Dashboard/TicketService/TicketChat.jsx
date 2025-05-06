@@ -46,7 +46,7 @@ function TicketChat({ ticket, setOpenchat }) {
           <span className={styles.back} onClick={() => setOpenchat(false)}>
             <i class="bi bi-arrow-left-short"></i>
           </span>{" "}
-          Ticket {ticket.id}
+          {ticket.ticketId}
         </h2>
       </div>
       <hr />

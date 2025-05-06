@@ -1,14 +1,58 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Products.module.css";
 import ModifyProductForm from "./ModifyProductForm";
 import SelectMode from "./SelectMode";
+import { useAuth } from "@/Auth";
+import Loading from "@/components/Loading";
+import ErrorModal from "@/components/ErrorModal";
 
 function ModifyProduct({ navigate }) {
-    const [viewclick, setViewclick] = useState();
+  const [viewclick, setViewclick] = useState();
 
-    const onViewClick = () => viewclick ? setViewclick(false) : setViewclick(true)
+  const [product, setProduct] = useState();
+  
+  const onViewClick = (product) =>{
+    viewclick ? setViewclick(false) : setViewclick(true);
+    if(product)
+      setProduct(product);
+    else
+    setProduct(null);
+  }
+    
 
-    let index = 1;
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const [products, setProducts] = useState();
+  
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/products/list");
+
+        console.log(res);
+
+        setProducts(res.data.products);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, []);
+
+  let index = 1;
   return (
     <>
       <p className="path">
@@ -16,49 +60,59 @@ function ModifyProduct({ navigate }) {
         <i class="bi bi-chevron-right"></i> Ongoing Products
       </p>
 
-
-
-      {!viewclick && <div className="row m-0 p-3 pt-5 justify-content-center">
-        <div className="col-lg-9">
-            <table className='table table-bordered borderedtable'>
-                <thead>
-                    <tr>
-                    <th>S.No</th>
-                    <th>Date</th>
-                    <th>Created By</th>
-                    <th>Product ID</th>
-                    <th>Product Name</th>
-                    <th>Enable/Disable</th>
-                    <th>Action</th>
+      {products && !viewclick && (
+        <div className="row m-0 p-3 pt-5 justify-content-center">
+          <div className="col-lg-9">
+            <table className="table table-bordered borderedtable">
+              <thead>
+                <tr>
+                  <th>S.No</th>
+                  <th>Date</th>
+                  <th>Product SKU</th>
+                  <th>Product Name</th>
+                  <th>Category</th>
+                  <th>Units</th>
+                  <th>Purchase Price</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.length === 0 && (
+                  <tr>
+                    <td>NO DATA FOUND</td>
+                  </tr>
+                )}
+                {products.length > 0 &&
+                  products.map((product) => (
+                    <tr
+                      className="animated-row"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <td>{index++}</td>
+                      <td>{product.createdAt.slice(0, 10)}</td>
+                      <td>{product.SKU}</td>
+                      <td>{product.name}</td>
+                      <td>{product.category.name}</td>
+                      <td>{product.unit}</td>
+                      <td>{product.purchasePrice}</td>
+                      <td>
+                        <button onClick={() => onViewClick(product)}>view</button>
+                      </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
-                        <td>1</td>
-                        <td>2025-03-07</td>
-                        <td>Karthik</td>
-                        <td>#23432</td>
-                        <td>Product 1</td>
-                        <td className={styles.selectmode}><SelectMode val={"enable"}/></td>
-                        <td><button onClick={onViewClick}>view</button></td>
-                    </tr>
-                    <tr className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}>
-                        <td>2</td>
-                        <td>2025-03-06</td>
-                        <td>Karthik</td>
-                        <td>#23444</td>
-                        <td>Product 2</td>
-                        <td className={styles.selectmode}><SelectMode val={"disable"}/></td>
-                        <td><button onClick={onViewClick}>view</button></td>
-                    </tr>
-                </tbody>
+                  ))}
+              </tbody>
             </table>
+          </div>
         </div>
-      </div>}
+      )}
 
-      {viewclick && <ModifyProductForm onViewClick={onViewClick}/>}
+      {viewclick && <ModifyProductForm onViewClick={onViewClick} product={product} />}
+
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+
+      {loading && <Loading />}
     </>
   );
 }

@@ -1,9 +1,15 @@
 import React from "react";
 import styles from "./Warehouse.module.css";
-import { DialogBody, DialogCloseTrigger, DialogContent, DialogRoot, DialogTrigger } from "@/components/ui/dialog";
+import {
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogRoot,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import GoogleMapLocator from "./GoogleMapLocator";
 
-function MapViewModal({setLocation}) {
+function MapViewModal({ setLocation, defaultLocation, setDefaultLocation }) {
   return (
     <>
       {/* <button
@@ -44,19 +50,19 @@ function MapViewModal({setLocation}) {
 
       <DialogRoot placement={"center"} size={"xl"} className={styles.mdl}>
         <DialogTrigger asChild>
-          <button
-           className={styles.locate}
-          >
-            LOCATE
-          </button>
+          <button className={styles.locate}>LOCATE</button>
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-          <h3 className={`px-3 mdl-title`}>Locate on Map</h3>
+            <h3 className={`px-3 mdl-title`}>Locate on Map</h3>
             <div className="row justify-content-center">
-                <div className="col-11 pb-3">
-                <GoogleMapLocator setLocation={setLocation}/>
-                </div>
+              <div className="col-11 pb-3">
+                <GoogleMapLocator
+                  setLocation={setLocation}
+                  defaultLocation={defaultLocation}
+                  setDefaultLocation={setDefaultLocation}
+                />
+              </div>
             </div>
           </DialogBody>
 

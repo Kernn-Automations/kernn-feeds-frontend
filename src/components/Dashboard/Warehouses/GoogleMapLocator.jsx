@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   GoogleMap,
   Marker,
@@ -27,14 +27,37 @@ const containerStyle = {
   height: "500px",
 };
 
-const GoogleMapLocator = ({ setLocation }) => {
-  const defaultLocation = { lat: 40.7128, lng: -74.006 };
+const GoogleMapLocator = ({
+  setLocation,
+  defaultLocation,
+  setDefaultLocation,
+}) => {
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setDefaultLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (err) => {
+        setError("Unable to retrieve your location: " + err.message);
+      }
+    );
+  }, []);
 
   const [selectedPosition, setSelectedPosition] = useState(defaultLocation);
   const [selectedAddress, setSelectedAddress] = useState("");
   const [confirmVisible, setConfirmVisible] = useState(false);
 
   const mapRef = useRef(null);
+
+  console.log("locccc----",selectedPosition)
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
@@ -106,53 +129,55 @@ const GoogleMapLocator = ({ setLocation }) => {
         <MarkerF position={selectedPosition} />
       </GoogleMap>
 
-      <div className="row m-0 pt-3 pb-1 justify-content-center">
-        <div className="col-2">
-          <DialogRoot placement={"center"} className={styles.mdl}>
-            <DialogTrigger asChild>
-              <button className="submitbtn">Confirm</button>
-            </DialogTrigger>
-            <DialogContent className="mdl">
-              <DialogBody>
-                <h4>Confirm Location</h4>
-                <div className="row m-0 p-3 justify-content-center">
-                  <div className="col-12">
-                    <p className={styles.lant}>
-                      <span>Latitude : </span>
-                      {selectedPosition.lat}
-                    </p>
-                    <p className={styles.lant}>
-                      <span>Longitude : </span>
-                      {selectedPosition.lng}
-                    </p>
-                    <p className={styles.lant}>
-                      <span>Address : </span>
-                      {selectedAddress}
-                    </p>
+      {setLocation && (
+        <div className="row m-0 pt-3 pb-1 justify-content-center">
+          <div className="col-2">
+            <DialogRoot placement={"center"} className={styles.mdl}>
+              <DialogTrigger asChild>
+                <button className="submitbtn">Confirm</button>
+              </DialogTrigger>
+              <DialogContent className="mdl">
+                <DialogBody>
+                  <h4>Confirm Location</h4>
+                  <div className="row m-0 p-3 justify-content-center">
+                    <div className="col-12">
+                      <p className={styles.lant}>
+                        <span>Latitude : </span>
+                        {selectedPosition.lat}
+                      </p>
+                      <p className={styles.lant}>
+                        <span>Longitude : </span>
+                        {selectedPosition.lng}
+                      </p>
+                      <p className={styles.lant}>
+                        <span>Address : </span>
+                        {selectedAddress}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="row m-0 p-3 justify-content-center">
-                  <div className="col-7">
-                    <DialogActionTrigger asChild>
-                      <button
-                        className="submitbtn"
-                        onClick={setLocation(selectedAddress)}
-                      >
-                        Confirm
-                      </button>
-                    </DialogActionTrigger>
-                    <DialogActionTrigger>
-                      <button className="cancelbtn">Cancel</button>
-                    </DialogActionTrigger>
+                  <div className="row m-0 p-3 justify-content-center">
+                    <div className="col-7">
+                      <DialogActionTrigger asChild>
+                        <button
+                          className="submitbtn"
+                          onClick={setLocation(selectedPosition)}
+                        >
+                          Confirm
+                        </button>
+                      </DialogActionTrigger>
+                      <DialogActionTrigger>
+                        <button className="cancelbtn">Cancel</button>
+                      </DialogActionTrigger>
+                    </div>
                   </div>
-                </div>
 
-                <DialogCloseTrigger className="inputcolumn-mdl-close" />
-              </DialogBody>
-            </DialogContent>
-          </DialogRoot>
+                  <DialogCloseTrigger className="inputcolumn-mdl-close" />
+                </DialogBody>
+              </DialogContent>
+            </DialogRoot>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

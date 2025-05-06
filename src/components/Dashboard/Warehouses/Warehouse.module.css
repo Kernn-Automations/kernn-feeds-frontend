@@ -97,3 +97,7 @@
 .disable{
   background-color: #ff2727;
 }
+
+.errorField{
+  outline: 1px solid #ff2727;
+}

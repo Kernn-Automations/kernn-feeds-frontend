@@ -93,13 +93,7 @@ function PurchaseReport({ navigate }) {
   const onExport = (type) => {
     const arr = [];
     let x = 1;
-    const columns = [
-      "S.No",
-      "Date",
-      "PO ID",
-      "Warehouse Name",
-      "Net Amount"
-    ];
+    const columns = ["S.No", "Date", "PO ID", "Warehouse Name", "Net Amount"];
     if (purchases && purchases.length > 0) {
       purchases.map((st) =>
         arr.push({
@@ -193,19 +187,36 @@ function PurchaseReport({ navigate }) {
       <div className="row m-0 p-3">
         <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">To :</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
-          <select name="" id="" value={warehouse} onChange={(e) => setWarehouse(e.target.value)}>
-            <option value={null}>--select--</option>
+          <select
+            name=""
+            id=""
+            value={warehouse ?? ""}
+            onChange={(e) =>
+              setWarehouse(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
             {warehouses &&
               warehouses.map((warehouse) => (
-                <option value={warehouse.id}>{warehouse.name}</option>
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </option>
               ))}
           </select>
         </div>

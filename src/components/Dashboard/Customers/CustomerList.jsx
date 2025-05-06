@@ -24,10 +24,10 @@ function CustomerList({ navigate }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/customers");
+        const res = await axiosAPI.get("/employees/role/Sales Executive");
         const res2 = await axiosAPI.get("/warehouse");
         console.log(res);
-        setCustomers(res.data.customers);
+        setSes(res.data.employees);
         setWarehouses(res2.data.warehouses);
       } catch (e) {
         console.log(e);
@@ -38,6 +38,34 @@ function CustomerList({ navigate }) {
     }
     fetch();
   }, []);
+
+  const [warehouse, setWarehouse] = useState();
+  const [se, setSe] = useState();
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        setCustomers(null)
+        setLoading(true);
+        console.log(`/customers?kycStatus=Approved${
+            warehouse ? `&warehouseId=${warehouse}` : ""
+          }${se ? `&salesExecutiveId=${se}` : ""}`)
+        const res = await axiosAPI.get(
+          `/customers?kycStatus=Approved${
+            warehouse ? `&warehouseId=${warehouse}` : ""
+          }${se ? `&salesExecutiveId=${se}` : ""}`
+        );
+        console.log(res);
+        setCustomers(res.data.customers);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, [warehouse, se]);
 
   let count = 1;
 
@@ -51,18 +79,19 @@ function CustomerList({ navigate }) {
       <div className="row m-0 p-3">
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
-          <select name="" id="">
-            <option value={null}>--select--</option>
-            {warehouses && warehouses.map((warehouse) => <option value={warehouse.id}>{warehouse.name}</option>)}
+          <select name="" id="" value={warehouse} onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}>
+            <option value="null">--select--</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option value={warehouse.id}>{warehouse.name}</option>
+              ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Sales Executive :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Executive 1</option>
-            <option value="">Executive 2</option>
-            <option value="">Executive 3</option>
+          <select name="" id="" value={se} onChange={(e) => setSe(e.target.value === "null" ? null : e.target.value)}>
+            <option value="null">--select--</option>
+            {ses && ses.map((se) => <option value={se.id}>{se.name}</option>)}
           </select>
         </div>
       </div>
@@ -100,7 +129,7 @@ function CustomerList({ navigate }) {
                       <td colSpan={7}>NO DATA FOUND</td>
                     </tr>
                   )}
-                  {customers.length > 1 &&
+                  {customers.length > 0 &&
                     customers.map((customer) => (
                       <tr
                         className="animated-row"

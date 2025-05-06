@@ -4,6 +4,7 @@ import { DialogActionTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
+import SuccessModal from "@/components/SuccessModal";
 
 function DeleteWarehouseModal() {
   const onSubmit = (e) => e.preventDefault();
@@ -19,6 +20,11 @@ function DeleteWarehouseModal() {
     setIsModalOpen(false);
   };
 
+  const [issuccessModalOpen, setIssuccessModalOpen] = useState(false);
+  const closesuccessModal = () => {
+    setIssuccessModalOpen(false);
+  };
+
   useEffect(() => {
     async function fetch() {
       try {
@@ -29,13 +35,40 @@ function DeleteWarehouseModal() {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
-        setIsModalOpen(true)
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
     fetch();
   }, []);
+
+  const [warehouse, setWarehouse] = useState();
+
+  const onDelete = () => {
+    if (!warehouse) {
+      setError("Please select one Warehouse");
+      setIsModalOpen(true);
+      return;
+    }
+
+    async function del() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.delete(`/warehouse/delete/${warehouse}`);
+        console.log(res);
+        setError(res.data.message);
+        setIssuccessModalOpen(true)
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    del();
+  };
 
   return (
     <>
@@ -44,8 +77,17 @@ function DeleteWarehouseModal() {
         <div className="row pt-3 justify-content-center">
           <div className={`col inputcolumn-mdl`}>
             {warehouses && (
-              <select name="" id="" className={styles.delsec}>
-                <option value="">--Select Warehouse--</option>
+              <select
+                name=""
+                id=""
+                className={styles.delsec}
+                onChange={(e) =>
+                  setWarehouse(
+                    e.target.value === "null" ? null : e.target.value
+                  )
+                }
+              >
+                <option value="null">--Select Warehouse--</option>
                 {warehouses.map((warehouse) => (
                   <option value={warehouse.id}>{warehouse.name}</option>
                 ))}
@@ -59,31 +101,47 @@ function DeleteWarehouseModal() {
               />
             )}
 
-            {loading && <Loading />}
           </div>
         </div>
-        <div className="row pt-3 justify-content-center">
-          <div className={`col-5`}>
-            <button
-              type="button"
-              className={` cancelbtn`}
-              data-bs-dismiss="modal"
-            >
-              Delete
-            </button>
-
-            <DialogActionTrigger asChild>
+        {!loading && (
+          <div className="row pt-3 justify-content-center">
+            <div className={`col-5`}>
               <button
                 type="button"
-                className={`submitbtn`}
+                className={` cancelbtn`}
                 data-bs-dismiss="modal"
+                onClick={onDelete}
               >
-                Close
+                Delete
               </button>
-            </DialogActionTrigger>
+
+              <DialogActionTrigger asChild>
+                <button
+                  type="button"
+                  className={`submitbtn`}
+                  data-bs-dismiss="modal"
+                >
+                  Close
+                </button>
+              </DialogActionTrigger>
+            </div>
           </div>
-        </div>
+        )}
       </form>
+
+      {loading && (
+        <Loading/>
+      )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+      {issuccessModalOpen && (
+        <SuccessModal
+          isOpen={issuccessModalOpen}
+          message={error}
+          onClose={closesuccessModal}
+        />
+      )}
     </>
   );
 }

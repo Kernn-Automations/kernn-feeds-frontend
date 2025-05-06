@@ -21,6 +21,7 @@ function PaymentReports({ navigate }) {
 
   const [warehouses, setWarehouses] = useState();
   const [customers, setCustomers] = useState();
+  const [ses, setSes] = useState();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -37,33 +38,18 @@ function PaymentReports({ navigate }) {
   };
 
   useEffect(() => {
-    setReports(null);
-    async function fetch() {
-      try {
-        setLoading(true);
-        const res = await axiosAPI.get("/payment-requests?status=Approved");
-        console.log(res);
-        setReports(res.data.paymentRequests);
-      } catch (e) {
-        console.log(e);
-        setError(e.response.data.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, [trigger]);
-
-  useEffect(() => {
     async function fetch() {
       try {
         setLoading(true);
         const res1 = await axiosAPI.get("/warehouse");
         const res2 = await axiosAPI.get("/customers");
+        const res3 = await axiosAPI.get("/employees/role/Sales Executive");
         console.log(res1);
         console.log(res2);
+        console.log(res3);
         setWarehouses(res1.data.warehouses);
         setCustomers(res2.data.customers);
+        setSes(res3.data.employees);
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
@@ -73,6 +59,50 @@ function PaymentReports({ navigate }) {
     }
     fetch();
   }, []);
+
+  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const today = new Date(Date.now()).toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(date);
+  const [to, setTo] = useState(today);
+  const [warehouse, setWarehouse] = useState();
+  const [customer, setCustomer] = useState();
+  const [se, setSe] = useState();
+
+  useEffect(() => {
+    setReports(null);
+    async function fetch() {
+      try {
+        console.log(
+          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
+            warehouse ? `&warehouseId=${warehouse}` : ""
+          }${customer ? `&customerTd=${customer}` : ""}${
+            se ? `&salesExecutiveId=${se}` : ""
+          }`
+        );
+        setLoading(true);
+        const res = await axiosAPI.get(
+          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
+            warehouse ? `&warehouseId=${warehouse}` : ""
+          }${customer ? `&customerTd=${customer}` : ""}${
+            se ? `&salesExecutiveId=${se}` : ""
+          }`
+        );
+        console.log(res);
+        setReports(res.data.paymentRequests);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, [trigger]);
 
   // const tableData = [
   //   [
@@ -156,9 +186,10 @@ function PaymentReports({ navigate }) {
       );
       setTableData(arr);
 
-      if (type === "PDF") handleExportPDF(columns, tableData, "Deliveries");
+      if (type === "PDF")
+        handleExportPDF(columns, tableData, "Payment-Reports");
       else if (type === "XLS")
-        handleExportExcel(columns, tableData, "Deliveries");
+        handleExportExcel(columns, tableData, "Payment-Reports");
     } else {
       setError("Table is Empty");
       setIsModalOpen(true);
@@ -176,16 +207,31 @@ function PaymentReports({ navigate }) {
       <div className="row m-0 p-3">
         <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
-          <input type="date" />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">To :</label>
-          <input type="date" />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
-          <select name="" id="">
-            <option value={null}>--select--</option>
+          <select
+            name=""
+            id=""
+            value={warehouse}
+            onChange={(e) =>
+              setWarehouse(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option value={warehouse.id}>{warehouse.name}</option>
@@ -194,20 +240,32 @@ function PaymentReports({ navigate }) {
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Sales Executive :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Executive 1</option>
-            <option value="">Executive 2</option>
-            <option value="">Executive 3</option>
+          <select
+            name=""
+            id=""
+            value={se}
+            onChange={(e) =>
+              setSe(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            {ses && ses.map((se) => <option value={se.id}>{se.name}</option>)}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Customer :</label>
-          <select name="" id="">
-            <option value={null}>--select--</option>
+          <select
+            name=""
+            id=""
+            value={customer}
+            onChange={(e) =>
+              setCustomer(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
             {customers &&
               customers.map((customer) => (
-                <option value={customer.customer_id}>{customer.name}</option>
+                <option value={customer.id}>{customer.name}</option>
               ))}
           </select>
         </div>
@@ -247,8 +305,10 @@ function PaymentReports({ navigate }) {
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
-                <tr className="animated-row"
-                style={{ animationDelay: `${index++ * 0.1}s` }}>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index++ * 0.1}s` }}
+                >
                   <th>S.No</th>
                   <th>Date</th>
                   <th>Order ID</th>
@@ -268,14 +328,16 @@ function PaymentReports({ navigate }) {
 
                 {reports.length > 0 &&
                   reports.map((report) => (
-                    <tr className="animated-row"
-                    style={{ animationDelay: `${index++ * 0.1}s` }}>
+                    <tr
+                      className="animated-row"
+                      style={{ animationDelay: `${index++ * 0.1}s` }}
+                    >
                       <td>{index++}</td>
                       <td>{report.transactionDate}</td>
                       <td>{report.order.orderNumber}</td>
                       <td>{report.order.customer.name}</td>
                       <td>{report.order.salesExecutive.id}</td>
-                      <td>{report.order.warehouse.name}</td>
+                      <td>{report.order.warehouse && report.order.warehouse.name}</td>
                       <td>{"na"}</td>
                       <td>
                         <ReportsViewModal report={report} />

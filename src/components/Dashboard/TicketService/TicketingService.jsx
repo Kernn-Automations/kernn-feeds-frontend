@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { RiChat1Fill } from "react-icons/ri";
+import React, { useEffect, useRef, useState } from "react";
+import { RiChat1Fill, RiH6 } from "react-icons/ri";
 import { LuTicketPlus } from "react-icons/lu";
 import {
   PopoverArrow,
@@ -14,18 +14,18 @@ import UserChat from "./UserChat";
 import TicketChat from "./TicketChat";
 import { FileUpload } from "@chakra-ui/react";
 import FileUploadDialog from "./FileUploadDialog";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import axios from "axios";
 
 function TicketingService() {
-  const [oldtickets, setoldtickets] = useState([
-    { id: "23432", status: "pending", date: "2025-02-17" },
-    { id: "45654", status: "completed", date: "2025-02-20" },
-    { id: "98789", status: "declined", date: "2025-02-25" },
-    { id: "12345", status: "completed", date: "2025-02-28" },
-  ]);
+  const [oldtickets, setoldtickets] = useState();
 
   const [openchat, setOpenchat] = useState(false);
 
   const [ticketno, setTicketno] = useState();
+
+  const [trigger, setTrigger] = useState();
 
   const onChatClick = (no) => {
     setOpenchat(true);
@@ -47,6 +47,70 @@ function TicketingService() {
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file.name);
+    }
+  };
+
+  // backend for fetchig previous tickets
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/tickets/mine");
+        console.log(res);
+        setoldtickets(res.data.tickets);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, [trigger]);
+
+  // backend for create new ticket
+  const [files, setFiles] = useState([]);
+  const [subject, setSubject] = useState();
+  const [description, setDescription] = useState();
+  const VITE_API = import.meta.env.VITE_API_URL;
+  const handleUpload = async () => {
+    if (files.length === 0) {
+      alert("Please select at least one file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("subject", subject);
+    formData.append("description", description);
+
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+    console.log(files);
+    console.log(subject, description, formData);
+    try {
+      const res = await axios.post(`${VITE_API}/tickets`, formData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      console.log(res);
+      setFiles([]);
+      setTrigger(!trigger);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to create ticket. Please try again.");
+    } finally {
     }
   };
 
@@ -72,26 +136,39 @@ function TicketingService() {
             class={openchat ? styles.showb : styles.showa}
           >
             {/* <PopoverArrow className="notdropdown-color" /> */}
-            {!openchat && !newticket && (
+            {!openchat && !newticket && !loading && (
               <PopoverBody className={styles.components}>
                 <div className={styles.heading}>
                   <h2>Chat Services</h2>
                 </div>
                 <hr />
-                {oldtickets.map((ticket) => (
-                  <UserChat ticket={ticket} onChatClick={onChatClick} />
-                ))}
-                <div
-                  className={styles.chatcontent}
-                  onClick={() => setNewticket(true)}
-                >
-                  <h3>
-                    Raise New Ticket{" "}
-                    <span>
-                      <i class="bi bi-plus-circle"></i>
-                    </span>
-                  </h3>
+                {!oldtickets && (
+                  <h6 className={`text-center ${styles.errorText}`}>{error}</h6>
+                )}
+
+                <div className={styles.ticketsContainer}>
+                  {oldtickets &&
+                    oldtickets.length > 0 &&
+                    oldtickets.map((ticket) => (
+                      <UserChat ticket={ticket} onChatClick={onChatClick} />
+                    ))}
+                  {oldtickets && oldtickets.length === 0 && (
+                    <h3>NO TICKETS FOUND</h3>
+                  )}
+
+                  <div
+                    className={styles.chatcontent}
+                    onClick={() => setNewticket(true)}
+                  >
+                    <h3>
+                      Raise New Ticket{" "}
+                      <span>
+                        <i class="bi bi-plus-circle"></i>
+                      </span>
+                    </h3>
+                  </div>
                 </div>
+
                 {/* <hr /> */}
               </PopoverBody>
             )}
@@ -133,17 +210,28 @@ function TicketingService() {
                     <option value="">Sub Module 3</option>
                   </select> */}
 
-                  <input type="text" placeholder="Subject" />
-                  <textarea name="" id="" placeholder="Description"></textarea>
+                  <input
+                    type="text"
+                    placeholder="Subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                  />
+                  <textarea
+                    name=""
+                    id=""
+                    placeholder="Description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  ></textarea>
 
                   <div style={{ textAlign: "center", padding: "10px" }}>
                     {/* Hidden file input */}
-                    <input
+                    {/* <input
                       type="file"
                       ref={fileInputRef}
                       style={{ display: "none" }}
                       onChange={handleFileChange}
-                    />
+                    /> */}
 
                     {/* Custom upload button */}
 
@@ -162,7 +250,7 @@ function TicketingService() {
                       {!selectedFile && "Upload File"}
                       {selectedFile && selectedFile}
                     </button> */}
-                    <FileUploadDialog />
+                    <FileUploadDialog files={files} setFiles={setFiles} />
 
                     {/* Display the selected file name
                     {selectedFile && (
@@ -170,16 +258,23 @@ function TicketingService() {
                     )} */}
                   </div>
                   <p className="text-center">
-                    <button className={styles.send}>Submit</button>
+                    <button className={styles.send} onClick={handleUpload}>
+                      Submit
+                    </button>
                   </p>
                 </div>
 
                 {/* <hr /> */}
+
+                {loading && <LoadingAnimation gif={deliverAni} />}
               </PopoverBody>
             )}
           </PopoverContent>
         </PopoverRoot>
       </div>
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
     </>
   );
 }

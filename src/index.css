@@ -11,7 +11,11 @@
   --primary-hover: #022658;
   --primary-light: #ebf2ff;
   --primary-light-hover: #d2e0fb;
+  
+}
 
+.modal {
+  --bs-modal-zindex: 1700 !important;
 }
 
 * {
@@ -62,3 +66,10 @@ html.dark {
 .accordion-button:not(.collapsed)::after{
   background-image: none !important;
 }
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+

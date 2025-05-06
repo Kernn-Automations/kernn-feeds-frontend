@@ -36,6 +36,7 @@ function PaymentApprovals({ navigate }) {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
+        setIsModalOpen(true)
       } finally {
         setLoading(false);
       }

@@ -1,77 +1,113 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Products.module.css";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
+import { useAuth } from "@/Auth";
+import TaxAddViewModal from "./TaxAddViewModal";
+import TaxViewModal from "./TaxViewModal";
 
-function Taxes({navigate}) {
-    const [addclick, setAddclick] = useState();
-    const [viewclick, setViewclick] = useState();
+function Taxes({ navigate }) {
+  // const [addclick, setAddclick] = useState();
+  // const [viewclick, setViewclick] = useState();
 
+  // const onViewClick = () => {
+  //   setAddclick(false);
+  //   viewclick ? setViewclick(false) : setViewclick(true);
+  // };
+  // const onAddClick = () => {
+  //   setViewclick(false);
+  //   addclick ? setAddclick(false) : setAddclick(true);
+  // };
 
+  // const dummyprice = [10, 20, 30, 40, 50];
 
-    const onViewClick = () => {
-        setAddclick(false);
-        viewclick ? setViewclick(false) : setViewclick(true)
+  // const [prices, setPrices] = useState([10, 20, 30, 40, 50]);
+
+  // const [count, setCount] = useState([1]);
+  // const [i, seti] = useState(1);
+
+  // const [products, setProducts] = useState([]);
+  // const [price, setPrice] = useState("");
+  // const [units, setUnits] = useState("");
+  // const [errors, setErrors] = useState({});
+
+  // const handleInputChange = (setter, field) => (e) => {
+  //   setter(e.target.value);
+  //   setErrors((prev) => ({ ...prev, [field]: false }));
+  // };
+
+  // const onSaveClick = (e) => {
+  //   e.preventDefault();
+  //   console.log(products);
+  //   const newErrors = {};
+  //   if (!price) newErrors.price = true;
+  //   if (!units) newErrors.units = true;
+
+  //   setErrors(newErrors);
+  //   if (Object.keys(newErrors).length > 0) return;
+
+  //   setProducts((prevProducts) => [
+  //     ...prevProducts,
+  //     { id: prevProducts.length + 1, price: Number(price), units },
+  //   ]);
+
+  //   // Convert price to Number and remove from prices array
+  //   setPrices((prevPrices) => prevPrices.filter((p) => p !== Number(price)));
+
+  //   setPrice("");
+  //   setUnits("");
+  //   setErrors({});
+  // };
+
+  // const onDeleteClick = (id, price) => {
+  //   console.log("delete called", price);
+  //   setProducts((prevProducts) =>
+  //     prevProducts.filter((product) => product.id !== id)
+  //   );
+
+  //   setPrices((prevPrices) => {
+  //     if (!prevPrices.includes(price)) {
+  //       return [...prevPrices, price].sort((a, b) => a - b); // Keep it sorted
+  //     }
+  //     return prevPrices;
+  //   });
+  // };
+
+  let index = 1;
+
+  // BACKEND
+
+  const [taxes, setTaxes] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [trigger, setTrigger] = useState();
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/tax");
+        console.log(res);
+        setTaxes(res.data.taxes);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
     }
-    const onAddClick = () => {
-        setViewclick(false)
-        addclick ? setAddclick(false) : setAddclick(true)
-    }
+    fetch();
+  }, [trigger]);
 
-
-    const dummyprice = [10, 20, 30, 40, 50];
-     
-      const [prices, setPrices] = useState([10, 20, 30, 40, 50]);
-    
-      const [count, setCount] = useState([1]);
-      const [i, seti] = useState(1);
-    
-      const [products, setProducts] = useState([]);
-      const [price, setPrice] = useState("");
-      const [units, setUnits] = useState("");
-      const [errors, setErrors] = useState({});
-    
-      const handleInputChange = (setter, field) => (e) => {
-        setter(e.target.value);
-        setErrors((prev) => ({ ...prev, [field]: false }));
-      };
-    
-      const onSaveClick = (e) => {
-        e.preventDefault();
-        console.log(products);
-        const newErrors = {};
-        if (!price) newErrors.price = true;
-        if (!units) newErrors.units = true;
-    
-        setErrors(newErrors);
-        if (Object.keys(newErrors).length > 0) return;
-    
-        setProducts((prevProducts) => [
-          ...prevProducts,
-          { id: prevProducts.length + 1, price: Number(price), units },
-        ]);
-    
-        // Convert price to Number and remove from prices array
-        setPrices((prevPrices) => prevPrices.filter((p) => p !== Number(price)));
-    
-        setPrice("");
-        setUnits("");
-        setErrors({});
-      };
-    
-      const onDeleteClick = (id, price) => {
-        console.log("delete called", price);
-        setProducts((prevProducts) =>
-          prevProducts.filter((product) => product.id !== id)
-        );
-    
-        setPrices((prevPrices) => {
-          if (!prevPrices.includes(price)) {
-            return [...prevPrices, price].sort((a, b) => a - b); // Keep it sorted
-          }
-          return prevPrices;
-        });
-      };
-    
-      let index = 1;
   return (
     <>
       <p className="path">
@@ -79,54 +115,54 @@ function Taxes({navigate}) {
         <i class="bi bi-chevron-right"></i> Taxes
       </p>
 
-      {!viewclick && !addclick && (
-        <>
-          <button className="homebtn" onClick={onAddClick}>
-            + Add
-          </button>
+      <>
+        {/* <button className="homebtn" onClick={onAddClick}>
+          + Add
+        </button> */}
+        <TaxAddViewModal trigger={trigger} setTrigger={setTrigger} />
 
+        {taxes && (
           <div className="row m-0 p-3 pt-5 justify-content-center">
             <div className="col-lg-9">
               <table className="table table-bordered borderedtable">
                 <thead>
                   <tr>
                     <th>S.No</th>
+                    <th>Date</th>
                     <th>Tax Name</th>
                     <th>Tax Value</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    className="animated-row"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <td>1</td>
-                    <td>CGST</td>
-                    <td>18%</td>
-                    <td>
-                      <button onClick={onViewClick}>view</button>
-                    </td>
-                  </tr>
-                  <tr
-                    className="animated-row"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <td>2</td>
-                    <td>SGST</td>
-                    <td>18%</td>
-                    <td>
-                      <button onClick={onViewClick}>view</button>
-                    </td>
-                  </tr>
+                  {taxes.length === 0 && (
+                    <tr>
+                      <td colSpan={5}>NO DATA FOUND</td>
+                    </tr>
+                  )}
+                  {taxes.length > 0 &&
+                    taxes.map((tax) => (
+                      <tr
+                        className="animated-row"
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                      >
+                        <td>{index++}</td>
+                        <td>{tax.createdAt.slice(0, 10)}</td>
+                        <td>{tax.name}</td>
+                        <td>{tax.percentage}%</td>
+                        <td>
+                          <TaxViewModal tax={tax}/>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
           </div>
-        </>
-      )}
+        )}
+      </>
 
-      {(viewclick || addclick) && (
+      {/* {(viewclick || addclick) && (
         <>
           {products &&
             products.length > 0 &&
@@ -203,7 +239,13 @@ function Taxes({navigate}) {
             </div>
           </div>
         </>
+      )} */}
+
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
+
+      {loading && <Loading />}
     </>
   );
 }
