@@ -200,9 +200,9 @@ function Orders({ navigate, warehouses, customers }) {
             name=""
             id=""
             value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value)}
+            onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}
           >
-            <option value={null}>--select--</option>
+            <option value="null">--select--</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option value={warehouse.id}>{warehouse.name}</option>
@@ -222,9 +222,9 @@ function Orders({ navigate, warehouses, customers }) {
             name=""
             id=""
             value={customer}
-            onChange={(e) => setCustomer(e.target.value)}
+            onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}
           >
-            <option value="">--select--</option>
+            <option value="null">--select--</option>
             {customers &&
               customers.map((customer) => (
                 <option value={customer.id}>{customer.name}</option>

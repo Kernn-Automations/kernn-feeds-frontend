@@ -201,8 +201,8 @@ function IncomingStock({ navigate }) {
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
-          <select name="" id="" onChange={(e) => setWarehouse(e.target.value)}>
-            <option value={null}>--select--</option>
+          <select name="" id="" onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}>
+            <option value="null">--select--</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option value={warehouse.id}>{warehouse.name}</option>
@@ -211,8 +211,8 @@ function IncomingStock({ navigate }) {
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
-          <select name="" id="" onChange={(e) => setProduct(e.target.value)}>
-            <option value={null}>--select--</option>
+          <select name="" id="" onChange={(e) => setProduct(e.target.value === "null" ? null : e.target.value)}>
+            <option value="null">--select--</option>
             {products &&
               products.map((product) => (
                 <option value={product.id}>{product.name}</option>
@@ -221,8 +221,8 @@ function IncomingStock({ navigate }) {
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Customers :</label>
-          <select name="" id="" onChange={(e) => setCustomer(e.target.value)}>
-            <option value={null}>--select--</option>
+          <select name="" id="" onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}>
+            <option value="null">--select--</option>
             {customers &&
               customers.map((customer) => (
                 <option value={customer.id}>{customer.name}</option>
