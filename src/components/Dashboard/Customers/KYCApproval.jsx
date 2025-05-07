@@ -17,6 +17,10 @@ import {
 function KYCApproval({ navigate }) {
   const [customers, setCustomers] = useState();
 
+  const [trigger, setTrigger] = useState(false);
+
+  const changeTrigger = () => setTrigger(!trigger)
+
   const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
@@ -36,12 +40,13 @@ function KYCApproval({ navigate }) {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
+        setIsModalOpen(true)
       } finally {
         setLoading(false);
       }
     }
     fetch();
-  }, []);
+  }, [trigger]);
 
   let count = 1;
   return (
@@ -86,7 +91,7 @@ function KYCApproval({ navigate }) {
                       <td colSpan={7}>NO DATA FOUND</td>
                     </tr>
                   )}
-                  {customers.length > 1 &&
+                  {customers.length > 0 &&
                     customers.map((customer) => (
                       <tr
                         className="animated-row"
@@ -99,7 +104,7 @@ function KYCApproval({ navigate }) {
                         <td>{customer.salesExecutive.name}</td>
                         <td>{customer.warehouse && customer.warehouse.name}</td>
                         <td>
-                          <KYCViewModal customer={customer} />
+                          <KYCViewModal customer={customer} changeTrigger={changeTrigger} />
                         </td>
                       </tr>
                     ))}

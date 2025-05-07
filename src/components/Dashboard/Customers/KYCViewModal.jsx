@@ -10,7 +10,7 @@ import styles from "./Customer.module.css";
 import KYCModal from "./KYCModal";
 import { useAuth } from "@/Auth";
 
-function KYCViewModal({ customer }) {
+function KYCViewModal({ customer, changeTrigger }) {
   const [customerdata, setCustomerdata] = useState();
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ function KYCViewModal({ customer }) {
           </DialogTrigger>
           <DialogContent className="mdl">
             <DialogBody>
-              <KYCModal customerdata={customerdata}/>
+              <KYCModal customerdata={customerdata} changeTrigger={changeTrigger}/>
             </DialogBody>
             <DialogCloseTrigger className="inputcolumn-mdl-close" />
           </DialogContent>

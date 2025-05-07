@@ -7,11 +7,13 @@ import Loading from "@/components/Loading";
 import { useAuth } from "@/Auth";
 
 function PaymentApprovals({ navigate }) {
-  // const [trigger, setTrigger] = useState(false);
-
   const { axiosAPI } = useAuth();
 
   const [reports, setReports] = useState();
+
+  const [trigger, setTrigger] = useState(false);
+
+  const changeTrigger = () => setTrigger(!trigger);
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -36,13 +38,13 @@ function PaymentApprovals({ navigate }) {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
-        setIsModalOpen(true)
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
     fetch();
-  }, []);
+  }, [trigger]);
 
   let index = 1;
   return (
@@ -98,7 +100,7 @@ function PaymentApprovals({ navigate }) {
                         <td>{report.order.warehouse?.name}</td>
                         <td>{"na"}</td>
                         <td>
-                          <ApprovalsViewModal report={report} />
+                          <ApprovalsViewModal report={report} changeTrigger={changeTrigger} />
                         </td>
                       </tr>
                     ))}

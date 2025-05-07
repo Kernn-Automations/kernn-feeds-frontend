@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ApprovalModal from "./ApprovalModal";
-function ApprovalsViewModal({report}) {
+function ApprovalsViewModal({report, changeTrigger}) {
   return (
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
@@ -18,7 +18,7 @@ function ApprovalsViewModal({report}) {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <ApprovalModal report={report} />
+            <ApprovalModal report={report} changeTrigger={changeTrigger} />
           </DialogBody>
 
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
