@@ -9,7 +9,7 @@ import React from "react";
 import AddVendorModal from "./AddVendorModal";
 import styles from "./Purchases.module.css"
 
-function AddVendorViewModal() {
+function AddVendorViewModal({changeTrigger}) {
   return (
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
@@ -18,7 +18,7 @@ function AddVendorViewModal() {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <AddVendorModal />
+            <AddVendorModal  changeTrigger={changeTrigger}/>
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>

@@ -12,6 +12,10 @@ function Vendors({navigate}) {
       
     
       const { axiosAPI } = useAuth();
+
+      const [trigger, setTrigger] = useState(false);
+
+      const changeTrigger = () => setTrigger(!trigger);
     
       const [error, setError] = useState();
       const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,7 +42,7 @@ function Vendors({navigate}) {
         }
         }
         fetch()
-     }, [])
+     }, [trigger])
         
       let count = 1;
 
@@ -52,7 +56,7 @@ function Vendors({navigate}) {
 
       <div className="row m-0 p-3 pt-0">
         <div className="col-3">
-           <AddVendorViewModal/>
+           <AddVendorViewModal  changeTrigger={changeTrigger}/>
         </div>
       </div>
 

@@ -246,6 +246,7 @@ function StockSummary({ navigate }) {
                   <th>Warehouse Name</th>
                   <th>Product ID</th>
                   <th>Product Name</th>
+                  <th>Stock Type</th>
                   <th>Quantity</th>
                 </tr>
               </thead>
@@ -267,6 +268,7 @@ function StockSummary({ navigate }) {
                       <td>{st.warehouseName}</td>
                       <td>{st.productId}</td>
                       <td>{st.productName}</td>
+                      <td className={styles.upper}>{st.changeType}</td>
                       <td>{st.quantity}</td>
                     </tr>
                   ))}
