@@ -51,6 +51,21 @@
   font-weight: 500;
   font-size: 14px;
 }
+
+.taxform textarea{
+  width: 300px;
+  height: 80px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  position: relative;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* 
 .taxform button {
   position: absolute;
   top: -15px;
@@ -61,7 +76,7 @@
   padding: 2px 4px;
   background-color: transparent;
   color: #ff2727;
-}
+} */
 
 .head {
   font-weight: 600;

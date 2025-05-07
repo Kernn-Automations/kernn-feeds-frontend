@@ -88,14 +88,14 @@ function PaymentApprovals({ navigate }) {
                     reports.map((report) => (
                       <tr
                         className="animated-row"
-                        style={{ animationDelay: `${index++ * 0.1}s` }}
+                        style={{ animationDelay: `${index * 0.1}s` }}
                       >
                         <td>{index++}</td>
                         <td>{report.transactionDate}</td>
                         <td>{report.order.orderNumber}</td>
-                        <td>{report.order.customer.name}</td>
+                        <td>{report.order.customer?.name}</td>
                         <td>{report.order.salesExecutive.id}</td>
-                        <td>{report.order.warehouse.name}</td>
+                        <td>{report.order.warehouse?.name}</td>
                         <td>{"na"}</td>
                         <td>
                           <ApprovalsViewModal report={report} />
