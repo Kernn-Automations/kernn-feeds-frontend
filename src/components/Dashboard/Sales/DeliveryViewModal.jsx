@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import DeliverModal from "./DeliverModal";
 import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
 
 function DeliveryViewModal({order}) {
   const [orderdata, setOrderdata] = useState();
@@ -31,6 +32,7 @@ function DeliveryViewModal({order}) {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
+        // setIsModalOpen(true)
       } finally {
         setLoading(false);
       }
@@ -39,7 +41,7 @@ function DeliveryViewModal({order}) {
   }, []);
   return (
     <>
-      {!orderdata && <span className="text-denger"></span>}
+      {!orderdata && !loading &&  <span className="text-denger">{error}</span>}
       {orderdata && (
         <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
           <DialogTrigger asChild>

@@ -30,6 +30,7 @@ function OrdersViewModal({ order }) {
       } catch (e) {
         console.log(e);
         setError(e.response.data.message);
+        // setIsModalOpen(true)
       } finally {
         setLoading(false);
       }
@@ -38,7 +39,7 @@ function OrdersViewModal({ order }) {
   }, []);
   return (
     <>
-      {!orderdata && <span className="text-denger"></span>}
+      {!orderdata && !loading && <span className="text-denger">{error}</span>}
       {orderdata && (
         <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
           <DialogTrigger asChild>

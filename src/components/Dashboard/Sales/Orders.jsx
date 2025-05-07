@@ -284,7 +284,7 @@ function Orders({ navigate, warehouses, customers }) {
                       <td>{index++}</td>
                       <td>{order.createdAt.slice(0, 10)}</td>
                       <td>{order.orderNumber}</td>
-                      <td>{order.warehouse.name}</td>
+                      <td>{order.warehouse?.name}</td>
                       <td>{order.customer.customer_id}</td>
                       <td>{order.totalAmount}</td>
                       <td>UPI</td>

@@ -11,6 +11,8 @@ function ReportsModal({ pdetails, warehouses }) {
 
   const VITE_API = import.meta.env.VITE_API_URL;
 
+  const token = localStorage.getItem("access_token");
+
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,7 +28,10 @@ function ReportsModal({ pdetails, warehouses }) {
       const response = await axios.get(
         `${VITE_API}/purchases/${pdetails.id}/pdf`,
         {
-          responseType: "blob", // Important!
+          headers: {
+            Authorization: `Bearer ${token}`, // space after 'Bearer' is required
+          },
+          responseType: "blob", // for file downloads
         }
       );
 
@@ -44,7 +49,7 @@ function ReportsModal({ pdetails, warehouses }) {
       link.remove();
 
       window.URL.revokeObjectURL(url); // Clean up
-    } catch (error) {
+    } catch (e) {
       console.log(e);
       setError(e.response.data.message);
       setIsModalOpen(true);
@@ -68,10 +73,10 @@ function ReportsModal({ pdetails, warehouses }) {
             value={pdetails && pdetails.createdAt.slice(11, 16)}
           />
         </div>
-        <div className={`col-3 ${styles.longformmdl}`}>
+        {/* <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">User ID :</label>
           <input type="text" />
-        </div>
+        </div> */}
         <div className={`col-3 ${styles.longformmdl}`}>
           <label htmlFor="">Warehouse :</label>
           <input

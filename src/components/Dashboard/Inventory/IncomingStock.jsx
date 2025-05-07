@@ -219,7 +219,7 @@ function IncomingStock({ navigate }) {
               ))}
           </select>
         </div>
-        <div className={`col-3 formcontent`}>
+        {/* <div className={`col-3 formcontent`}>
           <label htmlFor="">Customers :</label>
           <select name="" id="" onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}>
             <option value="null">--select--</option>
@@ -228,7 +228,7 @@ function IncomingStock({ navigate }) {
                 <option value={customer.id}>{customer.name}</option>
               ))}
           </select>
-        </div>
+        </div> */}
       </div>
       <div className="row m-0 p-3 pb-5 justify-content-center">
         <div className="col-4">
@@ -257,8 +257,7 @@ function IncomingStock({ navigate }) {
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr
-                  className="animated-row"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+        
                 >
                   <th>S.No</th>
                   <th>Date</th>
@@ -275,7 +274,7 @@ function IncomingStock({ navigate }) {
                     <td colSpan={7}>NO DATA FOUND</td>
                   </tr>
                 )}
-                {stock.length > 1 &&
+                {stock.length > 0 &&
                   stock.map((st) => (
                     <tr
                       className="animated-row"

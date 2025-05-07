@@ -39,7 +39,7 @@ function ReportViewModal({ order, warehouses }) {
   }, []);
   return (
     <>
-      {!pdetails && <span className="text-denger"></span>}
+      {!pdetails && !loading && <span className="text-denger">{error}</span>}
       {pdetails && (
         <DialogRoot placement={"center"} size={"xl"} className={styles.mdl}>
           <DialogTrigger asChild>

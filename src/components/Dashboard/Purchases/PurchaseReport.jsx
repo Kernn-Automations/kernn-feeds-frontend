@@ -88,7 +88,7 @@ function PurchaseReport({ navigate }) {
     fetch();
   }, [trigger]);
 
-  const [tableData, setTableData] = useState();
+  const [tableData, setTableData] = useState([]);
 
   const onExport = (type) => {
     const arr = [];
@@ -100,7 +100,7 @@ function PurchaseReport({ navigate }) {
           "S.No": x++,
           Date: st.date.slice(0, 10),
           "PO ID": st.ordernumer,
-          "Warehouse Name": st.warehouse.name,
+          "Warehouse Name": st.warehouse?.name || "na",
           "Net Amount": st.totalAmount,
         })
       );
