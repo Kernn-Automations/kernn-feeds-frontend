@@ -229,7 +229,7 @@ function NavBg({ hover, setTab, tab }) {
             {hover && <p>Employees</p>}
           </Link>
         </div>
-        <div
+        {/* <div
           className={`${
             location.pathname.includes("location") ? styles.active : ""
           } `}
@@ -261,7 +261,7 @@ function NavBg({ hover, setTab, tab }) {
 
             {hover && <p>Live Locations</p>}
           </Link>
-        </div>
+        </div> */}
         <div
           className={`${
             location.pathname.includes("warehouses") ? styles.active : ""
@@ -339,7 +339,7 @@ function NavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
-        <div
+        {/* <div
           className={`${
             location.pathname.includes("announcement") ? styles.active : ""
           } `}
@@ -363,7 +363,7 @@ function NavBg({ hover, setTab, tab }) {
 
             {hover && <p>Announcement</p>}
           </Link>
-        </div>
+        </div> */}
 
         {/* <div
           className={`${

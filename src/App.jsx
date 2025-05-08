@@ -88,9 +88,9 @@ function App() {
       } else {
         setAdmin(false);
         setOrgadmin(false);
-        setRole(user.roles[0].name);
+        setRole(user?.roles[0].name);
 
-        switch (user.department) {
+        switch (user?.department) {
           case 1:
             setDept("procurement");
             break;

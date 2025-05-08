@@ -126,7 +126,7 @@ function OngoingWarehouse({ navigate, managers }) {
                   <th>S.No</th>
                   <th>Warehouse ID</th>
                   <th>Warehouse Name</th>
-                  <th>Enable/Disable</th>
+                  {/* <th>Enable/Disable</th> */}
                   <th>Action</th>
                 </tr>
               </thead>
@@ -141,11 +141,11 @@ function OngoingWarehouse({ navigate, managers }) {
                       <td>{count++}</td>
                       <td>{warehouse.id}</td>
                       <td>{warehouse.name}</td>
-                      <td className={styles.selectmode}>
+                      {/* <td className={styles.selectmode}>
                         <SelectMode
                           val={warehouse.managerId ? "enable" : "disable"}
                         />
-                      </td>
+                      </td> */}
                       <td>
                         <ActionViewModal warehouse={warehouse} managers={managers} />
                       </td>

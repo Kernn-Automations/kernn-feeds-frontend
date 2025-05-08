@@ -91,8 +91,8 @@ function Dispaches({ navigate, warehouses, customers }) {
           "S.No": x++,
           Date: order.createdAt.slice(0, 10),
           "Order ID": order.orderNumber,
-          "Warehouse Name": order.warehouse.name,
-          "Customer ID": order.customer.customer_id,
+          "Warehouse Name": order.warehouse?.name,
+          "Customer ID": order.customer?.customer_id,
           "Dispatch Date": order.dispatchDate && order.dispatchDate.slice(0, 10),
           "Truck No.": order.truckNumber,
         })
@@ -282,7 +282,7 @@ function Dispaches({ navigate, warehouses, customers }) {
                       <td>{order.createdAt.slice(0, 10)}</td>
                       <td>{order.orderNumber}</td>
                       <td>{order.warehouse?.name}</td>
-                      <td>{order.customer.customer_id}</td>
+                      <td>{order.customer?.customer_id}</td>
                       <td>
                         {order.dispatchDate && order.dispatchDate.slice(0, 10)}
                       </td>

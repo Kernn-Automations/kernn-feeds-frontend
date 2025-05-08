@@ -253,7 +253,7 @@ function StockSummary({ navigate }) {
               <tbody>
                 {stock.length === 0 && (
                   <tr>
-                    <td colSpan={7}>NO DATA FOUND</td>
+                    <td colSpan={8}>NO DATA FOUND</td>
                   </tr>
                 )}
                 {stock.length > 0 &&

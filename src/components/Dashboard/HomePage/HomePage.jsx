@@ -64,11 +64,11 @@ function HomePage() {
         );
         console.log(res);
 
-        setKycApprovals(res.data.dashboard.kycApprovals);
-        setPaymentsApprovals(res.data.dashboard.paymentApprovals);
-        setSalesAnalysis(res.data.dashboard.salesAnalysis);
-        setTopPerformingBOs(res.data.dashboard.topPerformingBOs);
-        setProducts(res.data.dashboard.topSellingProducts);
+        setKycApprovals(res.data.dashboard?.kycApprovals);
+        setPaymentsApprovals(res.data.dashboard?.paymentApprovals);
+        setSalesAnalysis(res.data.dashboard?.salesAnalysis);
+        setTopPerformingBOs(res.data.dashboard?.topPerformingBOs);
+        setProducts(res.data.dashboard?.topSellingProducts);
       } catch (err) {
         setError(err?.response?.data?.message || "Failed to load Dashboard.");
         setIsModalOpen(true);
@@ -85,7 +85,7 @@ function HomePage() {
       <div className="row m-0 p-0">
         <div className="col p-3">
           <h2 className={styles.wish}>
-            Hello, {wish} {user.name} !!
+            Hello, {wish} {user?.name} !!
           </h2>
         </div>
       </div>

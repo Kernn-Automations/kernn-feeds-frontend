@@ -1,11 +1,6 @@
-import FinanceNavBg from "./FinanceNavBg";
 import Logo from "./Logo";
 import NavBg from "./NavBg";
-import styles from "./NavContainer.module.css";
-import ProductionNavBg from "./ProductionNavBg";
-import SalesNavBg from "./SalesNavBg";
-import StoresNavBg from "./StoresNavBg";
-import VLPNavBg from "./VLPNavBg";
+
 function NavContainer({hover, setTab, tab, role, dept}) {
   console.log(role)
   return (

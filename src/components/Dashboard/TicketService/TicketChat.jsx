@@ -1,30 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "./Tickets.module.css";
-import axios from "axios";
 import { getSocket, disconnectSocket } from "../../../utils/Socket";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
-import LoadingAnimation from "@/components/LoadingAnimation";
 import chatAni from "../../../images/animations/chatAnimation.gif";
 
 function TicketChat({ ticket, setOpenchat, token }) {
-  const [messages, setMessages] = useState();
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
 
   const { axiosAPI } = useAuth();
-
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-
   const ticketId = ticket.id;
 
-  console.log(ticket);
-  // Auto-scroll to latest message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -32,21 +25,21 @@ function TicketChat({ ticket, setOpenchat, token }) {
   useEffect(() => {
     const socket = getSocket(token);
 
-    // Join the ticket room
     socket.on("connect", () => {
       socket.emit("join_ticket", ticketId);
     });
 
-    // Receive messages
     socket.on("new_message", (msg) => {
-      const isOwn = msg.senderType === "Employee"; // assumes "Employee" is you
+      const isOwn = msg.senderType === "Employee";
       setMessages((prev) => [
         ...prev,
-        { ...msg, sender: isOwn ? "sent" : "received" },
+        {
+          ...msg,
+          sender: isOwn ? "sent" : "received",
+        },
       ]);
     });
 
-    // Fetch existing messages
     const fetchMessages = async () => {
       try {
         setLoading(true);
@@ -57,8 +50,8 @@ function TicketChat({ ticket, setOpenchat, token }) {
         }));
         setMessages(formatted);
       } catch (err) {
-        console.log(err);
-        setError(ree.response?.data?.message);
+        console.error(err);
+        setError(err.response?.data?.message || "Error loading messages.");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
@@ -67,33 +60,61 @@ function TicketChat({ ticket, setOpenchat, token }) {
 
     fetchMessages();
 
-    return () => {
-      disconnectSocket();
-    };
+    return () => disconnectSocket();
   }, [ticketId, token]);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  const triggerFileSelect = () => fileInputRef.current.click();
+
+  const handleFileChange = (e) => {
+    const selected = Array.from(e.target.files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    setFiles((prev) => [...prev, ...selected]);
+  };
+
+  const removeFile = (indexToRemove) => {
+    setFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const convertToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const sendMessage = async () => {
+    if (!input.trim() && files.length === 0) return;
 
     const socket = getSocket();
+
+    let base64Files = [];
+    for (const file of files) {
+      const base64 = await convertToBase64(file);
+      base64Files.push({ name: file.name, type: file.type, data: base64 });
+    }
+
     const payload = {
       ticketId,
       message: input,
-      files: [], // Add file support later
+      files: base64Files,
     };
 
     socket.emit("send_message", payload);
 
-    // setMessages((prev) => [
-    //   ...prev,
-    //   {
-    //     sender: "You",
-    //     message: input,
-    //     time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    //   },
-    // ]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "sent",
+        message: input,
+        sentAt: new Date(),
+        files: base64Files,
+      },
+    ]);
 
     setInput("");
+    setFiles([]);
   };
 
   return (
@@ -108,30 +129,69 @@ function TicketChat({ ticket, setOpenchat, token }) {
       </div>
       <hr />
       <div className={styles.chatbox}>
-        {messages && messages.length === 0 && <p>NO CHAT FOUND</p>}
-        {messages &&
-          messages.length > 0 &&
-          messages.map((msg, index) => (
-            <div
-              key={index}
-              className={msg.sender === "sent" ? styles.sent : styles.recieve}
-            >
-              <p>{msg.message}</p>
-              <span className={styles.chatTime}>
-                {new Date(msg.sentAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          ))}
+        {messages.length === 0 && !loading && <p>No chat found</p>}
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={msg.sender === "sent" ? styles.sent : styles.recieve}
+          >
+            {msg.message && <p>{msg.message}</p>}
+
+            {msg.files &&
+              msg.files.map((file, i) =>
+                file.type.startsWith("image/") ? (
+                  <img
+                    key={i}
+                    src={file.data || file.url}
+                    alt={file.name}
+                    className={styles.chatImage}
+                  />
+                ) : (
+                  <a key={i} href={file.url || "#"} target="_blank" rel="noreferrer">
+                    {file.name}
+                  </a>
+                )
+              )}
+            <span className={styles.chatTime}>
+              {new Date(msg.sentAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        ))}
         {loading && <img src={chatAni} alt="Loading..." />}
         <div ref={chatEndRef} />
       </div>
+
+      {files.length > 0 && (
+        <div className={styles.previewBox}>
+          {files.map((file, idx) => (
+            <div key={idx} className={styles.previewItem}>
+              <span>{file.name}</span>
+              <button
+                onClick={() => removeFile(idx)}
+                className={styles.removeBtn}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className={styles.inputbar}>
-        <span>
+        <span onClick={triggerFileSelect}>
           <i className="bi bi-folder-plus"></i>
         </span>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
         <input
           type="text"
           placeholder="Type a message..."
@@ -143,7 +203,7 @@ function TicketChat({ ticket, setOpenchat, token }) {
       </div>
 
       {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={() => setIsModalOpen(false)} />
       )}
     </>
   );
