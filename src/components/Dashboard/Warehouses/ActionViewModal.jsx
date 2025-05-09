@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-function ActionViewModal({warehouse, managers}) {
+function ActionViewModal({warehouse, managers, changeTrigger}) {
   return (
     <>
       {/* <button
@@ -53,7 +53,7 @@ function ActionViewModal({warehouse, managers}) {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <ActionModal warehouse={warehouse} managers={managers} />
+            <ActionModal warehouse={warehouse} managers={managers} changeTrigger={changeTrigger}/>
           </DialogBody>
 
           <DialogCloseTrigger className="inputcolumn-mdl-close" />

@@ -17,10 +17,15 @@ function OngoingWarehouse({ navigate, managers }) {
     setIsModalOpen(false);
   };
 
+  const [trigger, setTrigger] = useState();
+
+  const changeTrigger = () => setTrigger(!trigger)
+
   useEffect(() => {
     async function fetch() {
       try {
         setLoading(true);
+        setWarehouses(null);
         const res = await axiosAPI.get("/warehouse");
         console.log(res);
         setWarehouses(res.data.warehouses);
@@ -33,7 +38,7 @@ function OngoingWarehouse({ navigate, managers }) {
       }
     }
     fetch();
-  }, []);
+  }, [trigger]);
 
   let count = 1;
   return (
@@ -147,7 +152,7 @@ function OngoingWarehouse({ navigate, managers }) {
                         />
                       </td> */}
                       <td>
-                        <ActionViewModal warehouse={warehouse} managers={managers} />
+                        <ActionViewModal warehouse={warehouse} managers={managers} changeTrigger={changeTrigger} />
                       </td>
                     </tr>
                   ))}
