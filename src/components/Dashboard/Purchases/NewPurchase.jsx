@@ -8,371 +8,338 @@ import success from "../../../images/animations/SuccessAnimation.gif";
 
 function NewPurchase({ navigate }) {
   const [products, setProducts] = useState([]);
-  const [pid, setPid] = useState("");
-  const [pname, setPname] = useState("");
-  const [units, setUnits] = useState("");
-  const [qty, setQty] = useState("");
-  const [amount, setAmount] = useState("");
-  const [errors, setErrors] = useState({});
-
-  const [total, setTotal] = useState(0);
-
-  const { axiosAPI } = useAuth();
-  const [warehouses, setWarehouses] = useState();
-  const [suppliers, setSuppliers] = useState();
-
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-
-  useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await axiosAPI.get("/warehouse");
-        const res2 = await axiosAPI.get("/suppliers");
-        console.log(res);
-        setWarehouses(res.data.warehouses);
-        setSuppliers(res2.data.suppliers);
-      } catch (e) {
-        console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      }
-    }
-    fetch();
-  }, []);
-
+  const [availableProducts, setAvailableProducts] = useState([]);
   const [apiproducts, setApiproducts] = useState([]);
-  const [product, setProduct] = useState([]);
+  const [selectedSKU, setSelectedSKU] = useState("");
+  const [qty, setQty] = useState("");
+  const [errors, setErrors] = useState({});
+  const [taxSummary, setTaxSummary] = useState({});
+  const [totalAmount, setTotalAmount] = useState(0);
 
-  // Date and time and user
+  const [warehouses, setWarehouses] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [warehouse, setWarehouse] = useState();
+  const [supplier, setSupplier] = useState();
+
   const [currentDate, setCurrentDate] = useState("");
   const [currentTime, setCurrentTime] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successmsg, setSuccessmsg] = useState("");
+
+  const { axiosAPI } = useAuth();
   const user = JSON.parse(localStorage.getItem("user"));
+  const closeModal = () => setIsModalOpen(false);
 
   useEffect(() => {
     const now = new Date();
-
-    const options = { timeZone: "Asia/Kolkata" };
-    const indianTime = new Date(now.toLocaleString("en-US", options));
-
-    const year = indianTime.getFullYear();
-    const month = String(indianTime.getMonth() + 1).padStart(2, "0");
-    const day = String(indianTime.getDate()).padStart(2, "0");
-    const hours = String(indianTime.getHours()).padStart(2, "0");
-    const minutes = String(indianTime.getMinutes()).padStart(2, "0");
-
-    setCurrentDate(`${year}-${month}-${day}`); // Format: YYYY-MM-DD
-    setCurrentTime(`${hours}:${minutes}`);
+    const indianTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    );
+    setCurrentDate(indianTime.toISOString().slice(0, 10));
+    setCurrentTime(indianTime.toTimeString().slice(0, 5));
   }, []);
 
   useEffect(() => {
-    async function fetch() {
+    const fetchInitial = async () => {
       try {
-        const res = await axiosAPI.get("/products/list");
-        console.log(res);
-        setApiproducts(res.data.products);
+        const [w, s, p] = await Promise.all([
+          axiosAPI.get("/warehouse"),
+          axiosAPI.get("/suppliers"),
+          axiosAPI.get("/products/list"),
+        ]);
+        setWarehouses(w.data.warehouses);
+        setSuppliers(s.data.suppliers);
+        setApiproducts(p.data.products);
+        setAvailableProducts(p.data.products);
       } catch (e) {
-        console.log(e);
+        setError(e.response?.data?.message || "Error loading data");
+        setIsModalOpen(true);
       }
-    }
-
-    fetch();
+    };
+    fetchInitial();
   }, []);
 
-  const handleInputChange = (e) => {
-    const newQty = e.target.value;
-    setQty(newQty);
-    setAmount(Number(product.basePrice) * Number(newQty || 1));
-    setErrors((prev) => ({ ...prev, [qty]: false }));
+  const calculateTaxBreakdown = (price, taxes) => {
+    let breakdown = {};
+    let totalTax = 0;
+    taxes?.forEach((tax) => {
+      const percent = parseFloat(tax.percentage);
+      const taxAmt = (price * percent) / 100;
+      breakdown[tax.name] = (breakdown[tax.name] || 0) + taxAmt;
+      totalTax += taxAmt;
+    });
+    return { breakdown, totalTax };
   };
 
-  const handleProductChange = (e) => {
-    console.log(e);
-    const selectedId = e.target.value;
-    const product = apiproducts.find(
-      (p) => p.SKU === selectedId || p.name === selectedId
+  const handleAddProduct = () => {
+    const errs = {};
+    if (!selectedSKU) errs.sku = true;
+    if (!qty || qty <= 0) errs.qty = true;
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+
+    const prod = apiproducts.find((p) => p.SKU === selectedSKU);
+    const purchasePrice = parseFloat(prod.purchasePrice);
+    const quantity = parseInt(qty);
+
+    const { breakdown, totalTax } = calculateTaxBreakdown(
+      purchasePrice,
+      prod.taxes
     );
-    setProduct(product);
-    setPid(product.SKU);
-    setPname(product.name);
-    setUnits(product.unit);
-    setAmount(product.basePrice);
-    setErrors((prev) => ({ ...prev, [pid]: false }));
-    setErrors((prev) => ({ ...prev, [pname]: false }));
-    setErrors((prev) => ({ ...prev, [units]: false }));
-    setErrors((prev) => ({ ...prev, [amount]: false }));
-  };
+    const finalPrice = purchasePrice + totalTax;
+    const total = finalPrice * quantity;
 
-  const onSaveClick = (e) => {
-    e.preventDefault();
+    const newItem = {
+      ...prod,
+      quantity,
+      taxBreakdown: breakdown,
+      totalTax,
+      amount: total,
+    };
 
-    const newErrors = {};
-    if (!pid) newErrors.pid = true;
-    if (!pname) newErrors.pname = true;
-    if (!units) newErrors.units = true;
-    if (!qty) newErrors.qty = true;
-    if (!amount) newErrors.amount = true;
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-
-    setProducts((prevProducts) => [
-      ...prevProducts,
-      { id: prevProducts.length + 1, pid, pname, units, qty, amount, product },
-    ]);
-
-    setTotal((prevTotal) => prevTotal + Number(amount));
-
-    setPid("");
-    setPname("");
-    setUnits("");
+    setProducts((prev) => [...prev, newItem]);
+    setAvailableProducts((prev) => prev.filter((p) => p.SKU !== prod.SKU));
+    setSelectedSKU("");
     setQty("");
-    setAmount("");
+    setSelectedProduct(null);
     setErrors({});
   };
 
-  const onDeleteClick = (id) => {
-    console.log("delete called");
-    const product = products.find((p) => p.id === id);
+  useEffect(() => {
+    const summary = {};
+    let netTotal = 0;
 
-    setTotal((prevTotal) => prevTotal - Number(product.amount));
+    products.forEach((prod) => {
+      netTotal += prod.amount;
+      Object.entries(prod.taxBreakdown).forEach(([name, amt]) => {
+        summary[name] = (summary[name] || 0) + amt;
+      });
+    });
 
-    setProducts((prevProducts) =>
-      prevProducts.filter((product) => product.id !== id)
-    );
+    setTotalAmount(netTotal);
+    setTaxSummary(summary);
+  }, [products]);
+
+  const handleDeleteProduct = (sku) => {
+    const product = products.find((p) => p.SKU === sku);
+    setProducts((prev) => prev.filter((p) => p.SKU !== sku));
+    setAvailableProducts((prev) => [...prev, product]);
   };
 
-  // Form Subbmission
-  const [warehouse, setWarehouse] = useState();
-  const [supplier, setSupplier] = useState();
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successmsg, setSuccessmsg] = useState();
-
   const onSubmit = async () => {
-    console.log(warehouse, supplier);
-    console.log(products);
+    if (!warehouse || !supplier || !products.length) {
+      setError("Please select all fields and add at least one product.");
+      setIsModalOpen(true);
+      return;
+    }
 
-    const items = [];
+    const items = products.map((p) => ({
+      productId: p.id,
+      quantity: p.quantity,
+      purchasePrice: p.purchasePrice,
+    }));
 
-    products.map((pd) =>
-      items.push({
-        productId: pd.product.id,
-        quantity: pd.qty,
-        purchasePrice: pd.product.purchasePrice,
-      })
-    );
-    console.log(items);
     try {
       setLoading(true);
-      console.log({
-        warehouseId: warehouse,
-        supplierId: supplier,
-        items: items,
-      });
       const res = await axiosAPI.post("/purchases", {
         warehouseId: warehouse,
         supplierId: supplier,
-        items: items,
+        items,
       });
-      console.log(res);
       setSuccessmsg(res.data.message);
       setShowSuccess(true);
-
-      setTimeout(() => {
-        navigate('/purchases');
-      }, 2100);
+      setTimeout(() => navigate("/purchases"), 2100);
     } catch (e) {
-      console.log(e);
-      setError(e.response.data.message);
+      setError(e.response?.data?.message || "Submission failed");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
     }
   };
 
-  let sno = 1;
+  const onProductSelect = (e) => {
+    const sku = e.target.value;
+    setSelectedSKU(sku);
+    const prod = apiproducts.find((p) => p.SKU === sku);
+    setSelectedProduct(prod);
+  };
+
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/purchases")}>Purchase</span>{" "}
-        <i class="bi bi-chevron-right"></i> + New Purchase Order
+        <i className="bi bi-chevron-right"></i> + New Purchase Order
       </p>
 
       {!loading && !showSuccess && (
         <>
+          {/* Header Info */}
           <div className="row m-0 p-3">
             <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Date :</label>
-              <input type="date" value={currentDate} />
+              <label>Date :</label>
+              <input type="date" value={currentDate} readOnly />
             </div>
             <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Time :</label>
-              <input type="text" value={currentTime} />
+              <label>Time :</label>
+              <input type="text" value={currentTime} readOnly />
             </div>
             <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">User ID :</label>
-              <input type="text" value={user.employeeId} />
+              <label>User ID :</label>
+              <input type="text" value={user?.employeeId} readOnly />
             </div>
           </div>
 
+          {/* Warehouse and Supplier */}
           <div className="row m-0 p-3">
-            <h5 className={styles.head}>TO</h5>
+          <h5 className={styles.head}>TO</h5>
             <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Warehouse :</label>
-              <select
-                name=""
-                id=""
-                onChange={(e) => setWarehouse(e.target.value)}
-              >
-                <option value={null}>--select--</option>
-                {warehouses &&
-                  warehouses.map((warehouse) => (
-                    <option value={warehouse.id}>{warehouse.name}</option>
-                  ))}
+              <label>Warehouse :</label>
+              <select onChange={(e) => setWarehouse(e.target.value)}>
+                <option value="">--select--</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Vendor :</label>
-              <select
-                name=""
-                id=""
-                onChange={(e) => setSupplier(e.target.value)}
-              >
-                <option value={null}>--select--</option>
-                {suppliers &&
-                  suppliers.map((supplier) => (
-                    <option value={supplier.id}>{supplier.name}</option>
-                  ))}
+              <label>Vendor :</label>
+              <select onChange={(e) => setSupplier(e.target.value)}>
+                <option value="">--select--</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
+          {/* Product Table */}
           <div className="row m-0 p-3 justify-content-center">
             <h5 className={styles.head}>Products</h5>
             <div className="col-lg-9">
               <table className="table table-bordered borderedtable">
                 <thead>
                   <tr>
-                    <th>S.No</th>
-                    <th>Product SKU</th>
-                    <th>Product Name</th>
-                    <th>Units</th>
-                    <th>Quantity</th>
-                    <th>Net Amount</th>
+                    <th>#</th>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Unit</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Taxes</th>
+                    <th>Net</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {products &&
-                    products.length > 0 &&
-                    products.map((product) => (
-                      <>
-                        <tr>
-                          <td>{sno++}</td>
-                          <td>{product.pid}</td>
-                          <td>{product.pname}</td>
-                          <td>{product.units}</td>
-                          <td>{product.qty}</td>
-                          <td className={styles.del}>
-                            {product.amount}{" "}
-                            <button
-                              type="button"
-                              onClick={() => onDeleteClick(product.id)}
-                            >
-                              <i class="bi bi-trash3"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      </>
-                    ))}
+                  {products.map((p, i) => (
+                    <tr key={p.SKU}>
+                      <td>{i + 1}</td>
+                      <td>{p.SKU}</td>
+                      <td>{p.name}</td>
+                      <td>{p.unit}</td>
+                      <td>{p.quantity}</td>
+                      <td>₹{parseFloat(p.purchasePrice).toFixed(2)}</td>
+                      <td>
+                        {Object.entries(p.taxBreakdown).map(([name, amt]) => (
+                          <div key={name}>
+                            {name}: ₹{amt.toFixed(2)}
+                          </div>
+                        ))}
+                      </td>
+                      <td>₹{p.amount.toFixed(2)}</td>
+                      <td>
+                        <button className={styles.removebtn} onClick={() => handleDeleteProduct(p.SKU)}>
+                          <i className="bi bi-trash3"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Add Product Row */}
                   <tr className={styles.tableform}>
-                    <td>{sno}</td>
-                    <td>
+                    <td>#</td>
+                    <td colSpan={2}>
                       <select
-                        name=""
-                        id=""
-                        onChange={(e) => handleProductChange(e)}
-                        value={pid}
-                        className={errors.pid ? styles.errorinput : ""}
+                        value={selectedSKU}
+                        onChange={onProductSelect}
+                        className={errors.sku ? styles.errorinput : ""}
                       >
-                        <option value="">--select--</option>
-                        {apiproducts &&
-                          apiproducts.map((prod) => (
-                            <option value={prod.SKU}>{prod.SKU}</option>
-                          ))}
+                        <option value="">--select product--</option>
+                        {availableProducts.map((p) => (
+                          <option key={p.SKU} value={p.SKU}>
+                            {p.SKU} - {p.name}
+                          </option>
+                        ))}
                       </select>
                     </td>
-                    <td>
-                      <select
-                        name=""
-                        id=""
-                        onChange={(e) => handleProductChange(e)}
-                        value={pname}
-                        className={errors.pname ? styles.errorinput : ""}
-                      >
-                        <option value="">--select--</option>
-                        {apiproducts &&
-                          apiproducts.map((prod) => (
-                            <option value={prod.name}>{prod.name}</option>
-                          ))}
-                      </select>
-                    </td>
-                    <td>
+                    <td>{selectedProduct?.unit}</td>
+
+                    <td colSpan={1}>
                       <input
-                        type="text"
-                        required
-                        placeholder="Units"
-                        value={units}
-                        className={errors.amount ? styles.errorinput : ""}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter Quantity"
-                        onChange={(e) => handleInputChange(e)}
+                        type="number"
+                        min="1"
                         value={qty}
+                        onChange={(e) => setQty(e.target.value)}
+                        placeholder="Qty"
                         className={errors.qty ? styles.errorinput : ""}
                       />
                     </td>
+                    <td>{selectedProduct?.purchasePrice}</td>
                     <td>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter Amount"
-                        value={amount}
-                        className={errors.amount ? styles.errorinput : ""}
-                      />
+                      {selectedProduct?.taxes?.map((t) => (
+                        <div key={t.name}>
+                          {t.name} ({t.percentage}%)
+                        </div>
+                      ))}
+                    </td>
+                    <td colSpan={2}>
+                      <button
+                        className={styles.addbtn}
+                        onClick={handleAddProduct}
+                      >
+                        + Add Product
+                      </button>
                     </td>
                   </tr>
                 </tbody>
               </table>
 
-              <button
-                type="submit"
-                onClick={onSaveClick}
-                className={styles.addbtn}
-              >
-                + ADD Product
-              </button>
-            </div>
-
-            <div className="row m-0 p-3 pt-4">
-              <div className={`col-3 ${styles.longform}`}>
-                <label htmlFor="">Total Amount :</label>
-                <span> {total}/-</span>
+              {/* Tax Summary */}
+              <div className={`pt-3 ${styles.taxes}`}>
+                <strong>Total Purchase Amount:</strong> ₹
+                {totalAmount.toFixed(2)}
+                <br />
+                {Object.entries(taxSummary).map(([name, amount]) => (
+                  <div key={name}>
+                    <strong>{name}:</strong> ₹{amount.toFixed(2)}
+                  </div>
+                ))}
+                <div className={`mt-2 ${styles.total}`}>
+                  <strong>Grand Total:</strong> ₹
+                  {(
+                    totalAmount +
+                    Object.values(taxSummary).reduce((a, b) => a + b, 0)
+                  ).toFixed(2)}
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Submit/Cancel */}
           <div className="row m-0 p-3 pt-4 justify-content-center">
-            <div className={`col-3`}>
+            <div className="col-3">
               <button className="submitbtn" onClick={onSubmit}>
-                Submit
+                Order
               </button>
               <button
                 className="cancelbtn"
@@ -384,7 +351,6 @@ function NewPurchase({ navigate }) {
           </div>
         </>
       )}
-
 
       {showSuccess && <LoadingAnimation gif={success} msg={successmsg} />}
       {isModalOpen && (

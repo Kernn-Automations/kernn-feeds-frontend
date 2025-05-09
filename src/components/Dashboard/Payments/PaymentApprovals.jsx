@@ -74,7 +74,7 @@ function PaymentApprovals({ navigate }) {
                     <th>Date</th>
                     <th>Order ID</th>
                     <th>Customer Name</th>
-                    <th>SE ID</th>
+                    <th>SE Name</th>
                     <th>Warehouse</th>
                     <th>Net Amount</th>
                     <th>Action</th>
@@ -94,11 +94,11 @@ function PaymentApprovals({ navigate }) {
                       >
                         <td>{index++}</td>
                         <td>{report.transactionDate}</td>
-                        <td>{report.order.orderNumber}</td>
-                        <td>{report.order.customer?.name}</td>
-                        <td>{report.order.salesExecutive.id}</td>
-                        <td>{report.order.warehouse?.name}</td>
-                        <td>{"na"}</td>
+                        <td>{report.order?.orderNumber}</td>
+                        <td>{report.order?.customer?.name}</td>
+                        <td>{report.order?.salesExecutive?.name}</td>
+                        <td>{report.order?.warehouse?.name}</td>
+                        <td>{report.netAmount}</td>
                         <td>
                           <ApprovalsViewModal report={report} changeTrigger={changeTrigger} />
                         </td>

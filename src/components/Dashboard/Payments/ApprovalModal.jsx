@@ -68,10 +68,10 @@ function ApprovalModal({ report }) {
           <label htmlFor="">Date :</label>
           <input type="date" value={report.transactionDate} />
         </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
+        {/* <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Time :</label>
           <input type="text" />
-        </div>
+        </div> */}
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Order ID :</label>
           <input type="text" value={report.order && report.order.orderNumber} />
@@ -120,10 +120,14 @@ function ApprovalModal({ report }) {
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Net Amount :</label>
-          <input type="text" value={"na"} />
+          <input type="text" value={report.netAmount} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Txn ID :</label>
+          <input type="text" value={report.transactionReference} />
+        </div>
+        <div className={`col-4 ${styles.longformmdl}`}>
+          <label htmlFor="">Payment ID :</label>
           <input type="text" value={report.paymentId} />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>

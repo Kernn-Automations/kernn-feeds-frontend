@@ -152,7 +152,7 @@ function ReportsModal({ pdetails, warehouses }) {
                     <td>{item.id}</td>
                     <td>{item.SKU}</td>
                     <td>{item.name}</td>
-                    <td>{item.unitPrice}</td>
+                    <td>{item.unit}</td>
                     <td>{item.quantity}</td>
                     <td>{item.totalAmount}</td>
                   </tr>

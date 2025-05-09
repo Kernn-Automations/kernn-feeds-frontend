@@ -26,7 +26,6 @@
   font-weight: 500;
 }
 .longform span {
- 
   font-weight: 600;
   font-size: 16px;
   line-height: 16.26px;
@@ -42,11 +41,11 @@
   border: 1px solid #d9d9d9;
   box-shadow: 1px 1px 3px #333;
 }
-.tableform{
+.tableform {
   max-width: 200px !important;
 }
 
-.errorinput{
+.errorinput {
   outline: 1px solid #ff2020 !important;
   color: #ff2020 !important;
 }
@@ -74,10 +73,10 @@
   /* box-shadow: 1px 1px 3px #333; */
   /* background-color: #d9d9d9; */
 }
-.del{
- position: relative;
+.del {
+  position: relative;
 }
-.del button{
+.del button {
   position: absolute;
   left: 110%;
   top: -4px;
@@ -89,7 +88,7 @@
   border: 1px solid #bfbfbf !important;
 }
 
-.longformmdl{
+.longformmdl {
   max-width: 300px !important;
   min-width: 260px !important;
   margin-bottom: 8px;
@@ -132,16 +131,16 @@
   text-decoration-thickness: Auto;
   color: #555;
 }
-.mdltable thead th{
+.mdltable thead th {
   font-size: 12px !important;
   padding: 3px;
 }
-.mdltable tbody td{
+.mdltable tbody td {
   font-size: 12px !important;
   padding: 3px;
 }
 
-.xls{
+.xls {
   width: 150px;
   height: 40px;
   padding-left: 30px;
@@ -151,20 +150,42 @@
   /* box-shadow: 1px 1px 3px black; */
   color: #555;
 }
-.xls:hover{
+.xls:hover {
   outline: 1px solid #555;
 }
-.xls p{
+.xls p {
   float: left;
   margin-bottom: 0;
   font-size: 16px;
   font-weight: 500;
   padding-top: 6px;
 }
-.xls img{
+.xls img {
   width: 35px;
   height: 35px;
 }
-.errorField{
+.errorField {
   outline: 1px solid #ff2727;
+}
+
+.removebtn {
+  background-color: #ff2727 !important;
+}
+
+.taxes {
+  font-size: 14px;
+}
+.taxes strong {
+  margin-right: 15px;
+  color: #333;
+}
+
+.total strong {
+  color: var(--primary-color);
+  font-size: 18px;
+  margin-right: 15px;
+}
+.total {
+  font-weight: 600;
+  font-size: 18px;
 }
