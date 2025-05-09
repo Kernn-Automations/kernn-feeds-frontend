@@ -64,10 +64,10 @@ function TicketingService() {
     async function fetch() {
       try {
         const res = await axiosAPI.get("/tickets/mine");
-        console.log(res);
+        // console.log(res);
         setoldtickets(res.data.tickets);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -95,8 +95,8 @@ function TicketingService() {
     files.forEach((file) => {
       formData.append("files", file);
     });
-    console.log(files);
-    console.log(subject, description, formData);
+    // console.log(files);
+    // console.log(subject, description, formData);
     try {
       const res = await axios.post(`${VITE_API}/tickets`, formData, {
         headers: {
@@ -104,7 +104,7 @@ function TicketingService() {
           "Content-Type": "multipart/form-data",
         },
       });
-      console.log(res);
+      // console.log(res);
       setFiles([]);
       setTrigger(!trigger);
     } catch (error) {
@@ -150,7 +150,7 @@ function TicketingService() {
                   {oldtickets &&
                     oldtickets.length > 0 &&
                     oldtickets.map((ticket) => (
-                      <UserChat ticket={ticket} onChatClick={onChatClick} />
+                      <UserChat key={ticket.id} ticket={ticket} onChatClick={onChatClick} />
                     ))}
                   {oldtickets && oldtickets.length === 0 && (
                     <h3>NO TICKETS FOUND</h3>

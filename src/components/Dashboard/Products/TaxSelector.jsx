@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
 
 function TaxSelector({ selectedTaxes, setSelectedTaxes }) {
   const { axiosAPI } = useAuth();
   const [allTaxes, setAllTaxes] = useState([]);
   const [newTaxId, setNewTaxId] = useState("");
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
 
   useEffect(() => {
     async function fetchTaxes() {
@@ -12,7 +20,8 @@ function TaxSelector({ selectedTaxes, setSelectedTaxes }) {
         const res = await axiosAPI.get("/tax");
         setAllTaxes(res.data.taxes || []);
       } catch (err) {
-        console.error("Failed to fetch taxes:", err);
+        setError(err.response?.data?.message);
+        setIsModalOpen(true);
       }
     }
     fetchTaxes();
@@ -55,11 +64,7 @@ function TaxSelector({ selectedTaxes, setSelectedTaxes }) {
       })}
 
       {availableTaxes.length > 0 && (
-        <select
-          className=""
-          value={newTaxId}
-          onChange={handleSelect}
-        >
+        <select className="" value={newTaxId} onChange={handleSelect}>
           <option value="" disabled>
             -- Select Tax --
           </option>
@@ -70,7 +75,12 @@ function TaxSelector({ selectedTaxes, setSelectedTaxes }) {
           ))}
         </select>
       )}
-      {availableTaxes.length === 0 && <p className="fw-bold">All taxes are Selected </p>}
+      {availableTaxes.length === 0 && (
+        <p className="fw-bold">All taxes are Selected </p>
+      )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
     </>
   );
 }

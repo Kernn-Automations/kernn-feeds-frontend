@@ -18,15 +18,15 @@ function ReportsModal({report}) {
               </div> */}
               <div className={`col-4 ${styles.longformmdl}`}>
                 <label htmlFor="">Order ID :</label>
-                <input type="text" value={report.order && report.order.orderNumber} />
+                <input type="text" value={report.order && report.order?.orderNumber} />
               </div>
               <div className={`col-4 ${styles.longformmdl}`}>
                 <label htmlFor="">Warehouse ID :</label>
-                <input type="text" value={report.order && report.order.warehouse.id} />
+                <input type="text" value={report.order && report.order.warehouse?.id} />
               </div>
               <div className={`col-4 ${styles.longformmdl}`}>
                 <label htmlFor="">Warehouse Name :</label>
-                <input type="text" value={report.order && report.order.warehouse.name} />
+                <input type="text" value={report.order && report.order.warehouse?.name} />
               </div>
               <div className={`col-4 ${styles.longformmdl}`}>
                 <label htmlFor="">Customer ID :</label>

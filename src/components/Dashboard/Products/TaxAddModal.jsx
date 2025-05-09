@@ -46,7 +46,7 @@ function TaxAddModal({ trigger, setTrigger }) {
   const { axiosAPI } = useAuth();
 
   const onSubmitClick = () => {
-    console.log(name, percentage, description);
+    // console.log(name, percentage, description);
 
     if (!validateFields()) {
       setError("Please Fill all feilds");
@@ -62,11 +62,11 @@ function TaxAddModal({ trigger, setTrigger }) {
           description: description,
         });
 
-        console.log(res);
+        // console.log(res);
         setTrigger(!trigger);
         setSuccessfull(res.data.message);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {

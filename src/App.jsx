@@ -39,14 +39,14 @@ function App() {
     // Event Listeners
     const handleClick = (e) => {
       if (e.target.tagName === "BUTTON") {
-        console.log("if called");
+        // console.log("if called");
         logEvent("Click", `Clicked on ${e.target.textContent}`);
       } else {
-        console.log("else called");
+        // console.log("else called");
         logEvent("Click", `Clicked on ${e.target.tagName}`);
       }
       setLogs(JSON.parse(localStorage.getItem("logs")));
-      console.log(e);
+      // console.log(e);
     };
 
     const handleError = (e) => {
@@ -113,7 +113,7 @@ function App() {
     }
   }, [islogin, user]);
 
-  console.log(user);
+  // console.log(user);
 
   return (
     <>

@@ -30,10 +30,10 @@ function DeleteWarehouseModal() {
       try {
         setLoading(true);
         const res = await axiosAPI.get("/warehouse");
-        console.log(res);
+        // console.log(res);
         setWarehouses(res.data.warehouses);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -56,11 +56,11 @@ function DeleteWarehouseModal() {
       try {
         setLoading(true);
         const res = await axiosAPI.delete(`/warehouse/delete/${warehouse}`);
-        console.log(res);
+        // console.log(res);
         setError(res.data.message);
         setIssuccessModalOpen(true)
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -89,7 +89,7 @@ function DeleteWarehouseModal() {
               >
                 <option value="null">--Select Warehouse--</option>
                 {warehouses.map((warehouse) => (
-                  <option value={warehouse.id}>{warehouse.name}</option>
+                  <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
                 ))}
               </select>
             )}

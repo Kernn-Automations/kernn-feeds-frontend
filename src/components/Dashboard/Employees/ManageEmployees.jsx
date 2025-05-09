@@ -25,7 +25,7 @@ function ManageEmployees({ navigate }) {
         setLoading(true);
         const res = await axiosAPI.get("/employees");
 
-        console.log(res);
+        // console.log(res);
         setEmployees(res.data.employees);
       } catch (err) {
         setError(
@@ -70,6 +70,7 @@ function ManageEmployees({ navigate }) {
                 {employees.length > 0 &&
                   employees.map((emp) => (
                     <tr
+                    key={emp.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >

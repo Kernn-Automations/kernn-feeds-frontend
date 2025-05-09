@@ -89,6 +89,7 @@ function PaymentApprovals({ navigate }) {
                   {reports.length > 0 &&
                     reports.map((report) => (
                       <tr
+                        key={report.id}
                         className="animated-row"
                         style={{ animationDelay: `${index * 0.1}s` }}
                       >
@@ -100,7 +101,10 @@ function PaymentApprovals({ navigate }) {
                         <td>{report.order?.warehouse?.name}</td>
                         <td>{report.netAmount}</td>
                         <td>
-                          <ApprovalsViewModal report={report} changeTrigger={changeTrigger} />
+                          <ApprovalsViewModal
+                            report={report}
+                            changeTrigger={changeTrigger}
+                          />
                         </td>
                       </tr>
                     ))}

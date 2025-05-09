@@ -35,7 +35,7 @@ function ReportsModal({ pdetails, warehouses }) {
         }
       );
 
-      console.log(response);
+      // console.log(response);
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
@@ -50,7 +50,7 @@ function ReportsModal({ pdetails, warehouses }) {
 
       window.URL.revokeObjectURL(url); // Clean up
     } catch (e) {
-      console.log(e);
+      // console.log(e);
       setError(e.response.data.message);
       setIsModalOpen(true);
     } finally {

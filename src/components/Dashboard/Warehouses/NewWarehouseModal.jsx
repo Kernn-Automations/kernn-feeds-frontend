@@ -70,20 +70,20 @@ function NewWarehouseModal({ managers }) {
 
   // form subbmission
   const onSubmitClick = () => {
-    console.log(name, location);
-    console.log(
-      name,
-      plot,
-      street,
-      area,
-      city,
-      district,
-      state,
-      country,
-      pincode,
-      managerId
-    );
-    console.log(location);
+    // console.log(name, location);
+    // console.log(
+    //   name,
+    //   plot,
+    //   street,
+    //   area,
+    //   city,
+    //   district,
+    //   state,
+    //   country,
+    //   pincode,
+    //   managerId
+    // );
+    // console.log(location);
 
     if (!validateFields()) {
       setError("Please Fill all feilds");
@@ -108,12 +108,12 @@ function NewWarehouseModal({ managers }) {
           managerId,
         });
 
-        console.log(res);
+        // console.log(res);
 
         setError(res.data.message);
         setIssuccessModalOpen(true);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -126,10 +126,10 @@ function NewWarehouseModal({ managers }) {
 
   // useEffect(() => {
   //   const getAddressFromCoords = async () => {
-  //     console.log("maps runned");
+      // console.log("maps runned");
   //     if (location.lng == null || location.lat == null) return;
 
-  //     console.log("maps runned 2.0");
+      // console.log("maps runned 2.0");
   //     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API;
   //     const response = await fetch(
   //       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.lat},${location.lng}&key=${apiKey}`

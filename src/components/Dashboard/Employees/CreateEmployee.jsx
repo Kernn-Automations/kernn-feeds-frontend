@@ -38,7 +38,7 @@ function CreateEmployee({ navigate }) {
           axiosAPI.get("/warehouse"),
         ]);
 
-        console.log(rolesRes);
+        // console.log(rolesRes);
         setRoles(rolesRes.data.roles || []);
         setWarehouses(warehousesRes.data.warehouses || []);
       } catch (err) {
@@ -54,16 +54,16 @@ function CreateEmployee({ navigate }) {
   }, []);
 
   useEffect(() => {
-    console.log(selectedRoles);
+    // console.log(selectedRoles);
     async function fetch() {
-      console.log(selectedRoles[selectedRoles.length - 1]);
+      // console.log(selectedRoles[selectedRoles.length - 1]);
       try {
         setLoading(true);
         const res = await axiosAPI.get(
           `/employees/supervisors/${selectedRoles[selectedRoles.length - 1]}`
         );
 
-        console.log(res);
+        // console.log(res);
         setSupervisors(res.data.supervisors);
       } catch (err) {
         setError(
@@ -111,7 +111,7 @@ function CreateEmployee({ navigate }) {
       return;
     }
 
-    console.log("submitting");
+    // console.log("submitting");
 
     const payload = {
       ...form,
@@ -120,7 +120,7 @@ function CreateEmployee({ navigate }) {
       warehouseId: parseInt(form.warehouseId),
     };
 
-    console.log(payload);
+    // console.log(payload);
     try {
       setLoading(true);
       const res = await axiosAPI.post("/employees/add", payload);

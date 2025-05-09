@@ -50,7 +50,7 @@ function PricingAddModal({trigger, setTrigger}) {
   const { axiosAPI } = useAuth();
 
   const onSubmitClick = () => {
-    console.log(name, ptype, atype, advalue, currency);
+    // console.log(name, ptype, atype, advalue, currency);
 
     if (!validateFields()) {
       setError("Please Fill all feilds");
@@ -68,11 +68,11 @@ function PricingAddModal({trigger, setTrigger}) {
           currency: currency,
         });
 
-        console.log(res);
+        // console.log(res);
         setTrigger(!trigger);
         setSuccessfull(res.data.message);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {

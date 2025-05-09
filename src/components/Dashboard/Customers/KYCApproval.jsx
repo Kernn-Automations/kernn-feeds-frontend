@@ -19,7 +19,7 @@ function KYCApproval({ navigate }) {
 
   const [trigger, setTrigger] = useState(false);
 
-  const changeTrigger = () => setTrigger(!trigger)
+  const changeTrigger = () => setTrigger(!trigger);
 
   const { axiosAPI } = useAuth();
 
@@ -35,12 +35,12 @@ function KYCApproval({ navigate }) {
       try {
         setLoading(true);
         const res = await axiosAPI.get("/customers?kycStatus=Pending");
-        console.log(res);
+        // console.log(res);
         setCustomers(res.data.customers);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
-        setIsModalOpen(true)
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
@@ -94,6 +94,7 @@ function KYCApproval({ navigate }) {
                   {customers.length > 0 &&
                     customers.map((customer) => (
                       <tr
+                        key={customer.id}
                         className="animated-row"
                         style={{ animationDelay: `${count * 0.1}s` }}
                       >
@@ -104,7 +105,10 @@ function KYCApproval({ navigate }) {
                         <td>{customer.salesExecutive.name}</td>
                         <td>{customer.warehouse && customer.warehouse.name}</td>
                         <td>
-                          <KYCViewModal customer={customer} changeTrigger={changeTrigger} />
+                          <KYCViewModal
+                            customer={customer}
+                            changeTrigger={changeTrigger}
+                          />
                         </td>
                       </tr>
                     ))}

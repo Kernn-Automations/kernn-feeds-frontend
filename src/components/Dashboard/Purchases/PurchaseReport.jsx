@@ -30,10 +30,10 @@ function PurchaseReport({ navigate }) {
     async function fetch() {
       try {
         const res1 = await axiosAPI.get("/warehouse");
-        console.log(res1);
+        // console.log(res1);
         setWarehouses(res1.data.warehouses);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       }
@@ -65,20 +65,20 @@ function PurchaseReport({ navigate }) {
       try {
         setPurchases(null);
         setLoading(true);
-        console.log(
-          `/purchases?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }`
-        );
+        // console.log(
+        //   `/purchases?fromDate=${from}&toDate=${to}${
+        //     warehouse ? `&warehouseId=${warehouse}` : ""
+        //   }`
+        // );
         const res = await axiosAPI.get(
           `/purchases?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
           }`
         );
-        console.log(res);
+        // console.log(res);
         setPurchases(res.data.purchaseOrders);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -114,67 +114,6 @@ function PurchaseReport({ navigate }) {
       setIsModalOpen(true);
     }
   };
-
-  // Function to export as Excel
-  // const exportToExcel = () => {
-  //   const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-  //   const workbook = XLSX.utils.book_new();
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  //   const excelBuffer = XLSX.write(workbook, {
-  //     bookType: "xlsx",
-  //     type: "array",
-  //   });
-  //   const excelFile = new Blob([excelBuffer], {
-  //     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  //   });
-  //   saveAs(excelFile, "incoming_stock_table_data.xlsx");
-  // };
-  // const tableData = [
-  //   ["S.No", "Date", "Purchase ID", "Warehouse", "Net Amount"],
-  //   ["1", "2025-02-28", "KM20", "Warehouse 1", "2000"],
-  //   ["2", "2025-02-28", "KM20", "Warehouse 2", "2000"],
-  // ];
-
-  // // Function to export as Excel
-  // const exportToExcel = () => {
-  //   const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-  //   const workbook = XLSX.utils.book_new();
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  //   const excelBuffer = XLSX.write(workbook, {
-  //     bookType: "xlsx",
-  //     type: "array",
-  //   });
-  //   const excelFile = new Blob([excelBuffer], {
-  //     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  //   });
-  //   saveAs(excelFile, "purchase_report_table_data.xlsx");
-  // };
-
-  // // Function to export as PDF
-  // const exportToPDF = () => {
-  //   const doc = new jsPDF();
-
-  //   doc.setFont("helvetica", "bold"); // Set font style
-  //   doc.setFontSize(16); // Set font size for title
-  //   doc.text("Purchase Report", 14, 10); // Title text with position (X: 14, Y: 10)
-
-  //   autoTable(doc, {
-  //     headStyles: {
-  //       fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
-  //       textColor: [255, 255, 255], // White text
-  //       fontStyle: "bold",
-  //       fontSize: 10,
-  //     },
-  //     bodyStyles: {
-  //       textColor: [0, 0, 0], // Black text
-  //       fontSize: 10, // Reduce body font size
-  //     },
-  //     // Use autoTable(doc, {}) instead of doc.autoTable({})
-  //     head: [tableData[0]], // Table Header
-  //     body: tableData.slice(1), // Table Data
-  //   });
-  //   doc.save("purchase_report_table_data.pdf");
-  // };
 
   let index = 1;
   return (
@@ -263,6 +202,7 @@ function PurchaseReport({ navigate }) {
                 {purchases.length > 0 &&
                   purchases.map((order) => (
                     <tr
+                      key={order.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >

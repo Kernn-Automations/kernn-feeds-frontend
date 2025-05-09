@@ -62,7 +62,7 @@ function HomePage() {
             },
           }
         );
-        console.log(res);
+        // console.log(res);
 
         setKycApprovals(res.data.dashboard?.kycApprovals);
         setPaymentsApprovals(res.data.dashboard?.paymentApprovals);
@@ -72,7 +72,7 @@ function HomePage() {
       } catch (err) {
         setError(err?.response?.data?.message || "Failed to load Dashboard.");
         setIsModalOpen(true);
-        console.log(err);
+        // console.log(err);
       } finally {
         setLoading(false);
       }

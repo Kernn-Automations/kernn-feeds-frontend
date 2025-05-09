@@ -27,10 +27,10 @@ function OngoingWarehouse({ navigate, managers }) {
         setLoading(true);
         setWarehouses(null);
         const res = await axiosAPI.get("/warehouse");
-        console.log(res);
+        // console.log(res);
         setWarehouses(res.data.warehouses);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true)
       } finally {
@@ -141,7 +141,7 @@ function OngoingWarehouse({ navigate, managers }) {
                   </tr>}
                 {warehouses.length > 0 &&
                   warehouses.map((warehouse) => (
-                    <tr className="animated-row"
+                    <tr key={warehouse.id} className="animated-row"
                     style={{ animationDelay: `${count * 0.1}s` }}>
                       <td>{count++}</td>
                       <td>{warehouse.id}</td>

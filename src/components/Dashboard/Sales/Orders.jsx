@@ -48,20 +48,20 @@ function Orders({ navigate, warehouses, customers }) {
       try {
         setOrders(null);
         setLoading(true);
-        console.log(
-          `/sales-orders?status=Confirmed&fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}`
-        );
+        // console.log(
+        //   `/sales-orders?status=Confirmed&fromDate=${from}&toDate=${to}${
+        //     warehouse ? `&warehouseId=${warehouse}` : ""
+        //   }${customer ? `&customerId=${customer}` : ""}`
+        // );
         const res = await axiosAPI.get(
           `/sales-orders?status=Confirmed&fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}`
         );
-        console.log(res);
+        // console.log(res);
         setOrders(res.data.salesOrders);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -72,69 +72,13 @@ function Orders({ navigate, warehouses, customers }) {
   }, [trigger]);
 
   const onSubmit = () => {
-    console.log(from, to, warehouse, customer);
+    // console.log(from, to, warehouse, customer);
     setTrigger(trigger ? false : true);
   };
 
   // pdf code -----------------------------------
 
   const [tableData, setTableData] = useState([]);
-
-  // const tableData = [
-  //   [
-  //     "S.No",
-  //     "Date",
-  //     "Order ID",
-  //     "Warehouse ID",
-  //     "Customer ID",
-  //     "TNX Amount",
-  //     "Payment Mode",
-  //     "Status",
-  //   ],
-  //   ["1", "2025-02-28", "KM20", "4420", "2323", "2000", "Online", "Completed"],
-  //   ["2", "2025-02-28", "KM20", "4423", "2324", "4000", "Offline", "Pending"],
-  // ];
-
-  // Function to export as Excel
-  // const exportToExcel = () => {
-  //   const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-  //   const workbook = XLSX.utils.book_new();
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  //   const excelBuffer = XLSX.write(workbook, {
-  //     bookType: "xlsx",
-  //     type: "array",
-  //   });
-  //   const excelFile = new Blob([excelBuffer], {
-  //     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  //   });
-  //   saveAs(excelFile, "orders_table_data.xlsx");
-  // };
-
-  // Function to export as PDF
-  // const exportToPDF = () => {
-  //   const doc = new jsPDF();
-
-  //   doc.setFont("helvetica", "bold"); // Set font style
-  //   doc.setFontSize(16); // Set font size for title
-  //   doc.text("Orders", 14, 10); // Title text with position (X: 14, Y: 10)
-
-  //   autoTable(doc, {
-  //     headStyles: {
-  //       fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
-  //       textColor: [255, 255, 255], // White text
-  //       fontStyle: "bold",
-  //       fontSize: 10,
-  //     },
-  //     bodyStyles: {
-  //       textColor: [0, 0, 0], // Black text
-  //       fontSize: 10, // Reduce body font size
-  //     },
-  //     // Use autoTable(doc, {}) instead of doc.autoTable({})
-  //     head: [tableData[0]], // Table Header
-  //     body: tableData.slice(1), // Table Data
-  //   });
-  //   doc.save("orders_table_data.pdf");
-  // };
 
   const onExport = (type) => {
     const arr = [];
@@ -200,12 +144,16 @@ function Orders({ navigate, warehouses, customers }) {
             name=""
             id=""
             value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}
+            onChange={(e) =>
+              setWarehouse(e.target.value === "null" ? null : e.target.value)
+            }
           >
             <option value="null">--select--</option>
             {warehouses &&
               warehouses.map((warehouse) => (
-                <option value={warehouse.id}>{warehouse.name}</option>
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </option>
               ))}
           </select>
         </div>
@@ -222,12 +170,16 @@ function Orders({ navigate, warehouses, customers }) {
             name=""
             id=""
             value={customer}
-            onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}
+            onChange={(e) =>
+              setCustomer(e.target.value === "null" ? null : e.target.value)
+            }
           >
             <option value="null">--select--</option>
             {customers &&
               customers.map((customer) => (
-                <option value={customer.id}>{customer.name}</option>
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
               ))}
           </select>
         </div>
@@ -278,6 +230,7 @@ function Orders({ navigate, warehouses, customers }) {
                 {orders.length > 0 &&
                   orders.map((order) => (
                     <tr
+                      key={order.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >

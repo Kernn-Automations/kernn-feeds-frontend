@@ -24,13 +24,13 @@ function SalesRoutes() {
         const res1 = await axiosAPI.get("/warehouse");
         const res2 = await axiosAPI.get("/customers");
 
-        console.log(res1);
-        console.log(res2);
+        // console.log(res1);
+        // console.log(res2);
 
         setWarehouses(res1.data.warehouses);
         setCustomers(res2.data.customers);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
       }
     }
     fetch();

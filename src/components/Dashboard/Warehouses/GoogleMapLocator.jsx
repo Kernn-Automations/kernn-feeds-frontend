@@ -57,7 +57,7 @@ const GoogleMapLocator = ({
 
   const mapRef = useRef(null);
 
-  console.log("locccc----", selectedPosition);
+  // console.log("locccc----", selectedPosition);
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
@@ -68,7 +68,7 @@ const GoogleMapLocator = ({
       const lat = event.latLng.lat();
       const lng = event.latLng.lng();
       setSelectedPosition({ lat, lng });
-      console.log(event, lat, lng);
+      // console.log(event, lat, lng);
 
       try {
         const results = await getGeocode({ location: { lat, lng } });
@@ -104,7 +104,7 @@ const GoogleMapLocator = ({
       console.error("Error fetching geocode:", error);
     }
   };
-  console.log(selectedPosition, selectedAddress);
+  // console.log(selectedPosition, selectedAddress);
   return (
     <div style={{ position: "relative" }}>
       <div

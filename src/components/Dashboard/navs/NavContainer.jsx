@@ -2,7 +2,7 @@ import Logo from "./Logo";
 import NavBg from "./NavBg";
 
 function NavContainer({hover, setTab, tab, role, dept}) {
-  console.log(role)
+  // console.log(role)
   return (
     <>
       <Logo />

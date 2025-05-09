@@ -16,7 +16,7 @@ function ProductBarchart({ topPerformingBOs }) {
     topPerformingBOs.map((tp) =>
       data.push({ name: tp.boName, sales: tp.sales })
     );
-  console.log(data);
+  // console.log(data);
   return (
     <>
       {topPerformingBOs && (

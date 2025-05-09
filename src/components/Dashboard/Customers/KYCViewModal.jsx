@@ -25,10 +25,10 @@ function KYCViewModal({ customer, changeTrigger }) {
       try {
         setLoading(true);
         const res = await axiosAPI.get(`/customers/${customer.id}`);
-        console.log(res);
+        // console.log(res);
         setCustomerdata(res.data.customer);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
       } finally {
         setLoading(false);

@@ -39,11 +39,11 @@ function ModifyProduct({ navigate }) {
         setLoading(true);
         const res = await axiosAPI.get("/products/list");
 
-        console.log(res);
+        // console.log(res);
 
         setProducts(res.data.products);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
       } finally {
         setLoading(false);
@@ -85,6 +85,7 @@ function ModifyProduct({ navigate }) {
                 {products.length > 0 &&
                   products.map((product) => (
                     <tr
+                    key={product.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >

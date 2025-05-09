@@ -26,10 +26,10 @@ function WarehouseRoutes() {
     async function fetch() {
       try {
         const res = await axiosAPI.get("/employees/role/Warehouse Manager");
-        console.log(res);
+        // console.log(res);
         setManagers(res.data.employees);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
       }
     }

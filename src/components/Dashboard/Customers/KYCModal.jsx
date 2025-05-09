@@ -26,11 +26,11 @@ function KYCModal({ customerdata, changeTrigger }) {
         const res = await axiosAPI.put(
           `/customers/${customerdata.id}/kyc/approve`
         );
-        console.log(res);
+        // console.log(res);
         setSuccessful(res.data.message);
         changeTrigger();
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -47,11 +47,11 @@ function KYCModal({ customerdata, changeTrigger }) {
         const res = await axiosAPI.put(
           `/customers/${customerdata.id}/kyc/reject`
         );
-        console.log(res);
+        // console.log(res);
         setSuccessful(res.data.message);
         changeTrigger();
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -86,7 +86,7 @@ function KYCModal({ customerdata, changeTrigger }) {
           <input
             type="text"
             value={
-              customerdata.salesExecutive && customerdata.salesExecutive.id
+              customerdata.salesExecutive && customerdata.salesExecutive?.id
             }
           />
         </div>
@@ -95,7 +95,7 @@ function KYCModal({ customerdata, changeTrigger }) {
           <input
             type="text"
             value={
-              customerdata.salesExecutive && customerdata.salesExecutive.name
+              customerdata.salesExecutive && customerdata.salesExecutive?.name
             }
           />
         </div>

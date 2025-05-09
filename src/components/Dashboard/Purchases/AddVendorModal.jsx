@@ -60,18 +60,18 @@ function AddVendorModal({changeTrigger}) {
 
   // form subbmission
   const onSubmitClick = () => {
-    console.log(name, location);
-    console.log(
-      name,
-      plot,
-      street,
-      area,
-      city,
-      district,
-      state,
-      supplierCode,
-      pincode
-    );
+    // console.log(name, location);
+    // console.log(
+    //   name,
+    //   plot,
+    //   street,
+    //   area,
+    //   city,
+    //   district,
+    //   state,
+    //   supplierCode,
+    //   pincode
+    // );
 
     if (!validateFields()) {
       setError("Please Fill all feilds");
@@ -93,13 +93,13 @@ function AddVendorModal({changeTrigger}) {
           pincode,
         });
 
-        console.log(res);
+        // console.log(res);
 
         setError(res.data.message);
         setIssuccessModalOpen(true);
         changeTrigger();
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {

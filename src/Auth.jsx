@@ -45,8 +45,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const accesstokenfromst = localStorage.getItem("access_token");
         const reftokenfromst = localStorage.getItem("refresh_token");
-        console.log("old token", accesstokenfromst);
-        console.log("old ref", reftokenfromst);
+        
         // console.log("My token", config.headers.Authorization);
 
         let config = {
@@ -62,13 +61,13 @@ export const AuthProvider = ({ children }) => {
           },
           config
         );
-        console.log("refreshed :", response);
+        // console.log("refreshed :", response);
 
         const newAccessToken = response.data.accessToken;
         const newRef = response.data.refreshToken;
 
-        console.log("current token : ", newAccessToken);
-        console.log("current token : ", newRef);
+        // console.log("current token : ", newAccessToken);
+        // console.log("current token : ", newRef);
 
         token = response.data.accessToken;
         reftoken = response.data.refreshToken;
@@ -79,7 +78,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem("access_token", response.data.accessToken);
         localStorage.setItem("refresh_token", response.data.refreshToken);
       } catch (error) {
-        console.log("refesh error : ", error);
+        // console.log("refesh error : ", error);
         // removeLogin();
         setIslogin(false);
         token = null;
@@ -89,9 +88,9 @@ export const AuthProvider = ({ children }) => {
         // setReftoken(null)
       }
 
-      console.log("new token : ", token);
-      console.log("newref token : ", reftoken);
-      //  console.log("My token", config.headers.Authorization);
+      // console.log("new token : ", token);
+      // console.log("newref token : ", reftoken);
+      
     };
 
     refreshAccessToken();
@@ -134,7 +133,7 @@ export const AuthProvider = ({ children }) => {
         config
       );
 
-      console.log(res);
+    
 
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
@@ -143,7 +142,7 @@ export const AuthProvider = ({ children }) => {
       // setToken(null)
       setIslogin(false);
     } catch (e) {
-      console.log(e);
+      // console.log(e);
     }
   };
 

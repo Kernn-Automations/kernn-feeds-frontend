@@ -27,10 +27,10 @@ function DeliveryViewModal({order}) {
       try {
         setLoading(true);
         const res = await axiosAPI.get(`/sales-orders/order/${order.id}`);
-        console.log(res);
+        // console.log(res);
         setOrderdata(res.data);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         // setIsModalOpen(true)
       } finally {

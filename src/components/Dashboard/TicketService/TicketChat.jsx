@@ -50,7 +50,7 @@ function TicketChat({ ticket, setOpenchat, token }) {
         }));
         setMessages(formatted);
       } catch (err) {
-        console.error(err);
+       
         setError(err.response?.data?.message || "Error loading messages.");
         setIsModalOpen(true);
       } finally {

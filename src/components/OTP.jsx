@@ -28,7 +28,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
         }
       );
 
-      console.log(res);
+      // console.log(res);
 
       setLogin(true);
 

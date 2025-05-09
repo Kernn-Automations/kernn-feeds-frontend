@@ -46,9 +46,9 @@ function ActionModal({ warehouse, managers, changeTrigger }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(location);
+    // console.log(location);
 
-    console.log(FormData)
+    // console.log(FormData)
 
     try {
       setLoading(true);
@@ -57,11 +57,11 @@ function ActionModal({ warehouse, managers, changeTrigger }) {
         formData
       );
       // setIsEditable(false);
-      console.log(res);
+      // console.log(res);
       setSuccessful(res.data.message);
       changeTrigger();
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       setError(error.response?.data?.message);
       setIsModalOpen(true);
     } finally {

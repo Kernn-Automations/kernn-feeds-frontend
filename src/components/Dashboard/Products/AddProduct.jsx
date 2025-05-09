@@ -41,14 +41,14 @@ function AddProduct({ navigate }) {
         const res1 = await axiosAPI.get("/categories/list");
         const res2 = await axiosAPI.get("/pricing/lists/fetch");
         const res3 = await axiosAPI.get("/tax");
-        console.log(res1);
-        console.log(res2);
-        console.log(res3);
+        // console.log(res1);
+        // console.log(res2);
+        // console.log(res3);
         setCategories(res1.data.categories);
         setPricingList(res2.data.pricingLists);
         setTaxeslist(res3.data.taxes);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
       } finally {
         setLoading(false);
@@ -116,20 +116,20 @@ function AddProduct({ navigate }) {
 
   // form subbmission
   const onSubmitClick = () => {
-    console.log(name, location);
-    console.log(
-      name,
-      sku,
-      category,
-      units,
-      description,
-      baseprice,
-      purchaseprice,
-      thresholdValue,
-      pincode,
-      managerId
-    );
-    console.log(location);
+    // console.log(name, location);
+    // console.log(
+    //   name,
+    //   sku,
+    //   category,
+    //   units,
+    //   description,
+    //   baseprice,
+    //   purchaseprice,
+    //   thresholdValue,
+    //   pincode,
+    //   managerId
+    // );
+    // console.log(location);
 
     async function create() {
       try {
@@ -149,11 +149,11 @@ function AddProduct({ navigate }) {
           managerId,
         });
 
-        console.log(res);
+        // console.log(res);
 
         setError(res.data.message);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -169,20 +169,20 @@ function AddProduct({ navigate }) {
   const VITE_API = import.meta.env.VITE_API_URL;
 
   const onCreateProduct = () => {
-    console.log(selectedTaxes);
-    console.log(images);
-    console.log(
-      sku,
-      name,
-      description,
-      category,
-      units,
-      baseprice,
-      purchaseprice,
-      thresholdValue,
-      pricing
-    );
-    console.log(pricingSlabs);
+    // console.log(selectedTaxes);
+    // console.log(images);
+    // console.log(
+    //   sku,
+    //   name,
+    //   description,
+    //   category,
+    //   units,
+    //   baseprice,
+    //   purchaseprice,
+    //   thresholdValue,
+    //   pricing
+    // );
+    // console.log(pricingSlabs);
 
     if (!validateFields()) {
       setError("Please Fill all feilds");
@@ -193,7 +193,7 @@ function AddProduct({ navigate }) {
     // const imagesArray = [];
     // images.map((img) => img && imagesArray.push(img.file));
 
-    // console.log(imagesArray);
+    console.log(imagesArray);
 
     const formData = new FormData();
     formData.append("name", name);
@@ -214,7 +214,7 @@ function AddProduct({ navigate }) {
 
     selectedTaxes.map((tax) => formData.append("taxIds", tax));
 
-    console.log(formData);
+    // console.log(formData);
 
     async function submit() {
       try {
@@ -225,10 +225,10 @@ function AddProduct({ navigate }) {
             "Content-Type": "multipart/form-data",
           },
         });
-        console.log(res);
+        // console.log(res);
         setSuccessful(res.data.message);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response?.data?.message);
         setIsModalOpen(true);
       } finally {

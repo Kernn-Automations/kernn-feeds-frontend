@@ -26,10 +26,10 @@ function ReportViewModal({ order, warehouses }) {
       try {
         setLoading(true);
         const res = await axiosAPI.get(`/purchases/${order.id}`);
-        console.log(res);
+        // console.log(res);
         setPdetails(res.data.purchaseOrder);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
       } finally {
         setLoading(false);

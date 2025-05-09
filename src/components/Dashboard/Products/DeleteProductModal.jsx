@@ -29,10 +29,10 @@ function DeleteProductModal() {
       try {
         setLoading(true);
         const res = await axiosAPI.get("/products/list");
-        console.log(res);
+        // console.log(res);
         setProducts(res.data.products);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -55,11 +55,11 @@ function DeleteProductModal() {
       try {
         setLoading(true);
         const res = await axiosAPI.delete(`/product/delete/${product}`);
-        console.log(res);
+        // console.log(res);
         setError(res.data.message);
         setIssuccessModalOpen(true);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {

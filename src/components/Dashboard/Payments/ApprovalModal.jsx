@@ -25,11 +25,11 @@ function ApprovalModal({ report }) {
         const res = await axiosAPI.post(
           `/payment-requests/${report.id}/approve`
         );
-        console.log(res);
+        // console.log(res);
         setSuccessful(res.data.message);
         changeTrigger();
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -38,27 +38,6 @@ function ApprovalModal({ report }) {
     }
     fetch();
   };
-
-  // const onDeclineClick = () => {
-  //   async function fetch() {
-  //     try {
-  //       setLoading(true);
-  //       const res = await axiosAPI.put(
-  //         `/customers/${customerdata.id}/kyc/reject`
-  //       );
-  //       console.log(res);
-  //       setSuccessful(res.data.message);
-  //       changeTrigger();
-  //     } catch (e) {
-  //       console.log(e);
-  //       setError(e.response.data.message);
-  //       setIsModalOpen(true);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   }
-  //   fetch();
-  // };
 
   return (
     <>

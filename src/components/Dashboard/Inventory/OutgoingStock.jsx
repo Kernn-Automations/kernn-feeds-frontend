@@ -33,14 +33,14 @@ function OutgoingStock({ navigate }) {
         const res1 = await axiosAPI.get("/warehouse");
         const res2 = await axiosAPI.get("/customers");
         const res3 = await axiosAPI.get("/products/list");
-        console.log(res1);
-        console.log(res2);
-        console.log(res3);
+        // console.log(res1);
+        // console.log(res2);
+        // console.log(res3);
         setWarehouses(res1.data.warehouses);
         setCustomers(res2.data.customers);
         setProducts(res3.data.products);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       }
@@ -74,13 +74,13 @@ function OutgoingStock({ navigate }) {
       try {
         setStock(null);
         setLoading(true);
-        console.log(
-          `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}${
-            product ? `&customerId=${customer}` : ""
-          }`
-        );
+        // console.log(
+        //   `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
+        //     warehouse ? `&warehouseId=${warehouse}` : ""
+        //   }${customer ? `&customerId=${customer}` : ""}${
+        //     product ? `&customerId=${customer}` : ""
+        //   }`
+        // );
         const res = await axiosAPI.get(
           `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
@@ -88,10 +88,10 @@ function OutgoingStock({ navigate }) {
             product ? `&productId=${product}` : ""
           }`
         );
-        console.log(res);
+        // console.log(res);
         setStock(res.data.outgoingStock);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -115,27 +115,6 @@ function OutgoingStock({ navigate }) {
     });
     saveAs(excelFile, "incoming_stock_table_data.xlsx");
   };
-
-  // // Function to export as PDF
-  // const exportToPDF = () => {
-  //   const doc = new jsPDF();
-
-  //   doc.setFont("helvetica", "bold"); // Set font style
-  //   doc.setFontSize(16); // Set font size for title
-  //   doc.text("Incoming Stock", 14, 10); // Title text with position (X: 14, Y: 10)
-
-  //   autoTable(doc, {
-  //     headStyles: {
-  //       fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
-  //       textColor: [255, 255, 255], // White text
-  //       fontStyle: "bold",
-  //     },
-  //     // Use autoTable(doc, {}) instead of doc.autoTable({})
-  //     head: [tableData[0]], // Table Header
-  //     body: tableData.slice(1), // Table Data
-  //   });
-  //   doc.save("incoming_stock_table_data.pdf");
-  // };
 
   const [tableData, setTableData] = useState();
 
@@ -161,7 +140,7 @@ function OutgoingStock({ navigate }) {
           "Order ID": st.orderNumber,
           "Warehouse Name": st.warehouseName,
           "Product Name": st.productName,
-          "SKU": st.sku,
+          SKU: st.sku,
           "Customer Name": st.customerName,
           Quantity: st.quantity,
           Amount: st.totalAmount,
@@ -205,31 +184,55 @@ function OutgoingStock({ navigate }) {
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
-          <select name="" id="" onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}>
+          <select
+            name=""
+            id=""
+            onChange={(e) =>
+              setWarehouse(e.target.value === "null" ? null : e.target.value)
+            }
+          >
             <option value="null">--select--</option>
             {warehouses &&
               warehouses.map((warehouse) => (
-                <option value={warehouse.id}>{warehouse.name}</option>
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </option>
               ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
-          <select name="" id="" onChange={(e) => setProduct(e.target.value === "null" ? null : e.target.value)}>
+          <select
+            name=""
+            id=""
+            onChange={(e) =>
+              setProduct(e.target.value === "null" ? null : e.target.value)
+            }
+          >
             <option value="null">--select--</option>
             {products &&
               products.map((product) => (
-                <option value={product.id}>{product.name}</option>
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
               ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Customers :</label>
-          <select name="" id="" onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}>
+          <select
+            name=""
+            id=""
+            onChange={(e) =>
+              setCustomer(e.target.value === "null" ? null : e.target.value)
+            }
+          >
             <option value="null">--select--</option>
             {customers &&
               customers.map((customer) => (
-                <option value={customer.id}>{customer.name}</option>
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
               ))}
           </select>
         </div>
@@ -260,8 +263,10 @@ function OutgoingStock({ navigate }) {
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
-                <tr className="animated-row"
-                  style={{ animationDelay: `${index * 0.1}s` }}>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
                   <th>S.No</th>
                   <th>Date</th>
                   <th>Order ID</th>
@@ -274,7 +279,7 @@ function OutgoingStock({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-              {stock.length === 0 && (
+                {stock.length === 0 && (
                   <tr>
                     <td colSpan={9}>NO DATA FOUND</td>
                   </tr>
@@ -282,6 +287,7 @@ function OutgoingStock({ navigate }) {
                 {stock.length > 1 &&
                   stock.map((st) => (
                     <tr
+                      key={st.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >

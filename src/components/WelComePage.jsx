@@ -8,7 +8,7 @@ function WelcomePage({ data }) {
 
   function onClick() {
     saveToken(data.accesstoken);
-    console.log(data);
+    // console.log(data);
 
     saveRefreshToken(data.refresh);
     localStorage.setItem("user", JSON.stringify(data.user));

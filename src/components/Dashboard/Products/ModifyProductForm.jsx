@@ -24,12 +24,12 @@ function ModifyProductForm({ onViewClick, product }) {
 
   // Function to handle file selection
   const handleFrontImageChange = (event) => {
-    console.log(frontImage);
+    // console.log(frontImage);
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file.name);
       const imageURL = URL.createObjectURL(file); // Create a temporary URL
-      console.log(imageURL);
+      // console.log(imageURL);
       setFrontImage(imageURL);
     }
   };
@@ -39,7 +39,7 @@ function ModifyProductForm({ onViewClick, product }) {
     if (file) {
       setSelectedFile(file.name);
       const imageURL = URL.createObjectURL(file); // Create a temporary URL
-      console.log(imageURL);
+      // console.log(imageURL);
       setBackImage(imageURL);
     }
   };
@@ -63,9 +63,9 @@ function ModifyProductForm({ onViewClick, product }) {
       try {
         const res = await axiosAPI.get(`/pricing/lists/fetch`);
         setPricingList(res.data.pricingLists);
-        console.log(res);
+        // console.log(res);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -78,12 +78,12 @@ function ModifyProductForm({ onViewClick, product }) {
     async function fetch() {
       try {
         setLoading(true);
-        console.log(product);
+        // console.log(product);
         const res = await axiosAPI.get(`/products/fetch/${product.id}`);
         setprod(res.data.product);
-        console.log(res);
+        // console.log(res);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {

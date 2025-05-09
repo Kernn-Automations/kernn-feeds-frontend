@@ -33,7 +33,7 @@ function PaymentReports({ navigate }) {
   const [trigger, setTrigger] = useState(false);
 
   const onSubmit = () => {
-    // console.log(from, to, warehouse, customer);
+    console.log(from, to, warehouse, customer);
     setTrigger(trigger ? false : true);
   };
 
@@ -44,14 +44,14 @@ function PaymentReports({ navigate }) {
         const res1 = await axiosAPI.get("/warehouse");
         const res2 = await axiosAPI.get("/customers");
         const res3 = await axiosAPI.get("/employees/role/Sales Executive");
-        console.log(res1);
-        console.log(res2);
-        console.log(res3);
+        // console.log(res1);
+        // console.log(res2);
+        // console.log(res3);
         setWarehouses(res1.data.warehouses);
         setCustomers(res2.data.customers);
         setSes(res3.data.employees);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
       } finally {
         setLoading(false);
@@ -76,13 +76,13 @@ function PaymentReports({ navigate }) {
     setReports(null);
     async function fetch() {
       try {
-        console.log(
-          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerTd=${customer}` : ""}${
-            se ? `&salesExecutiveId=${se}` : ""
-          }`
-        );
+        // console.log(
+        //   `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
+        //     warehouse ? `&warehouseId=${warehouse}` : ""
+        //   }${customer ? `&customerTd=${customer}` : ""}${
+        //     se ? `&salesExecutiveId=${se}` : ""
+        //   }`
+        // );
         setLoading(true);
         const res = await axiosAPI.get(
           `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
@@ -91,10 +91,10 @@ function PaymentReports({ navigate }) {
             se ? `&salesExecutiveId=${se}` : ""
           }`
         );
-        console.log(res);
+        // console.log(res);
         setReports(res.data.paymentRequests);
       } catch (e) {
-        console.log(e);
+        // console.log(e);
         setError(e.response.data.message);
         setIsModalOpen(true);
       } finally {
@@ -104,60 +104,6 @@ function PaymentReports({ navigate }) {
     fetch();
   }, [trigger]);
 
-  // const tableData = [
-  //   [
-  //     "S.No",
-  //     "Date",
-  //     "Order ID",
-  //     "Customer ID",
-  //     "SE ID",
-  //     "Warehouse",
-  //     "Net Amount",
-  //   ],
-  //   ["1", "2025-02-28", "KM20", "4420", "2323", "Warehouse 1", "20000"],
-  //   ["2", "2025-02-28", "KM20", "4423", "2324", "Warehouse 2", "32000"],
-  // ];
-
-  // // Function to export as Excel
-  // const exportToExcel = () => {
-  //   const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-  //   const workbook = XLSX.utils.book_new();
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  //   const excelBuffer = XLSX.write(workbook, {
-  //     bookType: "xlsx",
-  //     type: "array",
-  //   });
-  //   const excelFile = new Blob([excelBuffer], {
-  //     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  //   });
-  //   saveAs(excelFile, "payment_reports_table_data.xlsx");
-  // };
-
-  // // Function to export as PDF
-  // const exportToPDF = () => {
-  //   const doc = new jsPDF();
-
-  //   doc.setFont("helvetica", "bold"); // Set font style
-  //   doc.setFontSize(16); // Set font size for title
-  //   doc.text("Payment Reports", 14, 10); // Title text with position (X: 14, Y: 10)
-
-  //   autoTable(doc, {
-  //     headStyles: {
-  //       fillColor: [169, 36, 39], // Convert HEX #a92427 to RGB (169, 36, 39)
-  //       textColor: [255, 255, 255], // White text
-  //       fontStyle: "bold",
-  //       fontSize: 10,
-  //     },
-  //     bodyStyles: {
-  //       textColor: [0, 0, 0], // Black text
-  //       fontSize: 10, // Reduce body font size
-  //     },
-  //     // Use autoTable(doc, {}) instead of doc.autoTable({})
-  //     head: [tableData[0]], // Table Header
-  //     body: tableData.slice(1), // Table Data
-  //   });
-  //   doc.save("payment_reports_table_data.pdf");
-  // };
 
   const [tableData, setTableData] = useState([]);
   const onExport = (type) => {
@@ -329,6 +275,7 @@ function PaymentReports({ navigate }) {
                 {reports.length > 0 &&
                   reports.map((report) => (
                     <tr
+                      key={report.id}
                       className="animated-row"
                       style={{ animationDelay: `${index++ * 0.1}s` }}
                     >
@@ -337,7 +284,9 @@ function PaymentReports({ navigate }) {
                       <td>{report.order?.orderNumber}</td>
                       <td>{report.order?.customer?.name}</td>
                       <td>{report.order?.salesExecutive?.name}</td>
-                      <td>{report.order.warehouse && report.order.warehouse?.name}</td>
+                      <td>
+                        {report.order.warehouse && report.order.warehouse?.name}
+                      </td>
                       <td>{report.netAmount}</td>
                       <td>
                         <ReportsViewModal report={report} />

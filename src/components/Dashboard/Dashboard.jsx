@@ -76,7 +76,7 @@ function Dashboard({
   const onmouseover = () => {
     setHover(true);
     setStyle("navover");
-    console.log(hover);
+    // console.log(hover);
   };
   const onmouseleave = () => {
     setHover(false);
@@ -87,14 +87,14 @@ function Dashboard({
   //   async function fetch() {
   //     try {
   //       const res = await axiosAPI.post("/employees/mdashboard");
-  //       console.log(res);
+        // console.log(res);
 
   //       setLeavebalance(res.data.data.leaveBalances);
   //       setNotifications(res.data.data.latestNotifications);
   //       setPendingtasks(res.data.data.pendingTasks);
   //       setDashboard(res.data.data);
   //     } catch (e) {
-  //       console.log(e);
+        // console.log(e);
   //       removeLogin();
   //     }
   //   }
@@ -102,7 +102,7 @@ function Dashboard({
   //   fetch();
   // }, []);
 
-  console.log(leavebalance);
+  // console.log(leavebalance);
   return (
     <>
       {admin === false && (
