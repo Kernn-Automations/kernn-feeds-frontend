@@ -33,7 +33,7 @@ const EmployeeRoutes = lazy(() => import("./Employees/EmployeeRoutes"));
 const WarehouseRoutes = lazy(() => import("./Warehouses/WarehouseRoutes"));
 const ProductRoutes = lazy(() => import("./Products/ProductRoutes"));
 const LocationsHome = lazy(() => import("./Locations/LocationsHome"));
-const AnnouncementHome = lazy(() => import("./Annoucement/AnnouncementHome"));
+// const AnnouncementHome = lazy(() => import("./Annoucement/AnnouncementHome"));
 
 function Dashboard({
   admin,
@@ -240,14 +240,14 @@ function Dashboard({
                         </Suspense>
                       }
                     />
-                    <Route
+                    {/* <Route
                       path="/announcement/*"
                       element={
                         <Suspense fallback={<RouteSkeleton />}>
                           <AnnouncementHome />
                         </Suspense>
                       }
-                    />
+                    /> */}
                   </Routes>
 
                   <Outlet />
