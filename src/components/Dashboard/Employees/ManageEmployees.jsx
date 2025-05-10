@@ -1,57 +1,55 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Employees.module.css";
 import ManageEmpProfile from "./ManageEmpProfile";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
+import EmployeeViewModal from "./EmployeeViewModal";
 
 function ManageEmployees({ navigate }) {
-  const [viewclick, setViewclick] = useState();
+  const [employees, setEmployees] = useState();
 
-  const onViewClick = () =>
-    viewclick ? setViewclick(false) : setViewclick(true);
+  const { axiosAPI } = useAuth();
 
-  const emps = [
-    {
-      sn: 1,
-      id: 2301,
-      name: "Jhon",
-      num: 876543219,
-      em: "jhon@gmail.com",
-      role: "",
-    },
-    {
-      sn: 2,
-      id: 2321,
-      name: "Jack",
-      num: 872543219,
-      em: "jack@gmail.com",
-      role: "",
-    },
-    {
-      sn: 3,
-      id: 3451,
-      name: "Jimmy",
-      num: 976543219,
-      em: "jimmy@gmail.com",
-      role: "",
-    },
-    {
-      sn: 4,
-      id: 9871,
-      name: "jony",
-      num: 876543219,
-      em: "jony@gmail.com",
-      role: "",
-    },
-  ];
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+  const [successful, setSuccessful] = useState();
+
+  useEffect(() => {
+    async function fetchInitial() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/employees");
+
+        // console.log(res);
+        setEmployees(res.data.employees);
+      } catch (err) {
+        setError(
+          err?.response?.data?.message || "Failed to load initial data."
+        );
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchInitial();
+  }, []);
+
+  let index = 1;
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Employees</span>{" "}
+        <span onClick={() => navigate("/employees")}>Employees</span>{" "}
         <i class="bi bi-chevron-right"></i> Manage Employees
       </p>
 
-      {!viewclick && (
+      {employees && (
         <div className="row m-0 p-3 justify-content-center">
-          <div className="col-10">
+          <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr>
@@ -60,36 +58,43 @@ function ManageEmployees({ navigate }) {
                   <th>Employee Name</th>
                   <th>Mobile Number</th>
                   <th>Email</th>
-                  <th>Role</th>
-                  <th colSpan={2}>Action</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {emps.map((emp) => (
+                {employees.length === 0 && (
                   <tr>
-                    <td>{emp.sn}</td>
-                    <td>{emp.id}</td>
-                    <td>{emp.name}</td>
-                    <td>{emp.num}</td>
-                    <td>{emp.em}</td>
-                    <td>{emp.role}</td>
-                    <td>
-                      <button onClick={onViewClick} className={styles.submit}>
-                        View
-                      </button>
-                    </td>
-                    <td>
-                      <button className="cancelbtn">Delete</button>
-                    </td>
+                    <td>NO DATA FOUND</td>
                   </tr>
-                ))}
+                )}
+                {employees.length > 0 &&
+                  employees.map((emp) => (
+                    <tr
+                    key={emp.id}
+                      className="animated-row"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <td>{index++}</td>
+                      <td>{emp.employeeId}</td>
+                      <td>{emp.name}</td>
+                      <td>{emp.mobile}</td>
+                      <td>{emp.email}</td>
+                      <td>
+                        <EmployeeViewModal employee={emp} />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {viewclick && <ManageEmpProfile/>}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+
+      {loading && <Loading />}
     </>
   );
 }

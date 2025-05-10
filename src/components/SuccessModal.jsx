@@ -7,10 +7,10 @@ function SuccessModal({isOpen, message, onClose}) {
     <>
     <Modal show={isOpen} onHide={onClose}>
       <Modal.Header closeButton>
-        <Modal.Title>Error</Modal.Title>
+        <Modal.Title>Success</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p className={styles.error}>{message}</p>
+        <p className={styles.success}>{message}</p>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>

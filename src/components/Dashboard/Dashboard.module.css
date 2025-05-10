@@ -33,39 +33,6 @@
   z-index: 10;
 }
 
-.searchbar {
-  margin-top: 5px !important;
-  position: relative;
-  display: inline-block;
-}
-.searchbar input {
-  width: 240px;
-  height: 35px;
-  border: 2px solid #a92427;
-  border-radius: 17px;
-  padding-left: 15px;
-  font-size: 17px;
-  padding-right: 32px; /* Leave space for the icon */
-  font-family: sans-serif;
-  line-height: 0;
-  box-shadow: 2px 2px 4px gray;
-}
-
-.searchbar input:focus {
-  border: 2px solid #a92427;
-  outline: none;
-}
-.searchicon {
-  position: absolute;
-  right: 30px;
-  top: 18px;
-  transform: translateY(-50%);
-  font-size: 18px;
-  color: #555;
-  pointer-events: none; /* Makes the icon unclickable */
-}
-
-
 .brand {
   height: 30px;
   width: fit-content;
@@ -77,14 +44,19 @@
   font-weight: 500;
   line-height: 19.5px;
   text-align: left;
-  background-color: #a92427;
+  background-color: var(--primary-color);
   color: white;
   margin: 15px;
   float: left;
 }
 .headcontent {
-  min-width: 430px !important;
-  width: 430px !important;
+  min-width: 370px !important;
+  width: 370px !important;
+  padding-right: 50px !important;
+}
+.headcontentTitle {
+  min-width: 300px !important;
+  width: 300px !important;
   padding-right: 40px !important;
 }
 
@@ -105,7 +77,7 @@
   position: sticky;
   top: 95vh;
   padding-top: 30px;
-  margin-top: 30px;
+  /* margin-top: 30px; */
   
 }
 .foot p {
@@ -116,7 +88,7 @@
   letter-spacing: 0.015em; 
 }
 .foot p span{
-  color: #a92427;
+  color: #a92426;
   font-weight: 700;
 }
 
@@ -132,9 +104,9 @@
  overflow: hidden;
 }
 .profilebody div:hover, .profilebody div:hover p, .profilebody div:hover svg path{
-  background-color: #faecec;
-  color: #a92427;
-  stroke: #a92427;
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  stroke: var(--primary-color);
   cursor: pointer;
 }
 .profilebody span{

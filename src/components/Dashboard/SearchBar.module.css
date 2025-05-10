@@ -1,0 +1,73 @@
+/* search */
+
+.searchbar {
+  margin-top: 5px !important;
+  position: relative;
+  display: inline-block;
+  width: 260px !important;
+}
+.searchbar input {
+  width: 240px;
+  height: 35px;
+  border: 2px solid var(--primary-color);
+  border-radius: 17px;
+  padding-left: 15px;
+  font-size: 17px;
+  padding-right: 32px; /* Leave space for the icon */
+  font-family: sans-serif;
+  line-height: 0;
+  box-shadow: 2px 2px 4px gray;
+}
+
+.searchbar input:focus {
+  border: 2px solid var(--primary-color);
+  outline: none;
+}
+.searchicon {
+  position: absolute;
+  right: 25px;
+  top: 18px;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: #555;
+  pointer-events: none; /* Makes the icon unclickable */
+}
+
+.dropdown {
+  position: absolute;
+  width: 100%;
+  background: var(--primary-light);
+  border: 1px solid #b8b8b8;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 5px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+}
+.dropdown li {
+  border-bottom: 0.5px solid #b3b3b3;
+  font-size: 14px;
+  font-weight: 600;
+}
+.dropdown li p {
+  font-size: 10px;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 0;
+}
+
+.dropdownItem {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover,
+.active {
+  padding: 10px;
+  cursor: pointer;
+  background: var(--primary-light-hover);
+}

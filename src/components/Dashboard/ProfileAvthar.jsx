@@ -34,8 +34,8 @@ function ProfileAvthar({ user, setTab }) {
           <button>
             <Avatar
               className={styles.avatar}
-              name={user && user.employee_name}
-              colorPalette="red"
+              name={user && user?.name}
+              colorPalette="var(--primary-color)"
             />
           </button>
         </PopoverTrigger>

@@ -1,97 +1,281 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
+
+import xls from "./../../../images/xls-png.png";
+import pdf from "./../../../images/pdf-png.png";
+import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
+import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 
 function StockSummary({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
+  const [warehouses, setWarehouses] = useState();
+  const [products, setProducts] = useState();
+  const [customers, setCustomers] = useState();
+
+  const { axiosAPI } = useAuth();
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res1 = await axiosAPI.get("/warehouse");
+        const res2 = await axiosAPI.get("/customers");
+        const res3 = await axiosAPI.get("/products/list");
+        // console.log(res1);
+        // console.log(res2);
+        // console.log(res3);
+        setWarehouses(res1.data.warehouses);
+        setCustomers(res2.data.customers);
+        setProducts(res3.data.products);
+      } catch (e) {
+        // console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      }
+    }
+    fetch();
+  }, []);
+
+  // Backend
+
+  const [stock, setStock] = useState();
+
+  // const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  //   .toISOString()
+  //   .slice(0, 10);
+
+  const today = new Date(Date.now()).toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(today);
+  // const [to, setTo] = useState(today);
+  const [warehouse, setWarehouse] = useState();
+  const [customer, setCustomer] = useState();
+  const [product, setProduct] = useState();
+  const [trigger, setTrigger] = useState(false);
+
+  const onSubmit = () => {
+    setTrigger(trigger ? false : true);
+  };
+
+  useEffect(() => {
+    async function fetch() {
+      try {
+        setStock(null);
+        setLoading(true);
+        // console.log(
+        //   `/warehouse/stock-summary?${from ? `date=${from}` : ""}${
+        //     warehouse ? `&warehouseId=${warehouse}` : ""
+        //   }${product ? `&productId=${product}` : ""}`
+        // );
+        const res = await axiosAPI.get(
+          `/warehouse/stock-summary?${from ? `date=${from}` : ""}${
+            warehouse ? `&warehouseId=${warehouse}` : ""
+          }${product ? `&productId=${product}` : ""}`
+        );
+        // console.log(res);
+        setStock(res.data.data);
+      } catch (e) {
+        // console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, [trigger]);
+
+  // Function to export as Excel
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.aoa_to_sheet(tableData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const excelFile = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(excelFile, "incoming_stock_table_data.xlsx");
+  };
+
+  const [tableData, setTableData] = useState();
+
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Date",
+      "Warehouse ID",
+      "Warehouse Name",
+      "Product ID",
+      "Product Name",
+      "Quantity",
+    ];
+    if (stock && stock.length > 0) {
+      stock.map((st) =>
+        arr.push({
+          "S.No": x++,
+          Date: st.date.slice(0, 10),
+          "Warehouse ID": st.warehouseId,
+          "Warehouse Name": st.warehouseName,
+          "Product ID": st.productId,
+          "Product Name": st.productName,
+          Quantity: st.quantity,
+        })
+      );
+      setTableData(arr);
+
+      if (type === "PDF") handleExportPDF(columns, tableData, "Stock-Summary");
+      else if (type === "XLS")
+        handleExportExcel(columns, tableData, "Stock-Summary");
+    } else {
+      setError("Table is Empty");
+      setIsModalOpen(true);
+    }
+  };
+
+  let index = 1;
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Inventory</span>{" "}
+        <span onClick={() => navigate("/inventory")}>Inventory</span>{" "}
         <i class="bi bi-chevron-right"></i>Stock Summary
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Date :</label>
-          <input type="date" />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </div>
-
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
+          <select
+            name=""
+            id=""
+            onChange={(e) =>
+              setWarehouse(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            {warehouses &&
+              warehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </option>
+              ))}
           </select>
         </div>
-        <div className={`col-3 ${styles.formcontent}`}>
+        <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Product 1</option>
-            <option value="">Product 2</option>
-            <option value="">Product 3</option>
+          <select
+            name=""
+            id=""
+            onChange={(e) =>
+              setProduct(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            {products &&
+              products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
           </select>
         </div>
       </div>
-      {!onsubmit && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-4">
-            <button className="submitbtn" onClick={() => setonsubmit(true)}>
-              Submit
-            </button>
-            <button className="cancelbtn" onClick={() => navigate(-1)}>
-              Cancel
-            </button>
-          </div>
+      <div className="row m-0 p-3 pb-5 justify-content-center">
+        <div className="col-4">
+          <button className="submitbtn" onClick={onSubmit}>
+            Submit
+          </button>
+          <button className="cancelbtn" onClick={() => navigate("/inventory")}>
+            Cancel
+          </button>
         </div>
-      )}
-      {onsubmit && (
+      </div>
+
+      <div className="row m-0 p-3 justify-content-center"></div>
+
+      {stock && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-8">
+            <div className="col-lg-8">
+              <button className={styles.xls} onClick={() => onExport("XLS")}>
+                <p>Export to </p>
+                <img src={xls} alt="" />
+              </button>
+              <button className={styles.xls} onClick={() => onExport("PDF")}>
+                <p>Export to </p>
+                <img src={pdf} alt="" />
+              </button>
+            </div>
             <table className={`table table-bordered borderedtable`}>
               <thead>
-                <tr>
+                <tr
+                  className="animated-row"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
                   <th>S.No</th>
                   <th>Date</th>
                   <th>Warehouse ID</th>
                   <th>Warehouse Name</th>
                   <th>Product ID</th>
                   <th>Product Name</th>
+                  <th>Stock Type</th>
                   <th>Quantity</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>1</td>
-                  <td>2025-02-28</td>
-                  <td>KM20</td>
-                  <td>Warehouse 1</td>
-                  <td>#4545</td>
-                  <td>Product 1</td>
-                  <td>3</td>
-                </tr>
-                <tr>
-                  <td>2</td>
-                  <td>2025-02-28</td>
-                  <td>KM20</td>
-                  <td>Warehouse 2</td>
-                  <td>#4545</td>
-                  <td>Product 2</td>
-                  <td>3</td>
-                </tr>
+                {stock.length === 0 && (
+                  <tr>
+                    <td colSpan={8}>NO DATA FOUND</td>
+                  </tr>
+                )}
+                {stock.length > 0 &&
+                  stock.map((st) => (
+                    <tr
+                      key={st.id}
+                      className="animated-row"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <td>{index++}</td>
+                      <td>{st.date.slice(0, 10)}</td>
+                      <td>{st.warehouseId}</td>
+                      <td>{st.warehouseName}</td>
+                      <td>{st.productId}</td>
+                      <td>{st.productName}</td>
+                      <td className={styles.upper}>{st.changeType}</td>
+                      <td>{st.quantity}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
-          <div className="row m-0 p-3 justify-content-center">
-            <div className="col-2">
-              <button className="cancelbtn" onClick={() => setonsubmit(false)}>
-                back
-              </button>
-            </div>
-          </div>
         </div>
+      )}
+      {loading && <Loading />}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
   );

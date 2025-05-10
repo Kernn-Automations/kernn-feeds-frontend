@@ -1,239 +1,362 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
+import { useAuth } from "@/Auth";
+import Loading from "@/components/Loading";
+import ErrorModal from "@/components/ErrorModal";
+import LoadingAnimation from "@/components/LoadingAnimation";
+import success from "../../../images/animations/SuccessAnimation.gif";
 
 function NewPurchase({ navigate }) {
   const [products, setProducts] = useState([]);
-  const [pid, setPid] = useState(null);
-  const [pname, setPname] = useState(null);
-  const [units, setUnits] = useState(null);
-  const [qty, setQty] = useState(null);
-  const [amount, setAmount] = useState(null);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [apiproducts, setApiproducts] = useState([]);
+  const [selectedSKU, setSelectedSKU] = useState("");
+  const [qty, setQty] = useState("");
+  const [errors, setErrors] = useState({});
+  const [taxSummary, setTaxSummary] = useState({});
+  const [totalAmount, setTotalAmount] = useState(0);
 
-  const onSaveClick = (e) => {
-    e.preventDefault();
-    if (!pid || !pname || !units || !qty || !amount) {
-      alert("Please fill all fields before adding a product!");
+  const [warehouses, setWarehouses] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [warehouse, setWarehouse] = useState();
+  const [supplier, setSupplier] = useState();
+
+  const [currentDate, setCurrentDate] = useState("");
+  const [currentTime, setCurrentTime] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successmsg, setSuccessmsg] = useState("");
+
+  const { axiosAPI } = useAuth();
+  const user = JSON.parse(localStorage.getItem("user"));
+  const closeModal = () => setIsModalOpen(false);
+
+  useEffect(() => {
+    const now = new Date();
+    const indianTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    );
+    setCurrentDate(indianTime.toISOString().slice(0, 10));
+    setCurrentTime(indianTime.toTimeString().slice(0, 5));
+  }, []);
+
+  useEffect(() => {
+    const fetchInitial = async () => {
+      try {
+        const [w, s, p] = await Promise.all([
+          axiosAPI.get("/warehouse"),
+          axiosAPI.get("/suppliers"),
+          axiosAPI.get("/products/list"),
+        ]);
+        setWarehouses(w.data.warehouses);
+        setSuppliers(s.data.suppliers);
+        setApiproducts(p.data.products);
+        setAvailableProducts(p.data.products);
+      } catch (e) {
+        setError(e.response?.data?.message || "Error loading data");
+        setIsModalOpen(true);
+      }
+    };
+    fetchInitial();
+  }, []);
+
+  const calculateTaxBreakdown = (price, taxes) => {
+    let breakdown = {};
+    let totalTax = 0;
+    taxes?.forEach((tax) => {
+      const percent = parseFloat(tax.percentage);
+      const taxAmt = (price * percent) / 100;
+      breakdown[tax.name] = (breakdown[tax.name] || 0) + taxAmt;
+      totalTax += taxAmt;
+    });
+    return { breakdown, totalTax };
+  };
+
+  const handleAddProduct = () => {
+    const errs = {};
+    if (!selectedSKU) errs.sku = true;
+    if (!qty || qty <= 0) errs.qty = true;
+    if (Object.keys(errs).length) {
+      setErrors(errs);
       return;
     }
 
-    setProducts((prevProducts) => [
-      ...prevProducts,
-      {
-        id: prevProducts.length + 1,
-        pid: pid,
-        pname: pname,
-        units: units,
-        qty: qty,
-        amount: amount,
-      },
-    ]);
+    const prod = apiproducts.find((p) => p.SKU === selectedSKU);
+    const purchasePrice = parseFloat(prod.purchasePrice);
+    const quantity = parseInt(qty);
 
-    // Reset input fields
-    setPid(null);
-    setPname(null);
-    setUnits(null);
-    setQty(null);
-    setAmount(null);
-  };
-
-  const onDeleteClick = (id) => {
-    console.log("delete called");
-    setProducts((prevProducts) =>
-      prevProducts.filter((product) => product.id !== id)
+    const { breakdown, totalTax } = calculateTaxBreakdown(
+      purchasePrice,
+      prod.taxes
     );
+    const finalPrice = purchasePrice + totalTax;
+    const total = finalPrice * quantity;
+
+    const newItem = {
+      ...prod,
+      quantity,
+      taxBreakdown: breakdown,
+      totalTax,
+      amount: total,
+    };
+
+    setProducts((prev) => [...prev, newItem]);
+    setAvailableProducts((prev) => prev.filter((p) => p.SKU !== prod.SKU));
+    setSelectedSKU("");
+    setQty("");
+    setSelectedProduct(null);
+    setErrors({});
   };
 
-  let sno = 1;
+  useEffect(() => {
+    const summary = {};
+    let netTotal = 0;
+
+    products.forEach((prod) => {
+      netTotal += prod.amount;
+      Object.entries(prod.taxBreakdown).forEach(([name, amt]) => {
+        summary[name] = (summary[name] || 0) + amt;
+      });
+    });
+
+    setTotalAmount(netTotal);
+    setTaxSummary(summary);
+  }, [products]);
+
+  const handleDeleteProduct = (sku) => {
+    const product = products.find((p) => p.SKU === sku);
+    setProducts((prev) => prev.filter((p) => p.SKU !== sku));
+    setAvailableProducts((prev) => [...prev, product]);
+  };
+
+  const onSubmit = async () => {
+    if (!warehouse || !supplier || !products.length) {
+      setError("Please select all fields and add at least one product.");
+      setIsModalOpen(true);
+      return;
+    }
+
+    const items = products.map((p) => ({
+      productId: p.id,
+      quantity: p.quantity,
+      purchasePrice: p.purchasePrice,
+    }));
+
+    try {
+      setLoading(true);
+      const res = await axiosAPI.post("/purchases", {
+        warehouseId: warehouse,
+        supplierId: supplier,
+        items,
+      });
+      setSuccessmsg(res.data.message);
+      setShowSuccess(true);
+      setTimeout(() => navigate("/purchases"), 2100);
+    } catch (e) {
+      setError(e.response?.data?.message || "Submission failed");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onProductSelect = (e) => {
+    const sku = e.target.value;
+    setSelectedSKU(sku);
+    const prod = apiproducts.find((p) => p.SKU === sku);
+    setSelectedProduct(prod);
+  };
+
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Purchase</span>{" "}
-        <i class="bi bi-chevron-right"></i> + New Purchase Order
+        <span onClick={() => navigate("/purchases")}>Purchase</span>{" "}
+        <i className="bi bi-chevron-right"></i> + New Purchase Order
       </p>
 
-      <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Date :</label>
-          <input type="date" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Time :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">User ID :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Warehouse :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Warehouse 1</option>
-            <option value="">Warehouse 2</option>
-            <option value="">Warehouse 3</option>
-          </select>
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Purchase ID :</label>
-          <input type="text" />
-        </div>
-      </div>
+      {!loading && !showSuccess && (
+        <>
+          {/* Header Info */}
+          <div className="row m-0 p-3">
+            <div className={`col-3 ${styles.longform}`}>
+              <label>Date :</label>
+              <input type="date" value={currentDate} readOnly />
+            </div>
+            <div className={`col-3 ${styles.longform}`}>
+              <label>Time :</label>
+              <input type="text" value={currentTime} readOnly />
+            </div>
+            <div className={`col-3 ${styles.longform}`}>
+              <label>User ID :</label>
+              <input type="text" value={user?.employeeId} readOnly />
+            </div>
+          </div>
 
-      <div className="row m-0 p-3">
-        <h5 className={styles.head}>TO</h5>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Vendor Name :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Vendor ID :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Address Line 1 :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Address Line 2 :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Village/City :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">District :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">State :</label>
-          <input type="text" />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Pincode :</label>
-          <input type="text" />
-        </div>
-      </div>
+          {/* Warehouse and Supplier */}
+          <div className="row m-0 p-3">
+          <h5 className={styles.head}>TO</h5>
+            <div className={`col-3 ${styles.longform}`}>
+              <label>Warehouse :</label>
+              <select onChange={(e) => setWarehouse(e.target.value)}>
+                <option value="">--select--</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={`col-3 ${styles.longform}`}>
+              <label>Vendor :</label>
+              <select onChange={(e) => setSupplier(e.target.value)}>
+                <option value="">--select--</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <div className="row m-0 p-3 justify-content-center">
-        <h5 className={styles.head}>Products</h5>
-        <div className="col-10">
-          <table className="table table-bordered borderedtable">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Product ID</th>
-                <th>Product Name</th>
-                <th>Units</th>
-                <th>Quantity</th>
-                <th>Net Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products &&
-                products.length > 0 &&
-                products.map((product) => (
-                  <>
-                    <tr>
-                      <td>{sno++}</td>
-                      <td>{product.pid}</td>
-                      <td>{product.pname}</td>
-                      <td>{product.units}</td>
-                      <td>{product.qty}</td>
-                      <td className={styles.del}>
-                        {product.amount}{" "}
-                        <button
-                          type="button"
-                          onClick={() => onDeleteClick(product.id)}
-                        >
-                          <i class="bi bi-trash3"></i>
+          {/* Product Table */}
+          <div className="row m-0 p-3 justify-content-center">
+            <h5 className={styles.head}>Products</h5>
+            <div className="col-lg-9">
+              <table className="table table-bordered borderedtable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Unit</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Taxes</th>
+                    <th>Net</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((p, i) => (
+                    <tr key={p.SKU}>
+                      <td>{i + 1}</td>
+                      <td>{p.SKU}</td>
+                      <td>{p.name}</td>
+                      <td>{p.unit}</td>
+                      <td>{p.quantity}</td>
+                      <td>₹{parseFloat(p.purchasePrice).toFixed(2)}</td>
+                      <td>
+                        {Object.entries(p.taxBreakdown).map(([name, amt]) => (
+                          <div key={name}>
+                            {name}: ₹{amt.toFixed(2)}
+                          </div>
+                        ))}
+                      </td>
+                      <td>₹{p.amount.toFixed(2)}</td>
+                      <td>
+                        <button className={styles.removebtn} onClick={() => handleDeleteProduct(p.SKU)}>
+                          <i className="bi bi-trash3"></i>
                         </button>
                       </td>
                     </tr>
-                  </>
+                  ))}
+                  {/* Add Product Row */}
+                  <tr className={styles.tableform}>
+                    <td>#</td>
+                    <td colSpan={2}>
+                      <select
+                        value={selectedSKU}
+                        onChange={onProductSelect}
+                        className={errors.sku ? styles.errorinput : ""}
+                      >
+                        <option value="">--select product--</option>
+                        {availableProducts.map((p) => (
+                          <option key={p.SKU} value={p.SKU}>
+                            {p.SKU} - {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>{selectedProduct?.unit}</td>
+
+                    <td colSpan={1}>
+                      <input
+                        type="number"
+                        min="1"
+                        value={qty}
+                        onChange={(e) => setQty(e.target.value)}
+                        placeholder="Qty"
+                        className={errors.qty ? styles.errorinput : ""}
+                      />
+                    </td>
+                    <td>{selectedProduct?.purchasePrice}</td>
+                    <td>
+                      {selectedProduct?.taxes?.map((t) => (
+                        <div key={t.name}>
+                          {t.name} ({t.percentage}%)
+                        </div>
+                      ))}
+                    </td>
+                    <td colSpan={2}>
+                      <button
+                        className={styles.addbtn}
+                        onClick={handleAddProduct}
+                      >
+                        + Add Product
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Tax Summary */}
+              <div className={`pt-3 ${styles.taxes}`}>
+                <strong>Total Purchase Amount:</strong> ₹
+                {totalAmount.toFixed(2)}
+                <br />
+                {Object.entries(taxSummary).map(([name, amount]) => (
+                  <div key={name}>
+                    <strong>{name}:</strong> ₹{amount.toFixed(2)}
+                  </div>
                 ))}
-              <tr className={styles.tableform}>
-                <td>{sno}</td>
-                <td>
-                  <select
-                    name=""
-                    id=""
-                    onChange={(e) => setPid(e.target.value)}
-                    value={pid}
-                  >
-                    <option value="">--select--</option>
-                    <option value="123">#123</option>
-                    <option value="124">#124</option>
-                    <option value="125">#125</option>
-                  </select>
-                </td>
-                <td>
-                  <select
-                    name=""
-                    id=""
-                    onChange={(e) => setPname(e.target.value)}
-                    value={pname}
-                  >
-                    <option value="">--select--</option>
-                    <option value="product-1">product-1</option>
-                    <option value="product-2">product-2</option>
-                    <option value="product-3">product-3</option>
-                  </select>
-                </td>
-                <td>
-                  <select
-                    name=""
-                    id=""
-                    onChange={(e) => setUnits(e.target.value)}
-                    value={units}
-                  >
-                    <option value="">--select--</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    required
-                    onChange={(e) => setQty(e.target.value)}
-                    value={qty}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    required
-                    onChange={(e) => setAmount(e.target.value)}
-                    value={amount}
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <button type="submit" onClick={onSaveClick} className={styles.addbtn}>
-            + ADD Product
-          </button>
-        </div>
-
-        <div className="row m-0 p-3 pt-4">
-          <div className={`col-3 ${styles.longform}`}>
-            <label htmlFor="">Total Amount :</label>
-            <span> 1,30,000/-</span>
+                <div className={`mt-2 ${styles.total}`}>
+                  <strong>Grand Total:</strong> ₹
+                  {(
+                    totalAmount +
+                    Object.values(taxSummary).reduce((a, b) => a + b, 0)
+                  ).toFixed(2)}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="row m-0 p-3 pt-4 justify-content-center">
-        <div className={`col-4`}>
-          <button className="submitbtn">Submit</button>
-          <button className="cancelbtn" onClick={() => navigate(-1)}>
-            Cancel
-          </button>
-        </div>
-      </div>
+          {/* Submit/Cancel */}
+          <div className="row m-0 p-3 pt-4 justify-content-center">
+            <div className="col-3">
+              <button className="submitbtn" onClick={onSubmit}>
+                Order
+              </button>
+              <button
+                className="cancelbtn"
+                onClick={() => navigate("/purchases")}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showSuccess && <LoadingAnimation gif={success} msg={successmsg} />}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+      {loading && <Loading />}
     </>
   );
 }

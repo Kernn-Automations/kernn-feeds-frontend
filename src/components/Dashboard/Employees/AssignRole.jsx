@@ -42,16 +42,18 @@ function AssignRole({ navigate }) {
       role: "",
     },
   ];
+  
+  let count;
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate(-1)}>Employees</span>{" "}
+        <span onClick={() => navigate("/employees")}>Employees</span>{" "}
         <i class="bi bi-chevron-right"></i> Assign Role
       </p>
 
       {!editclick && (
         <div className="row m-0 p-3 justify-content-center">
-          <div className="col-10">
+          <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr>
@@ -66,7 +68,8 @@ function AssignRole({ navigate }) {
               </thead>
               <tbody>
                 {emps.map((emp) => (
-                  <tr>
+                  <tr className="animated-row"
+                  style={{ animationDelay: `${count++ * 0.1}s` }}>
                     <td>{emp.sn}</td>
                     <td>{emp.id}</td>
                     <td>{emp.name}</td>

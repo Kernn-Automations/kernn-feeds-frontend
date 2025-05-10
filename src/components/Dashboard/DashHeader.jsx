@@ -6,16 +6,24 @@ import styles from "./Dashboard.module.css";
 import Notification from "./Notification";
 import ProfileAvthar from "./ProfileAvthar";
 import { IoSearch } from "react-icons/io5";
+import SearchBar from "./SearchBar";
 
-function DashHeader({ notifications, user, setAdmin, setTab, admin, orgadmin }) {
+function DashHeader({
+  notifications,
+  user,
+  setAdmin,
+  setTab,
+  admin,
+  orgadmin,
+}) {
   const navigate = useNavigate();
   return (
     <>
       <div className={styles.header}>
         <div className="row justify-content-between">
-          <div className={`col-4 ${styles.headcontent}`}>
-            <p className={styles.brand}>Vallabha Feeds Pvt Ltd</p>
-            {orgadmin &&
+          <div className={`col-4 ${styles.headcontentTitle}`}>
+            <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
+            {orgadmin && (
               <p className={styles.reset}>
                 <span
                   onClick={() => {
@@ -26,14 +34,13 @@ function DashHeader({ notifications, user, setAdmin, setTab, admin, orgadmin }) 
                   <i class="bi bi-arrow-repeat"></i>
                 </span>
               </p>
-            }
+            )}
           </div>
           <div className={`col-4 ${styles.headcontent}`}>
             <div className="row pt-2 justify-content-center">
-              <div className="col-2">
+              {/* <div className="col-2">
                 <Notification notifications={notifications} />
-              </div>
-              <div className={`col ${styles.searchbar}`}>
+              </div> */}
                 {/* <input type="text" placeholder="search..." className={styles.search} />
               
               <button type="submit">
@@ -65,11 +72,9 @@ function DashHeader({ notifications, user, setAdmin, setTab, admin, orgadmin }) 
                   </InputRightElement>
                 </InputGroup> */}
 
-                <input type="text" placeholder="Search..." />
-                <span className={styles.searchicon}>
-                  <IoSearch />
-                </span>
-              </div>
+                {/*  */}
+                <SearchBar />
+              
               <div className="col-2">
                 <ProfileAvthar user={user} setTab={setTab} />
               </div>

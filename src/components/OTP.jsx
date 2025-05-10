@@ -10,30 +10,34 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     console.log("onSubmit called");
 
+    const VITE_API = import.meta.env.VITE_API_URL;
+
     try {
       const res = await axios.post(
-        "https://kernn.azurewebsites.net/api/v1/verify_otp",
+        `${VITE_API}/auth/verify`,
         {
           mobile: email,
           otp: otp,
         }
       );
 
-      console.log(res);
+      // console.log(res);
 
       setLogin(true);
 
       if (res.status === 200) {
         setUser({
-          accesstoken: res.data.accesstoken,
-          refresh: res.data.refresh_token,
-          user: res.data.data,
+          accesstoken: res.data.accessToken,
+          refresh: res.data.refreshToken,
+          user: {...res.data.data, roles : res.data.roles}
+          
         });
         setLogin(true);
       } else {
@@ -70,7 +74,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
           </a>
         </p>
 
-        {!loading && <button className={styles.button}>Verify OTP</button>}
+        {!loading && <button className={styles.verifybutton}>Verify OTP</button>}
         {loading && <Loading />}
       </form>
 

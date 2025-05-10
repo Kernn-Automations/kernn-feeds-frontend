@@ -9,6 +9,14 @@ import { AuthProvider } from "./Auth";
 import { BrowserRouter } from "react-router-dom";
 import { Provider } from "./components/ui/provider";
 import { DarkMode, LightMode, useColorMode } from "@/components/ui/color-mode";
+import { LoadScript } from "@react-google-maps/api";
+import { defineConfig } from "@chakra-ui/react";
+
+
+const theme = defineConfig({
+  colorMode: "light", // Force light mode
+  useSystemColorMode: false, // Ignore system preference
+});
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -16,9 +24,14 @@ createRoot(document.getElementById("root")).render(
 
     <AuthProvider>
       <BrowserRouter>
-        <Provider>
+        <Provider theme={theme}>
           <LightMode>
-            <App />
+            <LoadScript
+              googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API}
+              libraries={["places"]}
+            >
+              <App />
+            </LoadScript>
           </LightMode>
         </Provider>
       </BrowserRouter>

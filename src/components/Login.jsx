@@ -5,23 +5,26 @@ import Input from "./Input";
 import WelcomePage from "./WelComePage";
 import styles from "./Login.module.css";
 
-
 function Login() {
   const [login, setLogin] = useState(false);
-  const [user, setUser] = useState({})
+  const [user, setUser] = useState({});
   return (
     <>
       <div className={`container-fluid ${styles.cont}`}>
-          {!login && (
-            <>
+        {!login && (
+          <>
+            <div className={styles.logincontainer}>
               <Header />
-              <Input setLogin={setLogin} setUser={setUser}/>
+              <main className={styles.formWrapper}>
+                <Input setLogin={setLogin} setUser={setUser} />
+              </main>
               <Footer />
-            </>
-          )}
+            </div>
+          </>
+        )}
 
-          {login && <WelcomePage data={user} />}
-        </div>
+        {login && <WelcomePage data={user} />}
+      </div>
     </>
   );
 }

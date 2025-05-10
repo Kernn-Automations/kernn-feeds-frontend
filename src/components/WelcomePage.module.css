@@ -6,9 +6,10 @@
   padding: 0 !important;
 }
 .img {
-  min-width: 150px;
+  min-width: 350px;
   max-width: 200px;
   justify-self: center;
+  margin-bottom: 50px;
 }
 .wel {
   font-family: Montserrat;
@@ -17,9 +18,10 @@
   line-height: 29.26px;
   text-align: center;
   margin-top: 20px;
+  margin-bottom: 30px;
 }
 .wel span {
-  color: #a92427;
+  color: var(--secondary-color);
 }
 .getcol {
   min-width: 230px !important;
@@ -31,18 +33,31 @@
   font-weight: 500;
   width: 230px;
   height: 40px;
-  border: 2px solid #a92427;
+  border: 2px solid var(--primary-color);
   border-radius: 5px;
   background-color: transparent;
-  color: #a92427;
+  color: var(--primary-color);
   box-shadow: 3px 3px 6px gray;
   transition: 0.3s ease;
+  margin-top: 20px;
 }
 .get:hover {
-  background-color: #a92427;
+  background-color: var(--primary-color);
   color: white;
 }
 .get:active {
-  background-color: #76181a;
+  background-color: var(--primary-active);
   color: white;
 }
+.welcomebox{
+  width: 450px;
+  height: 350px;
+}
+.welcomecontainer{
+  width: 100%;
+  height: 90vh;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+}
+

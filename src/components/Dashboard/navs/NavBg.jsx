@@ -229,7 +229,7 @@ function NavBg({ hover, setTab, tab }) {
             {hover && <p>Employees</p>}
           </Link>
         </div>
-        <div
+        {/* <div
           className={`${
             location.pathname.includes("location") ? styles.active : ""
           } `}
@@ -261,7 +261,7 @@ function NavBg({ hover, setTab, tab }) {
 
             {hover && <p>Live Locations</p>}
           </Link>
-        </div>
+        </div> */}
         <div
           className={`${
             location.pathname.includes("warehouses") ? styles.active : ""
@@ -294,7 +294,7 @@ function NavBg({ hover, setTab, tab }) {
           } `}
           onClick={() => setTab("product")}
         >
-          <Link to="/product">
+          <Link to="/products">
             <svg
               width="38"
               height="38"
@@ -303,7 +303,6 @@ function NavBg({ hover, setTab, tab }) {
               xmlns="http://www.w3.org/2000/svg"
             >
               <g>
-                <path d="M0 0H38V38H0V0Z" fill-opacity="0.01" />
                 <path
                   d="M3.16634 11.082L2.45825 9.66582C1.92184 9.93403 1.58301 10.4823 1.58301 11.082H3.16634ZM18.9997 3.16536L19.7077 1.74919C19.262 1.52631 18.7373 1.52631 18.2916 1.74919L18.9997 3.16536ZM34.833 11.082H36.4163C36.4163 10.4823 36.0775 9.93403 35.5411 9.66582L34.833 11.082ZM34.833 26.9154L35.5411 28.3316C36.0775 28.0634 36.4163 27.5151 36.4163 26.9154H34.833ZM18.9997 34.832L18.2916 36.2482C18.7373 36.4711 19.262 36.4711 19.7077 36.2482L18.9997 34.832ZM3.16634 26.9154H1.58301C1.58301 27.5151 1.92184 28.0634 2.45825 28.3316L3.16634 26.9154ZM3.87443 12.4982L19.7077 4.58154L18.2916 1.74919L2.45825 9.66582L3.87443 12.4982ZM33.2497 11.082V26.9154H36.4163V11.082H33.2497ZM34.1249 25.4992L18.2916 33.4158L19.7077 36.2482L35.5411 28.3316L34.1249 25.4992ZM19.7077 33.4158L3.87443 25.4992L2.45825 28.3316L18.2916 36.2482L19.7077 33.4158ZM4.74967 26.9154V11.082H1.58301V26.9154H4.74967ZM35.5411 9.66582L19.7077 1.74919L18.2916 4.58154L34.1249 12.4982L35.5411 9.66582Z"
                   fill="black"
@@ -340,7 +339,33 @@ function NavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
-        <div
+        {/* <div
+          className={`${
+            location.pathname.includes("announcement") ? styles.active : ""
+          } `}
+          onClick={() => setTab("announcement")}
+        >
+          <Link to="/announcement">
+            <svg
+              stroke="black"
+              fill="black"
+              stroke-width="0"
+              viewBox="0 0 23 24"
+              
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill="none"
+                stroke-width="2"
+                d="M11,15 C14,15 19,19 19,19 L19,3 C19,3 14,7 11,7 C11,7 11,15 11,15 Z M5,15 L8,23 L12,23 L9,15 M19,14 C20.657,14 22,12.657 22,11 C22,9.343 20.657,8 19,8 M11,19 C11.9999997,18.9999994 14,18 14,16 M2,11 C2,7.88888889 3.7912,7 6,7 L11,7 L11,15 L6,15 C3.7912,15 2,14.1111111 2,11 Z"
+              ></path>
+            </svg>
+
+            {hover && <p>Announcement</p>}
+          </Link>
+        </div> */}
+
+        {/* <div
           className={`${
             location.pathname.includes("settings") ? styles.active : ""
           } `}
@@ -368,7 +393,7 @@ function NavBg({ hover, setTab, tab }) {
 
             {hover && <p>Settings</p>}
           </Link>
-        </div>
+        </div> */}
 
         {/* <div
           className={`${location.pathname.includes("logout") ? styles.active : ""} `}

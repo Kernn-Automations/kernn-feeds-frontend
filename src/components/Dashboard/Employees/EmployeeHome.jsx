@@ -9,12 +9,12 @@ function EmployeeHome({navigate}) {
           <button className="homebtn" onClick={() => navigate("/employees/create-employee")}>
            Create Employee
           </button>
-          <button
+          {/* <button
             className="homebtn"
             onClick={() => navigate("/employees/assign-role")}
           >
             Assign Role
-          </button>
+          </button> */}
           <button
             className="homebtn"
             onClick={() => navigate("/employees/manage-employees")}

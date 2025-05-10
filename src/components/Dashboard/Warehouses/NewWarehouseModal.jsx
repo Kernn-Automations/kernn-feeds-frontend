@@ -1,99 +1,313 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Warehouse.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
+import MapViewModal from "./MapViewModal";
+import { useAuth } from "@/Auth";
+import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
+import SuccessModal from "@/components/SuccessModal";
 
+function NewWarehouseModal({ managers }) {
+  const [name, setName] = useState();
+  const [plot, setPlot] = useState();
+  const [street, setStreet] = useState();
+  const [area, setArea] = useState();
+  const [city, setCity] = useState();
+  const [district, setDistrict] = useState();
+  const [state, setState] = useState();
+  const [country, setCountry] = useState();
+  const [pincode, setPincode] = useState();
 
+  const [managerId, setManagerId] = useState();
 
-function NewWarehouseModal() {
- 
-  const onSubmit = (e) => e.preventDefault();
+  const { axiosAPI } = useAuth();
+  // validation
+  const [errors, setErrors] = useState({});
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const [defaultLocation, setDefaultLocation] = useState({
+    lat: 40.7128,
+    lng: -74.006,
+  });
+  const [location, setLocation] = useState(defaultLocation);
+
+  const [issuccessModalOpen, setIssuccessModalOpen] = useState(false);
+  const closesuccessModal = () => {
+    setIssuccessModalOpen(false);
+  };
+
+  const validateFields = () => {
+    const newErrors = {};
+    if (!name) newErrors.name = true;
+    if (!plot) newErrors.plot = true;
+    if (!street) newErrors.street = true;
+    if (!area) newErrors.area = true;
+    if (!city) newErrors.city = true;
+    if (!district) newErrors.district = true;
+    if (!state) newErrors.state = true;
+    if (!country) newErrors.country = true;
+    if (!pincode) newErrors.pincode = true;
+    if (!managerId) newErrors.managerId = true;
+    if (!location?.lat || !location?.lng) newErrors.location = true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  function onError(e, vari, setter) {
+    const value = e.target.value === "null" ? null : e.target.value;
+    setter(value);
+    if (value) {
+      setErrors((prev) => ({ ...prev, vari: false }));
+    }
+  }
+
+  // form subbmission
+  const onSubmitClick = () => {
+    // console.log(name, location);
+    // console.log(
+    //   name,
+    //   plot,
+    //   street,
+    //   area,
+    //   city,
+    //   district,
+    //   state,
+    //   country,
+    //   pincode,
+    //   managerId
+    // );
+    // console.log(location);
+
+    if (!validateFields()) {
+      setError("Please Fill all feilds");
+      setIsModalOpen(true);
+      return;
+    }
+    async function create() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.post("/warehouse/add", {
+          name: name,
+          plot,
+          street,
+          area,
+          city,
+          district,
+          state,
+          country,
+          pincode,
+          latitude: location.lat,
+          longitude: location.lng,
+          managerId,
+        });
+
+        // console.log(res);
+
+        setError(res.data.message);
+        setIssuccessModalOpen(true);
+      } catch (e) {
+        // console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    create();
+  };
+
+  // useEffect(() => {
+  //   const getAddressFromCoords = async () => {
+      // console.log("maps runned");
+  //     if (location.lng == null || location.lat == null) return;
+
+      // console.log("maps runned 2.0");
+  //     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API;
+  //     const response = await fetch(
+  //       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.lat},${location.lng}&key=${apiKey}`
+  //     );
+  //     const data = await response.json();
+  //     if (data.status === "OK") {
+  //       const result = data.results[0];
+  //       const components = result.address_components;
+
+  //       const getComponent = (type) =>
+  //         components.find((comp) => comp.types.includes(type))?.long_name || "";
+  //       setPlot(getComponent("premise") || getComponent("subpremise"));
+  //       setStreet(getComponent("route"));
+  //       setArea(getComponent("sublocality_level_1"));
+  //       setDistrict(getComponent("administrative_area_level_2"));
+  //       setState(getComponent("administrative_area_level_1"));
+  //       setPincode(getComponent("postal_code"));
+  //     }
+  //   };
+  //   getAddressFromCoords();
+  // }, [location]);
+
   return (
     <>
-      <h3 className={`px-3 pb-3 mdl-title`}>Add Warehouse</h3>
-      <form action="" onSubmit={onSubmit}>
-        <div className="row justify-content-center">
-          <div className={`col-6 inputcolumn-mdl`}>
-            <label htmlFor="">Plant Type :</label>
-            <select name="" id="" required>
-              <option value="">--select--</option>
-              <option value="BMC">plant 1</option>
-              <option value="CC">plant 2</option>
-            </select>
+      <h3 className={`px-3 pb-3 mdl-title`}>Create Warehouse</h3>
+      {/* <div className="row justify-content-center">
+          <div className={`col-4  inputcolumn-mdl`}>
+            <label htmlFor="">Warehouse ID :</label>
+            <input type="text" />
           </div>
+        </div>{" "} */}
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Warehouse Name :</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => onError(e, name, setName)}
+            required
+            className={errors.name ? styles.errorField : ""}
+          />
         </div>
-        <div className="row justify-content-center">
-          <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Plant Code :</label>
-            <input type="text" />
-          </div>
-        </div>{" "}
-        <div className="row justify-content-center">
-          <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Plant Name :</label>
-            <input type="text" />
-          </div>
-        </div>{" "}
-        <div className="row justify-content-center">
-          <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Storage Capacity :</label>
-            <input type="text" />
-          </div>
-        </div>{" "}
+      </div>{" "}
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Plot / H.No :</label>
+          <input
+            type="text"
+            value={plot}
+            onChange={(e) => onError(e, plot, setPlot)}
+            required
+            className={errors.plot ? styles.errorField : ""}
+          />
+        </div>
+      </div>
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Street :</label>
+          <input
+            type="text"
+            value={street}
+            onChange={(e) => onError(e, street, setStreet)}
+            required
+            className={errors.street ? styles.errorField : ""}
+          />
+        </div>
+      </div>
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Area :</label>
+          <input
+            type="text"
+            value={area}
+            onChange={(e) => onError(e, area, setArea)}
+            required
+            className={errors.area ? styles.errorField : ""}
+          />
+        </div>
+      </div>
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">City/Village :</label>
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => onError(e, city, setCity)}
+            required
+            className={errors.city ? styles.errorField : ""}
+          />
+        </div>
+      </div>
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">District :</label>
+          <input
+            type="text"
+            value={district}
+            onChange={(e) => onError(e, district, setDistrict)}
+            required
+            className={errors.district ? styles.errorField : ""}
+          />
+        </div>
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
             <label htmlFor="">State :</label>
-            <select name="" id="">
-              <option value="">--select--</option>
-              <option value="">State 1</option>
-              <option value="">State 2</option>
-              <option value="">State 3</option>
-            </select>
-          </div>
-        </div>
-        <div className="row justify-content-center">
-          <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">District :</label>
-            <select name="" id="">
-              <option value="">--select--</option>
-              <option value="">District 1</option>
-              <option value="">District 2</option>
-              <option value="">District 3</option>
-            </select>
-          </div>
-          <div className={`col-4  inputcolumn-mdl`}></div>
-        </div>
-        <div className="row justify-content-center">
-          <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Village/city/Town :</label>
             <input
               type="text"
-              name=""
-              id=""
-            
+              value={state}
+              onChange={(e) => onError(e, state, setState)}
               required
+              className={errors.state ? styles.errorField : ""}
             />
           </div>
         </div>
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">PinCode :</label>
-            <input type="text" />
+            <label htmlFor="">Country :</label>
+            <input
+              type="text"
+              value={country}
+              onChange={(e) => onError(e, country, setCountry)}
+              required
+              className={errors.country ? styles.errorField : ""}
+            />
           </div>
         </div>
         <div className="row justify-content-center">
           <div className={`col-4  inputcolumn-mdl`}>
-            <label htmlFor="">Locate on Map :</label>
-           {/* <MapViewModal/> */}
+            <label htmlFor="">Pincode :</label>
+            <input
+              type="text"
+              value={pincode}
+              onChange={(e) => onError(e, pincode, setPincode)}
+              required
+              className={errors.pincode ? styles.errorField : ""}
+            />
           </div>
         </div>
+        <div className="row justify-content-center">
+          <div className={`col-4  inputcolumn-mdl`}>
+            <label htmlFor="">Manager :</label>
+            <select
+              name=""
+              id=""
+              value={managerId}
+              onChange={(e) => onError(e, managerId, setManagerId)}
+              required
+              className={errors.managerId ? styles.errorField : ""}
+            >
+              <option value="null">--select--</option>
+              {managers &&
+                managers.map((manager) => (
+                  <option value={manager.id}>{manager.name}</option>
+                ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Locate on Map :</label>
+          <MapViewModal
+            setLocation={setLocation}
+            defaultLocation={defaultLocation}
+            setDefaultLocation={setDefaultLocation}
+          />
+        </div>
+      </div>
+      {!loading && (
         <div className="row pt-3 mt-3 justify-content-center">
           <div className={`col-5`}>
             <button
               type="submit"
               className={`submitbtn`}
               data-bs-dismiss="modal"
+              onClick={onSubmitClick}
             >
-              Submit
+              Create
             </button>
             <DialogActionTrigger asChild>
               <button
@@ -106,7 +320,24 @@ function NewWarehouseModal() {
             </DialogActionTrigger>
           </div>
         </div>
-      </form>
+      )}
+      {loading && (
+        <div className="row pt-3 mt-3 justify-content-center">
+          <div className={`col-5`}>
+            <Loading />
+          </div>
+        </div>
+      )}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+      {issuccessModalOpen && (
+        <SuccessModal
+          isOpen={issuccessModalOpen}
+          message={error}
+          onClose={closesuccessModal}
+        />
+      )}
     </>
   );
 }

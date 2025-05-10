@@ -16,7 +16,7 @@ function Loading() {
             {/* <ProgressCircleRoot value={null} size="sm">
               <ProgressCircleRing cap="round" />
             </ProgressCircleRoot> */}
-            <Spinner size="lg" color={"#a92427"} borderWidth="3px"/>
+            <Spinner size="lg" color={"#003176"} borderWidth="3px"/>
             {/* <Text color="#a92427">Loading...</Text> */}
           </div>
         </div>

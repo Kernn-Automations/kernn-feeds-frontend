@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import styles from "./Dashboard.module.css";
 import NavContainer from "./navs/NavContainer";
 import DashHeader from "./DashHeader";
@@ -7,14 +7,33 @@ import FootLink from "./FootLink";
 import { useAuth } from "../../Auth";
 
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
-import HomePage from "./HomePage/HomePage";
-import InventoryRoutes from "./Inventory/InventoryRoutes";
-import PurchaseRoutes from "./Purchases/PurchaseRoutes";
-import SalesRoutes from "./Sales/SalesRoutes";
-import CustomerRoutes from "./Customers/CustomerRoutes";
-import PaymentRoutes from "./Payments/PaymentRoutes";
-import EmployeeRoutes from "./Employees/EmployeeRoutes";
-import WarehouseRoutes from "./Warehouses/WarehouseRoutes";
+import TicketingService from "./TicketService/TicketingService";
+import PageSkeleton from "../SkeletonLoaders/PageSkeleton";
+import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
+// import HomePage from "./HomePage/HomePage";
+// import InventoryRoutes from "./Inventory/InventoryRoutes";
+// import PurchaseRoutes from "./Purchases/PurchaseRoutes";
+// import SalesRoutes from "./Sales/SalesRoutes";
+// import CustomerRoutes from "./Customers/CustomerRoutes";
+// import PaymentRoutes from "./Payments/PaymentRoutes";
+// import EmployeeRoutes from "./Employees/EmployeeRoutes";
+// import WarehouseRoutes from "./Warehouses/WarehouseRoutes";
+// import ProductRoutes from "./Products/ProductRoutes";
+// import LocationsHome from "./Locations/LocationsHome";
+// import AnnouncementHome from "./Annoucement/AnnouncementHome";
+
+// Lazy-loaded Pages
+const HomePage = lazy(() => import("./HomePage/HomePage"));
+const InventoryRoutes = lazy(() => import("./Inventory/InventoryRoutes"));
+const PurchaseRoutes = lazy(() => import("./Purchases/PurchaseRoutes"));
+const SalesRoutes = lazy(() => import("./Sales/SalesRoutes"));
+const CustomerRoutes = lazy(() => import("./Customers/CustomerRoutes"));
+const PaymentRoutes = lazy(() => import("./Payments/PaymentRoutes"));
+const EmployeeRoutes = lazy(() => import("./Employees/EmployeeRoutes"));
+const WarehouseRoutes = lazy(() => import("./Warehouses/WarehouseRoutes"));
+const ProductRoutes = lazy(() => import("./Products/ProductRoutes"));
+const LocationsHome = lazy(() => import("./Locations/LocationsHome"));
+// const AnnouncementHome = lazy(() => import("./Annoucement/AnnouncementHome"));
 
 function Dashboard({
   admin,
@@ -57,33 +76,33 @@ function Dashboard({
   const onmouseover = () => {
     setHover(true);
     setStyle("navover");
-    console.log(hover);
+    // console.log(hover);
   };
   const onmouseleave = () => {
     setHover(false);
     setStyle("navcont");
   };
 
-  useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await axiosAPI.post("/employees/mdashboard");
-        console.log(res);
+  // useEffect(() => {
+  //   async function fetch() {
+  //     try {
+  //       const res = await axiosAPI.post("/employees/mdashboard");
+        // console.log(res);
 
-        setLeavebalance(res.data.data.leaveBalances);
-        setNotifications(res.data.data.latestNotifications);
-        setPendingtasks(res.data.data.pendingTasks);
-        setDashboard(res.data.data);
-      } catch (e) {
-        console.log(e);
-        removeLogin();
-      }
-    }
+  //       setLeavebalance(res.data.data.leaveBalances);
+  //       setNotifications(res.data.data.latestNotifications);
+  //       setPendingtasks(res.data.data.pendingTasks);
+  //       setDashboard(res.data.data);
+  //     } catch (e) {
+        // console.log(e);
+  //       removeLogin();
+  //     }
+  //   }
 
-    fetch();
-  }, []);
+  //   fetch();
+  // }, []);
 
-  console.log(leavebalance);
+  // console.log(leavebalance);
   return (
     <>
       {admin === false && (
@@ -116,11 +135,11 @@ function Dashboard({
                     orgadmin={orgadmin}
                   />
                 </div>
-                {dept === "procurement" && role !== "Village Agent" && (
-                  // <div className={`col ${styles.tabs}`}>
-                  //   {tab === "home" && (
-                  //     <HomePage
-                  //       user={user}
+
+                {/* // <div className={`col ${styles.tabs}`}>
+                  //   {tab === "home" && ( */}
+                {/* //     <HomePage */}
+                {/* //       user={user}
                   //       leavebalance={leavebalance}
                   //       pendingtasks={pendingtasks}
                   //     />
@@ -138,31 +157,106 @@ function Dashboard({
                   //   {tab === "report" && <ReportsPage />}
                   //   {tab === "contracts" && <ContractsPage />}
                   //   {tab === "reimbursement" && <ReimbursementPage />}
-                  // </div>
-                  <div className={`col ${styles.tabs}`}>
-                    <Routes>
-                      <Route index element={<HomePage />} />
-                      <Route
-                        path="/inventory/*"
-                        element={<InventoryRoutes />}
-                      />
-                      <Route path="/purchases/*" element={<PurchaseRoutes />} />
-                      <Route path="/sales/*" element={<SalesRoutes />} />
-                      <Route path="/customers/*" element={<CustomerRoutes/>} />
-                      <Route path="/payments/*" element={<PaymentRoutes/>} />
-                      <Route path="/employees/*" element={<EmployeeRoutes/>} />
-                      <Route path="/location/*" element={<p>location</p>} />
-                      <Route path="/warehouses/*" element={<WarehouseRoutes/>} />
-                      <Route path="/product/*" element={<p>product</p>} />
-                      <Route path="/settings/*" element={<p>settings</p>} />
-                    </Routes>
-                    <Outlet />
-                  </div>
-                )}
+                  // </div> */}
+                <div className={`col ${styles.tabs}`}>
+                  <Routes>
+                    <Route
+                      index
+                      element={
+                        <Suspense fallback={<PageSkeleton />}>
+                          <HomePage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/inventory/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <InventoryRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/purchases/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <PurchaseRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/sales/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <SalesRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/customers/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <CustomerRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/payments/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <PaymentRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/employees/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <EmployeeRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/location/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <LocationsHome />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/warehouses/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <WarehouseRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/products/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <ProductRoutes />
+                        </Suspense>
+                      }
+                    />
+                    {/* <Route
+                      path="/announcement/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <AnnouncementHome />
+                        </Suspense>
+                      }
+                    /> */}
+                  </Routes>
+
+                  <Outlet />
+                </div>
               </div>
             </div>
           </div>
           <FootLink />
+          <TicketingService />
         </>
       )}
 

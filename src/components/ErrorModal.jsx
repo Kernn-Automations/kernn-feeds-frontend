@@ -21,7 +21,7 @@ function ErrorModal({isOpen, message, onClose}) {
         <Modal.Title>Error</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p className={styles.error}>{message}</p>
+        <p className={styles.error}>{message || "Unknown Error, Please contact Admin"}</p>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
