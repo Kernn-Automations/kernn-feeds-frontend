@@ -1,0 +1,103 @@
+.delsec {
+  width: 90% !important;
+  height: 40px !important;
+  margin: 5%;
+  margin-top: 10px;
+  /* font-family: Montserrat; */
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 29.26px;
+  text-align: left;
+  color: var(--primary-color);
+}
+
+.intacc {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border-radius: none !important;
+  /* font-family: Montserrat; */
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 21.94px;
+  letter-spacing: 0.015em;
+  text-align: left;
+  border-radius: 10px !important;
+}
+.intbody {
+  box-shadow: 2px 2px 4px var(--primary-color);
+  width: 60% !important;
+  margin-left: 40%;
+  border-radius: 0 0 10px 10px;
+}
+
+.box {
+  width: 95%;
+  margin: 4px 2.5%;
+  box-shadow: 2px 2px 4px var(--primary-color);
+  padding: 7px 20px;
+  /* font-family: Montserrat; */
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 15.85px;
+  letter-spacing: 0.015em;
+  text-align: center;
+  background-color: white;
+  color: var(--primary-color) !important;
+}
+
+.box > button {
+  width: fit-content;
+  padding: 4px 8px;
+  background-color: #34b233;
+  color: white;
+  border: none;
+}
+
+.locate {
+  width: 210px !important;
+  height: 25px !important;
+  border: none;
+  padding: 3px !important;
+  border-radius: 3px;
+  box-shadow: 1px 1px 4px black;
+  font-size: 14px;
+  color: white;
+  background-color: #fd3b3b;
+}
+.lant{
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 14.82px;
+  letter-spacing: 0%;
+  text-align: left; 
+  margin-bottom: 15px;
+}
+.lant span{
+  color: #a92726;
+  padding-right: 10px;
+}
+
+.selectmode select{
+  width: 100px;
+  border-radius: 3px;
+  color: white;
+  /* padding-right: 10px; */
+}
+.selectmode select option{
+  background-color: white;
+  color: black;
+}
+.selectmode select:focus{
+  outline: none;
+}
+
+.enable{
+  background-color: #2fa924;
+}
+.disable{
+  background-color: #ff2727;
+}
+
+.errorField{
+  outline: 1px solid #ff2727;
+}

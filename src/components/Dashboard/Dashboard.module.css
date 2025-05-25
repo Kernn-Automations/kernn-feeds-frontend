@@ -1,0 +1,135 @@
+.navcont {
+  height: 100vh;
+  min-width: 70px !important;
+  max-width: 70px !important;
+  background-color: #d9d9d9;
+  transition: 0.2s ease;
+  position: fixed;
+  /* box-shadow: 1px 1px 4px black; */
+}
+.navover {
+  height: 100vh;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  background-color: #d9d9d9;
+  transition: 0.2s ease;
+  position: fixed;
+  z-index: 9;
+  /* box-shadow: 1px 1px 4px black; */
+}
+
+.header {
+  background-color: #d9d9d9;
+  padding-left: 30px;
+  /* box-shadow: 1px 1px 4px black; */
+  /* box-shadow: 0 8px 6px -6px black; */
+}
+
+.headline {
+  position: fixed;
+  left: 80.5px;
+  width: 97%;
+  height: 40px;
+  z-index: 10;
+}
+
+.brand {
+  height: 30px;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 10px;
+  box-shadow: 2px 2px 4px gray;
+  /* font-family: Montserrat; */
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 19.5px;
+  text-align: left;
+  background-color: var(--primary-color);
+  color: white;
+  margin: 15px;
+  float: left;
+}
+.headcontent {
+  min-width: 370px !important;
+  width: 370px !important;
+  padding-right: 50px !important;
+}
+.headcontentTitle {
+  min-width: 300px !important;
+  width: 300px !important;
+  padding-right: 40px !important;
+}
+
+.reset{
+  font-size: 25px;
+  font-weight: 700;
+  margin-top: 10px;
+ 
+}
+.reset span{
+  cursor: pointer;
+}
+.tabs {
+  margin: 62px 0 0 70px;
+}
+
+.foot {
+  position: sticky;
+  top: 95vh;
+  padding-top: 30px;
+  /* margin-top: 30px; */
+  
+}
+.foot p {
+  /* font-family: Montserrat; */
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14.63px;
+  letter-spacing: 0.015em; 
+}
+.foot p span{
+  color: #a92426;
+  font-weight: 700;
+}
+
+
+.profilebody{
+  width: 120px;
+  background: white;
+}
+.profilebody div{
+  width: 100%;
+  clear: both;
+ padding: 10px;
+ overflow: hidden;
+}
+.profilebody div:hover, .profilebody div:hover p, .profilebody div:hover svg path{
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  stroke: var(--primary-color);
+  cursor: pointer;
+}
+.profilebody span{
+  width: 30px;
+  float: left;
+  text-align: right;
+  padding-right: 10px;
+}
+.profilebody p{
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #242424;
+}
+.profilebody svg{
+  width: 25px;
+  height: 16px;
+}
+.profilecontent{
+  width: 120px;
+  overflow: hidden;
+}
+.avatar{
+  box-shadow: 1px 1px 4px black;
+  margin-right: 10px;
+}

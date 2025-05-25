@@ -1,0 +1,119 @@
+.logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  /* background: url("https://s3-alpha-sig.figma.com/img/53b3/27c4/762dfb31d7775832ebdd1dc6e1cd6cd1?Expires=1731283200&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=LJYdlLTXb0TOkCCgag8TODchiVSQEy0~njrZr6jybJsX-rVdIVMVsdPxpEjVVM6Qf5AdJHEGyysfqUf~yLL4YWcev1r8QVu4XWcolmlLLYxHCc~uDh5BIoAOLLDuCrlIsowhtz7Zg9zJMy3EIV7MftyX~YbUfgSkRI4Y7BlALttDdyrRcJYXEzqGb01hmw8Xvo-2kI2x3q-CsT82PghsRT8bRXqNRqGADVvXVx1X50KSte8GUbyT4-42RGOs-ejgPT9mwu280cQBPnTEJ-WX6AEruiI-MIRHV23~BZYYmDuqhiWmMZf4X4sy5DxaBoVsGuBtcmX12SCIHzdHvzlPJg__") */
+  /* no-repeat center center/cover; */
+  margin: 5px 5px 20px 5px;
+  /* padding: 5px; */
+}
+
+.logo img {
+  /* width: 70px;
+  height: auto; */
+  width: 100%;
+  height: 100%;
+}
+
+.navicons {
+  background-color: #d9d9d9;
+  margin-top: 30px;
+}
+
+.navicons > div a {
+  display: flex;
+  padding: 0 0 0 8px;
+  gap: 20px;
+  margin: 20px 4px;
+
+  color: #2c2c2c;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes rotate-shake {
+  0% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(15deg);
+  }
+  40% {
+    transform: rotate(-15deg);
+  }
+  60% {
+    transform: rotate(15deg);
+  }
+  80% {
+    transform: rotate(15deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.navicons svg {
+  width: 20px;
+}
+.navicons p {
+  padding-top: 8px;
+  margin-bottom: 6px;
+  /* font-family: Montserrat; */
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.navicons > div:hover {
+  background-color: var(--primary-color);
+  border-radius: 5px;
+  color: white;
+  transition: 0.2s ease;
+  transform: scale(1.04);
+  box-shadow: 0 6px 8px 0 rgba(57, 57, 57, 0.641);
+}
+
+.navicons > div:hover p,
+.navicons > div:hover svg path,
+.active:hover svg,
+.active:hover svg path {
+  color: white;
+  stroke: white;
+}
+.navicons > div:hover svg {
+  display: inline-block;
+  animation: rotate-shake 0.5s ease-in-out;
+}
+
+.active svg path,
+.active p,
+.active svg {
+  color: var(--primary-color);
+  stroke: var(--primary-color);
+}
+.active:hover svg g path,
+.navicons > div:hover svg g path {
+  fill: white;
+}
+.active svg g path {
+  fill: var(--primary-color);
+}

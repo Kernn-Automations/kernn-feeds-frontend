@@ -1,0 +1,77 @@
+
+.longformmdl{
+  max-width: 340px !important;
+  min-width: 310px !important;
+  margin-bottom: 15px;
+}
+.longformmdl label {
+  width: 145px;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 14.82px;
+  letter-spacing: 0%;
+  text-align: right;
+  padding-right: 15px;
+  color: var(--primary-color);
+}
+.longformmdl input,
+.longformmdl select {
+  width: 130px;
+  height: 25px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  font-weight: 500;
+  font-size: 12px;
+}
+.longformmdl span {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14.26px;
+  letter-spacing: 1.5%;
+}
+.headmdl {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 29.26px;
+  letter-spacing: 1.5%;
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: Auto;
+  color: #555;
+}
+.mdltable thead th{
+  font-size: 12px !important;
+  padding: 3px;
+}
+.mdltable tbody td{
+  font-size: 12px !important;
+  padding: 3px;
+}
+
+.xls{
+  width: 150px;
+  height: 40px;
+  padding-left: 30px;
+  border-radius: 6px;
+  margin-right: 15px;
+  margin-bottom: 20px;
+  /* box-shadow: 1px 1px 3px black; */
+  color: #555;
+}
+.xls:hover{
+  outline: 1px solid #555;
+}
+.xls p{
+  float: left;
+  margin-bottom: 0;
+  font-size: 16px;
+  font-weight: 500;
+  padding-top: 6px;
+}
+.xls img{
+  width: 35px;
+  height: 35px;
+}
