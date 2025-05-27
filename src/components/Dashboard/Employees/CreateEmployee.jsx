@@ -208,7 +208,6 @@ function CreateEmployee({ navigate }) {
               </div>
             );
           })}
-
           {availableRoles.length > 0 && (
             <>
               <label className="mt-3">Roles:</label>
