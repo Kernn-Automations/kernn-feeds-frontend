@@ -63,15 +63,10 @@ function ModifyProductForm({ onViewClick, product }) {
   );
 
   // selected Images
-  const [images, setImages] = useState(
-    product.imageUrls.map((url) => ({ preview: url }))
-  );
-
-  useEffect(() => {
-    if (images.length < 6 && !images.includes(null)) {
-      setImages((prev) => [...prev, null]);
-    }
-  }, []);
+  const [images, setImages] = useState(() => {
+    const previews = product.imageUrls.map((url) => ({ preview: url }));
+    return previews.length < 6 ? [...previews, null] : previews;
+  });
 
   // backend
 
@@ -166,13 +161,13 @@ function ModifyProductForm({ onViewClick, product }) {
     formData.append("pricingListId", pricing);
     // formData.append("images", imagesArray);
     formData.append("thresholdValue", thresholdValue);
-    formData.append("pricingSlabs", pricingSlabs);
+    formData.append("pricingSlabs", JSON.stringify(pricingSlabs));
 
     images.forEach((image) => {
       if (image) formData.append("images", image.file);
     });
 
-    selectedTaxes.map((tax) => formData.append("taxIds", tax));
+    selectedTaxes.forEach((tax) => formData.append("taxIds", tax));
 
     // console.log(formData);
 
