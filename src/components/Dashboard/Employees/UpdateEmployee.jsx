@@ -4,21 +4,21 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 
-function CreateEmployee({ navigate }) {
+function UpdateEmployee({ employee, setOnUpdate }) {
   const { axiosAPI } = useAuth();
 
   const [form, setForm] = useState({
-    name: "",
-    employeeId: "",
-    email: "",
-    mobile: "",
-    warehouseId: "",
+    name: employee.name,
+    employeeId: employee.employeeId,
+    email: employee.email,
+    mobile: employee.mobile,
+    warehouseId: employee.warehouseId,
   });
 
   const [roles, setRoles] = useState([]);
-  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [selectedRoles, setSelectedRoles] = useState(employee.roles?.map((role) => role.id));
   const [supervisors, setSupervisors] = useState([]);
-  const [selectedSupervisor, setSelectedSupervisor] = useState();
+  const [selectedSupervisor, setSelectedSupervisor] = useState(employee.supervisorId);
   const [warehouses, setWarehouses] = useState([]);
 
   const [error, setError] = useState();
@@ -148,13 +148,13 @@ function CreateEmployee({ navigate }) {
       roleIds: selectedRoles,
       supervisorId: isAdminSelected ? null : parseInt(selectedSupervisor),
     };
-
+    console.log(payload)
     try {
       setLoading(true);
-      const res = await axiosAPI.post("/employees/add", payload);
+      const res = await axiosAPI.put(`/employees/${employee.id}`, payload);
       setSuccessful(res.data.message);
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to create employee.");
+      setError(err?.response?.data?.message || "Failed to Update employee.");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -163,11 +163,6 @@ function CreateEmployee({ navigate }) {
 
   return (
     <>
-      <p className="path">
-        <span onClick={() => navigate("/employees")}>Employees</span>{" "}
-        <i className="bi bi-chevron-right"></i> Create Employee
-      </p>
-
       <div className="row m-0 p-3 justify-content-center">
         <div className={`col-8 ${styles.longform}`}>
           <label>Full Name:</label>
@@ -208,6 +203,7 @@ function CreateEmployee({ navigate }) {
               </div>
             );
           })}
+
           {availableRoles.length > 0 && (
             <>
               <label className="mt-3">Roles:</label>
@@ -261,11 +257,11 @@ function CreateEmployee({ navigate }) {
             <div className="row m-0 p-3 justify-content-center">
               <div className="col-9">
                 <button className="submitbtn" onClick={handleSubmit}>
-                  Create
+                  Update
                 </button>
                 <button
                   className="cancelbtn"
-                  onClick={() => navigate("/employees")}
+                  onClick={() => setOnUpdate(false)}
                 >
                   Cancel
                 </button>
@@ -275,10 +271,10 @@ function CreateEmployee({ navigate }) {
 
           {successful && (
             <div className="row m-0 p-3 justify-content-center">
-              <div className="col-4">
+              <div className="col-12">
                 <button
                   className="submitbtn"
-                  onClick={() => navigate("/employees")}
+                  onClick={() => setOnUpdate(null)}
                 >
                   {successful}
                 </button>
@@ -297,4 +293,4 @@ function CreateEmployee({ navigate }) {
   );
 }
 
-export default CreateEmployee;
+export default UpdateEmployee;
