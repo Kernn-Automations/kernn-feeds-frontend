@@ -206,13 +206,15 @@ function AddProduct({ navigate }) {
     formData.append("pricingListId", pricing);
     // formData.append("images", imagesArray);
     formData.append("thresholdValue", thresholdValue);
-    formData.append("pricingSlabs", pricingSlabs);
+    formData.append("pricingSlabs", JSON.stringify(pricingSlabs));
 
     images.forEach((image) => {
       if (image) formData.append("images", image.file);
     });
 
-    selectedTaxes.map((tax) => formData.append("taxIds", tax));
+    selectedTaxes.forEach((taxId) => {
+      formData.append("taxIds", taxId); // use `taxIds[]` to indicate array
+    });
 
     // console.log(formData);
 
