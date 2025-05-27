@@ -193,7 +193,7 @@ function AddProduct({ navigate }) {
     // const imagesArray = [];
     // images.map((img) => img && imagesArray.push(img.file));
 
-    console.log(imagesArray);
+    // console.log(imagesArray);
 
     const formData = new FormData();
     formData.append("name", name);

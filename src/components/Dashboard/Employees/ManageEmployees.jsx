@@ -5,6 +5,7 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import EmployeeViewModal from "./EmployeeViewModal";
+import UpdateEmployee from "./UpdateEmployee";
 
 function ManageEmployees({ navigate }) {
   const [employees, setEmployees] = useState();
@@ -25,7 +26,7 @@ function ManageEmployees({ navigate }) {
         setLoading(true);
         const res = await axiosAPI.get("/employees");
 
-        // console.log(res);
+        console.log(res);
         setEmployees(res.data.employees);
       } catch (err) {
         setError(
@@ -39,6 +40,8 @@ function ManageEmployees({ navigate }) {
     fetchInitial();
   }, []);
 
+  const [onUpdate, setOnUpdate] = useState(false);
+
   let index = 1;
   return (
     <>
@@ -47,7 +50,7 @@ function ManageEmployees({ navigate }) {
         <i class="bi bi-chevron-right"></i> Manage Employees
       </p>
 
-      {employees && (
+      {employees && !onUpdate && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
@@ -80,7 +83,7 @@ function ManageEmployees({ navigate }) {
                       <td>{emp.mobile}</td>
                       <td>{emp.email}</td>
                       <td>
-                        <EmployeeViewModal employee={emp} />
+                        <button onClick={() => setOnUpdate(emp)}>Update</button>
                       </td>
                     </tr>
                   ))}
@@ -89,6 +92,8 @@ function ManageEmployees({ navigate }) {
           </div>
         </div>
       )}
+
+      {onUpdate && <UpdateEmployee employee={onUpdate} setOnUpdate={setOnUpdate}/>}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

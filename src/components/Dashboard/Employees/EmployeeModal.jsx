@@ -8,7 +8,7 @@ function EmployeeModal({ employee }) {
       <div className="row justify-content-center">
         <div className={`col-4  inputcolumn-mdl`}>
           <label htmlFor="">Date :</label>
-          <input type="date" value={employee.createdAt.slice(0, 10)} />
+          <input type="date" value={employee.createdAt?.slice(0, 10)} />
         </div>
       </div>{" "}
       <div className="row justify-content-center">
@@ -40,7 +40,7 @@ function EmployeeModal({ employee }) {
           <label htmlFor="">Supervisor :</label>
           <input
             type="text"
-            value={employee.supervisor && employee.supervisor.name}
+            value={employee.supervisor?.name}
             required
           />
         </div>
@@ -48,10 +48,10 @@ function EmployeeModal({ employee }) {
       <div className="row pb-3 justify-content-center">
         <div className={`col-4  inputcolumn-mdl`}>
           <label htmlFor="">Assigned Roles :</label>
-          {employee.roles.length <= 1 && (
-            <input type="text" value={employee.roles[0].name} required />
+          {employee.roles?.length <= 1 && (
+            <input type="text" value={employee.roles[0]?.name} required />
           )}
-          {employee.roles.length > 1 && (
+          {employee.roles?.length > 1 && (
             <p className={styles.roles}>
               |
               {employee.roles.map((role) => (

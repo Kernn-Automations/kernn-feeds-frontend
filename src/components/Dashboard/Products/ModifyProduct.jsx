@@ -39,7 +39,7 @@ function ModifyProduct({ navigate }) {
         setLoading(true);
         const res = await axiosAPI.get("/products/list");
 
-        // console.log(res);
+        console.log(res);
 
         setProducts(res.data.products);
       } catch (e) {

@@ -1,91 +1,55 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "./Products.module.css";
-import dummy from "./../../../images/dummy-img.jpeg";
+import { RiAddLargeLine } from "react-icons/ri";
+import {
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogRoot,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RxCross2 } from "react-icons/rx";
 import { useAuth } from "@/Auth";
+import TaxSelector from "./TaxSelector";
+import ImageUploadPopup from "./ImageUpload";
+import ImageUpload from "./ImageUpload";
+import PricingSlabs from "./PricingSlabs";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
+import axios from "axios";
 
 function ModifyProductForm({ onViewClick, product }) {
-  const filefrontInputRef = useRef(null);
-  const filebackInputRef = useRef(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  // listing
+  const [categories, setCategories] = useState();
+  const [pricingList, setPricingList] = useState();
+  const [taxeslist, setTaxeslist] = useState([]);
 
-  const [frontImage, setFrontImage] = useState(dummy);
-  const [backImage, setBackImage] = useState(dummy);
-
-  // Function to handle button click
-  const handlefrontButtonClick = () => {
-    filefrontInputRef.current.click();
-  };
-
-  const handlebackButtonClick = () => {
-    filebackInputRef.current.click();
-  };
-
-  // Function to handle file selection
-  const handleFrontImageChange = (event) => {
-    // console.log(frontImage);
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file.name);
-      const imageURL = URL.createObjectURL(file); // Create a temporary URL
-      // console.log(imageURL);
-      setFrontImage(imageURL);
-    }
-  };
-
-  const handleBackImageChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file.name);
-      const imageURL = URL.createObjectURL(file); // Create a temporary URL
-      // console.log(imageURL);
-      setBackImage(imageURL);
-    }
-  };
+  const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [successful, setSuccessful] = useState();
   const closeModal = () => {
     setIsModalOpen(false);
   };
-
-  const [prod, setprod] = useState();
-  const [categories, setCategories] = useState();
-  const [pricingList, setPricingList] = useState();
-
-  const { axiosAPI } = useAuth();
-
-  useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await axiosAPI.get(`/pricing/lists/fetch`);
-        setPricingList(res.data.pricingLists);
-        // console.log(res);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      } finally {
-      }
-    }
-    fetch();
-  }, []);
 
   useEffect(() => {
     async function fetch() {
       try {
         setLoading(true);
-        // console.log(product);
-        const res = await axiosAPI.get(`/products/fetch/${product.id}`);
-        setprod(res.data.product);
-        // console.log(res);
+        const res1 = await axiosAPI.get("/categories/list");
+        const res2 = await axiosAPI.get("/pricing/lists/fetch");
+        const res3 = await axiosAPI.get("/tax");
+        // console.log(res1);
+        // console.log(res2);
+        // console.log(res3);
+        setCategories(res1.data.categories);
+        setPricingList(res2.data.pricingLists);
+        setTaxeslist(res3.data.taxes);
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
-        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
@@ -93,101 +57,324 @@ function ModifyProductForm({ onViewClick, product }) {
     fetch();
   }, []);
 
+  // selectedTaxes
+  const [selectedTaxes, setSelectedTaxes] = useState(
+    product.taxes?.map((tax) => tax.id)
+  );
+
+  // selected Images
+  const [images, setImages] = useState(
+    product.imageUrls.map((url) => ({ preview: url }))
+  );
+
+  useEffect(() => {
+    if (images.length < 6 && !images.includes(null)) {
+      setImages((prev) => [...prev, null]);
+    }
+  }, []);
+
+  // backend
+
+  const [name, setName] = useState(product.name);
+  const [sku, setSku] = useState(product.sku);
+  const [category, setCategory] = useState(product.categoryId);
+  const [units, setUnits] = useState(product.unit);
+  const [description, setDescription] = useState(product.description);
+  const [baseprice, setBaseprice] = useState(product.basePrice);
+  const [purchaseprice, setPurchaseprice] = useState(product.purchasePrice);
+  const [thresholdValue, setThresholdValue] = useState(product.thresholdValue);
+  const [pricing, setPricing] = useState(product.pricingListId);
+  const [pricingSlabs, setPricingSlabs] = useState([
+    {
+      quantityCondition: "Exact",
+      quantityValueStart: "",
+      quantityValueEnd: "",
+      price: "",
+    },
+  ]);
+
+  // Completion
+  const today = new Date(Date.now()).toISOString().slice(0, 10);
+  const time = new Date(Date.now()).toISOString().slice(11, 16);
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  // Validation
+  const [errors, setErrors] = useState({});
+
+  const validateFields = () => {
+    const newErrors = {};
+    if (!name) newErrors.name = true;
+    if (!sku) newErrors.sku = true;
+    if (!category) newErrors.category = true;
+    if (!units) newErrors.units = true;
+    if (!description) newErrors.description = true;
+    if (!baseprice) newErrors.baseprice = true;
+    if (!purchaseprice) newErrors.purchaseprice = true;
+    if (!thresholdValue) newErrors.thresholdValue = true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  function onError(e, vari, setter) {
+    const value = e.target.value === "null" ? null : e.target.value;
+    setter(value);
+    if (value) {
+      setErrors((prev) => ({ ...prev, vari: false }));
+    }
+  }
+
+  // onSubmit
+
+  const VITE_API = import.meta.env.VITE_API_URL;
+
+  const onCreateProduct = () => {
+    console.log(selectedTaxes);
+    console.log(images);
+    console.log(
+      sku,
+      name,
+      description,
+      category,
+      units,
+      baseprice,
+      purchaseprice,
+      thresholdValue,
+      pricing
+    );
+    console.log(pricingSlabs);
+
+    if (!validateFields()) {
+      setError("Please Fill all feilds");
+      setIsModalOpen(true);
+      return;
+    }
+
+    // const imagesArray = [];
+    // images.map((img) => img && imagesArray.push(img.file));
+
+    // console.log(imagesArray);
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("SKU", sku);
+    formData.append("description", description);
+    formData.append("categoryId", category);
+    formData.append("unit", units);
+    formData.append("basePrice", baseprice);
+    formData.append("purchasePrice", purchaseprice);
+    formData.append("pricingListId", pricing);
+    // formData.append("images", imagesArray);
+    formData.append("thresholdValue", thresholdValue);
+    formData.append("pricingSlabs", pricingSlabs);
+
+    images.forEach((image) => {
+      if (image) formData.append("images", image.file);
+    });
+
+    selectedTaxes.map((tax) => formData.append("taxIds", tax));
+
+    // console.log(formData);
+
+    async function submit() {
+      try {
+        setLoading(true);
+        const res = await axios.post(`${VITE_API}/products/add`, formData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
+        // console.log(res);
+        setSuccessful(res.data.message);
+      } catch (e) {
+        // console.log(e);
+        setError(e.response?.data?.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    submit();
+  };
+
   return (
     <>
-      {prod && (
-        <>
-          <div className="row m-0 p-3">
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Date :</label>
-              <input type="date" value={prod.createdAt.slice(0, 10)} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Time :</label>
-              <input type="text" value={prod.createdAt.slice(11, 16)} />
-            </div>
-            {/* <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Created By :</label>
-              <input type="text" />
-            </div> */}
-          </div>
+      <div className="row m-0 p-3">
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Date :</label>
+          <input type="date" value={today} />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Time :</label>
+          <input type="time" value={time} />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Created By :</label>
+          <input type="text" value={user.name} />
+        </div>
+      </div>
 
-          <div className="row m-0 p-3">
-            <h5 className={styles.head}>Product Details</h5>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Product Name :</label>
-              <input type="text" value={prod.name} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Product ID :</label>
-              <input type="text" value={prod.SKU} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Categories :</label>
-              <input type="text" value={prod.category.name} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">units :</label>
-              <input type="text" value={prod.unit} />
-            </div>
-          </div>
+      <div className="row m-0 p-3">
+        <h5 className={styles.head}>Product Details</h5>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Product Name :</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => onError(e, name, setName)}
+            required
+            className={errors.name ? styles.errorField : ""}
+          />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Product SKU :</label>
+          <input
+            type="text"
+            value={sku}
+            onChange={(e) => onError(e, sku, setSku)}
+            required
+            className={errors.sku ? styles.errorField : ""}
+          />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Categories :</label>
+          <select
+            name=""
+            id=""
+            value={category}
+            onChange={(e) => onError(e, category, setCategory)}
+            required
+            className={errors.category ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            {categories &&
+              categories.map((category) => (
+                <option value={category.id}>{category.name}</option>
+              ))}
+          </select>
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Units :</label>
+          <select
+            name=""
+            id=""
+            value={units}
+            onChange={(e) => onError(e, units, setUnits)}
+            required
+            className={errors.units ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            <option value="kg">Kgs</option>
+            <option value="gm">grams</option>
+            <option value="ltr">Litres</option>
+          </select>
+        </div>
+        <div className={`col-3 ${styles.taxform}`}>
+          <textarea
+            name=""
+            id=""
+            placeholder="Description"
+            value={description}
+            onChange={(e) => onError(e, description, setDescription)}
+            required
+            className={errors.description ? styles.errorField : ""}
+          ></textarea>
+        </div>
+      </div>
 
-          <div className="row m-0 p-3">
-            <h5 className={styles.head}>Product Images</h5>
-            {prod.imageUrls.map((img, index) => (
-              <div className={`col-3 ${styles.upload}`}>
-                <img src={img} alt="Front Side" />
+      <div className="row m-0 p-3">
+        <h5 className={styles.head}>Product Images</h5>
+        <ImageUpload images={images} setImages={setImages} />
+      </div>
 
-                <p className={styles.imglabel}>{prod.images[index].slice(9)}</p>
-              </div>
-            ))}
-          </div>
+      <div className="row m-0 p-3">
+        <h5 className={styles.head}>TAXES</h5>
+        <div className={`col-3 ${styles.longform}`}>
+          <TaxSelector
+            selectedTaxes={selectedTaxes}
+            setSelectedTaxes={setSelectedTaxes}
+          />
+        </div>
+      </div>
 
-          <div className="row m-0 p-3">
-            <h5 className={styles.head}>TAXES</h5>
-            {prod.taxes.map((tax) => (
-              <div className={`col-3 ${styles.taxform}`}>
-                <input type="text" value={tax.name} />
-              </div>
-            ))}
-          </div>
+      <div className="row m-0 p-3">
+        <h5 className={styles.head}>Pricing Details</h5>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Sale Price :</label>
+          <input
+            type="text"
+            value={baseprice}
+            onChange={(e) => onError(e, baseprice, setBaseprice)}
+            required
+            className={errors.baseprice ? styles.errorField : ""}
+          />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Purchase Price :</label>
+          <input
+            type="text"
+            value={purchaseprice}
+            onChange={(e) => onError(e, purchaseprice, setPurchaseprice)}
+            required
+            className={errors.purchaseprice ? styles.errorField : ""}
+          />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Min. stock :</label>
+          <input
+            type="text"
+            value={thresholdValue}
+            onChange={(e) => onError(e, thresholdValue, setThresholdValue)}
+            required
+            className={errors.thresholdValue ? styles.errorField : ""}
+          />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Pricing List :</label>
+          <select
+            name=""
+            id=""
+            value={pricing}
+            onChange={(e) => onError(e, pricing, setPricing)}
+            required
+            className={errors.pricing ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            {pricingList &&
+              pricingList.map((pl) => <option value={pl.id}>{pl.name}</option>)}
+          </select>
+        </div>
+      </div>
 
-          <div className="row m-0 p-3">
-            <h5 className={styles.head}>Pricing Details</h5>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Sale Price :</label>
-              <input type="text" value={prod.basePrice} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Purchase Price :</label>
-              <input type="text" value={prod.purchasePrice} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Min.Stock :</label>
-              <input type="text" value={prod.thresholdValue} />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Pricing List :</label>
-              <select name="" id="" value={prod.pricingListId}>
-                <option value="null">--select--</option>
-                {pricingList &&
-                  pricingList.map((pl) => (
-                    <option value={pl.id}>{pl.name}</option>
-                  ))}
-              </select>
-            </div>
-          </div>
+      <div className="row m-0 p-3">
+        <h5 className={styles.head}>Pricing Slabs</h5>
+        <PricingSlabs
+          pricingSlabs={pricingSlabs}
+          setPricingSlabs={setPricingSlabs}
+        />
+      </div>
 
-          <div className="row m-0 p-3 pt-4 justify-content-center">
-            <div className="col-3">
-              {/* <button className="submitbtn">Update</button> */}
-              <button className="cancelbtn" onClick={onViewClick}>
-                Cancel
-              </button>
-            </div>
+      <div className="row m-0 justify-content-center p-3">
+        {!loading && !successful && (
+          <div className="col-4">
+            <button className="submitbtn" onClick={onCreateProduct}>
+              Update
+            </button>
+            <button className="cancelbtn" onClick={() => navigate("/products")}>
+              Cancel
+            </button>
           </div>
-        </>
-      )}
+        )}
+        {successful && (
+          <div className="col-6">
+            <button className="submitbtn" onClick={() => navigate("/products")}>
+              {successful}
+            </button>
+          </div>
+        )}
+      </div>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
