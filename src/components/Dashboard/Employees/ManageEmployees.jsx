@@ -20,6 +20,10 @@ function ManageEmployees({ navigate }) {
   };
   const [successful, setSuccessful] = useState();
 
+  const [trigger, setTrigger] = useState(false);
+
+  const onTrigger = () => setTrigger(!trigger);
+
   useEffect(() => {
     async function fetchInitial() {
       try {
@@ -38,7 +42,7 @@ function ManageEmployees({ navigate }) {
       }
     }
     fetchInitial();
-  }, []);
+  }, [trigger]);
 
   const [onUpdate, setOnUpdate] = useState(false);
 
@@ -93,7 +97,7 @@ function ManageEmployees({ navigate }) {
         </div>
       )}
 
-      {onUpdate && <UpdateEmployee employee={onUpdate} setOnUpdate={setOnUpdate}/>}
+      {onUpdate && <UpdateEmployee employee={onUpdate} setOnUpdate={setOnUpdate} onTrigger={onTrigger}/>}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
