@@ -19,7 +19,6 @@ const FileUploadDialog = ({ files, setFiles }) => {
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (files.length + selectedFiles.length > 6) {
-      alert("You can only upload up to 6 files.");
       return;
     }
 

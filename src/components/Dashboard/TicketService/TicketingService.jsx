@@ -17,6 +17,8 @@ import FileUploadDialog from "./FileUploadDialog";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import axios from "axios";
+import Loading from "@/components/Loading";
+import LoadingAnimation from "@/components/LoadingAnimation";
 
 function TicketingService() {
   const [oldtickets, setoldtickets] = useState();
@@ -34,34 +36,23 @@ function TicketingService() {
 
   const [newticket, setNewticket] = useState(false);
 
-  const fileInputRef = useRef(null);
-  const [selectedFile, setSelectedFile] = useState(null);
 
-  // Function to handle button click
-  const handleButtonClick = () => {
-    fileInputRef.current.click();
-  };
 
-  // Function to handle file selection
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file.name);
-    }
-  };
-
+ 
   // backend for fetchig previous tickets
   const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successful, setSuccessful] = useState(null);
   const closeModal = () => {
     setIsModalOpen(false);
   };
 
   useEffect(() => {
     async function fetch() {
+      
       try {
         const res = await axiosAPI.get("/tickets/mine");
         // console.log(res);
@@ -83,34 +74,36 @@ function TicketingService() {
   const [description, setDescription] = useState();
   const VITE_API = import.meta.env.VITE_API_URL;
   const handleUpload = async () => {
-    if (files.length === 0) {
-      alert("Please select at least one file.");
-      return;
-    }
-
     const formData = new FormData();
     formData.append("subject", subject);
     formData.append("description", description);
 
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
+    if (files.length > 0) {
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+    }
     // console.log(files);
     // console.log(subject, description, formData);
     try {
+      setLoading(true);
       const res = await axios.post(`${VITE_API}/tickets`, formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           "Content-Type": "multipart/form-data",
         },
       });
-      // console.log(res);
+      console.log(res);
       setFiles([]);
       setTrigger(!trigger);
+      setSuccessful(res.data.message);
+      setTimeout(() => setSuccessful(null), 1000);
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Failed to create ticket. Please try again.");
+      setError(error.response.data.message);
+      setIsModalOpen(true);
     } finally {
+      setLoading(false);
     }
   };
 
@@ -124,7 +117,7 @@ function TicketingService() {
               onClick={() => {
                 setOpenchat(false);
                 setNewticket(false);
-                setSelectedFile(null);
+                // setSelectedFile(null);
               }}
             >
               <RiChat1Fill />
@@ -150,7 +143,11 @@ function TicketingService() {
                   {oldtickets &&
                     oldtickets.length > 0 &&
                     oldtickets.map((ticket) => (
-                      <UserChat key={ticket.id} ticket={ticket} onChatClick={onChatClick} />
+                      <UserChat
+                        key={ticket.id}
+                        ticket={ticket}
+                        onChatClick={onChatClick}
+                      />
                     ))}
                   {oldtickets && oldtickets.length === 0 && (
                     <h3>NO TICKETS FOUND</h3>
@@ -258,15 +255,20 @@ function TicketingService() {
                     )} */}
                   </div>
                   <p className="text-center">
-                    <button className={styles.send} onClick={handleUpload}>
-                      Submit
-                    </button>
+                    {!loading && !successful && (
+                      <button className={styles.send} onClick={handleUpload}>
+                        Submit
+                      </button>
+                    )}
+                    {loading && <Loading/>}
+                    {successful && <p>{successful}</p>}
+          
                   </p>
                 </div>
 
                 {/* <hr /> */}
 
-                {loading && <LoadingAnimation gif={deliverAni} />}
+                {/* {loading && <LoadingAnimation gif={deliverAni} />} */}
               </PopoverBody>
             )}
           </PopoverContent>

@@ -180,7 +180,9 @@ function ActionModal({ warehouse, managers, changeTrigger }) {
                 <button
                   type="button"
                   className="submitbtn"
-                  onClick={() => setIsEditable(true)}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setIsEditable(true)}}
                 >
                   Edit
                 </button>

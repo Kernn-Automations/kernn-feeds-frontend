@@ -20,7 +20,7 @@ function ProductLineChart({ salesAnalysis }) {
 
   return (
     <>
-      {salesAnalysis && (
+      {salesAnalysis && salesAnalysis.data?.length !== 0 && (
         <div className={`col-6 ${styles.bigbox}`}>
           <h4>Sales Analysis</h4>
           <div className={styles.chartcontainer}>

@@ -10,6 +10,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import TicketingService from "./TicketService/TicketingService";
 import PageSkeleton from "../SkeletonLoaders/PageSkeleton";
 import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
+import SettingRoutes from "./SettingsTab/SettingRoutes";
 // import HomePage from "./HomePage/HomePage";
 // import InventoryRoutes from "./Inventory/InventoryRoutes";
 // import PurchaseRoutes from "./Purchases/PurchaseRoutes";
@@ -237,6 +238,14 @@ function Dashboard({
                       element={
                         <Suspense fallback={<RouteSkeleton />}>
                           <ProductRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/settings/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <SettingRoutes />
                         </Suspense>
                       }
                     />

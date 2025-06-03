@@ -7,7 +7,7 @@ import Loading from "@/components/Loading";
 import EmployeeViewModal from "./EmployeeViewModal";
 import UpdateEmployee from "./UpdateEmployee";
 
-function ManageEmployees({ navigate }) {
+function ManageEmployees({ navigate, isAdmin }) {
   const [employees, setEmployees] = useState();
 
   const { axiosAPI } = useAuth();
@@ -65,19 +65,19 @@ function ManageEmployees({ navigate }) {
                   <th>Employee Name</th>
                   <th>Mobile Number</th>
                   <th>Email</th>
-                  <th>Action</th>
+                  {isAdmin && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
                 {employees.length === 0 && (
                   <tr>
-                    <td>NO DATA FOUND</td>
+                    <td colSpan={5}>NO DATA FOUND</td>
                   </tr>
                 )}
                 {employees.length > 0 &&
                   employees.map((emp) => (
                     <tr
-                    key={emp.id}
+                      key={emp.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
@@ -86,9 +86,13 @@ function ManageEmployees({ navigate }) {
                       <td>{emp.name}</td>
                       <td>{emp.mobile}</td>
                       <td>{emp.email}</td>
-                      <td>
-                        <button onClick={() => setOnUpdate(emp)}>Update</button>
-                      </td>
+                      {isAdmin && (
+                        <td>
+                          <button onClick={() => setOnUpdate(emp)}>
+                            Update
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
               </tbody>
@@ -97,7 +101,13 @@ function ManageEmployees({ navigate }) {
         </div>
       )}
 
-      {onUpdate && <UpdateEmployee employee={onUpdate} setOnUpdate={setOnUpdate} onTrigger={onTrigger}/>}
+      {onUpdate && (
+        <UpdateEmployee
+          employee={onUpdate}
+          setOnUpdate={setOnUpdate}
+          onTrigger={onTrigger}
+        />
+      )}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

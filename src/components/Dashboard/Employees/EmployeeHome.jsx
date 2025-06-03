@@ -1,14 +1,14 @@
 import React from 'react'
 import styles from './Employees.module.css'
 
-function EmployeeHome({navigate}) {
+function EmployeeHome({navigate, isAdmin}) {
   return (
     <>
       <div className="row m-0 p-3">
         <div className="col">
-          <button className="homebtn" onClick={() => navigate("/employees/create-employee")}>
+          {isAdmin && <button className="homebtn" onClick={() => navigate("/employees/create-employee")}>
            Create Employee
-          </button>
+          </button>}
           {/* <button
             className="homebtn"
             onClick={() => navigate("/employees/assign-role")}
