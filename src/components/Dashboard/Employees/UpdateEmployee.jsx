@@ -4,7 +4,7 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 
-function UpdateEmployee({ employee, setOnUpdate }) {
+function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   const { axiosAPI } = useAuth();
 
   const [form, setForm] = useState({
@@ -153,6 +153,7 @@ function UpdateEmployee({ employee, setOnUpdate }) {
       setLoading(true);
       const res = await axiosAPI.put(`/employees/${employee.id}`, payload);
       setSuccessful(res.data.message);
+      onTrigger();
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to Update employee.");
       setIsModalOpen(true);

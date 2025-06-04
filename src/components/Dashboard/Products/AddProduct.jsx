@@ -73,6 +73,9 @@ function AddProduct({ navigate }) {
   const [baseprice, setBaseprice] = useState();
   const [purchaseprice, setPurchaseprice] = useState();
   const [thresholdValue, setThresholdValue] = useState();
+  const [productType, setProductType] = useState();
+  const [packageWeight, setPackageWeight] = useState();
+  const [packageWeightUnit, setPackageWeightUnit] = useState();
   const [pricing, setPricing] = useState();
   const [pricingSlabs, setPricingSlabs] = useState([
     {
@@ -142,6 +145,9 @@ function AddProduct({ navigate }) {
           description,
           baseprice,
           purchaseprice,
+          productType,
+          packageWeight,
+          packageWeightUnit,
           thresholdValue,
           pincode,
           latitude: location.lat,
@@ -204,6 +210,11 @@ function AddProduct({ navigate }) {
     formData.append("basePrice", baseprice);
     formData.append("purchasePrice", purchaseprice);
     formData.append("pricingListId", pricing);
+    formData.append("productType", productType);
+    if (productType === "packed") {
+      formData.append("packageWeight", packageWeight);
+      formData.append("packageWeightUnit", packageWeightUnit);
+    }
     // formData.append("images", imagesArray);
     formData.append("thresholdValue", thresholdValue);
     formData.append("pricingSlabs", JSON.stringify(pricingSlabs));
@@ -302,6 +313,45 @@ function AddProduct({ navigate }) {
               ))}
           </select>
         </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Product Type :</label>
+          <select
+            name=""
+            id=""
+            value={productType}
+            onChange={(e) => onError(e, productType, setProductType)}
+            required
+            className={errors.productType ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            <option value="packed">Packed</option>
+            <option value="loose">loose</option>\
+          </select>
+        </div>
+        {productType === "packed" && (
+          <>
+            <div className={`col-3 ${styles.longform}`}>
+              <label htmlFor="">Package Weight :</label>
+              <input
+                type="text"
+                value={packageWeight}
+                onChange={(e) => onError(e, packageWeight, setPackageWeight)}
+                required
+              />
+            </div>
+            <div className={`col-3 ${styles.longform}`}>
+              <label htmlFor="">Package Wt Unit :</label>
+              <input
+                type="text"
+                value={packageWeightUnit}
+                onChange={(e) =>
+                  onError(e, packageWeightUnit, setPackageWeightUnit)
+                }
+                required
+              />
+            </div>
+          </>
+        )}
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Units :</label>
           <select

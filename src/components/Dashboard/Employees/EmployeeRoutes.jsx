@@ -12,13 +12,19 @@ const ManageEmployees = lazy(() => import("./ManageEmployees"));
 function EmployeeRoutes() {
   const navigate = useNavigate();
 
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const roles = JSON.stringify(user.roles);
+
+  const isAdmin = roles.includes("Admin");
+
   return (
     <Routes>
       <Route
         index
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <EmployeeHome navigate={navigate} />
+            <EmployeeHome navigate={navigate} isAdmin={isAdmin}/>
           </Suspense>
         }
       />
@@ -26,7 +32,7 @@ function EmployeeRoutes() {
         path="/create-employee"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <CreateEmployee navigate={navigate} />
+            <CreateEmployee navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -42,7 +48,7 @@ function EmployeeRoutes() {
         path="/manage-employees"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <ManageEmployees navigate={navigate} />
+            <ManageEmployees navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />

@@ -1,11 +1,11 @@
 .longform {
-  max-width: 350px !important;
-  min-width: 320px !important;
+  max-width: 360px !important;
+  min-width: 350px !important;
   margin-bottom: 20px;
 }
 .longform label {
-  max-width: 150px;
-  min-width: 100px;
+  max-width: 160px;
+  min-width: 150px;
   font-weight: 600;
   font-size: 16px;
   line-height: 26.82px;

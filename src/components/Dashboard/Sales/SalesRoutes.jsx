@@ -3,6 +3,7 @@ import { Route, Routes, useNavigate } from "react-router-dom";
 import styles from "./Sales.module.css";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
 import { useAuth } from "@/Auth";
+import TrackingPage from "./TrackingPage";
 
 // Lazy-loaded components
 const SalesHome = lazy(() => import("./SalesHome"));
@@ -15,6 +16,7 @@ function SalesRoutes() {
 
   const [customers, setCustomers] = useState();
   const [warehouses, setWarehouses] = useState();
+  const [orderId, setOrderId] = useState(null);
 
   const { axiosAPI } = useAuth();
 
@@ -42,10 +44,16 @@ function SalesRoutes() {
         index
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <SalesHome
+            {/* <SalesHome
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
+            /> */}
+            <Orders
+              navigate={navigate}
+              warehouses={warehouses}
+              customers={customers}
+              setOrderId={setOrderId}
             />
           </Suspense>
         }
@@ -82,6 +90,18 @@ function SalesRoutes() {
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
+            />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/tracking"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <TrackingPage
+              navigate={navigate}
+              setOrderId={setOrderId}
+              orderId={orderId}
             />
           </Suspense>
         }

@@ -19,7 +19,7 @@ function ProductBarchart({ topPerformingBOs }) {
   // console.log(data);
   return (
     <>
-      {topPerformingBOs && (
+      {topPerformingBOs && topPerformingBOs.length !== 0 && (
         <div className={`col-6 ${styles.bigbox}`}>
           <h4>Top Performing BO's</h4>
           <div className={styles.chartcontainer}>

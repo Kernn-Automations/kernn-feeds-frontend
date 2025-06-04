@@ -5,7 +5,7 @@ import styles from "./Products.module.css";
 function ImageUpload({ images, setImages }) {
   const fileInputRef = useRef(null);
 
-  console.log(images)
+  // console.log(images)
 
   const handleImageSelect = (e, index) => {
     const file = e.target.files[0];

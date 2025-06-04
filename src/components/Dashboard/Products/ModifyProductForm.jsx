@@ -63,23 +63,24 @@ function ModifyProductForm({ onViewClick, product }) {
   );
 
   // selected Images
-  const [images, setImages] = useState(
-    product.imageUrls.map((url) => ({ preview: url }))
-  );
-
-  useEffect(() => {
-    if (images.length < 6 && !images.includes(null)) {
-      setImages((prev) => [...prev, null]);
-    }
-  }, []);
+  const [images, setImages] = useState(() => {
+    const urls = product.imageUrls || [];
+    const mapped = urls.map((url) => ({ preview: url }));
+    return mapped.length < 6 ? [...mapped, null] : mapped;
+  });
 
   // backend
 
   const [name, setName] = useState(product.name);
-  const [sku, setSku] = useState(product.sku);
+  const [sku, setSku] = useState(product.SKU);
   const [category, setCategory] = useState(product.categoryId);
   const [units, setUnits] = useState(product.unit);
   const [description, setDescription] = useState(product.description);
+  const [productType, setProductType] = useState(product.productType);
+  const [packageWeight, setPackageWeight] = useState(product.packageWeight);
+  const [packageWeightUnit, setPackageWeightUnit] = useState(
+    product.packageWeightUnit
+  );
   const [baseprice, setBaseprice] = useState(product.basePrice);
   const [purchaseprice, setPurchaseprice] = useState(product.purchasePrice);
   const [thresholdValue, setThresholdValue] = useState(product.thresholdValue);
@@ -110,6 +111,7 @@ function ModifyProductForm({ onViewClick, product }) {
     if (!description) newErrors.description = true;
     if (!baseprice) newErrors.baseprice = true;
     if (!purchaseprice) newErrors.purchaseprice = true;
+    if (!purchaseprice) newErrors.productType = true;
     if (!thresholdValue) newErrors.thresholdValue = true;
 
     setErrors(newErrors);
@@ -128,7 +130,7 @@ function ModifyProductForm({ onViewClick, product }) {
 
   const VITE_API = import.meta.env.VITE_API_URL;
 
-  const onCreateProduct = () => {
+  const onCreateProduct = async () => {
     console.log(selectedTaxes);
     console.log(images);
     console.log(
@@ -139,7 +141,10 @@ function ModifyProductForm({ onViewClick, product }) {
       units,
       baseprice,
       purchaseprice,
+      packageWeight,
+      packageWeightUnit,
       thresholdValue,
+      productType,
       pricing
     );
     console.log(pricingSlabs);
@@ -164,31 +169,66 @@ function ModifyProductForm({ onViewClick, product }) {
     formData.append("basePrice", baseprice);
     formData.append("purchasePrice", purchaseprice);
     formData.append("pricingListId", pricing);
+    formData.append("productType", productType);
+    if (productType === "packed") {
+      formData.append("packageWeight", packageWeight);
+      formData.append("packageWeightUnit", packageWeightUnit);
+    }
     // formData.append("images", imagesArray);
     formData.append("thresholdValue", thresholdValue);
-    formData.append("pricingSlabs", pricingSlabs);
+    formData.append("pricingSlabs", JSON.stringify(pricingSlabs));
 
-    images.forEach((image) => {
-      if (image) formData.append("images", image.file);
-    });
+    const newFiles = [];
+    const existingUrls = [];
 
-    selectedTaxes.map((tax) => formData.append("taxIds", tax));
+    const urlToFile = async (url, filename, mimeType) => {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return new File([blob], filename, { type: mimeType });
+    };
+
+    let i = 1;
+
+    for (const img of images) {
+      if (!img) continue;
+
+      if (img.file) {
+        newFiles.push(img.file);
+      } else if (img.preview) {
+        const filename = `image_${i++}.jpg`;
+        const file = await urlToFile(img.preview, filename, "image/jpeg");
+        existingUrls.push(file);
+      }
+    }
+
+    console.log(newFiles);
+    console.log(existingUrls);
+
+    // formData.append("images", JSON.stringify(existingUrls));
+    existingUrls.forEach((url) => formData.append("images", url));
+    newFiles.forEach((file) => formData.append("images", file));
+
+    selectedTaxes.forEach((tax) => formData.append("taxIds", tax));
 
     // console.log(formData);
 
     async function submit() {
       try {
         setLoading(true);
-        const res = await axios.post(`${VITE_API}/products/add`, formData, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        const res = await axios.put(
+          `${VITE_API}/products/update/${product.id}`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
         // console.log(res);
         setSuccessful(res.data.message);
       } catch (e) {
-        // console.log(e);
+        console.log(e);
         setError(e.response?.data?.message);
         setIsModalOpen(true);
       } finally {
@@ -255,6 +295,43 @@ function ModifyProductForm({ onViewClick, product }) {
               ))}
           </select>
         </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">Product Type :</label>
+          <select
+            name=""
+            id=""
+            value={productType}
+            onChange={(e) => onError(e, productType, setProductType)}
+            required
+            className={errors.productType ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            <option value="packed">Packed</option>
+            <option value="loose">Loose</option>
+          </select>
+        </div>
+        {productType === "packed" && (
+          <>
+            <div className={`col-3 ${styles.longform}`}>
+              <label htmlFor="">Package Weight :</label>
+              <input
+                type="text"
+                value={packageWeight}
+                onChange={(e) => onError(e, packageWeight, setPackageWeight)}
+                required
+              />
+            </div>
+            <div className={`col-3 ${styles.longform}`}>
+              <label htmlFor="">Package Wt Unit :</label>
+              <input
+                type="text"
+                value={packageWeightUnit}
+                onChange={(e) => onError(e, packageWeightUnit, setPackageWeightUnit)}
+                required
+              />
+            </div>
+          </>
+        )}
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Units :</label>
           <select
@@ -362,14 +439,14 @@ function ModifyProductForm({ onViewClick, product }) {
             <button className="submitbtn" onClick={onCreateProduct}>
               Update
             </button>
-            <button className="cancelbtn" onClick={() => navigate("/products")}>
+            <button className="cancelbtn" onClick={onViewClick}>
               Cancel
             </button>
           </div>
         )}
         {successful && (
           <div className="col-6">
-            <button className="submitbtn" onClick={() => navigate("/products")}>
+            <button className="submitbtn" onClick={onViewClick}>
               {successful}
             </button>
           </div>

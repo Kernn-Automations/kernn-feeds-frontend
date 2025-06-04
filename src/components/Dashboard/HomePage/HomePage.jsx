@@ -10,6 +10,7 @@ import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
 import axios from "axios";
 import PageSkeleton from "@/components/SkeletonLoaders/PageSkeleton";
+import LowStockAlerts from "./LowStockAlerts";
 
 function HomePage() {
   const hour = new Date().getHours();
@@ -43,6 +44,8 @@ function HomePage() {
   const [topPerformingBOs, setTopPerformingBOs] = useState();
   const [salesAnalysis, setSalesAnalysis] = useState();
   const [kycApprovals, setKycApprovals] = useState();
+  const [lowStock, setLowStock] = useState();
+  const [orderStatuses, setOrderStatuses] = useState();
 
   // formData.append("roleName", );
 
@@ -62,13 +65,15 @@ function HomePage() {
             },
           }
         );
-        // console.log(res);
+        console.log(res);
 
         setKycApprovals(res.data.dashboard?.kycApprovals);
         setPaymentsApprovals(res.data.dashboard?.paymentApprovals);
         setSalesAnalysis(res.data.dashboard?.salesAnalysis);
         setTopPerformingBOs(res.data.dashboard?.topPerformingBOs);
         setProducts(res.data.dashboard?.topSellingProducts);
+        setLowStock(res.data.dashboard?.lowStockNotifications);
+        setOrderStatuses(res.data.dashboard?.orderStatuses);
       } catch (err) {
         setError(err?.response?.data?.message || "Failed to load Dashboard.");
         setIsModalOpen(true);
@@ -93,7 +98,8 @@ function HomePage() {
         <Productbox products={products} />
         <KYCApproval kycApprovals={kycApprovals} />
 
-        <PaymentApprovals paymentsApprovals={paymentsApprovals} />
+        <PaymentApprovals orderStatuses={orderStatuses} />
+        <LowStockAlerts lowStockNotifications={lowStock} />
         <ProductBarchart topPerformingBOs={topPerformingBOs} />
         <ProductLineChart salesAnalysis={salesAnalysis} />
       </div>

@@ -5,4 +5,8 @@ import jsconfigpaths from "vite-jsconfig-paths"
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), jsconfigpaths()],
+   server: {
+    host: '0.0.0.0', // binds to all IPs
+    port: 5173       // or any open port
+  }
 })
