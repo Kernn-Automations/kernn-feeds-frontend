@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from "react";
 import styles from "./Customer.module.css";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "@/components/SkeletonLoaders/PageSkeleton";
+import CustomerReportsPage from "./CustomerReports";
 
 
 // Lazy loaded components
@@ -35,6 +36,14 @@ function CustomerRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <KYCApproval navigate={navigate} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CustomerReportsPage navigate={navigate} />
           </Suspense>
         }
       />

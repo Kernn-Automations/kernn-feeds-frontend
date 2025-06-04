@@ -1,442 +1,260 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Products.module.css";
-import { RiAddLargeLine } from "react-icons/ri";
-import {
-  DialogBody,
-  DialogCloseTrigger,
-  DialogContent,
-  DialogRoot,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { RxCross2 } from "react-icons/rx";
 import { useAuth } from "@/Auth";
-import TaxSelector from "./TaxSelector";
-import ImageUploadPopup from "./ImageUpload";
 import ImageUpload from "./ImageUpload";
+import TaxSelector from "./TaxSelector";
 import PricingSlabs from "./PricingSlabs";
-import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-import axios from "axios";
+import ErrorModal from "@/components/ErrorModal";
 
-function ModifyProductForm({ onViewClick, product }) {
-  // listing
-  const [categories, setCategories] = useState();
-  const [pricingList, setPricingList] = useState();
-  const [taxeslist, setTaxeslist] = useState([]);
-
+function ModifyProductForm({ onViewClick, productId }) {
   const { axiosAPI } = useAuth();
 
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
+  const [original, setOriginal] = useState({});
+  const [fields, setFields] = useState({});
+  const [modified, setModified] = useState({});
+  const [categories, setCategories] = useState([]);
+  const [pricingList, setPricingList] = useState([]);
+  const [taxesList, setTaxesList] = useState([]);
+  const [images, setImages] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [successful, setSuccessful] = useState();
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [successful, setSuccessful] = useState(null);
 
   useEffect(() => {
-    async function fetch() {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res1 = await axiosAPI.get("/categories/list");
-        const res2 = await axiosAPI.get("/pricing/lists/fetch");
-        const res3 = await axiosAPI.get("/tax");
-        // console.log(res1);
-        // console.log(res2);
-        // console.log(res3);
-        setCategories(res1.data.categories);
-        setPricingList(res2.data.pricingLists);
-        setTaxeslist(res3.data.taxes);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, []);
 
-  // selectedTaxes
-  const [selectedTaxes, setSelectedTaxes] = useState(
-    product.taxes?.map((tax) => tax.id)
-  );
+        // Fetch product details by ID
+        const res = await axiosAPI.get(`/products/fetch/${productId}`);
+        const p = res.data.product;
 
-  // selected Images
-  const [images, setImages] = useState(() => {
-    const urls = product.imageUrls || [];
-    const mapped = urls.map((url) => ({ preview: url }));
-    return mapped.length < 6 ? [...mapped, null] : mapped;
-  });
+        // Populate base state
+        setOriginal(p);
+        setFields({
+          name: p.name || "",
+          SKU: p.SKU || "",
+          categoryId: p.category?.id || "",
+          unit: p.unit || "",
+          description: p.description || "",
+          basePrice: p.basePrice || "",
+          purchasePrice: p.purchasePrice || "",
+          thresholdValue: p.thresholdValue || "",
+          pricingListId: p.pricingListId || "",
+          productType: p.productType || "loose",
+          packageWeight: p.packageWeight || "",
+          packageWeightUnit: p.packageWeightUnit || "",
+          selectedTaxes: p.taxes?.map((t) => t.id) || [],
+          pricingSlabs: p.pricingSlabs || [],
+        });
 
-  // backend
+        // Handle existing image previews
+        const mapped = p.imageUrls.map((url) => ({ preview: url }));
+        setImages(mapped.length < 6 ? [...mapped, null] : mapped);
 
-  const [name, setName] = useState(product.name);
-  const [sku, setSku] = useState(product.SKU);
-  const [category, setCategory] = useState(product.categoryId);
-  const [units, setUnits] = useState(product.unit);
-  const [description, setDescription] = useState(product.description);
-  const [productType, setProductType] = useState(product.productType);
-  const [packageWeight, setPackageWeight] = useState(product.packageWeight);
-  const [packageWeightUnit, setPackageWeightUnit] = useState(
-    product.packageWeightUnit
-  );
-  const [baseprice, setBaseprice] = useState(product.basePrice);
-  const [purchaseprice, setPurchaseprice] = useState(product.purchasePrice);
-  const [thresholdValue, setThresholdValue] = useState(product.thresholdValue);
-  const [pricing, setPricing] = useState(product.pricingListId);
-  const [pricingSlabs, setPricingSlabs] = useState([
-    {
-      quantityCondition: "Exact",
-      quantityValueStart: "",
-      quantityValueEnd: "",
-      price: "",
-    },
-  ]);
-
-  // Completion
-  const today = new Date(Date.now()).toISOString().slice(0, 10);
-  const time = new Date(Date.now()).toISOString().slice(11, 16);
-  const user = JSON.parse(localStorage.getItem("user"));
-
-  // Validation
-  const [errors, setErrors] = useState({});
-
-  const validateFields = () => {
-    const newErrors = {};
-    if (!name) newErrors.name = true;
-    if (!sku) newErrors.sku = true;
-    if (!category) newErrors.category = true;
-    if (!units) newErrors.units = true;
-    if (!description) newErrors.description = true;
-    if (!baseprice) newErrors.baseprice = true;
-    if (!purchaseprice) newErrors.purchaseprice = true;
-    if (!purchaseprice) newErrors.productType = true;
-    if (!thresholdValue) newErrors.thresholdValue = true;
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  function onError(e, vari, setter) {
-    const value = e.target.value === "null" ? null : e.target.value;
-    setter(value);
-    if (value) {
-      setErrors((prev) => ({ ...prev, vari: false }));
-    }
-  }
-
-  // onSubmit
-
-  const VITE_API = import.meta.env.VITE_API_URL;
-
-  const onCreateProduct = async () => {
-    console.log(selectedTaxes);
-    console.log(images);
-    console.log(
-      sku,
-      name,
-      description,
-      category,
-      units,
-      baseprice,
-      purchaseprice,
-      packageWeight,
-      packageWeightUnit,
-      thresholdValue,
-      productType,
-      pricing
-    );
-    console.log(pricingSlabs);
-
-    if (!validateFields()) {
-      setError("Please Fill all feilds");
-      setIsModalOpen(true);
-      return;
-    }
-
-    // const imagesArray = [];
-    // images.map((img) => img && imagesArray.push(img.file));
-
-    // console.log(imagesArray);
-
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("SKU", sku);
-    formData.append("description", description);
-    formData.append("categoryId", category);
-    formData.append("unit", units);
-    formData.append("basePrice", baseprice);
-    formData.append("purchasePrice", purchaseprice);
-    formData.append("pricingListId", pricing);
-    formData.append("productType", productType);
-    if (productType === "packed") {
-      formData.append("packageWeight", packageWeight);
-      formData.append("packageWeightUnit", packageWeightUnit);
-    }
-    // formData.append("images", imagesArray);
-    formData.append("thresholdValue", thresholdValue);
-    formData.append("pricingSlabs", JSON.stringify(pricingSlabs));
-
-    const newFiles = [];
-    const existingUrls = [];
-
-    const urlToFile = async (url, filename, mimeType) => {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      return new File([blob], filename, { type: mimeType });
-    };
-
-    let i = 1;
-
-    for (const img of images) {
-      if (!img) continue;
-
-      if (img.file) {
-        newFiles.push(img.file);
-      } else if (img.preview) {
-        const filename = `image_${i++}.jpg`;
-        const file = await urlToFile(img.preview, filename, "image/jpeg");
-        existingUrls.push(file);
-      }
-    }
-
-    console.log(newFiles);
-    console.log(existingUrls);
-
-    // formData.append("images", JSON.stringify(existingUrls));
-    existingUrls.forEach((url) => formData.append("images", url));
-    newFiles.forEach((file) => formData.append("images", file));
-
-    selectedTaxes.forEach((tax) => formData.append("taxIds", tax));
-
-    // console.log(formData);
-
-    async function submit() {
-      try {
-        setLoading(true);
-        const res = await axios.put(
-          `${VITE_API}/products/update/${product.id}`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-        // console.log(res);
-        setSuccessful(res.data.message);
-      } catch (e) {
-        console.log(e);
-        setError(e.response?.data?.message);
+        // Fetch dropdowns
+        const [catRes, priceRes, taxRes] = await Promise.all([
+          axiosAPI.get("/categories/list"),
+          axiosAPI.get("/pricing/lists/fetch"),
+          axiosAPI.get("/tax"),
+        ]);
+        setCategories(catRes.data.categories);
+        setPricingList(priceRes.data.pricingLists);
+        setTaxesList(taxRes.data.taxes);
+      } catch (err) {
+        setError(err.response?.data?.message || "Error fetching product details");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    submit();
+    if (productId) fetchData();
+  }, [productId, axiosAPI]);
+
+  const handleChange = (field, value) => {
+    // 🛡️ Always ensure selectedTaxes is an array
+    if (field === "selectedTaxes" && !Array.isArray(value)) {
+      value = [];
+    }
+  
+    setFields((prev) => ({ ...prev, [field]: value }));
+  
+    // If original[field] is an array, compare using JSON.stringify to detect deep changes
+    const isModified = Array.isArray(value) && Array.isArray(original[field])
+      ? JSON.stringify(value) !== JSON.stringify(original[field])
+      : value !== original[field];
+  
+    setModified((prev) => ({
+      ...prev,
+      [field]: isModified,
+    }));
   };
+  
+
+  const changedFields = Object.values(modified).filter((v) => v).length > 0;
+
+  const updateProduct = async () => {
+    const formData = new FormData();
+    
+    // Add all form fields (excluding images and selectedTaxes which are handled separately)
+    Object.entries(fields).forEach(([key, value]) => {
+      if (key === "selectedTaxes") {
+        // Handle tax IDs array - append each tax ID individually
+        (value || []).forEach((taxId) => {
+          formData.append("taxIds", taxId);
+        });
+      } else if (key === "pricingSlabs") {
+        // Handle pricing slabs JSON
+        if (value && Array.isArray(value) && value.length > 0) {
+          formData.append("pricingSlabs", JSON.stringify(value));
+        }
+      } else if (key !== "images") {
+        // Handle regular fields - don't append empty strings for optional fields
+        if (value !== "" || ["name", "SKU", "description", "basePrice", "purchasePrice", "productType"].includes(key)) {
+          formData.append(key, value || "");
+        }
+      }
+    });
+  
+    // Handle images - CRITICAL FIX: Only append new file objects, not existing URLs
+    console.log("🖼️ Processing images for upload:");
+    console.log("🖼️ Images array:", images);
+    
+    let fileCount = 0;
+    let hasNewFiles = false;
+    
+    images.forEach((img, i) => {
+      // Only append if it's a new file (has both file property and it's a File instance)
+      if (img && img.file && img.file instanceof File) {
+        formData.append("images", img.file);
+        console.log(`📦 Appended image[${i}]:`, img.file.name, `(${img.file.size} bytes)`);
+        fileCount++;
+        hasNewFiles = true;
+      } else if (img && img.preview && !img.file) {
+        // This is an existing image (preview URL only) - don't append to FormData
+        console.log(`⏭️ Skipping existing image[${i}]: ${img.preview}`);
+      } else {
+        console.log(`⏭️ Skipping empty slot[${i}]`);
+      }
+    });
+    
+    console.log(`📊 Total new files to upload: ${fileCount}`);
+    console.log(`📊 Has new files: ${hasNewFiles}`);
+  
+    // Debug: Log all FormData entries
+    console.log("📦 FormData contents:");
+    for (let pair of formData.entries()) {
+      if (pair[1] instanceof File) {
+        console.log(`📦 ${pair[0]}: File(${pair[1].name}, ${pair[1].size} bytes)`);
+      } else {
+        console.log(`📦 ${pair[0]}: ${pair[1]}`);
+      }
+    }
+  
+    try {
+      setLoading(true);
+      const res = await axiosAPI.put(`/products/update/${productId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log("✅ Update response:", res.data);
+      setSuccessful("Updated Successfully");
+    } catch (e) {
+      console.error("❌ Update error:", e.response?.data || e.message);
+      setError(e.response?.data?.message || "Error updating product");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderInput = (label, field, type = "text", options = null) => (
+    <div className={`col-3 ${styles.longform}`}>
+      <label>{label}</label>
+      {options ? (
+        <select
+          value={fields[field]}
+          onChange={(e) => handleChange(field, e.target.value)}
+          className={modified[field] ? styles.changedField : ""}
+        >
+          <option value="">--select--</option>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={fields[field]}
+          onChange={(e) => handleChange(field, e.target.value)}
+          className={modified[field] ? styles.changedField : ""}
+        />
+      )}
+    </div>
+  );
 
   return (
     <>
       <div className="row m-0 p-3">
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Date :</label>
-          <input type="date" value={today} />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Time :</label>
-          <input type="time" value={time} />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Created By :</label>
-          <input type="text" value={user.name} />
-        </div>
-      </div>
-
-      <div className="row m-0 p-3">
-        <h5 className={styles.head}>Product Details</h5>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Product Name :</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => onError(e, name, setName)}
-            required
-            className={errors.name ? styles.errorField : ""}
-          />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Product SKU :</label>
-          <input
-            type="text"
-            value={sku}
-            onChange={(e) => onError(e, sku, setSku)}
-            required
-            className={errors.sku ? styles.errorField : ""}
-          />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Categories :</label>
-          <select
-            name=""
-            id=""
-            value={category}
-            onChange={(e) => onError(e, category, setCategory)}
-            required
-            className={errors.category ? styles.errorField : ""}
-          >
-            <option value="null">--select--</option>
-            {categories &&
-              categories.map((category) => (
-                <option value={category.id}>{category.name}</option>
-              ))}
-          </select>
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Product Type :</label>
-          <select
-            name=""
-            id=""
-            value={productType}
-            onChange={(e) => onError(e, productType, setProductType)}
-            required
-            className={errors.productType ? styles.errorField : ""}
-          >
-            <option value="null">--select--</option>
-            <option value="packed">Packed</option>
-            <option value="loose">Loose</option>
-          </select>
-        </div>
-        {productType === "packed" && (
+        <h5 className={styles.head}>Modify Product</h5>
+        {renderInput("Product Name", "name")}
+        {renderInput("SKU", "SKU")}
+        {renderInput("Category", "categoryId", "select", categories)}
+        {renderInput("Unit", "unit")}
+        {renderInput("Product Type", "productType", "select", [
+          { id: "packed", name: "Packed" },
+          { id: "loose", name: "Loose" },
+        ])}
+        {fields.productType === "packed" && (
           <>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Package Weight :</label>
-              <input
-                type="text"
-                value={packageWeight}
-                onChange={(e) => onError(e, packageWeight, setPackageWeight)}
-                required
-              />
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label htmlFor="">Package Wt Unit :</label>
-              <input
-                type="text"
-                value={packageWeightUnit}
-                onChange={(e) => onError(e, packageWeightUnit, setPackageWeightUnit)}
-                required
-              />
-            </div>
+            {renderInput("Package Weight", "packageWeight")}
+            {renderInput("Package Weight Unit", "packageWeightUnit")}
           </>
         )}
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Units :</label>
-          <select
-            name=""
-            id=""
-            value={units}
-            onChange={(e) => onError(e, units, setUnits)}
-            required
-            className={errors.units ? styles.errorField : ""}
-          >
-            <option value="null">--select--</option>
-            <option value="kg">Kgs</option>
-            <option value="gm">grams</option>
-            <option value="ltr">Litres</option>
-          </select>
-        </div>
-        <div className={`col-3 ${styles.taxform}`}>
+        {renderInput("Base Price", "basePrice")}
+        {renderInput("Purchase Price", "purchasePrice")}
+        {renderInput("Threshold", "thresholdValue")}
+        {renderInput("Pricing List", "pricingListId", "select", pricingList)}
+        <div className={`col-6 ${styles.taxform}`}>
           <textarea
-            name=""
-            id=""
+            value={fields.description}
+            onChange={(e) => handleChange("description", e.target.value)}
+            className={modified.description ? styles.changedField : ""}
             placeholder="Description"
-            value={description}
-            onChange={(e) => onError(e, description, setDescription)}
-            required
-            className={errors.description ? styles.errorField : ""}
           ></textarea>
         </div>
       </div>
 
       <div className="row m-0 p-3">
-        <h5 className={styles.head}>Product Images</h5>
         <ImageUpload images={images} setImages={setImages} />
       </div>
 
       <div className="row m-0 p-3">
-        <h5 className={styles.head}>TAXES</h5>
-        <div className={`col-3 ${styles.longform}`}>
-          <TaxSelector
-            selectedTaxes={selectedTaxes}
-            setSelectedTaxes={setSelectedTaxes}
-          />
-        </div>
+      <div className="col-4">
+              <TaxSelector
+          selectedTaxes={fields.selectedTaxes || []}
+          setSelectedTaxes={(v) => handleChange("selectedTaxes", v)}
+        />
       </div>
+    </div>
 
       <div className="row m-0 p-3">
-        <h5 className={styles.head}>Pricing Details</h5>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Sale Price :</label>
-          <input
-            type="text"
-            value={baseprice}
-            onChange={(e) => onError(e, baseprice, setBaseprice)}
-            required
-            className={errors.baseprice ? styles.errorField : ""}
-          />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Purchase Price :</label>
-          <input
-            type="text"
-            value={purchaseprice}
-            onChange={(e) => onError(e, purchaseprice, setPurchaseprice)}
-            required
-            className={errors.purchaseprice ? styles.errorField : ""}
-          />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Min. stock :</label>
-          <input
-            type="text"
-            value={thresholdValue}
-            onChange={(e) => onError(e, thresholdValue, setThresholdValue)}
-            required
-            className={errors.thresholdValue ? styles.errorField : ""}
-          />
-        </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Pricing List :</label>
-          <select
-            name=""
-            id=""
-            value={pricing}
-            onChange={(e) => onError(e, pricing, setPricing)}
-            required
-            className={errors.pricing ? styles.errorField : ""}
-          >
-            <option value="null">--select--</option>
-            {pricingList &&
-              pricingList.map((pl) => <option value={pl.id}>{pl.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="row m-0 p-3">
-        <h5 className={styles.head}>Pricing Slabs</h5>
         <PricingSlabs
-          pricingSlabs={pricingSlabs}
-          setPricingSlabs={setPricingSlabs}
+          pricingSlabs={fields.pricingSlabs}
+          setPricingSlabs={(v) => handleChange("pricingSlabs", v)}
         />
       </div>
 
       <div className="row m-0 justify-content-center p-3">
         {!loading && !successful && (
           <div className="col-4">
-            <button className="submitbtn" onClick={onCreateProduct}>
+            <button className="submitbtn" onClick={updateProduct}>
               Update
             </button>
             <button className="cancelbtn" onClick={onViewClick}>
@@ -452,10 +270,10 @@ function ModifyProductForm({ onViewClick, product }) {
           </div>
         )}
       </div>
-      {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
-      )}
 
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={() => setIsModalOpen(false)} />
+      )}
       {loading && <Loading />}
     </>
   );

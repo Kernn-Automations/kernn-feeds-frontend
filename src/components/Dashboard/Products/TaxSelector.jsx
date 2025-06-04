@@ -2,25 +2,25 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 
-function TaxSelector({ selectedTaxes, setSelectedTaxes }) {
+function TaxSelector({ selectedTaxes = [], setSelectedTaxes }) {
   const { axiosAPI } = useAuth();
   const [allTaxes, setAllTaxes] = useState([]);
   const [newTaxId, setNewTaxId] = useState("");
 
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const closeModal = () => setIsModalOpen(false);
+
+  // 🔄 Normalize selected taxes
+  const selectedTaxIds = Array.isArray(selectedTaxes) ? selectedTaxes : [];
 
   useEffect(() => {
     async function fetchTaxes() {
       try {
         const res = await axiosAPI.get("/tax");
-        setAllTaxes(res.data.taxes || []);
+        setAllTaxes(res.data?.taxes || []);
       } catch (err) {
-        setError(err.response?.data?.message);
+        setError(err.response?.data?.message || "Failed to fetch taxes.");
         setIsModalOpen(true);
       }
     }
@@ -29,55 +29,81 @@ function TaxSelector({ selectedTaxes, setSelectedTaxes }) {
 
   const handleSelect = (e) => {
     const selectedId = parseInt(e.target.value);
-    if (!selectedTaxes.includes(selectedId)) {
-      setSelectedTaxes((prev) => [...prev, selectedId]);
+    if (!selectedTaxIds.includes(selectedId)) {
+      setSelectedTaxes([...selectedTaxIds, selectedId]);
     }
-    setNewTaxId(""); // Reset select
+    setNewTaxId("");
   };
 
   const removeTax = (index) => {
-    setSelectedTaxes((prev) => prev.filter((_, i) => i !== index));
+    const updated = selectedTaxIds.filter((_, i) => i !== index);
+    setSelectedTaxes(updated);
   };
 
-  const availableTaxes = allTaxes.filter((t) => !selectedTaxes.includes(t.id));
+  const availableTaxes = allTaxes.filter((t) => !selectedTaxIds.includes(t.id));
 
   return (
     <>
-      <label>Taxes:</label>
+      <label className="fw-bold">Taxes:</label>
 
-      {selectedTaxes.map((taxId, index) => {
+      {selectedTaxIds.map((taxId, index) => {
         const tax = allTaxes.find((t) => t.id === taxId);
+        if (!tax) return null;
+
         return (
           <div
             key={taxId}
-            className="d-flex justify-content-between align-items-center mb-2"
+            className="border rounded p-2 mb-2"
+            style={{ background: "#f9f9f9" }}
           >
-            <span>{tax?.name}</span>
-            <button
-              className="btn btn-sm btn-outline-danger"
-              onClick={() => removeTax(index)}
-            >
-              Remove
-            </button>
+            <div className="d-flex justify-content-between align-items-center">
+              <strong>{tax.name}</strong>
+              <button
+                className="btn btn-sm btn-outline-danger"
+                onClick={() => removeTax(index)}
+              >
+                Remove
+              </button>
+            </div>
+
+            <small className="text-muted">
+              <div><b>Percentage:</b> {tax.percentage}%</div>
+              <div><b>Nature:</b> {tax.taxNature}</div>
+              <div><b>Applicable On:</b> {tax.applicableOn}</div>
+              {tax.hsnCode && <div><b>HSN Code:</b> {tax.hsnCode}</div>}
+              {tax.description && <div><b>Description:</b> {tax.description}</div>}
+              {tax.isCess && (
+                <div>
+                  <b>Cess:</b> Yes ({tax.cessPercentage || 0}%)
+                </div>
+              )}
+              {tax.isAdditionalDuty && <div><b>Additional Duty:</b> Yes</div>}
+            </small>
           </div>
         );
       })}
 
       {availableTaxes.length > 0 && (
-        <select className="" value={newTaxId} onChange={handleSelect}>
+        <select
+          className="form-select mt-2"
+          value={newTaxId}
+          onChange={handleSelect}
+        >
           <option value="" disabled>
             -- Select Tax --
           </option>
           {availableTaxes.map((tax) => (
             <option key={tax.id} value={tax.id}>
-              {tax.name}
+              {tax.name} ({tax.percentage}%)
             </option>
           ))}
         </select>
       )}
+
       {availableTaxes.length === 0 && (
-        <p className="fw-bold">All taxes are Selected </p>
+        <p className="fw-bold text-muted mt-2">All taxes are selected.</p>
       )}
+
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}

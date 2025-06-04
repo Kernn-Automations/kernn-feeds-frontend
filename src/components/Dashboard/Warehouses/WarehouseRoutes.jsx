@@ -15,6 +15,8 @@ function WarehouseRoutes() {
 
   const [managers, setManagers] = useState();
 
+  const [products, setProducts] = useState([]);
+
   const [error, setError] = useState();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,8 +28,11 @@ function WarehouseRoutes() {
     async function fetch() {
       try {
         const res = await axiosAPI.get("/employees/role/Warehouse Manager");
+        const res1 = await axiosAPI.get("/products/list");
         // console.log(res);
         setManagers(res.data.employees);
+        setProducts(res1.data.products);
+        console.log(res1.data.products)
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -43,7 +48,7 @@ function WarehouseRoutes() {
           index
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <WarehouseHome navigate={navigate} managers={managers}  />
+              <WarehouseHome navigate={navigate} managers={managers} products={products}  />
             </Suspense>
           }
         />

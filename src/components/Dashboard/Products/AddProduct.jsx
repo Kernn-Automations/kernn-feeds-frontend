@@ -99,15 +99,29 @@ function AddProduct({ navigate }) {
     if (!name) newErrors.name = true;
     if (!sku) newErrors.sku = true;
     if (!category) newErrors.category = true;
-    if (!units) newErrors.units = true;
     if (!description) newErrors.description = true;
     if (!baseprice) newErrors.baseprice = true;
     if (!purchaseprice) newErrors.purchaseprice = true;
     if (!thresholdValue) newErrors.thresholdValue = true;
-
+    if (!productType) newErrors.productType = true;
+  
+    if (productType === "loose" && !units) newErrors.units = true;
+    if (productType === "packed" && (!packageWeight || !packageWeightUnit)) {
+      if (!packageWeight) newErrors.packageWeight = true;
+      if (!packageWeightUnit) newErrors.packageWeightUnit = true;
+    }
+  
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+  
+  const nowIST = new Date().toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  
 
   function onError(e, vari, setter) {
     const value = e.target.value === "null" ? null : e.target.value;
@@ -209,7 +223,9 @@ function AddProduct({ navigate }) {
     formData.append("unit", units);
     formData.append("basePrice", baseprice);
     formData.append("purchasePrice", purchaseprice);
-    formData.append("pricingListId", pricing);
+    if (pricing && pricing !== "null" && pricing !== "undefined") {
+      formData.append("pricingListId", pricing);
+    }
     formData.append("productType", productType);
     if (productType === "packed") {
       formData.append("packageWeight", packageWeight);
@@ -217,14 +233,59 @@ function AddProduct({ navigate }) {
     }
     // formData.append("images", imagesArray);
     formData.append("thresholdValue", thresholdValue);
-    formData.append("pricingSlabs", JSON.stringify(pricingSlabs));
+    // ⛑️ Only send slabs if pricing is selected and slabs are valid
+    if (
+      pricing &&
+      pricing !== "null" &&
+      pricing !== "undefined" &&
+      Array.isArray(pricingSlabs) &&
+      pricingSlabs.some((slab) => {
+        const hasValue =
+          slab.quantityCondition ||
+          slab.quantityValueStart !== "" ||
+          slab.quantityValueEnd !== "" ||
+          slab.price !== "" ||
+          slab.promoCode ||
+          slab.discountPercentage !== "";
+        return hasValue;
+      })
+    ) {
+      const validSlabs = pricingSlabs
+        .filter((slab) => {
+          const hasValue =
+            slab.quantityCondition ||
+            slab.quantityValueStart !== "" ||
+            slab.quantityValueEnd !== "" ||
+            slab.price !== "" ||
+            slab.promoCode ||
+            slab.discountPercentage !== "";
+          return hasValue;
+        })
+        .map((slab) => ({
+          ...slab,
+          quantityValueStart:
+            slab.quantityValueStart !== "" ? parseInt(slab.quantityValueStart) : null,
+          quantityValueEnd:
+            slab.quantityValueEnd !== "" ? parseInt(slab.quantityValueEnd) : null,
+          price: slab.price !== "" ? parseFloat(slab.price) : null,
+          discountPercentage:
+            slab.discountPercentage !== undefined && slab.discountPercentage !== ""
+              ? parseFloat(slab.discountPercentage)
+              : null,
+        }));
+
+      if (validSlabs.length > 0) {
+        formData.append("pricingSlabs", JSON.stringify(validSlabs));
+      }
+    }
+
 
     images.forEach((image) => {
       if (image) formData.append("images", image.file);
     });
 
     selectedTaxes.forEach((taxId) => {
-      formData.append("taxIds", taxId); // use `taxIds[]` to indicate array
+      formData.append("taxIds[]", taxId); // use `taxIds[]` to indicate array
     });
 
     // console.log(formData);
@@ -266,7 +327,7 @@ function AddProduct({ navigate }) {
         </div>
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Time :</label>
-          <input type="time" value={time} />
+          <input type="time" value={nowIST} />
         </div>
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Created By :</label>
@@ -352,6 +413,7 @@ function AddProduct({ navigate }) {
             </div>
           </>
         )}
+        {productType === "loose" && (
         <div className={`col-3 ${styles.longform}`}>
           <label htmlFor="">Units :</label>
           <select
@@ -363,11 +425,16 @@ function AddProduct({ navigate }) {
             className={errors.units ? styles.errorField : ""}
           >
             <option value="null">--select--</option>
+            <option value="mg">mg</option>
+            <option value="g">grams</option>
             <option value="kg">Kgs</option>
-            <option value="gm">grams</option>
-            <option value="ltr">Litres</option>
+            <option value="ton">Tons</option>
+            <option value="ml">ml</option>
+            <option value="l">litres</option>
+            <option value="gal">gallons</option>
           </select>
         </div>
+      )}
         <div className={`col-3 ${styles.taxform}`}>
           <textarea
             name=""
@@ -435,7 +502,6 @@ function AddProduct({ navigate }) {
             id=""
             value={pricing}
             onChange={(e) => onError(e, pricing, setPricing)}
-            required
             className={errors.pricing ? styles.errorField : ""}
           >
             <option value="null">--select--</option>

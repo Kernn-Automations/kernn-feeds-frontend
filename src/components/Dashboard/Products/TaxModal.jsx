@@ -1,35 +1,53 @@
 import React from "react";
-import styles from "./Products.module.css";
 
 function TaxModal({ tax }) {
+  if (!tax) return <p>No tax data available.</p>;
+
   return (
-    <>
-      <h3 className={`px-3 pb-3 mdl-title`}>Taxes</h3>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Date :</label>
-          <input type="date" value={tax.createdAt.slice(0, 10)} />
-        </div>
-      </div>{" "}
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Tax Name :</label>
-          <input type="text" value={tax.name} required />
-        </div>
-      </div>{" "}
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Percentage :</label>
-          <input type="number" value={tax.percentage} />
+    <div className="px-3">
+      <h4 className="pb-2">Tax Details</h4>
+      <div className="row mb-2">
+        <div className="col-6"><strong>Name:</strong> {tax.name}</div>
+        <div className="col-6"><strong>Percentage:</strong> {tax.percentage}%</div>
+      </div>
+
+      <div className="row mb-2">
+        <div className="col-6"><strong>HSN Code:</strong> {tax.hsnCode || "—"}</div>
+        <div className="col-6"><strong>Nature:</strong> {tax.taxNature}</div>
+      </div>
+
+      <div className="row mb-2">
+        <div className="col-6"><strong>Applicable On:</strong> {tax.applicableOn}</div>
+        <div className="col-6">
+          <strong>Status:</strong>{" "}
+          <span className={tax.status === "Active" ? "text-success" : "text-danger"}>
+            {tax.status}
+          </span>
         </div>
       </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Description :</label>
-          <textarea name="" id="" value={tax.description}></textarea>
+
+      <div className="row mb-2">
+        <div className="col-6">
+          <strong>Is Cess:</strong> {tax.isCess ? "Yes" : "No"}
+        </div>
+        <div className="col-6">
+          <strong>Cess %:</strong> {tax.isCess ? `${tax.cessPercentage}%` : "—"}
         </div>
       </div>
-    </>
+
+      <div className="row mb-2">
+        <div className="col-6">
+          <strong>Additional Duty:</strong> {tax.isAdditionalDuty ? "Yes" : "No"}
+        </div>
+      </div>
+
+      <div className="row mb-2">
+        <div className="col-12">
+          <strong>Description:</strong>
+          <div>{tax.description || "—"}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 

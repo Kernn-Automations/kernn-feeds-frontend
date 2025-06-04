@@ -2,12 +2,12 @@ import React from 'react'
 import NewWarehouseViewModal from './NewWarehouseViewModal'
 import DeleteWarehouseViewModal from './DeleteWarehouseViewModal'
 
-function WarehouseHome({navigate, managers}) {
+function WarehouseHome({navigate, managers, products}) {
   return (
     <>
       <div className="row m-0 p-3">
         <div className="col">
-          <NewWarehouseViewModal managers={managers}/>
+          <NewWarehouseViewModal managers={managers} products={products}/>
           <DeleteWarehouseViewModal/>
           <button
             className="homebtn"

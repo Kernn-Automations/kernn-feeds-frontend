@@ -35,7 +35,7 @@ function KYCApproval({ navigate }) {
       try {
         setLoading(true);
         const res = await axiosAPI.get("/customers?kycStatus=Pending");
-        // console.log(res);
+        //console.log(res);
         setCustomers(res.data.customers);
       } catch (e) {
         // console.log(e);
