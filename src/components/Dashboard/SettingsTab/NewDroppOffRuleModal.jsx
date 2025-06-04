@@ -61,7 +61,7 @@ function NewDroppOffRuleModal() {
           maxQuantity,
           maxDropOffPoints,
           unit,
-          minQunatity,
+          minQuantity:minQunatity,
         });
 
         console.log(res);

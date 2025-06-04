@@ -18,12 +18,12 @@ function SettingsHome({ navigate }) {
           >
             Drop-off Rules
           </button>
-          <button
+          {/* <button
             className="homebtn"
             onClick={() => navigate("/settings/minimum-order-rules")}
           >
             Minimum Order Qty Rules
-          </button>
+          </button> */}
         </div>
       </div>
     </>

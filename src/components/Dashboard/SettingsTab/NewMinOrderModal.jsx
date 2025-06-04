@@ -53,7 +53,7 @@ function NewMinOrderModal() {
     console.log(ruleType, productId, unit);
     setMinQunatity(minQunatity);
     console.log(minQunatity);
-
+    
     async function create() {
       try {
         setLoading(true);
@@ -61,7 +61,7 @@ function NewMinOrderModal() {
           ruleType,
           productId,
           unit,
-          minQunatity,
+          minQuantity:minQunatity,
         });
 
         console.log(res);
