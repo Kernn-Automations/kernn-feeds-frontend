@@ -6,6 +6,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import PricingAddViewModal from "./PricingAddViewModal";
 import PricingViewModal from "./PricingViewModal";
+import DeletePricingListModal from "./DeletePricingListModal";
 
 function PricingList({ navigate }) {
   let index = 1;
@@ -54,6 +55,7 @@ function PricingList({ navigate }) {
             + Add
           </button> */}
         <PricingAddViewModal trigger={trigger} setTrigger={setTrigger} />
+        <DeletePricingListModal trigger={trigger} setTrigger={setTrigger} pricingLists={pricing}/>
 
         {pricing && (
           <div className="row m-0 p-3 pt-5 justify-content-center">
@@ -91,7 +93,7 @@ function PricingList({ navigate }) {
                           {price.adjustmentType === "Percentage" ? "%" : ""}
                         </td>
                         <td>
-                          <PricingViewModal price={price} />
+                          <PricingViewModal price={price} trigger={trigger} setTrigger={setTrigger}/>
                         </td>
                       </tr>
                     ))}

@@ -24,7 +24,7 @@ function CustomerList({ navigate }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/employees/role/Sales Executive");
+        const res = await axiosAPI.get("/employees/role/Business Officer");
         const res2 = await axiosAPI.get("/warehouse");
         // console.log(res);
         setSes(res.data.employees);

@@ -2,6 +2,9 @@ import React, { lazy, Suspense } from "react";
 import styles from "./Settings.module.css";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
+import OngoingDropoff from "./OngoingDropoff";
+import OngoingMinOrder from "./OngoingMinOrder";
+import OngoingWarehouseRules from "./OngoingWarehouseRules";
 
 // Lazy-loaded components
 const SettingsHome = lazy(() => import("./SettingsHome"));
@@ -28,7 +31,7 @@ function SettingRoutes() {
         path="/drop-off-rules/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <DropoffRules navigate={navigate} />
+            <OngoingDropoff navigate={navigate}/>
           </Suspense>
         }
       />
@@ -36,7 +39,7 @@ function SettingRoutes() {
         path="/minimum-order-rules/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <MinimumOrderRules navigate={navigate} />
+            <OngoingMinOrder navigate={navigate} />
           </Suspense>
         }
       />
@@ -44,7 +47,7 @@ function SettingRoutes() {
         path="/warehouse-rules/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <WarehouseRules navigate={navigate} />
+            <OngoingWarehouseRules navigate={navigate} />
           </Suspense>
         }
       />

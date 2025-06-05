@@ -91,8 +91,10 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
       "Order ID",
       "Warehouse Name",
       "Customer ID",
+      "Customer Name",
       "TNX Amount",
       "Payment Mode",
+      "Status"
     ];
     if (orders && orders.length > 0) {
       orders.map((order) =>
@@ -102,8 +104,10 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
           "Order ID": order.orderNumber,
           "Warehouse Name": order.warehouse?.name,
           "Customer ID": order.customer?.customer_id,
+          "Customer Name": order.customer?.name,
           "TNX Amount": order.totalAmount,
           "Payment Mode": "UPI",
+          "Status" : order.orderStatus
         })
       );
       setTableData(arr);

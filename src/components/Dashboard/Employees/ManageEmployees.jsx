@@ -65,6 +65,7 @@ function ManageEmployees({ navigate, isAdmin }) {
                   <th>Employee Name</th>
                   <th>Mobile Number</th>
                   <th>Email</th>
+                  <th>Role</th>
                   {isAdmin && <th>Action</th>}
                 </tr>
               </thead>
@@ -86,6 +87,7 @@ function ManageEmployees({ navigate, isAdmin }) {
                       <td>{emp.name}</td>
                       <td>{emp.mobile}</td>
                       <td>{emp.email}</td>
+                      <td>{emp.roles[0]?.name}</td>
                       {isAdmin && (
                         <td>
                           <button onClick={() => setOnUpdate(emp)}>

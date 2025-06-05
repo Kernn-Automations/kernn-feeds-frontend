@@ -17,12 +17,14 @@ function NewWarehouseModal({ managers }) {
   const [state, setState] = useState();
   const [country, setCountry] = useState();
   const [pincode, setPincode] = useState();
+  const [type, setType] = useState();
 
   const [managerId, setManagerId] = useState();
 
   const { axiosAPI } = useAuth();
   // validation
   const [errors, setErrors] = useState({});
+  const [successful, setSuccessful] = useState();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -37,9 +39,17 @@ function NewWarehouseModal({ managers }) {
   });
   const [location, setLocation] = useState(defaultLocation);
 
-  const [issuccessModalOpen, setIssuccessModalOpen] = useState(false);
-  const closesuccessModal = () => {
-    setIssuccessModalOpen(false);
+  const setNulls = () => {
+    setName(null);
+    setPlot(null);
+    setStreet(null);
+    setArea(null);
+    setCity(null);
+    setDistrict(null);
+    setState(null);
+    setCountry(null);
+    setPincode(null);
+    setType(null);
   };
 
   const validateFields = () => {
@@ -53,6 +63,7 @@ function NewWarehouseModal({ managers }) {
     if (!state) newErrors.state = true;
     if (!country) newErrors.country = true;
     if (!pincode) newErrors.pincode = true;
+    if (!type) newErrors.pincode = true;
     if (!managerId) newErrors.managerId = true;
     if (!location?.lat || !location?.lng) newErrors.location = true;
 
@@ -74,6 +85,7 @@ function NewWarehouseModal({ managers }) {
     // console.log(
     //   name,
     //   plot,
+    // type,
     //   street,
     //   area,
     //   city,
@@ -85,16 +97,12 @@ function NewWarehouseModal({ managers }) {
     // );
     // console.log(location);
 
-    if (!validateFields()) {
-      setError("Please Fill all feilds");
-      setIsModalOpen(true);
-      return;
-    }
     async function create() {
       try {
         setLoading(true);
         const res = await axiosAPI.post("/warehouse/add", {
           name: name,
+          type,
           plot,
           street,
           area,
@@ -110,8 +118,11 @@ function NewWarehouseModal({ managers }) {
 
         // console.log(res);
 
-        setError(res.data.message);
-        setIssuccessModalOpen(true);
+        setSuccessful(res.data.message);
+        setTimeout(() => {
+          setSuccessful(null);
+          setNulls();
+        }, 1000);
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -126,10 +137,10 @@ function NewWarehouseModal({ managers }) {
 
   // useEffect(() => {
   //   const getAddressFromCoords = async () => {
-      // console.log("maps runned");
+  // console.log("maps runned");
   //     if (location.lng == null || location.lat == null) return;
 
-      // console.log("maps runned 2.0");
+  // console.log("maps runned 2.0");
   //     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API;
   //     const response = await fetch(
   //       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.lat},${location.lng}&key=${apiKey}`
@@ -171,6 +182,23 @@ function NewWarehouseModal({ managers }) {
             required
             className={errors.name ? styles.errorField : ""}
           />
+        </div>
+      </div>{" "}
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Warehouse Type :</label>
+          <select
+            name=""
+            id=""
+            value={type}
+            onChange={(e) => onError(e, type, setType)}
+            required
+            className={errors.type ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            <option value="local">Local</option>
+            <option value="">Central</option>
+          </select>
         </div>
       </div>{" "}
       <div className="row justify-content-center">
@@ -298,7 +326,7 @@ function NewWarehouseModal({ managers }) {
           />
         </div>
       </div>
-      {!loading && (
+      {!loading && !successful && (
         <div className="row pt-3 mt-3 justify-content-center">
           <div className={`col-5`}>
             <button
@@ -321,6 +349,21 @@ function NewWarehouseModal({ managers }) {
           </div>
         </div>
       )}
+      {successful && (
+        <div className="row pt-3 mt-3 justify-content-center">
+          <div className={`col-8`}>
+            <DialogActionTrigger asChild>
+              <button
+                type="button"
+                className={`submitbtn`}
+                data-bs-dismiss="modal"
+              >
+                {successful}
+              </button>
+            </DialogActionTrigger>
+          </div>
+        </div>
+      )}
       {loading && (
         <div className="row pt-3 mt-3 justify-content-center">
           <div className={`col-5`}>
@@ -330,13 +373,6 @@ function NewWarehouseModal({ managers }) {
       )}
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
-      )}
-      {issuccessModalOpen && (
-        <SuccessModal
-          isOpen={issuccessModalOpen}
-          message={error}
-          onClose={closesuccessModal}
-        />
       )}
     </>
   );

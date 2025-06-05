@@ -5,6 +5,7 @@ import Loading from "@/components/Loading";
 import { useAuth } from "@/Auth";
 import TaxAddViewModal from "./TaxAddViewModal";
 import TaxViewModal from "./TaxViewModal";
+import DeleteTaxModal from "./DeleteTaxModal";
 
 function Taxes({ navigate }) {
   let index = 1;
@@ -54,7 +55,7 @@ function Taxes({ navigate }) {
           + Add
         </button> */}
         <TaxAddViewModal trigger={trigger} setTrigger={setTrigger} />
-
+        <DeleteTaxModal trigger={trigger} setTrigger={setTrigger} taxes={taxes}/>
         {taxes && (
           <div className="row m-0 p-3 pt-5 justify-content-center">
             <div className="col-lg-9">
@@ -86,7 +87,7 @@ function Taxes({ navigate }) {
                         <td>{tax.name}</td>
                         <td>{tax.percentage}%</td>
                         <td>
-                          <TaxViewModal tax={tax} />
+                          <TaxViewModal tax={tax} trigger={trigger} setTrigger={setTrigger} />
                         </td>
                       </tr>
                     ))}

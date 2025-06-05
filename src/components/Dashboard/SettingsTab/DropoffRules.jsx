@@ -14,20 +14,7 @@ function DropoffRules({ navigate }) {
           index
           element={
             <>
-              <p className="path">
-                <span onClick={() => navigate("/settings")}>Settings</span>{" "}
-                <i class="bi bi-chevron-right"></i> Drop-off Rules
-              </p>
-              <NewDroppOffRuleModal />
-              <DeleteDropOffRuleModal />
-              <button
-                className="homebtn"
-                onClick={() =>
-                  navigate("/settings/drop-off-rules/ongoing")
-                }
-              >
-                Ongoing
-              </button>
+             
             </>
           }
         />
