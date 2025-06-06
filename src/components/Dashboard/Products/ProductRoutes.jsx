@@ -13,13 +13,20 @@ const Taxes = lazy(() => import("./Taxes"));
 function ProductRoutes() {
   const navigate = useNavigate();
 
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const roles = JSON.stringify(user.roles);
+
+  const isAdmin = roles.includes("Admin");
+
+
   return (
     <Routes>
       <Route
         index
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <ProductHome navigate={navigate} />
+            <ProductHome navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -27,7 +34,7 @@ function ProductRoutes() {
         path="/add"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <AddProduct navigate={navigate} />
+            <AddProduct navigate={navigate} isAdmin={isAdmin}/>
           </Suspense>
         }
       />
@@ -35,7 +42,7 @@ function ProductRoutes() {
         path="/modify"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <ModifyProduct navigate={navigate} />
+            <ModifyProduct navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -43,7 +50,7 @@ function ProductRoutes() {
         path="/pricing-list"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <PricingList navigate={navigate} />
+            <PricingList navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -51,7 +58,7 @@ function ProductRoutes() {
         path="/taxes"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <Taxes navigate={navigate} />
+            <Taxes navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />

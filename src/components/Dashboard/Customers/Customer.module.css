@@ -34,7 +34,12 @@
   min-width: 280px !important;
   margin-bottom: 8px;
 }
-.longformmdl label, .textform label{
+.longformmdl2{
+   max-width: 550px !important;
+  min-width: 400px !important;
+  margin-bottom: 8px;
+}
+.longformmdl label, .textform label, .longformmdl2 label{
   width: 140px;
   font-weight: 600;
   font-size: 12px;
@@ -45,7 +50,7 @@
   color: var(--primary-color);
 }
 .longformmdl input,
-.longformmdl select {
+.longformmdl select, .longformmdl2 input {
   width: 120px;
   height: 25px;
   padding-left: 4px;

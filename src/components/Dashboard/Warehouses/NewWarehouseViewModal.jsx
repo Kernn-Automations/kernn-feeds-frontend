@@ -48,7 +48,7 @@ function NewWarehouseViewModal({managers,products}) {
         </div>
       </div> */}
 
-      <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
+      <DialogRoot placement={"center"} size={"xl"} className={styles.mdl}>
         <DialogTrigger asChild>
           <button className="homebtn">+ Add</button>
         </DialogTrigger>

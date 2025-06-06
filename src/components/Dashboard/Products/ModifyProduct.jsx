@@ -5,33 +5,30 @@ import SelectMode from "./SelectMode";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
-function ModifyProduct({ navigate }) {
+function ModifyProduct({ navigate, isAdmin }) {
   const [viewclick, setViewclick] = useState();
 
   const [product, setProduct] = useState();
-  
-  const onViewClick = (product) =>{
+
+  const onViewClick = (product) => {
     viewclick ? setViewclick(false) : setViewclick(true);
-    if(product)
-      setProduct(product);
-    else
-    setProduct(null);
-  }
-    
+    if (product) setProduct(product);
+    else setProduct(null);
+  };
 
   const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const closeModal = () => {
     setIsModalOpen(false);
   };
 
   const [products, setProducts] = useState();
-  
 
   useEffect(() => {
     async function fetch() {
@@ -53,6 +50,17 @@ function ModifyProduct({ navigate }) {
   }, []);
 
   let index = 1;
+
+  // view password
+  const [visiblePrices, setVisiblePrices] = useState({});
+
+  const togglePriceVisibility = (productId) => {
+    setVisiblePrices((prev) => ({
+      ...prev,
+      [productId]: !prev[productId],
+    }));
+  };
+
   return (
     <>
       <p className="path">
@@ -72,20 +80,24 @@ function ModifyProduct({ navigate }) {
                   <th>Product Name</th>
                   <th>Category</th>
                   <th>Units</th>
-                  <th>Purchase Price</th>
-                  <th>Action</th>
+                  {isAdmin && (
+                    <>
+                      <th>Purchase Price</th>
+                      <th>Action</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {products.length === 0 && (
                   <tr>
-                    <td>NO DATA FOUND</td>
+                    <td colSpan={isAdmin ? 8 : 6}>NO DATA FOUND</td>
                   </tr>
                 )}
                 {products.length > 0 &&
                   products.map((product) => (
                     <tr
-                    key={product.id}
+                      key={product.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
@@ -99,10 +111,30 @@ function ModifyProduct({ navigate }) {
                           ? product.packageWeightUnit
                           : product.unit}
                       </td>
-                      <td>{product.purchasePrice}</td>
-                      <td>
-                        <button onClick={() => onViewClick(product)}>view</button>
-                      </td>
+                      {isAdmin && (
+                        <>
+                          <td>
+                            {visiblePrices[product.id]
+                              ? product.purchasePrice
+                              : "*****"}
+                            <span
+                              style={{ cursor: "pointer", marginLeft: "8px" }}
+                              onClick={() => togglePriceVisibility(product.id)}
+                            >
+                              {visiblePrices[product.id] ? (
+                                <FaEyeSlash />
+                              ) : (
+                                <FaEye />
+                              )}
+                            </span>
+                          </td>
+                          <td>
+                            <button onClick={() => onViewClick(product)}>
+                              view
+                            </button>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
               </tbody>
@@ -111,7 +143,9 @@ function ModifyProduct({ navigate }) {
         </div>
       )}
 
-      {viewclick && <ModifyProductForm onViewClick={onViewClick} productId={product.id} />}
+      {viewclick && (
+        <ModifyProductForm onViewClick={onViewClick} productId={product.id} />
+      )}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

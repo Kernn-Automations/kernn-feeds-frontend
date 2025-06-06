@@ -5,8 +5,7 @@ import SelectMode from "./SelectMode";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-import { Route, Routes, useNavigate } from "react-router-dom";
-function OngoingWarehouse({ managers }) {
+function OngoingWarehouse({ navigate, managers, isAdmin }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
@@ -20,7 +19,7 @@ function OngoingWarehouse({ managers }) {
 
   const [trigger, setTrigger] = useState();
 
-  const changeTrigger = () => setTrigger(!trigger)
+  const changeTrigger = () => setTrigger(!trigger);
 
   useEffect(() => {
     async function fetch() {
@@ -33,7 +32,7 @@ function OngoingWarehouse({ managers }) {
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
-        setIsModalOpen(true)
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
@@ -54,17 +53,22 @@ function OngoingWarehouse({ managers }) {
                   <th>Warehouse ID</th>
                   <th>Warehouse Name</th>
                   {/* <th>Enable/Disable</th> */}
-                  <th>Action</th>
+                  {isAdmin && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
-                {warehouses.length === 0 && <tr>
+                {warehouses.length === 0 && (
+                  <tr>
                     <td colSpan={5}>No Data Found</td>
-                  </tr>}
+                  </tr>
+                )}
                 {warehouses.length > 0 &&
                   warehouses.map((warehouse) => (
-                    <tr key={warehouse.id} className="animated-row"
-                    style={{ animationDelay: `${count * 0.1}s` }}>
+                    <tr
+                      key={warehouse.id}
+                      className="animated-row"
+                      style={{ animationDelay: `${count * 0.1}s` }}
+                    >
                       <td>{count++}</td>
                       <td>{warehouse.id}</td>
                       <td>{warehouse.name}</td>
@@ -73,6 +77,7 @@ function OngoingWarehouse({ managers }) {
                           val={warehouse.managerId ? "enable" : "disable"}
                         />
                       </td> */}
+                      {isAdmin && (
                       <td>
                         <button
                           className="btn btn-sm btn-outline-primary"
@@ -81,14 +86,14 @@ function OngoingWarehouse({ managers }) {
                           View
                         </button>
                       </td>
+                      )}
                     </tr>
                   ))}
               </tbody>
             </table>
-              )}
-          </div>
+          )}
         </div>
-    
+      </div>
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

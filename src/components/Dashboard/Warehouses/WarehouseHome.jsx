@@ -1,16 +1,23 @@
-import React from 'react';
-import NewWarehouseViewModal from './NewWarehouseViewModal';
-import DeleteWarehouseViewModal from './DeleteWarehouseViewModal';
+
+import React from "react";
+import NewWarehouseViewModal from "./NewWarehouseViewModal";
+import DeleteWarehouseViewModal from "./DeleteWarehouseViewModal";
+
+function WarehouseHome({ navigate, managers, products, isAdmin }) {
+
 import OngoingWarehousesPage from './OngoingWarehouse'; // Adjust path if needed
 
-
-function WarehouseHome({ navigate, managers, products, warehouses = [] }) {
   return (
     <>
       <div className="row m-0 p-3">
         <div className="col">
-          <NewWarehouseViewModal managers={managers} products={products} />
-          <DeleteWarehouseViewModal />
+
+          {isAdmin && (
+            <>
+              <NewWarehouseViewModal managers={managers} products={products} />
+              <DeleteWarehouseViewModal />
+            </>
+          )}
 
           {/* New Buttons */}
           <button

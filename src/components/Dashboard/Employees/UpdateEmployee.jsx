@@ -72,6 +72,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
       }
 
       try {
+        console.log(`/employees/supervisors/${lastRoleId}`)
         const res = await axiosAPI.get(`/employees/supervisors/${lastRoleId}`);
         setSupervisors(res.data.supervisors || []);
       } catch (err) {
@@ -107,7 +108,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
     if (
       !updatedRoles.some((roleId) => {
         const role = roles.find((r) => r.id === roleId);
-        return ["sales executive", "warehouse manager"].includes(
+        return ["business officer", "warehouse manager"].includes(
           role?.name.toLowerCase()
         );
       })

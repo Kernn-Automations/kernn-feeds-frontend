@@ -26,6 +26,11 @@ function WarehouseRoutes() {
   const closeModal = () => {
     setIsModalOpen(false);
   };
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const roles = JSON.stringify(user.roles);
+
+  const isAdmin = roles.includes("Admin");
 
   useEffect(() => {
     async function fetch() {
@@ -51,7 +56,7 @@ function WarehouseRoutes() {
           index
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <WarehouseHome navigate={navigate} managers={managers} products={products}  />
+              <WarehouseHome navigate={navigate} managers={managers} products={products} isAdmin={isAdmin}  />
             </Suspense>
           }
         />
@@ -59,7 +64,7 @@ function WarehouseRoutes() {
           path="/ongoing"
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <OngoingWarehouse navigate={navigate} managers={managers} />
+              <OngoingWarehouse navigate={navigate} managers={managers} isAdmin={isAdmin} />
             </Suspense>
           }
         />
