@@ -20,7 +20,9 @@ function KYCModal({ customerdata, changeTrigger }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.put(`/customers/${customerdata.id}/kyc/approve`);
+        const res = await axiosAPI.put(
+          `/customers/${customerdata.id}/kyc/approve`
+        );
         setSuccessful(res.data.message);
         changeTrigger();
       } catch (e) {
@@ -37,7 +39,9 @@ function KYCModal({ customerdata, changeTrigger }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.put(`/customers/${customerdata.id}/kyc/reject`);
+        const res = await axiosAPI.put(
+          `/customers/${customerdata.id}/kyc/reject`
+        );
         setSuccessful(res.data.message);
         changeTrigger();
       } catch (e) {
@@ -55,18 +59,37 @@ function KYCModal({ customerdata, changeTrigger }) {
       <h3 className={`px-3 mdl-title`}>KYC Approval</h3>
 
       <div className="row m-0 p-0">
+        <div className={`col-5 ${styles.longformmdl2}`}>
+          <label>Customer Name :</label>
+          <input
+            type="text"
+            value={customerdata.name || "-"}
+            style={{
+              width: `${(customerdata.name?.length || 1) + 1}ch`,
+              padding: "0.3rem 0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+            }}
+            readOnly
+          />
+        </div>
+        <div className={`col-5 ${styles.longformmdl2}`}>
+          <label>Email :</label>
+          <input
+            type="text"
+            value={customerdata.email || "-"}
+            style={{
+              width: `${(customerdata.email?.length || 1) + 1}ch`,
+              padding: "0.3rem 0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+            }}
+            readOnly
+          />
+        </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label>Customer ID :</label>
           <input type="text" value={customerdata.customer_id || "-"} readOnly />
-        </div>
-        <div className={`col-9 ${styles.longformmdl}`}>
-          <label>Customer Name :</label>
-          <input type="text" value={customerdata.name || "-"} style={{
-    width: `${(customerdata.name?.length || 1) + 1}ch`,
-    padding: '0.3rem 0.5rem',
-    border: '1px solid #ccc',
-    borderRadius: '4px'
-  }} readOnly />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label>Mobile :</label>
@@ -76,18 +99,14 @@ function KYCModal({ customerdata, changeTrigger }) {
           <label>WhatsApp :</label>
           <input type="text" value={customerdata.whatsapp || "-"} readOnly />
         </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label>Email :</label>
-          <input type="text" value={customerdata.email || "-"} style={{
-    width: `${(customerdata.email?.length || 1) + 1}ch`,
-    padding: '0.3rem 0.5rem',
-    border: '1px solid #ccc',
-    borderRadius: '4px'
-  }} readOnly />
-        </div>
+
         <div className={`col-4 ${styles.longformmdl}`}>
           <label>Aadhaar Number :</label>
-          <input type="text" value={customerdata.aadhaarNumber || "-"} readOnly />
+          <input
+            type="text"
+            value={customerdata.aadhaarNumber || "-"}
+            readOnly
+          />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label>PAN Number :</label>
@@ -105,11 +124,19 @@ function KYCModal({ customerdata, changeTrigger }) {
         )}
         <div className={`col-4 ${styles.longformmdl}`}>
           <label>SE ID :</label>
-          <input type="text" value={customerdata.salesExecutive?.id || "NA"} readOnly />
+          <input
+            type="text"
+            value={customerdata.salesExecutive?.id || "NA"}
+            readOnly
+          />
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label>SE Name :</label>
-          <input type="text" value={customerdata.salesExecutive?.name || "NA"} readOnly />
+          <input
+            type="text"
+            value={customerdata.salesExecutive?.name || "NA"}
+            readOnly
+          />
         </div>
       </div>
 
@@ -197,7 +224,9 @@ function KYCModal({ customerdata, changeTrigger }) {
         </div>
       )}
 
-      {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
       {loading && <Loading />}
     </>
   );
