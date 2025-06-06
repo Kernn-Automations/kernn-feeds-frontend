@@ -34,7 +34,7 @@ function CreateEmployee({ navigate }) {
   const warehouseRequired = roles.some(
     (r) =>
       selectedRoles.includes(r.id) &&
-      ["sales executive", "warehouse manager"].includes(r.name.toLowerCase())
+      ["sales executive", "warehouse manager", "area manager"].includes(r.name.toLowerCase())
   );
 
   // Load roles and warehouses

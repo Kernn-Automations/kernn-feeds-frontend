@@ -80,7 +80,7 @@ function AddWarehouseRuleModal() {
   };
 
   //   multiple select
-  const allOptions = ["local", "central", "state", "district"];
+  const allOptions = ["local", "central"];
 
   const [availableOptions, setAvailableOptions] = useState(allOptions);
 

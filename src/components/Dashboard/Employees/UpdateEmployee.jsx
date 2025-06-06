@@ -34,7 +34,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   const warehouseRequired = roles.some(
     (r) =>
       selectedRoles.includes(r.id) &&
-      ["sales executive", "warehouse manager"].includes(r.name.toLowerCase())
+      ["business officer", "warehouse manager", "area business manager"].includes(r.name.toLowerCase())
   );
 
   // Load roles and warehouses

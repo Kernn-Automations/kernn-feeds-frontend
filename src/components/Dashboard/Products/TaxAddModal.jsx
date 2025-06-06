@@ -6,68 +6,62 @@ import { useAuth } from "@/Auth";
 import { DialogActionTrigger } from "@/components/ui/dialog";
 
 function TaxAddModal({ trigger, setTrigger }) {
-  const [name, setName] = useState();
-  const [percentage, setPercentage] = useState();
-  const [description, setDescription] = useState();
+  const [name, setName] = useState("");
+  const [percentage, setPercentage] = useState("");
+  const [description, setDescription] = useState("");
+  const [hsnCode, setHsnCode] = useState("");
+  const [taxNature, setTaxNature] = useState("Taxable");
+  const [applicableOn, setApplicableOn] = useState("Both");
+  const [isCess, setIsCess] = useState(false);
+  const [cessPercentage, setCessPercentage] = useState("");
+  const [isAdditionalDuty, setIsAdditionalDuty] = useState(false);
 
   const [successfull, setSuccessfull] = useState(null);
-
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-
   const [errors, setErrors] = useState({});
 
   const today = new Date(Date.now()).toISOString().slice(0, 10);
+  const closeModal = () => setIsModalOpen(false);
+
+  const { axiosAPI } = useAuth();
 
   const validateFields = () => {
     const newErrors = {};
     if (!name) newErrors.name = true;
     if (!percentage) newErrors.percentage = true;
-    if (!description) newErrors.description = true;
-
+    if (isCess && !cessPercentage) newErrors.cessPercentage = true;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  function onError(e, vari, setter) {
-    const value = e.target.value === "null" ? null : e.target.value;
-    setter(value);
-    if (value) {
-      setErrors((prev) => ({ ...prev, vari: false }));
-    }
-  }
-
-  // form subbmission
-
-  const { axiosAPI } = useAuth();
-
   const onSubmitClick = () => {
-    // console.log(name, percentage, description);
-
     if (!validateFields()) {
-      setError("Please Fill all feilds");
+      setError("Please fill all required fields.");
       setIsModalOpen(true);
       return;
     }
+
     async function create() {
       try {
         setLoading(true);
         const res = await axiosAPI.post("/tax", {
-          name: name,
-          percentage: percentage,
-          description: description,
+          name,
+          percentage,
+          description,
+          hsnCode,
+          taxNature,
+          applicableOn,
+          isCess,
+          cessPercentage: isCess ? cessPercentage : null,
+          isAdditionalDuty,
         });
 
-        // console.log(res);
         setTrigger(!trigger);
         setSuccessfull(res.data.message);
       } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+        setError(e.response?.data?.message || "Failed to create tax");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
@@ -76,102 +70,176 @@ function TaxAddModal({ trigger, setTrigger }) {
 
     create();
   };
+
   return (
     <>
-      <h3 className={`px-3 pb-3 mdl-title`}>Create Pricing</h3>
+      <h3 className="px-3 pb-3 mdl-title">Create Tax</h3>
+
+      {/* DATE */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Date :</label>
-          <input type="date" value={today} />
+        <div className="col-4 inputcolumn-mdl">
+          <label>Date:</label>
+          <input type="date" value={today} disabled />
         </div>
-      </div>{" "}
+      </div>
+
+      {/* TAX NAME */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Tax Name :</label>
+        <div className="col-4 inputcolumn-mdl">
+          <label>Tax Name:</label>
           <input
             type="text"
             value={name}
-            onChange={(e) => onError(e, name, setName)}
-            required
+            onChange={(e) => setName(e.target.value)}
             className={errors.name ? styles.errorField : ""}
+            required
           />
         </div>
-      </div>{" "}
+      </div>
+
+      {/* PERCENTAGE */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Percentage :</label>
+        <div className="col-4 inputcolumn-mdl">
+          <label>Percentage:</label>
           <input
             type="number"
             value={percentage}
-            onChange={(e) => onError(e, percentage, setPercentage)}
-            className={errors.name ? styles.errorField : ""}
+            onChange={(e) => setPercentage(e.target.value)}
+            className={errors.percentage ? styles.errorField : ""}
+            required
           />
         </div>
       </div>
+
+      {/* HSN CODE */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Description :</label>
+        <div className="col-4 inputcolumn-mdl">
+          <label>HSN Code:</label>
+          <input
+            type="text"
+            value={hsnCode}
+            onChange={(e) => setHsnCode(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* TAX NATURE */}
+      <div className="row justify-content-center">
+        <div className="col-4 inputcolumn-mdl">
+          <label>Tax Nature:</label>
+          <select value={taxNature} onChange={(e) => setTaxNature(e.target.value)}>
+            {["Taxable", "Exempt", "Nil Rated", "Non-GST", "Reverse Charge"].map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* APPLICABLE ON */}
+      <div className="row justify-content-center">
+        <div className="col-4 inputcolumn-mdl">
+          <label>Applicable On:</label>
+          <select value={applicableOn} onChange={(e) => setApplicableOn(e.target.value)}>
+            {["Sale", "Purchase", "Both"].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* IS CESS */}
+      <div className="row justify-content-center">
+        <div className="col-4 inputcolumn-mdl">
+          <label>
+            <input
+              type="checkbox"
+              checked={isCess}
+              onChange={(e) => setIsCess(e.target.checked)}
+            />
+            &nbsp;Is Cess?
+          </label>
+        </div>
+      </div>
+
+      {/* CESS PERCENTAGE */}
+      {isCess && (
+        <div className="row justify-content-center">
+          <div className="col-4 inputcolumn-mdl">
+            <label>Cess Percentage:</label>
+            <input
+              type="number"
+              value={cessPercentage}
+              onChange={(e) => setCessPercentage(e.target.value)}
+              className={errors.cessPercentage ? styles.errorField : ""}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ADDITIONAL DUTY */}
+      <div className="row justify-content-center">
+        <div className="col-4 inputcolumn-mdl">
+          <label>
+            <input
+              type="checkbox"
+              checked={isAdditionalDuty}
+              onChange={(e) => setIsAdditionalDuty(e.target.checked)}
+            />
+            &nbsp;Additional Duty?
+          </label>
+        </div>
+      </div>
+
+      {/* DESCRIPTION */}
+      <div className="row justify-content-center">
+        <div className="col-4 inputcolumn-mdl">
+          <label>Description:</label>
           <textarea
-            name=""
-            id=""
             value={description}
-            onChange={(e) => onError(e, description, setDescription)}
-            className={errors.name ? styles.errorField : ""}
+            onChange={(e) => setDescription(e.target.value)}
           ></textarea>
         </div>
       </div>
-      
+
+      {/* ACTIONS */}
       {!loading && !successfull && (
         <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-5`}>
-            <button
-              type="submit"
-              className={`submitbtn`}
-              data-bs-dismiss="modal"
-              onClick={onSubmitClick}
-            >
+          <div className="col-5">
+            <button type="submit" className="submitbtn" data-bs-dismiss="modal" onClick={onSubmitClick}>
               Create
             </button>
             <DialogActionTrigger asChild>
-              <button
-                type="button"
-                className={`cancelbtn`}
-                data-bs-dismiss="modal"
-              >
+              <button type="button" className="cancelbtn" data-bs-dismiss="modal">
                 Close
               </button>
             </DialogActionTrigger>
           </div>
         </div>
       )}
+
       {successfull && (
         <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-6`}>
+          <div className="col-6">
             <DialogActionTrigger asChild>
-              <button
-                type="submit"
-                className={`submitbtn`}
-                data-bs-dismiss="modal"
-              >
+              <button type="submit" className="submitbtn" data-bs-dismiss="modal">
                 {successfull}
               </button>
             </DialogActionTrigger>
           </div>
         </div>
       )}
+
       {loading && (
         <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-5`}>
+          <div className="col-5">
             <Loading />
           </div>
         </div>
       )}
+
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
-      {/* {issuccessModalOpen && (
-        <SuccessModal isOpen={issuccessModalOpen} message={error} onClose={closesuccessModal} />
-      )} */}
     </>
   );
 }

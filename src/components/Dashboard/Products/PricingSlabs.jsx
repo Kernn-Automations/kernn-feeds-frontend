@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styles from "./Products.module.css";
 const conditionOptions = ["Exact", "Greater than", "Less than", "Range"];
 
-const PricingSlabs = ({ pricingSlabs, setPricingSlabs }) => {
+const PricingSlabs = ({ pricingSlabs = [], setPricingSlabs }) => {
   const handleSlabChange = (index, field, value) => {
     const updatedSlabs = [...pricingSlabs];
     updatedSlabs[index][field] = value;
@@ -30,9 +30,10 @@ const PricingSlabs = ({ pricingSlabs, setPricingSlabs }) => {
     const updatedSlabs = pricingSlabs.filter((_, i) => i !== index);
     setPricingSlabs(updatedSlabs);
   };
+
   return (
     <div>
-      {pricingSlabs.map((slab, index) => (
+      {(pricingSlabs || []).map((slab, index) => (
         <div key={index} className="row m-0 p-2">
           <div className={`col-2 ${styles.taxform}`}>
             <select
@@ -80,8 +81,6 @@ const PricingSlabs = ({ pricingSlabs, setPricingSlabs }) => {
               onChange={(e) => handleSlabChange(index, "price", e.target.value)}
             />
           </div>
-
-          {pricingSlabs.length > 1 && (
             <div className={`col-2 ${styles.taxform}`}>
               <button
                 className="btn btn-sm btn-outline-danger"
@@ -90,15 +89,12 @@ const PricingSlabs = ({ pricingSlabs, setPricingSlabs }) => {
                 Remove
               </button>
             </div>
-          )}
         </div>
       ))}
 
       <button className="submitbtn" onClick={addSlab}>
         Add Slab
       </button>
-
-      {/* <pre>{JSON.stringify(getFormattedSlabs(), null, 2)}</pre> */}
     </div>
   );
 };

@@ -15,6 +15,9 @@ function CustomerHome({navigate}) {
           >
             KYC Approvals
           </button>
+          <button className="homebtn" onClick={() => navigate("/customers/reports")}>
+            Customer Reports
+          </button>
         </div>
       </div>
     </>

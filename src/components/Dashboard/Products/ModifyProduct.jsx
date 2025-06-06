@@ -94,7 +94,11 @@ function ModifyProduct({ navigate }) {
                       <td>{product.SKU}</td>
                       <td>{product.name}</td>
                       <td>{product.category.name}</td>
-                      <td>{product.unit}</td>
+                      <td>
+                        {product.productType === "packed"
+                          ? product.packageWeightUnit
+                          : product.unit}
+                      </td>
                       <td>{product.purchasePrice}</td>
                       <td>
                         <button onClick={() => onViewClick(product)}>view</button>
@@ -107,7 +111,7 @@ function ModifyProduct({ navigate }) {
         </div>
       )}
 
-      {viewclick && <ModifyProductForm onViewClick={onViewClick} product={product} />}
+      {viewclick && <ModifyProductForm onViewClick={onViewClick} productId={product.id} />}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

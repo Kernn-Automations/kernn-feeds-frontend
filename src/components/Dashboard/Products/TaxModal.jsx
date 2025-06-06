@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import styles from "./Products.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
@@ -165,6 +166,7 @@ function TaxModal({ tax, trigger, setTrigger }) {
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
+
   );
 }
 
