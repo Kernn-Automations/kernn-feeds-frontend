@@ -8,7 +8,7 @@ import PricingAddViewModal from "./PricingAddViewModal";
 import PricingViewModal from "./PricingViewModal";
 import DeletePricingListModal from "./DeletePricingListModal";
 
-function PricingList({ navigate }) {
+function PricingList({ navigate, isAdmin }) {
   let index = 1;
 
   // backend
@@ -54,8 +54,17 @@ function PricingList({ navigate }) {
         {/* <button className="homebtn" onClick={() => setAddclick(true)}>
             + Add
           </button> */}
-        <PricingAddViewModal trigger={trigger} setTrigger={setTrigger} />
-        <DeletePricingListModal trigger={trigger} setTrigger={setTrigger} pricingLists={pricing}/>
+        {isAdmin && (
+          <>
+            {" "}
+            <PricingAddViewModal trigger={trigger} setTrigger={setTrigger} />
+            <DeletePricingListModal
+              trigger={trigger}
+              setTrigger={setTrigger}
+              pricingLists={pricing}
+            />
+          </>
+        )}
 
         {pricing && (
           <div className="row m-0 p-3 pt-5 justify-content-center">
@@ -68,13 +77,13 @@ function PricingList({ navigate }) {
                     <th>Name</th>
                     <th>Type</th>
                     <th>Value</th>
-                    <th>Action</th>
+                    {isAdmin && <th>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {pricing.length === 0 && (
                     <tr>
-                      <td colSpan={6}>NO DATA FOUND</td>
+                      <td colSpan={isAdmin? 6 : 5}>NO DATA FOUND</td>
                     </tr>
                   )}
                   {pricing.length > 0 &&
@@ -92,9 +101,15 @@ function PricingList({ navigate }) {
                           {price.adjustmentValue}
                           {price.adjustmentType === "Percentage" ? "%" : ""}
                         </td>
-                        <td>
-                          <PricingViewModal price={price} trigger={trigger} setTrigger={setTrigger}/>
-                        </td>
+                        {isAdmin && (
+                          <td>
+                            <PricingViewModal
+                              price={price}
+                              trigger={trigger}
+                              setTrigger={setTrigger}
+                            />
+                          </td>
+                        )}
                       </tr>
                     ))}
                 </tbody>

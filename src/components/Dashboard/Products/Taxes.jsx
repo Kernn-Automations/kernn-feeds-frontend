@@ -7,7 +7,7 @@ import TaxAddViewModal from "./TaxAddViewModal";
 import TaxViewModal from "./TaxViewModal";
 import DeleteTaxModal from "./DeleteTaxModal";
 
-function Taxes({ navigate }) {
+function Taxes({ navigate, isAdmin }) {
   let index = 1;
 
   // BACKEND
@@ -54,8 +54,16 @@ function Taxes({ navigate }) {
         {/* <button className="homebtn" onClick={onAddClick}>
           + Add
         </button> */}
-        <TaxAddViewModal trigger={trigger} setTrigger={setTrigger} />
-        <DeleteTaxModal trigger={trigger} setTrigger={setTrigger} taxes={taxes}/>
+        {isAdmin && (
+          <>
+            <TaxAddViewModal trigger={trigger} setTrigger={setTrigger} />
+            <DeleteTaxModal
+              trigger={trigger}
+              setTrigger={setTrigger}
+              taxes={taxes}
+            />
+          </>
+        )}
         {taxes && (
           <div className="row m-0 p-3 pt-5 justify-content-center">
             <div className="col-lg-9">
@@ -66,13 +74,13 @@ function Taxes({ navigate }) {
                     <th>Date</th>
                     <th>Tax Name</th>
                     <th>Tax Value</th>
-                    <th>Action</th>
+                    {isAdmin && <th>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {taxes.length === 0 && (
                     <tr>
-                      <td colSpan={5}>NO DATA FOUND</td>
+                      <td colSpan={isAdmin ? 5 : 4}>NO DATA FOUND</td>
                     </tr>
                   )}
                   {taxes.length > 0 &&
@@ -86,9 +94,15 @@ function Taxes({ navigate }) {
                         <td>{tax.createdAt.slice(0, 10)}</td>
                         <td>{tax.name}</td>
                         <td>{tax.percentage}%</td>
-                        <td>
-                          <TaxViewModal tax={tax} trigger={trigger} setTrigger={setTrigger} />
-                        </td>
+                        {isAdmin && (
+                          <td>
+                            <TaxViewModal
+                              tax={tax}
+                              trigger={trigger}
+                              setTrigger={setTrigger}
+                            />
+                          </td>
+                        )}
                       </tr>
                     ))}
                 </tbody>

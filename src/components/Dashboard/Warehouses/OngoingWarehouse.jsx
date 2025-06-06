@@ -5,7 +5,7 @@ import SelectMode from "./SelectMode";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-function OngoingWarehouse({ navigate, managers }) {
+function OngoingWarehouse({ navigate, managers, isAdmin }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
@@ -19,7 +19,7 @@ function OngoingWarehouse({ navigate, managers }) {
 
   const [trigger, setTrigger] = useState();
 
-  const changeTrigger = () => setTrigger(!trigger)
+  const changeTrigger = () => setTrigger(!trigger);
 
   useEffect(() => {
     async function fetch() {
@@ -32,7 +32,7 @@ function OngoingWarehouse({ navigate, managers }) {
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
-        setIsModalOpen(true)
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
@@ -47,9 +47,9 @@ function OngoingWarehouse({ navigate, managers }) {
         <span onClick={() => navigate("/warehouses")}>Warehouse</span>{" "}
         <i class="bi bi-chevron-right"></i> Ongoing
       </p>
-      
-        <div className="row m-0 p-3 pt-5 justify-content-center">
-          <div className="col-lg-10">
+
+      <div className="row m-0 p-3 pt-5 justify-content-center">
+        <div className="col-lg-10">
           {warehouses && (
             <table className="table table-bordered borderedtable">
               <thead>
@@ -58,17 +58,22 @@ function OngoingWarehouse({ navigate, managers }) {
                   <th>Warehouse ID</th>
                   <th>Warehouse Name</th>
                   {/* <th>Enable/Disable</th> */}
-                  <th>Action</th>
+                  {isAdmin && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
-                {warehouses.length === 0 && <tr>
+                {warehouses.length === 0 && (
+                  <tr>
                     <td colSpan={5}>No Data Found</td>
-                  </tr>}
+                  </tr>
+                )}
                 {warehouses.length > 0 &&
                   warehouses.map((warehouse) => (
-                    <tr key={warehouse.id} className="animated-row"
-                    style={{ animationDelay: `${count * 0.1}s` }}>
+                    <tr
+                      key={warehouse.id}
+                      className="animated-row"
+                      style={{ animationDelay: `${count * 0.1}s` }}
+                    >
                       <td>{count++}</td>
                       <td>{warehouse.id}</td>
                       <td>{warehouse.name}</td>
@@ -77,17 +82,22 @@ function OngoingWarehouse({ navigate, managers }) {
                           val={warehouse.managerId ? "enable" : "disable"}
                         />
                       </td> */}
-                      <td>
-                        <ActionViewModal warehouse={warehouse} managers={managers} changeTrigger={changeTrigger} />
-                      </td>
+                      {isAdmin && (
+                        <td>
+                          <ActionViewModal
+                            warehouse={warehouse}
+                            managers={managers}
+                            changeTrigger={changeTrigger}
+                          />
+                        </td>
+                      )}
                     </tr>
                   ))}
               </tbody>
             </table>
-              )}
-          </div>
+          )}
         </div>
-    
+      </div>
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
