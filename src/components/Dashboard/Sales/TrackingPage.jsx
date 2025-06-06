@@ -207,7 +207,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                           ? "Payment Approved"
                           : "Awaiting Payment Approval"}
                       </p>
-                      {order.paymentRequest?.updatedAt && (
+                      {findTracking(order.orderStatus) > 2 && order.paymentRequest?.updatedAt && (
                         <p className={styles.date}>
                           {formatToIST(order.paymentRequest?.updatedAt)}
                         </p>
@@ -249,9 +249,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                           ? "Order Confirmed"
                           : "Awaiting Order Confirmation"}
                       </p>
-                      {order.paymentRequest?.updatedAt && (
+                      {  findTracking(order.orderStatus) > 3 && order.updatedAt && (
                         <p className={styles.date}>
-                          {formatToIST(order.paymentRequest?.updatedAt)}
+                          {formatToIST(order?.updatedAt)}
                         </p>
                       )}
                     </div>

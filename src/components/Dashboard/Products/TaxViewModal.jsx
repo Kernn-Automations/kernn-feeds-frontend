@@ -10,7 +10,7 @@ import {
 import PricingModal from "./PricingModal";
 import TaxModal from "./TaxModal";
 
-function TaxViewModal({ tax }) {
+function TaxViewModal({ tax, trigger, setTrigger }) {
   return (
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
@@ -19,7 +19,7 @@ function TaxViewModal({ tax }) {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <TaxModal tax={tax} />
+            <TaxModal tax={tax} trigger={trigger} setTrigger={setTrigger}  />
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>

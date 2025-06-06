@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import PricingModal from "./PricingModal";
 
-function PricingViewModal({ price }) {
+function PricingViewModal({ price, trigger, setTrigger }) {
   return (
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
@@ -18,7 +18,7 @@ function PricingViewModal({ price }) {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <PricingModal price={price} />
+            <PricingModal price={price} trigger={trigger} setTrigger={setTrigger}/>
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>

@@ -18,6 +18,8 @@ function NewWarehouseModal({ managers, products }) {
   const [state, setState] = useState();
   const [country, setCountry] = useState();
   const [pincode, setPincode] = useState();
+  const [type, setType] = useState();
+
   const [managerId, setManagerId] = useState();
   const [location, setLocation] = useState(null);
   const [defaultLocation, setDefaultLocation] = useState({ lat: null, lng: null });
@@ -26,13 +28,34 @@ function NewWarehouseModal({ managers, products }) {
 
   const { axiosAPI } = useAuth();
   const [errors, setErrors] = useState({});
+  const [successful, setSuccessful] = useState();
+
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [issuccessModalOpen, setIssuccessModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
 
-  const closeModal = () => setIsModalOpen(false);
-  const closesuccessModal = () => setIssuccessModalOpen(false);
+  const [defaultLocation, setDefaultLocation] = useState({
+    lat: 40.7128,
+    lng: -74.006,
+  });
+  const [location, setLocation] = useState(defaultLocation);
+
+  const setNulls = () => {
+    setName(null);
+    setPlot(null);
+    setStreet(null);
+    setArea(null);
+    setCity(null);
+    setDistrict(null);
+    setState(null);
+    setCountry(null);
+    setPincode(null);
+    setType(null);
+  };
+
 
   const validateFields = () => {
     const newErrors = {};
@@ -45,6 +68,7 @@ function NewWarehouseModal({ managers, products }) {
     if (!state) newErrors.state = true;
     if (!country) newErrors.country = true;
     if (!pincode) newErrors.pincode = true;
+    if (!type) newErrors.pincode = true;
     if (!managerId) newErrors.managerId = true;
     if (!location?.lat || !location?.lng) newErrors.location = true;
     setErrors(newErrors);
@@ -56,6 +80,24 @@ function NewWarehouseModal({ managers, products }) {
     setter(value);
     if (value) setErrors((prev) => ({ ...prev, vari: false }));
   };
+
+  // form subbmission
+  const onSubmitClick = () => {
+    // console.log(name, location);
+    // console.log(
+    //   name,
+    //   plot,
+    // type,
+    //   street,
+    //   area,
+    //   city,
+    //   district,
+    //   state,
+    //   country,
+    //   pincode,
+    //   managerId
+    // );
+    // console.log(location);
 
   const handleStockChange = (index, field, value) => {
     const updated = [...openingStock];
@@ -84,7 +126,9 @@ function NewWarehouseModal({ managers, products }) {
       try {
         setLoading(true);
         const res = await axiosAPI.post("/warehouse/add", {
-          name,
+          name: name,
+          type,
+
           plot,
           street,
           area,
@@ -98,8 +142,15 @@ function NewWarehouseModal({ managers, products }) {
           managerId,
           openingStock: openingStock.filter((s) => s.productId && s.stockQuantity),
         });
-        setError(res.data.message);
-        setIssuccessModalOpen(true);
+
+
+        // console.log(res);
+
+        setSuccessful(res.data.message);
+        setTimeout(() => {
+          setSuccessful(null);
+          setNulls();
+        }, 1000);
       } catch (e) {
         setError(e.response?.data?.message || "Error creating warehouse");
         setIsModalOpen(true);
@@ -111,6 +162,34 @@ function NewWarehouseModal({ managers, products }) {
     create();
   };
 
+  // useEffect(() => {
+  //   const getAddressFromCoords = async () => {
+  // console.log("maps runned");
+  //     if (location.lng == null || location.lat == null) return;
+
+  // console.log("maps runned 2.0");
+  //     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API;
+  //     const response = await fetch(
+  //       `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.lat},${location.lng}&key=${apiKey}`
+  //     );
+  //     const data = await response.json();
+  //     if (data.status === "OK") {
+  //       const result = data.results[0];
+  //       const components = result.address_components;
+
+  //       const getComponent = (type) =>
+  //         components.find((comp) => comp.types.includes(type))?.long_name || "";
+  //       setPlot(getComponent("premise") || getComponent("subpremise"));
+  //       setStreet(getComponent("route"));
+  //       setArea(getComponent("sublocality_level_1"));
+  //       setDistrict(getComponent("administrative_area_level_2"));
+  //       setState(getComponent("administrative_area_level_1"));
+  //       setPincode(getComponent("postal_code"));
+  //     }
+  //   };
+  //   getAddressFromCoords();
+  // }, [location]);
+
   return (
     <>
       <h3 className={`px-3 pb-3 mdl-title`}>Create Warehouse</h3>
@@ -121,9 +200,34 @@ function NewWarehouseModal({ managers, products }) {
           <label>Warehouse Name</label>
           <input value={name || ""} onChange={(e) => onError(e, name, setName)} className={errors.name ? styles.errorField : ""} />
         </div>
-        <div className={`col-4 inputcolumn-mdl`}>
-          <label>Plot / H.No</label>
-          <input value={plot || ""} onChange={(e) => onError(e, plot, setPlot)} className={errors.plot ? styles.errorField : ""} />
+      </div>{" "}
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Warehouse Type :</label>
+          <select
+            name=""
+            id=""
+            value={type}
+            onChange={(e) => onError(e, type, setType)}
+            required
+            className={errors.type ? styles.errorField : ""}
+          >
+            <option value="null">--select--</option>
+            <option value="local">Local</option>
+            <option value="">Central</option>
+          </select>
+        </div>
+      </div>{" "}
+      <div className="row justify-content-center">
+        <div className={`col-4  inputcolumn-mdl`}>
+          <label htmlFor="">Plot / H.No :</label>
+          <input
+            type="text"
+            value={plot}
+            onChange={(e) => onError(e, plot, setPlot)}
+            required
+            className={errors.plot ? styles.errorField : ""}
+          />
         </div>
         <div className={`col-4 inputcolumn-mdl`}>
           <label>Street</label>
@@ -257,6 +361,7 @@ function NewWarehouseModal({ managers, products }) {
       {loading && <Loading />}
       {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
       {issuccessModalOpen && <SuccessModal isOpen={issuccessModalOpen} message={error} onClose={closesuccessModal} />}
+
     </>
   );
 }

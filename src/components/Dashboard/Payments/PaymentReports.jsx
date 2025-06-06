@@ -43,7 +43,7 @@ function PaymentReports({ navigate }) {
         setLoading(true);
         const res1 = await axiosAPI.get("/warehouse");
         const res2 = await axiosAPI.get("/customers");
-        const res3 = await axiosAPI.get("/employees/role/Sales Executive");
+        const res3 = await axiosAPI.get("/employees/role/Business Officer");
         // console.log(res1);
         // console.log(res2);
         // console.log(res3);
