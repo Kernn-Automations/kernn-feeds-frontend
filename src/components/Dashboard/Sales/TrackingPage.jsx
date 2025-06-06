@@ -33,6 +33,41 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     fetch();
   }, []);
 
+const handleDownload = async () => {
+  try {
+    setLoading(true);
+
+    const response = await axiosAPI.get(`/sales-orders/${orderId}/pdf`, {
+      responseType: 'blob', // ✅ This tells Axios to treat the response as binary
+    });
+
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+
+    // Optional: check for empty blob
+    if (blob.size === 0) {
+      setError("Empty PDF received.");
+      setIsModalOpen(true);
+      return;
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `SalesOrder_${orderId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    setError("Failed to download document.");
+    setIsModalOpen(true);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
   const findTracking = (status) => {
     if (status === "Pending") return 2;
     else if (status === "awaitingPaymentConfirmation") return 3;
@@ -69,6 +104,12 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       {order && (
         <div className={styles.trackingContainer}>
           <h2 className={styles.trackingTitle}>Sales Order Details</h2>
+          <div className={styles.trackingHeader}>
+          <h2 className={styles.trackingTitle}>Sales Order Details</h2>
+          <button className={styles.downloadBtn} onClick={handleDownload}>
+            <i className="bi bi-download"></i> Download PDF
+          </button>
+        </div>
 
           <div className={styles.infoCard}>
             <div>

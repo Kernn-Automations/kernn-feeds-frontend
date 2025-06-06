@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import GoogleMapLocator from "./GoogleMapLocator";
 
-function MapViewModal({ setLocation, defaultLocation, setDefaultLocation }) {
+function MapViewModal({ setLocation, defaultLocation, setDefaultLocation, onClose }) {
   return (
     <>
       {/* <button
@@ -48,7 +48,7 @@ function MapViewModal({ setLocation, defaultLocation, setDefaultLocation }) {
         </div>
       </div> */}
 
-      <DialogRoot placement={"center"} size={"xl"} className={styles.mdl}>
+      <DialogRoot placement={"center"} size={"xl"} className={styles.mdl} open={true}>
         <DialogTrigger asChild>
           <button className={styles.locate}>LOCATE</button>
         </DialogTrigger>
@@ -61,6 +61,7 @@ function MapViewModal({ setLocation, defaultLocation, setDefaultLocation }) {
                   setLocation={setLocation}
                   defaultLocation={defaultLocation}
                   setDefaultLocation={setDefaultLocation}
+                  onClose={onClose}
                 />
               </div>
             </div>

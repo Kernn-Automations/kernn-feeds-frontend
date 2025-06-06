@@ -1,0 +1,10 @@
+.borderedtable th, .borderedtable td {
+  vertical-align: middle;
+  text-align: center;
+}
+.text-danger {
+  color: red;
+}
+.text-success {
+  color: green;
+}

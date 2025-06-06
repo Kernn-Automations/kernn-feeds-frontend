@@ -31,6 +31,7 @@ const GoogleMapLocator = ({
   setLocation,
   defaultLocation,
   setDefaultLocation,
+  onClose
 }) => {
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -130,50 +131,37 @@ const GoogleMapLocator = ({
       </GoogleMap>
 
       <div className="row m-0 pt-3 pb-1 justify-content-center">
-        <div className="col-2">
-          <DialogRoot placement={"center"} className={styles.mdl}>
-            <DialogTrigger asChild>
-              <button className="submitbtn">Confirm</button>
-            </DialogTrigger>
-            <DialogContent className="mdl">
-              <DialogBody>
-                <h4>Confirm Location</h4>
-                <div className="row m-0 p-3 justify-content-center">
-                  <div className="col-12">
-                    <p className={styles.lant}>
-                      <span>Latitude : </span>
-                      {selectedPosition.lat}
-                    </p>
-                    <p className={styles.lant}>
-                      <span>Longitude : </span>
-                      {selectedPosition.lng}
-                    </p>
-                    <p className={styles.lant}>
-                      <span>Address : </span>
-                      {selectedAddress}
-                    </p>
-                  </div>
-                </div>
-                <div className="row m-0 p-3 justify-content-center">
-                  <div className="col-7">
-                    <DialogActionTrigger asChild>
-                      <button
-                        className="submitbtn"
-                        onClick={setLocation(selectedPosition)}
-                      >
-                        Confirm
-                      </button>
-                    </DialogActionTrigger>
-                    <DialogActionTrigger>
-                      <button className="cancelbtn">Cancel</button>
-                    </DialogActionTrigger>
-                  </div>
-                </div>
+        <div className="col-9">
+          {confirmVisible && (
+            <div className="p-3 mt-3 border rounded col-100">
+              <h4>Confirm Location</h4>
+              <p className={styles.lant}>
+                <span>Latitude:</span> {selectedPosition.lat}
+              </p>
+              <p className={styles.lant}>
+                <span>Longitude:</span> {selectedPosition.lng}
+              </p>
+              <p className={styles.lant}>
+                <span>Address:</span> {selectedAddress}
+              </p>
 
-                <DialogCloseTrigger className="inputcolumn-mdl-close" />
-              </DialogBody>
-            </DialogContent>
-          </DialogRoot>
+              <div className="d-flex gap-2 mt-3">
+                <button
+                  className="submitbtn"
+                  onClick={() => {
+                    setLocation(selectedPosition);
+                    setConfirmVisible(false);
+                    if (onClose) onClose(); // ✅ close MapViewModal
+                  }}
+                >
+                  Confirm
+                </button>
+                <button className="cancelbtn" onClick={handleCancel}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

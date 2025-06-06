@@ -21,7 +21,8 @@ function NewWarehouseModal({ managers, products }) {
   const [type, setType] = useState();
 
   const [managerId, setManagerId] = useState();
-  const [showMap, setShowMap] = useState(true);
+  const [showMap, setShowMap] = useState(false);
+
   const [openingStock, setOpeningStock] = useState([]);
 
   const { axiosAPI } = useAuth();
@@ -35,10 +36,7 @@ function NewWarehouseModal({ managers, products }) {
     setIsModalOpen(false);
   };
 
-  const [defaultLocation, setDefaultLocation] = useState({
-    lat: 40.7128,
-    lng: -74.006,
-  });
+  const [defaultLocation, setDefaultLocation] = useState({lat: 17.4065 , lng: 78.4772});
   const [location, setLocation] = useState(defaultLocation);
 
   const setNulls = () => {
@@ -53,10 +51,15 @@ function NewWarehouseModal({ managers, products }) {
     setPincode(null);
     setType(null);
   };
+  const closeSuccessModal = () => {
+    setSuccessful(null);
+  };
+
 
   const validateFields = () => {
     const newErrors = {};
     if (!name) newErrors.name = true;
+    if (!type) newErrors.type = true;
     if (!plot) newErrors.plot = true;
     if (!street) newErrors.street = true;
     if (!area) newErrors.area = true;
@@ -80,6 +83,29 @@ function NewWarehouseModal({ managers, products }) {
 
   // form subbmission
 
+    // console.log(name, location);
+    // console.log(
+    //   name,
+    //   plot,
+    // type,
+    //   street,
+    //   area,
+    //   city,
+    //   district,
+    //   state,
+    //   country,
+    //   pincode,
+    //   managerId
+    // );
+    // console.log(location);
+
+  const handleStockChange = (index, field, value) => {
+    const updated = [...openingStock];
+    updated[index][field] = value;
+    setOpeningStock(updated);
+  };
+
+
   const addStockRow = () => {
     setOpeningStock([
       ...openingStock,
@@ -98,7 +124,9 @@ function NewWarehouseModal({ managers, products }) {
     setOpeningStock(updated);
   };
 
-  const onSubmitClick = () => {
+  const onSubmitClick = (e) => {
+    e?.preventDefault();
+
     if (!validateFields()) {
       setError("Please fill all fields");
       setIsModalOpen(true);
@@ -108,10 +136,10 @@ function NewWarehouseModal({ managers, products }) {
     async function create() {
       try {
         setLoading(true);
-        const res = await axiosAPI.post("/warehouse/add", {
-          name: name,
-          type,
 
+        const payload = {
+          name,
+          type,
           plot,
           street,
           area,
@@ -129,13 +157,14 @@ function NewWarehouseModal({ managers, products }) {
         });
 
         // console.log(res);
+          openingStock: openingStock.filter((s) => s.productId && s.stockQuantity),
+        };
+
+        const res = await axiosAPI.post("/warehouse/add", payload);
 
         setSuccessful(res.data.message);
-        setTimeout(() => {
-          setSuccessful(null);
-          setNulls();
-        }, 1000);
       } catch (e) {
+        console.log("Caught error:", e); // <-- Force print the error
         setError(e.response?.data?.message || "Error creating warehouse");
         setIsModalOpen(true);
       } finally {
@@ -200,7 +229,7 @@ function NewWarehouseModal({ managers, products }) {
           >
             <option value="null">--select--</option>
             <option value="local">Local</option>
-            <option value="">Central</option>
+            <option value="central">Central</option>
           </select>
         </div>
         <div className={`col-4   ${styles.longformmdl}`}>
@@ -433,11 +462,11 @@ function NewWarehouseModal({ managers, products }) {
         </div>
       )}
       {loading && <Loading />}
-      {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
-      )}
+      {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
+      {successful && <SuccessModal isOpen={true} message={successful} onClose={closeSuccessModal} />}
+
+
     </>
   );
 }
-
 export default NewWarehouseModal;

@@ -9,7 +9,7 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
-
+  const navigate = useNavigate();
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,14 +42,9 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
 
   let count = 1;
   return (
-    <>
-      <p className="path">
-        <span onClick={() => navigate("/warehouses")}>Warehouse</span>{" "}
-        <i class="bi bi-chevron-right"></i> Ongoing
-      </p>
-
-      <div className="row m-0 p-3 pt-5 justify-content-center">
-        <div className="col-lg-10">
+    <>     
+        <div className="row m-0 p-3 pt-5 justify-content-center">
+          <div className="col-lg-10">
           {warehouses && (
             <table className="table table-bordered borderedtable">
               <thead>
@@ -83,13 +78,14 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
                         />
                       </td> */}
                       {isAdmin && (
-                        <td>
-                          <ActionViewModal
-                            warehouse={warehouse}
-                            managers={managers}
-                            changeTrigger={changeTrigger}
-                          />
-                        </td>
+                      <td>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => navigate(`/warehouses/${warehouse.id}`)}
+                        >
+                          View
+                        </button>
+                      </td>
                       )}
                     </tr>
                   ))}
