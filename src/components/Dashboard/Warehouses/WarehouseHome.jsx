@@ -2,10 +2,11 @@
 import React from "react";
 import NewWarehouseViewModal from "./NewWarehouseViewModal";
 import DeleteWarehouseViewModal from "./DeleteWarehouseViewModal";
+import OngoingWarehousesPage from './OngoingWarehouse'; // Adjust path if needed
 
 function WarehouseHome({ navigate, managers, products, isAdmin }) {
 
-import OngoingWarehousesPage from './OngoingWarehouse'; // Adjust path if needed
+
 
   return (
     <>
