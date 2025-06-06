@@ -1,0 +1,55 @@
+.activityContainer {
+  padding: 12px;
+}
+
+.dateGroup {
+  margin-bottom: 20px;
+}
+
+.dateHeader {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #444;
+}
+
+.activityList {
+  list-style: none;
+  padding: 0;
+}
+
+.activityItem {
+  border: 1px solid #ddd;
+  border-left: 4px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #fafafa;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.time {
+  font-size: 13px;
+  color: #666;
+}
+
+.body {
+  margin-top: 6px;
+}
+
+.body div {
+  font-size: 13px;
+  margin-top: 4px;
+}

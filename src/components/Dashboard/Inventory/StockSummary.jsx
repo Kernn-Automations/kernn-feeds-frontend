@@ -1,283 +1,164 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
-
-import xls from "./../../../images/xls-png.png";
-import pdf from "./../../../images/pdf-png.png";
-import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
+import { FaChevronDown, FaChevronRight } from "react-icons/fa";
 
-function StockSummary({ navigate }) {
-  const [onsubmit, setonsubmit] = useState(false);
-  const [warehouses, setWarehouses] = useState();
-  const [products, setProducts] = useState();
-  const [customers, setCustomers] = useState();
-
+function StockSummary() {
   const { axiosAPI } = useAuth();
-
-  const [error, setError] = useState();
+  const [warehouses, setWarehouses] = useState([]);
+  const [from, setFrom] = useState(new Date().toISOString().slice(0, 10));
+  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [warehouseId, setWarehouseId] = useState();
+  const [stockData, setStockData] = useState({});
+  const [expandedYears, setExpandedYears] = useState({});
+  const [expandedMonths, setExpandedMonths] = useState({});
+  const [expandedDates, setExpandedDates] = useState({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const closeModal = () => setIsModalOpen(false);
 
   useEffect(() => {
-    async function fetch() {
-      try {
-        const res1 = await axiosAPI.get("/warehouse");
-        const res2 = await axiosAPI.get("/customers");
-        const res3 = await axiosAPI.get("/products/list");
-        // console.log(res1);
-        // console.log(res2);
-        // console.log(res3);
-        setWarehouses(res1.data.warehouses);
-        setCustomers(res2.data.customers);
-        setProducts(res3.data.products);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+    axiosAPI.get("/warehouse")
+      .then(res => setWarehouses(res.data.warehouses || []))
+      .catch(() => {
+        setError("Failed to load warehouse list");
         setIsModalOpen(true);
-      }
-    }
-    fetch();
+      });
   }, []);
 
-  // Backend
-
-  const [stock, setStock] = useState();
-
-  // const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-  //   .toISOString()
-  //   .slice(0, 10);
-
-  const today = new Date(Date.now()).toISOString().slice(0, 10);
-
-  const [from, setFrom] = useState(today);
-  // const [to, setTo] = useState(today);
-  const [warehouse, setWarehouse] = useState();
-  const [customer, setCustomer] = useState();
-  const [product, setProduct] = useState();
-  const [trigger, setTrigger] = useState(false);
-
-  const onSubmit = () => {
-    setTrigger(trigger ? false : true);
-  };
-
-  useEffect(() => {
-    async function fetch() {
-      try {
-        setStock(null);
-        setLoading(true);
-        // console.log(
-        //   `/warehouse/stock-summary?${from ? `date=${from}` : ""}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }${product ? `&productId=${product}` : ""}`
-        // );
-        const res = await axiosAPI.get(
-          `/warehouse/stock-summary?${from ? `date=${from}` : ""}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${product ? `&productId=${product}` : ""}`
-        );
-        // console.log(res);
-        setStock(res.data.data);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, [trigger]);
-
-  // Function to export as Excel
-  const exportToExcel = () => {
-    const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-    const excelFile = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    saveAs(excelFile, "incoming_stock_table_data.xlsx");
-  };
-
-  const [tableData, setTableData] = useState();
-
-  const onExport = (type) => {
-    const arr = [];
-    let x = 1;
-    const columns = [
-      "S.No",
-      "Date",
-      "Warehouse ID",
-      "Warehouse Name",
-      "Product ID",
-      "Product Name",
-      "Quantity",
-    ];
-    if (stock && stock.length > 0) {
-      stock.map((st) =>
-        arr.push({
-          "S.No": x++,
-          Date: st.date.slice(0, 10),
-          "Warehouse ID": st.warehouseId,
-          "Warehouse Name": st.warehouseName,
-          "Product ID": st.productId,
-          "Product Name": st.productName,
-          Quantity: st.quantity,
-        })
-      );
-      setTableData(arr);
-
-      if (type === "PDF") handleExportPDF(columns, tableData, "Stock-Summary");
-      else if (type === "XLS")
-        handleExportExcel(columns, tableData, "Stock-Summary");
-    } else {
-      setError("Table is Empty");
+  const fetchStock = async () => {
+    if (!from || !to) {
+      setError("Please select both From and To dates.");
       setIsModalOpen(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const query = `/warehouse/stock-summary?fromDate=${from}&toDate=${to}${warehouseId ? `&warehouseId=${warehouseId}` : ""}`;
+      const res = await axiosAPI.get(query);
+      setStockData(res.data.data || {});
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch stock data.");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  let index = 1;
+  const toggle = (state, setState, key) => {
+    setState(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const renderTable = (products) => (
+    <table className="table table-bordered table-sm mt-2">
+      <thead className="table-light">
+        <tr>
+          <th>Product</th>
+          <th>Opening</th>
+          <th>Inward</th>
+          <th>Outward</th>
+          <th>Closing</th>
+          <th>Type</th>
+          <th>Package Info</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(products).map(([productId, data]) => (
+          <tr key={productId}>
+            <td>{data.productName}</td>
+            <td>{data.opening.toFixed(2)}</td>
+            <td>{data.inward.toFixed(2)}</td>
+            <td>{data.outward.toFixed(2)}</td>
+            <td>{data.closing.toFixed(2)}</td>
+            <td>{data.productType}</td>
+            <td>
+              {data.productType === "packed"
+                ? `${data.packageWeight} ${data.packageWeightUnit}`
+                : "-"}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
-    <>
-      <p className="path">
-        <span onClick={() => navigate("/inventory")}>Inventory</span>{" "}
-        <i class="bi bi-chevron-right"></i>Stock Summary
-      </p>
+    <div className="container py-3">
+      <h4 className="fw-bold text-primary mb-4"> Stock Summary</h4>
 
-      <div className="row m-0 p-3">
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Date :</label>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
+      {/* Filters */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-3">
+          <label className="form-label">From</label>
+          <input className="form-control" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">WareHouse :</label>
-          <select
-            name=""
-            id=""
-            onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
+        <div className="col-md-3">
+          <label className="form-label">To</label>
+          <input className="form-control" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+        <div className="col-md-3">
+          <label className="form-label">Warehouse</label>
+          <select className="form-select" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+            <option value="">-- All Warehouses --</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
           </select>
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Product :</label>
-          <select
-            name=""
-            id=""
-            onChange={(e) =>
-              setProduct(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {products &&
-              products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-          </select>
-        </div>
-      </div>
-      <div className="row m-0 p-3 pb-5 justify-content-center">
-        <div className="col-4">
-          <button className="submitbtn" onClick={onSubmit}>
-            Submit
-          </button>
-          <button className="cancelbtn" onClick={() => navigate("/inventory")}>
-            Cancel
-          </button>
+        <div className="col-md-3 d-flex align-items-end">
+          <button className="btn btn-success w-100" onClick={fetchStock}>Submit</button>
         </div>
       </div>
 
-      <div className="row m-0 p-3 justify-content-center"></div>
-
-      {stock && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-8">
-            <div className="col-lg-8">
-              <button className={styles.xls} onClick={() => onExport("XLS")}>
-                <p>Export to </p>
-                <img src={xls} alt="" />
-              </button>
-              <button className={styles.xls} onClick={() => onExport("PDF")}>
-                <p>Export to </p>
-                <img src={pdf} alt="" />
-              </button>
-            </div>
-            <table className={`table table-bordered borderedtable`}>
-              <thead>
-                <tr
-                  className="animated-row"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <th>S.No</th>
-                  <th>Date</th>
-                  <th>Warehouse ID</th>
-                  <th>Warehouse Name</th>
-                  <th>Product ID</th>
-                  <th>Product Name</th>
-                  <th>Stock Type</th>
-                  <th>Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stock.length === 0 && (
-                  <tr>
-                    <td colSpan={8}>NO DATA FOUND</td>
-                  </tr>
-                )}
-                {stock.length > 0 &&
-                  stock.map((st) => (
-                    <tr
-                      key={st.id}
-                      className="animated-row"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <td>{index++}</td>
-                      <td>{st.date.slice(0, 10)}</td>
-                      <td>{st.warehouseId}</td>
-                      <td>{st.warehouseName}</td>
-                      <td>{st.productId}</td>
-                      <td>{st.productName}</td>
-                      <td className={styles.upper}>{st.changeType}</td>
-                      <td>{st.quantity}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+      {/* Stock Display */}
+      {Object.keys(stockData?.hierarchy || {}).length > 0 ? (
+        Object.entries(stockData.hierarchy).map(([year, yearObj]) => (
+          <div key={year} className="mb-3 border rounded p-2 bg-light">
+            <h5 className="cursor-pointer mb-2" onClick={() => toggle(expandedYears, setExpandedYears, year)}>
+              {expandedYears[year] ? <FaChevronDown /> : <FaChevronRight />} Year: {year}
+            </h5>
+            {expandedYears[year] && (
+              <>
+                <div className="ms-3">
+                  <p className="fw-semibold text-primary"> Year Total</p>
+                  {renderTable(stockData.yearlyTotals[year])}
+                </div>
+                {Object.entries(yearObj).map(([month, monthObj]) => (
+                  <div key={month} className="ms-4 mt-3">
+                    <h6 className="cursor-pointer" onClick={() => toggle(expandedMonths, setExpandedMonths, `${year}-${month}`)}>
+                      {expandedMonths[`${year}-${month}`] ? <FaChevronDown /> : <FaChevronRight />} Month: {month}
+                    </h6>
+                    {expandedMonths[`${year}-${month}`] && (
+                      <>
+                        <div className="ms-3">
+                          <p className="fw-semibold text-success">Month Total</p>
+                          {renderTable(stockData.monthlyTotals[year]?.[month])}
+                        </div>
+                        {Object.entries(monthObj).map(([day, productMap]) => (
+                          <div key={day} className="ms-4 mt-2">
+                            <p className="fw-semibold text-secondary">{`${year}-${month}-${day}`}</p>
+                            {renderTable(productMap)}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </div>
-        </div>
+        ))
+      ) : (
+        <p className="text-muted">No stock data found for selected filters.</p>
       )}
+
       {loading && <Loading />}
-      {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
-      )}
-    </>
+      {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
+    </div>
   );
 }
 

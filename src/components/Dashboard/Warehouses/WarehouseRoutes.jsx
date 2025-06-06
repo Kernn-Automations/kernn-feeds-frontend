@@ -3,6 +3,9 @@ import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
+import StockTransferPage from "./StockTransferPage";
+import WarehouseDetailsPage from "./WarehouseDetailsPage";
+import OrderTransferPage from "./OrderTransferPage";
 
 // Lazy-loaded components
 const WarehouseHome = lazy(() => import("./WarehouseHome"));
@@ -60,6 +63,23 @@ function WarehouseRoutes() {
             </Suspense>
           }
         />
+        <Route
+          path="/stock-transfer"
+          element={
+            <Suspense fallback={<PageSkeleton />}>
+              <StockTransferPage navigate={navigate} managers={managers} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/order-transfer"
+          element={
+            <Suspense fallback={<PageSkeleton />}>
+              <OrderTransferPage navigate={navigate} managers={managers} />
+            </Suspense>
+          }
+        />
+        <Route path="/:id" element={<WarehouseDetailsPage />} />
       </Routes>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

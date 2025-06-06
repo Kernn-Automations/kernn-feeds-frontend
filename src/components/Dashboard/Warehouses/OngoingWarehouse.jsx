@@ -5,11 +5,12 @@ import SelectMode from "./SelectMode";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-function OngoingWarehouse({ navigate, managers }) {
+import { Route, Routes, useNavigate } from "react-router-dom";
+function OngoingWarehouse({ managers }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
-
+  const navigate = useNavigate();
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,12 +43,7 @@ function OngoingWarehouse({ navigate, managers }) {
 
   let count = 1;
   return (
-    <>
-      <p className="path">
-        <span onClick={() => navigate("/warehouses")}>Warehouse</span>{" "}
-        <i class="bi bi-chevron-right"></i> Ongoing
-      </p>
-      
+    <>     
         <div className="row m-0 p-3 pt-5 justify-content-center">
           <div className="col-lg-10">
           {warehouses && (
@@ -78,7 +74,12 @@ function OngoingWarehouse({ navigate, managers }) {
                         />
                       </td> */}
                       <td>
-                        <ActionViewModal warehouse={warehouse} managers={managers} changeTrigger={changeTrigger} />
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => navigate(`/warehouses/${warehouse.id}`)}
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))}

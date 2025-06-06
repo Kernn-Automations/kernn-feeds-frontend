@@ -21,9 +21,7 @@ function NewWarehouseModal({ managers, products }) {
   const [type, setType] = useState();
 
   const [managerId, setManagerId] = useState();
-  const [location, setLocation] = useState(null);
-  const [defaultLocation, setDefaultLocation] = useState({ lat: null, lng: null });
-  const [showMap, setShowMap] = useState(true);
+  const [showMap, setShowMap] = useState(false);
   const [openingStock, setOpeningStock] = useState([]);
 
   const { axiosAPI } = useAuth();
@@ -37,10 +35,7 @@ function NewWarehouseModal({ managers, products }) {
     setIsModalOpen(false);
   };
 
-  const [defaultLocation, setDefaultLocation] = useState({
-    lat: 40.7128,
-    lng: -74.006,
-  });
+  const [defaultLocation, setDefaultLocation] = useState({lat: 17.4065 , lng: 78.4772});
   const [location, setLocation] = useState(defaultLocation);
 
   const setNulls = () => {
@@ -56,10 +51,15 @@ function NewWarehouseModal({ managers, products }) {
     setType(null);
   };
 
+  const closeSuccessModal = () => {
+    setSuccessful(null);
+  };
+
 
   const validateFields = () => {
     const newErrors = {};
     if (!name) newErrors.name = true;
+    if (!type) newErrors.type = true;
     if (!plot) newErrors.plot = true;
     if (!street) newErrors.street = true;
     if (!area) newErrors.area = true;
@@ -82,7 +82,6 @@ function NewWarehouseModal({ managers, products }) {
   };
 
   // form subbmission
-  const onSubmitClick = () => {
     // console.log(name, location);
     // console.log(
     //   name,
@@ -115,7 +114,9 @@ function NewWarehouseModal({ managers, products }) {
     setOpeningStock(updated);
   };
 
-  const onSubmitClick = () => {
+  const onSubmitClick = (e) => {
+    e?.preventDefault();
+
     if (!validateFields()) {
       setError("Please fill all fields");
       setIsModalOpen(true);
@@ -125,10 +126,10 @@ function NewWarehouseModal({ managers, products }) {
     async function create() {
       try {
         setLoading(true);
-        const res = await axiosAPI.post("/warehouse/add", {
-          name: name,
-          type,
 
+        const payload = {
+          name,
+          type,
           plot,
           street,
           area,
@@ -141,17 +142,13 @@ function NewWarehouseModal({ managers, products }) {
           longitude: location.lng,
           managerId,
           openingStock: openingStock.filter((s) => s.productId && s.stockQuantity),
-        });
+        };
 
-
-        // console.log(res);
+        const res = await axiosAPI.post("/warehouse/add", payload);
 
         setSuccessful(res.data.message);
-        setTimeout(() => {
-          setSuccessful(null);
-          setNulls();
-        }, 1000);
       } catch (e) {
+        console.log("Caught error:", e); // <-- Force print the error
         setError(e.response?.data?.message || "Error creating warehouse");
         setIsModalOpen(true);
       } finally {
@@ -214,7 +211,7 @@ function NewWarehouseModal({ managers, products }) {
           >
             <option value="null">--select--</option>
             <option value="local">Local</option>
-            <option value="">Central</option>
+            <option value="central">Central</option>
           </select>
         </div>
       </div>{" "}
@@ -282,7 +279,9 @@ function NewWarehouseModal({ managers, products }) {
             <span>{location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span>
             <FaPen className="ms-2 cursor-pointer" onClick={() => setShowMap(true)} />
           </>
-        ) : null}
+        ) : (
+          <button onClick={() => setShowMap(true)}>Set Location</button>
+        )}
         </div>
       </div>
 
@@ -360,10 +359,10 @@ function NewWarehouseModal({ managers, products }) {
 
       {loading && <Loading />}
       {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
-      {issuccessModalOpen && <SuccessModal isOpen={issuccessModalOpen} message={error} onClose={closesuccessModal} />}
+      {successful && <SuccessModal isOpen={true} message={successful} onClose={closeSuccessModal} />}
+
 
     </>
   );
 }
-
 export default NewWarehouseModal;
