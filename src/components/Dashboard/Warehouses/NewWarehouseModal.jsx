@@ -21,8 +21,6 @@ function NewWarehouseModal({ managers, products }) {
   const [type, setType] = useState();
 
   const [managerId, setManagerId] = useState();
-  const [location, setLocation] = useState(null);
-  const [defaultLocation, setDefaultLocation] = useState({ lat: null, lng: null });
   const [showMap, setShowMap] = useState(true);
   const [openingStock, setOpeningStock] = useState([]);
 
@@ -82,28 +80,7 @@ function NewWarehouseModal({ managers, products }) {
   };
 
   // form subbmission
-  const onSubmitClick = () => {
-    // console.log(name, location);
-    // console.log(
-    //   name,
-    //   plot,
-    // type,
-    //   street,
-    //   area,
-    //   city,
-    //   district,
-    //   state,
-    //   country,
-    //   pincode,
-    //   managerId
-    // );
-    // console.log(location);
-
-  const handleStockChange = (index, field, value) => {
-    const updated = [...openingStock];
-    updated[index][field] = value;
-    setOpeningStock(updated);
-  };
+  
 
   const addStockRow = () => {
     setOpeningStock([...openingStock, { productId: "", stockQuantity: "", primaryUnit: "", productType: "loose" }]);
