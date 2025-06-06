@@ -54,12 +54,12 @@
 }
 
 .locate {
-  width: 210px !important;
-  height: 25px !important;
+  width: 120px;
+  height: 25px;
   border: none;
   padding: 3px !important;
   border-radius: 3px;
-  box-shadow: 1px 1px 4px black;
+  box-shadow: 1px 1px 4px gray;
   font-size: 14px;
   color: white;
   background-color: #fd3b3b;
@@ -100,4 +100,87 @@
 
 .errorField{
   outline: 1px solid #ff2727;
+}
+
+/* xl modal */
+
+.longformmdl{
+  max-width: 300px !important;
+  min-width: 280px !important;
+  margin-bottom: 8px;
+}
+.longformmdl label, .textform label{
+  width: 140px;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14.82px;
+  letter-spacing: 0%;
+  text-align: right;
+  padding-right: 15px;
+  color: var(--primary-color);
+}
+.longformmdl input,
+.longformmdl select {
+  width: 120px;
+  height: 25px;
+  padding-left: 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 12px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+}
+.longformmdl span {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14.26px;
+  letter-spacing: 1.5%;
+}
+
+.textform textarea{
+  width: 350px;
+  height: 80px;
+  padding-left: 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 12px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+}
+
+.headmdl {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 29.26px;
+  letter-spacing: 1.5%;
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: Auto;
+  color: #555;
+}
+.mdltable thead th{
+  font-size: 12px !important;
+  padding: 3px;
+  letter-spacing: 1.5%;
+  color: white;
+  background-color: var(--primary-color);
+  text-align: center;
+}
+.mdltable tbody td{
+  font-size: 12px !important;
+  padding: 3px;
+}
+.mdltable button{
+ 
+  width: fit-content;
+  height: 20px;
+  font-size: 11px;
+  padding: 0px 10px;
+  border: none;
+  color: white;
+  margin: 0;
+  border-radius: 3px;
+  background-color: #fd3b3b;
 }
