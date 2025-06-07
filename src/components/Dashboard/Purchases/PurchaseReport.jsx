@@ -189,7 +189,7 @@ function PurchaseReport({ navigate }) {
                   <th>Date</th>
                   <th>Purchase ID</th>
                   <th>Warehouse</th>
-                  <th>Net Amount</th>
+                  {/* <th>Net Amount</th> */}
                   <th>Action</th>
                 </tr>
               </thead>
@@ -210,7 +210,7 @@ function PurchaseReport({ navigate }) {
                       <td>{order.date}</td>
                       <td>{order.ordernumer}</td>
                       <td>{order.warehouse.name}</td>
-                      <td>{order.totalAmount}</td>
+                      {/* <td>{order.totalAmount !== undefined && order.totalAmount !== null ? order.totalAmount : "—"}</td> */}
                       <td>
                         <ReportViewModal
                           order={order}
