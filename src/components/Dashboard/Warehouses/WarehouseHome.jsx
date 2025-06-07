@@ -38,7 +38,7 @@ function WarehouseHome({ navigate, managers, products, isAdmin }) {
 
       {/* Direct Embed of Ongoing Warehouses */}
       <div className="p-3">
-        <OngoingWarehousesPage />
+        <OngoingWarehousesPage navigate={navigate} />
       </div>
     </>
   );

@@ -38,33 +38,38 @@ const handleDownload = async () => {
     setLoading(true);
 
     const response = await axiosAPI.get(`/sales-orders/${orderId}/pdf`, {
-      responseType: 'blob', // ✅ This tells Axios to treat the response as binary
+      responseType: "blob", // required for binary
     });
+    console.log(response);
+    const blob = new Blob([response.data], { type: "application/pdf" });
 
-    const blob = new Blob([response.data], { type: 'application/pdf' });
-
-    // Optional: check for empty blob
     if (blob.size === 0) {
-      setError("Empty PDF received.");
+      setError("Received empty PDF.");
       setIsModalOpen(true);
       return;
     }
 
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `SalesOrder_${orderId}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    // ✅ Convert blob to Base64 and trigger download
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      const base64data = reader.result; // contains data:application/pdf;base64,...
+      const link = document.createElement("a");
+      link.href = base64data;
+      link.setAttribute("download", `SalesOrder_${orderId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+    reader.readAsDataURL(blob); // starts reading blob as base64
+
   } catch (err) {
-    setError("Failed to download document.");
+    setError("Failed to download PDF.");
     setIsModalOpen(true);
   } finally {
     setLoading(false);
   }
 };
+
 
 
 
@@ -105,7 +110,6 @@ const handleDownload = async () => {
         <div className={styles.trackingContainer}>
           <h2 className={styles.trackingTitle}>Sales Order Details</h2>
           <div className={styles.trackingHeader}>
-          <h2 className={styles.trackingTitle}>Sales Order Details</h2>
           <button className={styles.downloadBtn} onClick={handleDownload}>
             <i className="bi bi-download"></i> Download PDF
           </button>

@@ -34,6 +34,8 @@ const EmployeeRoutes = lazy(() => import("./Employees/EmployeeRoutes"));
 const WarehouseRoutes = lazy(() => import("./Warehouses/WarehouseRoutes"));
 const ProductRoutes = lazy(() => import("./Products/ProductRoutes"));
 const LocationsHome = lazy(() => import("./Locations/LocationsHome"));
+const InvoiceRoutes = lazy(() => import("./Invoice/InvoiceRoutes"));
+
 // const AnnouncementHome = lazy(() => import("./Annoucement/AnnouncementHome"));
 
 function Dashboard({
@@ -190,6 +192,14 @@ function Dashboard({
                       element={
                         <Suspense fallback={<RouteSkeleton />}>
                           <SalesRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/invoices/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <InvoiceRoutes />
                         </Suspense>
                       }
                     />

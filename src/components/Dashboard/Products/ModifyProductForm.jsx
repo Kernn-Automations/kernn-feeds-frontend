@@ -220,7 +220,6 @@ function ModifyProductForm({ onViewClick, productId }) {
         {renderInput("Base Price", "basePrice")}
         {renderInput("Purchase Price", "purchasePrice")}
         {renderInput("Threshold", "thresholdValue")}
-        {renderInput("Pricing List", "pricingListId", "select", pricingList)}
         <div className={`col-6 ${styles.taxform}`}>
           <textarea
             value={fields.description}

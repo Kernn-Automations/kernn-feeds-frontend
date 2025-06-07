@@ -67,12 +67,18 @@ function NewPurchase({ navigate }) {
   const calculateTaxBreakdown = (price, taxes) => {
     let breakdown = {};
     let totalTax = 0;
-    taxes?.forEach((tax) => {
-      const percent = parseFloat(tax.percentage);
+
+    if (!Array.isArray(taxes) || taxes.length === 0) {
+      return { breakdown, totalTax };
+    }
+
+    taxes.forEach((tax) => {
+      const percent = parseFloat(tax.percentage || 0);
       const taxAmt = (price * percent) / 100;
       breakdown[tax.name] = (breakdown[tax.name] || 0) + taxAmt;
       totalTax += taxAmt;
     });
+
     return { breakdown, totalTax };
   };
 
@@ -247,7 +253,11 @@ function NewPurchase({ navigate }) {
                       <td>{i + 1}</td>
                       <td>{p.SKU}</td>
                       <td>{p.name}</td>
-                      <td>{p.unit}</td>
+                     <td>
+                      {p.productType === "packed"
+                        ? `packets (${p.packageWeight} ${p.packageWeightUnit})`
+                        : p.unit}
+                    </td>
                       <td>{p.quantity}</td>
                       <td>₹{parseFloat(p.purchasePrice).toFixed(2)}</td>
                       <td>

@@ -26,12 +26,6 @@ function ProductHome({ navigate, isAdmin }) {
           </button>
           <button
             className="homebtn"
-            onClick={() => navigate("/products/pricing-list")}
-          >
-            Pricing List
-          </button>
-          <button
-            className="homebtn"
             onClick={() => navigate("/products/taxes")}
           >
             Taxes
