@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/Auth";
-import WarehouseHeaderCard from "./components/WarehouseHeaderCard";
-import WarehouseTabSection from "./components/WarehouseTabSection";
+import WarehouseHeaderCard from "./Components/WarehouseHeaderCard";
+import WarehouseTabSection from "./Components/WarehouseTabSection";
 
 function WarehouseDetailsPage() {
   const { id } = useParams(); // Get warehouseId from URL
