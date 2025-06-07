@@ -8,6 +8,8 @@ import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import axios from "axios";
+import Loading from "@/components/Loading";
 
 function InvoicesPage({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -24,6 +26,9 @@ function InvoicesPage({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [pageNo, setPageNo] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+
 
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -194,30 +199,41 @@ function InvoicesPage({ navigate }) {
                         className="btn btn-sm btn-outline-primary"
                         onClick={async () => {
                             try {
-                            const res = await axiosAPI.get(
-                            `/invoice/${inv.salesOrder?.id}/pdf?type=${inv.type}`,
-                            {
-                                responseType: "blob",
-                                headers: {
-                                Accept: "application/pdf",
-                                },
-                            }
-                            );
-                            const blob = new Blob([res.data], { type: "application/pdf" });
-                            const url = window.URL.createObjectURL(blob);
-                            const link = document.createElement("a");
-                            link.href = url;
-                            link.setAttribute("download", `${inv.invoiceNumber}.pdf`);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
+                                setDownloadingInvoiceId(inv.id)
+                                const token = localStorage.getItem("access_token");
+                                const VITE_API = import.meta.env.VITE_API_URL;
+
+                                const res = await axios.get(
+                                `${VITE_API}/invoice/${inv.salesOrder?.id}/pdf?type=${inv.type}`,
+                                {
+                                    responseType: "blob",
+                                    headers: {
+                                    Authorization: `Bearer ${token}`,
+                                    },
+                                }
+                                );
+
+                                const url = window.URL.createObjectURL(new Blob([res.data]));
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.setAttribute("download", `${inv.invoiceNumber}.pdf`);
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                window.URL.revokeObjectURL(url); // cleanup
                             } catch {
-                            setError("Failed to open PDF");
-                            setIsModalOpen(true);
+                                setError("Failed to open PDF");
+                                setIsModalOpen(true);
+                            } finally{
+                                setDownloadingInvoiceId(null);
                             }
-                        }}
+                            }}
                         >
-                        View
+                        {downloadingInvoiceId === inv.id ? (
+                        <Loading size="sm" thickness="1px" color="#003176" />
+                        ) : (
+                        "View"
+                        )}
                         </button>
                       </td>
                     </tr>

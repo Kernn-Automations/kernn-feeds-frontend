@@ -6,6 +6,7 @@ import styles from "./Sales.module.css"; // Import CSS module
 import DropOffs from "./DropOffs";
 import ProductsList from "./ProductsList";
 import PaymentInfo from "./PaymentInfo";
+import axios from "axios";
 
 const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [order, setOrder] = useState();
@@ -15,6 +16,13 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const closeModal = () => setIsModalOpen(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+const [enteredOtp, setEnteredOtp] = useState("");
+
+
+
 
   useEffect(() => {
     async function fetch() {
@@ -34,43 +42,94 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   }, []);
 
 const handleDownload = async () => {
+  if (!orderId) return;
+
   try {
-    setLoading(true);
+    setDownloadLoading(true);
 
-    const response = await axiosAPI.get(`/sales-orders/${orderId}/pdf`, {
-      responseType: "blob", // required for binary
+    const token = localStorage.getItem("access_token");
+    const VITE_API = import.meta.env.VITE_API_URL;
+
+    const response = await axios.get(`${VITE_API}/sales-orders/${orderId}/pdf`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      responseType: "blob",
     });
-    console.log(response);
-    const blob = new Blob([response.data], { type: "application/pdf" });
 
-    if (blob.size === 0) {
-      setError("Received empty PDF.");
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `SalesOrder_${orderId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url); // cleanup
+  } catch (err) {
+    console.error(err);
+    setError("Failed to download PDF.");
+    setIsModalOpen(true);
+  } finally {
+    setDownloadLoading(false);
+  }
+};
+
+const handleDispatch = async () => {
+  try {
+    setActionLoading(true);
+
+    // ✅ Step 1: Check eligibility
+    const eligibility = await axiosAPI.get(`/sales-orders/${orderId}/dispatch/eligibility`);
+    if (!eligibility.data.eligible) {
+      setError(eligibility.data.reason || "Not eligible for dispatch");
       setIsModalOpen(true);
       return;
     }
 
-    // ✅ Convert blob to Base64 and trigger download
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      const base64data = reader.result; // contains data:application/pdf;base64,...
-      const link = document.createElement("a");
-      link.href = base64data;
-      link.setAttribute("download", `SalesOrder_${orderId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    };
-    reader.readAsDataURL(blob); // starts reading blob as base64
+    // ✅ Step 2: Collect truck & driver info (simplified prompt for now)
+    const truckNumber = prompt("Enter Truck Number:");
+    const driverName = prompt("Enter Driver Name:");
+    const driverMobile = prompt("Enter Driver Mobile:");
 
+    if (!truckNumber || !driverName || !driverMobile) {
+      setError("All driver/truck details are required.");
+      setIsModalOpen(true);
+      return;
+    }
+
+    // ✅ Step 3: Call dispatch API
+    const res = await axiosAPI.put(`/sales-orders/${orderId}/dispatch`, {
+      truckNumber,
+      driverName,
+      driverMobile,
+    });
+
+    // ✅ Step 4: Refresh page state
+    setOrder({ ...order, orderStatus: res.data.orderStatus });
   } catch (err) {
-    setError("Failed to download PDF.");
+    setError(err.response?.data?.message || "Dispatch failed");
     setIsModalOpen(true);
   } finally {
-    setLoading(false);
+    setActionLoading(false);
   }
 };
 
+const handleSendOtp = async () => {
+  try {
+    setActionLoading(true);
 
+    const res = await axiosAPI.post(`/sales-orders/${orderId}/deliver/otp`, {
+      salesOrderId: orderId,
+    });
+
+    setShowOtpModal(true);
+  } catch (err) {
+    setError(err.response?.data?.message || "Failed to send OTP");
+    setIsModalOpen(true);
+  } finally {
+    setActionLoading(false);
+  }
+};
 
 
   const findTracking = (status) => {
@@ -114,8 +173,67 @@ const handleDownload = async () => {
             <i className="bi bi-download"></i> Download PDF
           </button>
         </div>
-
+          {downloadLoading && <Loading/>}
           <div className={styles.infoCard}>
+              {order?.orderStatus === "Confirmed" && (
+              <button className={styles.downloadBtn} onClick={handleDispatch}>
+                {actionLoading ? "Checking & Dispatching..." : "Dispatch Order"}
+              </button>
+            )}
+
+            {order?.orderStatus === "Dispatched" && (
+              <button className={styles.downloadBtn} onClick={handleSendOtp}>
+                {actionLoading ? "Sending OTP..." : "Send Delivery OTP"}
+              </button>
+            )}
+            {showOtpModal && (
+            <div className="modal d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content p-3">
+                  <h5>Enter Delivery OTP</h5>
+                  <input
+                    type="text"
+                    className="form-control my-2"
+                    placeholder="Enter OTP"
+                    value={enteredOtp}
+                    onChange={(e) => setEnteredOtp(e.target.value)}
+                  />
+                  <div className="d-flex justify-content-end gap-2">
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setEnteredOtp("");
+                        setShowOtpModal(false);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={async () => {
+                        try {
+                          setActionLoading(true);
+                          const res = await axiosAPI.post(`/sales-orders/${orderId}/deliver`, {
+                            otp: enteredOtp,
+                          });
+                          setOrder({ ...order, orderStatus: res.data.orderStatus });
+                          setShowOtpModal(false);
+                        } catch (err) {
+                          setError(err.response?.data?.message || "OTP verification failed");
+                          setIsModalOpen(true);
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
             <div>
               <img
                 src={order.customer.photo}
