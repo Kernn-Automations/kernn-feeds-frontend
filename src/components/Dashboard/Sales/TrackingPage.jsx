@@ -12,6 +12,11 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [order, setOrder] = useState();
   const { axiosAPI } = useAuth();
 
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [truckNumber, setTruckNumber] = useState("");
+  const [driverName, setDriverName] = useState("");
+  const [driverMobile, setDriverMobile] = useState("");
+
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -169,23 +174,32 @@ const handleSendOtp = async () => {
         <div className={styles.trackingContainer}>
           <h2 className={styles.trackingTitle}>Sales Order Details</h2>
           <div className={styles.trackingHeader}>
-          <button className={styles.downloadBtn} onClick={handleDownload}>
-            <i className="bi bi-download"></i> Download PDF
-          </button>
+<button
+  className={styles.downloadBtn}
+  onClick={handleDownload}
+  disabled={downloadLoading}
+>
+  <i className="bi bi-download"></i> {downloadLoading ? "Downloading..." : "Download PDF"}
+</button>
         </div>
           {downloadLoading && <Loading/>}
           <div className={styles.infoCard}>
-              {order?.orderStatus === "Confirmed" && (
-              <button className={styles.downloadBtn} onClick={handleDispatch}>
-                {actionLoading ? "Checking & Dispatching..." : "Dispatch Order"}
-              </button>
-            )}
+{order?.orderStatus === "Confirmed" && (
+  <button className={styles.dispatchBtn} onClick={() => setShowDispatchModal(true)}>
+    {actionLoading ? "Checking..." : "Dispatch Order"}
+  </button>
+)}
 
-            {order?.orderStatus === "Dispatched" && (
-              <button className={styles.downloadBtn} onClick={handleSendOtp}>
-                {actionLoading ? "Sending OTP..." : "Send Delivery OTP"}
-              </button>
-            )}
+
+{order?.orderStatus === "Dispatched" && (
+  <button
+    className={styles.otpBtn}
+    onClick={handleSendOtp}
+    disabled={actionLoading}
+  >
+    {actionLoading ? "Sending OTP..." : "Send Delivery OTP"}
+  </button>
+)}
             {showOtpModal && (
             <div className="modal d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
               <div className="modal-dialog modal-dialog-centered">
@@ -566,6 +580,87 @@ const handleSendOtp = async () => {
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
       {loading && <Loading />}
+      {showDispatchModal && (
+  <div className="modal d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+    <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-content p-3">
+        <h5>Dispatch Order</h5>
+        <div className="mb-2">
+          <label>Truck Number</label>
+          <input
+            type="text"
+            className="form-control"
+            value={truckNumber}
+            onChange={(e) => setTruckNumber(e.target.value)}
+            placeholder="Enter truck number"
+          />
+        </div>
+        <div className="mb-2">
+          <label>Driver Name</label>
+          <input
+            type="text"
+            className="form-control"
+            value={driverName}
+            onChange={(e) => setDriverName(e.target.value)}
+            placeholder="Enter driver name"
+          />
+        </div>
+        <div className="mb-3">
+          <label>Driver Mobile</label>
+          <input
+            type="text"
+            className="form-control"
+            value={driverMobile}
+            onChange={(e) => setDriverMobile(e.target.value)}
+            placeholder="Enter driver mobile"
+          />
+        </div>
+        <div className="d-flex justify-content-end gap-2">
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowDispatchModal(false)}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={async () => {
+              if (!truckNumber || !driverName || !driverMobile) {
+                setError("All fields are required");
+                setIsModalOpen(true);
+                return;
+              }
+              try {
+                setActionLoading(true);
+                const eligibility = await axiosAPI.get(`/sales-orders/${orderId}/dispatch/eligibility`);
+                if (!eligibility.data.eligible) {
+                  setError(eligibility.data.reason || "Not eligible for dispatch");
+                  setIsModalOpen(true);
+                  return;
+                }
+                const res = await axiosAPI.put(`/sales-orders/${orderId}/dispatch`, {
+                  truckNumber,
+                  driverName,
+                  driverMobile,
+                });
+                setOrder({ ...order, orderStatus: res.data.orderStatus });
+                setShowDispatchModal(false);
+              } catch (err) {
+                setError(err.response?.data?.message || "Dispatch failed");
+                setIsModalOpen(true);
+              } finally {
+                setActionLoading(false);
+              }
+            }}
+          >
+            Dispatch
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
     </>
   );
 };

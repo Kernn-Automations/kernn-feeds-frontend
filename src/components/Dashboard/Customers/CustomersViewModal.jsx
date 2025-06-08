@@ -22,7 +22,7 @@ function CustomersViewModal({ customer }) {
     };
 
   const { axiosAPI } = useAuth();
-  useEffect(() => {
+
     async function fetch() {
       try {
         setLoading(true)
@@ -38,8 +38,11 @@ function CustomersViewModal({ customer }) {
         setLoading(false)
       }
     }
+
+  useEffect(() => {
     fetch();
-  }, []);
+  },[]);
+
   return (
     <>
     {!customerdata && <span className="text-denger"></span>}
@@ -49,7 +52,7 @@ function CustomersViewModal({ customer }) {
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>
-            <CustomersModal customerdata={customerdata} />
+            <CustomersModal customerdata={customerdata} refetchCustomer={fetch} />
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>
