@@ -224,7 +224,13 @@ const handleSendOtp = async () => {
                     </button>
                     <button
                       className="btn btn-primary"
+                      disabled={actionLoading}
                       onClick={async () => {
+                        if (!enteredOtp) {
+                          setError("OTP is required");
+                          setIsModalOpen(true);
+                          return;
+                        }
                         try {
                           setActionLoading(true);
                           const res = await axiosAPI.post(`/sales-orders/${orderId}/deliver`, {
@@ -240,7 +246,7 @@ const handleSendOtp = async () => {
                         }
                       }}
                     >
-                      Confirm
+                      {actionLoading ? "Verifying..." : "Confirm"}
                     </button>
                   </div>
                 </div>
@@ -624,6 +630,7 @@ const handleSendOtp = async () => {
           </button>
           <button
             className="btn btn-primary"
+            disabled={actionLoading}
             onClick={async () => {
               if (!truckNumber || !driverName || !driverMobile) {
                 setError("All fields are required");
@@ -653,7 +660,7 @@ const handleSendOtp = async () => {
               }
             }}
           >
-            Dispatch
+            {actionLoading ? "Dispatching..." : "Dispatch"}
           </button>
         </div>
       </div>

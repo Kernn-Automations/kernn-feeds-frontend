@@ -192,7 +192,7 @@ function InvoicesPage({ navigate }) {
                         </td>
                       <td>{inv.customer?.customer_id}</td>
                       <td>{inv.customer?.name}</td>
-                      <td>₹{Number(inv.salesOrder?.totalAmount || 0).toFixed(2)}</td>
+                      <td>₹{Number(inv.grandTotal || 0).toFixed(2)}</td>
                       <td>{inv.salesOrder?.orderStatus}</td>
                       <td>
                         <button

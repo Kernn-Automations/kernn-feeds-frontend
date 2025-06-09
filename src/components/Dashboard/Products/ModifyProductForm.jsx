@@ -7,7 +7,7 @@ import PricingSlabs from "./PricingSlabs";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 
-function ModifyProductForm({ onViewClick, productId }) {
+function ModifyProductForm({ onViewClick, productId, isAdmin }) {
   const { axiosAPI } = useAuth();
 
   const [original, setOriginal] = useState({});
@@ -21,6 +21,7 @@ function ModifyProductForm({ onViewClick, productId }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [successful, setSuccessful] = useState(null);
+  const [showPurchasePrice, setShowPurchasePrice] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -218,7 +219,26 @@ function ModifyProductForm({ onViewClick, productId }) {
           </>
         )}
         {renderInput("Base Price", "basePrice")}
-        {renderInput("Purchase Price", "purchasePrice")}
+        {isAdmin && (
+          <div className={`col-3 ${styles.longform}`}>
+            <label>Purchase Price</label>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <input
+                type={showPurchasePrice ? "text" : "password"}
+                value={fields.purchasePrice}
+                onChange={(e) => handleChange("purchasePrice", e.target.value)}
+                className={modified.purchasePrice ? styles.changedField : ""}
+                style={{ flex: 1 }}
+              />
+              <span
+                onClick={() => setShowPurchasePrice(!showPurchasePrice)}
+                style={{ marginLeft: "8px", cursor: "pointer" }}
+              >
+                {showPurchasePrice ? <i className="bi bi-eye-slash"></i> : <i className="bi bi-eye"></i>}
+              </span>
+            </div>
+          </div>
+        )}
         {renderInput("Threshold", "thresholdValue")}
         <div className={`col-6 ${styles.taxform}`}>
           <textarea
