@@ -14,12 +14,7 @@ function MinimumOrderRules({ navigate }) {
           index
           element={
             <>
-              <p className="path">
-                <span onClick={() => navigate("/settings")}>Settings</span>{" "}
-                <i class="bi bi-chevron-right"></i> Minimum Order Rules
-              </p>
-              <NewMinOrderModal />
-              <DeleteMinOrderModal />
+             
               <button
                 className="homebtn"
                 onClick={() => navigate("/settings/minimum-order-rules/ongoing")}
