@@ -5,11 +5,12 @@ import SelectMode from "./SelectMode";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
+import { useNavigate } from "react-router-dom";
 function OngoingWarehouse({ navigate, managers, isAdmin }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);

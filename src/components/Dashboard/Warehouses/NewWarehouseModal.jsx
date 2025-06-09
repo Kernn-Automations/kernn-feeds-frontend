@@ -36,7 +36,10 @@ function NewWarehouseModal({ managers, products }) {
     setIsModalOpen(false);
   };
 
-  const [defaultLocation, setDefaultLocation] = useState({lat: 17.4065 , lng: 78.4772});
+  const [defaultLocation, setDefaultLocation] = useState({
+    lat: 17.4065,
+    lng: 78.4772,
+  });
   const [location, setLocation] = useState(defaultLocation);
 
   const setNulls = () => {
@@ -54,7 +57,6 @@ function NewWarehouseModal({ managers, products }) {
   const closeSuccessModal = () => {
     setSuccessful(null);
   };
-
 
   const validateFields = () => {
     const newErrors = {};
@@ -83,28 +85,27 @@ function NewWarehouseModal({ managers, products }) {
 
   // form subbmission
 
-    // console.log(name, location);
-    // console.log(
-    //   name,
-    //   plot,
-    // type,
-    //   street,
-    //   area,
-    //   city,
-    //   district,
-    //   state,
-    //   country,
-    //   pincode,
-    //   managerId
-    // );
-    // console.log(location);
+  // console.log(name, location);
+  // console.log(
+  //   name,
+  //   plot,
+  // type,
+  //   street,
+  //   area,
+  //   city,
+  //   district,
+  //   state,
+  //   country,
+  //   pincode,
+  //   managerId
+  // );
+  // console.log(location);
 
   const handleStockChange = (index, field, value) => {
     const updated = [...openingStock];
     updated[index][field] = value;
     setOpeningStock(updated);
   };
-
 
   const addStockRow = () => {
     setOpeningStock([
@@ -154,10 +155,11 @@ function NewWarehouseModal({ managers, products }) {
           openingStock: openingStock.filter(
             (s) => s.productId && s.stockQuantity
           ),
-        });
 
-        // console.log(res);
-          openingStock: openingStock.filter((s) => s.productId && s.stockQuantity),
+          // console.log(res);
+          openingStock: openingStock.filter(
+            (s) => s.productId && s.stockQuantity
+          ),
         };
 
         const res = await axiosAPI.post("/warehouse/add", payload);
@@ -462,10 +464,16 @@ function NewWarehouseModal({ managers, products }) {
         </div>
       )}
       {loading && <Loading />}
-      {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
-      {successful && <SuccessModal isOpen={true} message={successful} onClose={closeSuccessModal} />}
-
-
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+      {successful && (
+        <SuccessModal
+          isOpen={true}
+          message={successful}
+          onClose={closeSuccessModal}
+        />
+      )}
     </>
   );
 }
