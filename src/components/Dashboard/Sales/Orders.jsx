@@ -81,6 +81,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
   // pdf code -----------------------------------
 
   const [tableData, setTableData] = useState([]);
+  const [xltable, setXltable] = useState([]);
 
   const onExport = (type) => {
     const arr = [];
@@ -96,6 +97,13 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
       "Payment Mode",
       "Status"
     ];
+
+    // const xlarr = [];
+    // columns = [
+    //   "S.No",
+    //   "Date",
+    //   "Order ID"
+    // ]
     if (orders && orders.length > 0) {
       orders.map((order) =>
         arr.push({
@@ -111,6 +119,8 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
         })
       );
       setTableData(arr);
+
+
 
       if (type === "PDF") handleExportPDF(columns, tableData, "Orders");
       else if (type === "XLS") handleExportExcel(columns, tableData, "Orders");

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import styles from "./Products.module.css";
 import { DialogActionTrigger } from "@/components/ui/dialog";
@@ -15,68 +14,64 @@ function TaxModal({ tax, trigger, setTrigger }) {
   const [percentage, setPercentage] = useState(tax.percentage);
   const [description, setDescription] = useState(tax.description);
 
- const [successfull, setSuccessfull] = useState(null);
- 
-   const [error, setError] = useState();
-   const [loading, setLoading] = useState(false);
-   const [isModalOpen, setIsModalOpen] = useState(false);
-   const closeModal = () => {
-     setIsModalOpen(false);
-   };
- 
-   const [errors, setErrors] = useState({});
- 
-   const today = new Date(Date.now()).toISOString().slice(0, 10);
- 
-   const validateFields = () => {
-     const newErrors = {};
-     if (!name) newErrors.name = true;
-     if (!percentage) newErrors.percentage = true;
-     if (!description) newErrors.description = true;
- 
-     setErrors(newErrors);
-     return Object.keys(newErrors).length === 0;
-   };
- 
-   
- 
-   // form subbmission
- 
-   const { axiosAPI } = useAuth();
- 
-   const onSubmitClick = () => {
-     // console.log(name, percentage, description);
- 
+  const [successfull, setSuccessfull] = useState(null);
+
+  const [error, setError] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const [errors, setErrors] = useState({});
+
+  const today = new Date(Date.now()).toISOString().slice(0, 10);
+
+  const validateFields = () => {
+    const newErrors = {};
+    if (!name) newErrors.name = true;
+    if (!percentage) newErrors.percentage = true;
+    if (!description) newErrors.description = true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // form subbmission
+
+  const { axiosAPI } = useAuth();
+
+  const onSubmitClick = () => {
+    // console.log(name, percentage, description);
+
     //  if (!validateFields()) {
     //    setError("Please Fill all feilds");
     //    setIsModalOpen(true);
     //    return;
     //  }
-     async function create() {
-       try {
-         setLoading(true);
-         const res = await axiosAPI.put(`/tax/${tax.id}`, {
-           name: name,
-           percentage: percentage,
-           description: description,
-         });
- 
-         // console.log(res);
-         setTrigger(!trigger);
-         setSuccessfull(res.data.message);
-       } catch (e) {
-         console.log(e);
-         setError(e.response.data.message);
-         setIsModalOpen(true);
-       } finally {
-         setLoading(false);
-       }
-     }
- 
-     create();
-   };
+    async function create() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.put(`/tax/${tax.id}`, {
+          name: name,
+          percentage: percentage,
+          description: description,
+        });
 
+        // console.log(res);
+        setTrigger(!trigger);
+        setSuccessfull(res.data.message);
+      } catch (e) {
+        console.log(e);
+        setError(e.response.data.message);
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
 
+    create();
+  };
 
   return (
     <>
@@ -84,25 +79,46 @@ function TaxModal({ tax, trigger, setTrigger }) {
       <div className="row justify-content-center">
         <div className={`col-4  inputcolumn-mdl`}>
           <label htmlFor="">Date :</label>
-          <input type="date" value={tax.createdAt.slice(0, 10)} disabled={!editclick} />
+          <input
+            type="date"
+            value={tax.createdAt.slice(0, 10)}
+            disabled={!editclick}
+          />
         </div>
       </div>{" "}
       <div className="row justify-content-center">
         <div className={`col-4  inputcolumn-mdl`}>
           <label htmlFor="">Tax Name :</label>
-          <input type="text" value={name} required onChange={(e) => setName(e.target.value)} disabled={!editclick} />
+          <input
+            type="text"
+            value={name}
+            required
+            onChange={(e) => setName(e.target.value)}
+            disabled={!editclick}
+          />
         </div>
       </div>{" "}
       <div className="row justify-content-center">
         <div className={`col-4  inputcolumn-mdl`}>
           <label htmlFor="">Percentage :</label>
-          <input type="number" value={percentage} onChange={(e) => setPercentage(e.target.value)} disabled={!editclick}/>
+          <input
+            type="number"
+            value={percentage}
+            onChange={(e) => setPercentage(e.target.value)}
+            disabled={!editclick}
+          />
         </div>
       </div>
       <div className="row justify-content-center">
         <div className={`col-4  inputcolumn-mdl`}>
           <label htmlFor="">Description :</label>
-          <textarea name="" id="" value={description} onChange={(e) => setDescription(e.target.value)} disabled={!editclick}></textarea>
+          <textarea
+            name=""
+            id=""
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={!editclick}
+          ></textarea>
         </div>
       </div>
       {!editclick && (
@@ -166,7 +182,6 @@ function TaxModal({ tax, trigger, setTrigger }) {
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
-
   );
 }
 

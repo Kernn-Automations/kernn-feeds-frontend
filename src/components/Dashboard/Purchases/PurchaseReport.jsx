@@ -75,7 +75,7 @@ function PurchaseReport({ navigate }) {
             warehouse ? `&warehouseId=${warehouse}` : ""
           }`
         );
-        // console.log(res);
+        console.log(res);
         setPurchases(res.data.purchaseOrders);
       } catch (e) {
         // console.log(e);
