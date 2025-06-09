@@ -27,6 +27,8 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
   const [warehouse, setWarehouse] = useState();
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
+  const [status, setStatus] = useState();
+
 
   let index = 1;
 
@@ -52,12 +54,17 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
         console.log(
           `/sales-orders?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
+          }${customer ? `&customerId=${customer}` : ""}${
+            status ? `&orderStatus=${status}` : ""
+          }&page=${pageNo}`
         );
+
         const res = await axiosAPI.get(
           `/sales-orders?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
+          }${customer ? `&customerId=${customer}` : ""}${
+            status ? `&status=${status}` : ""
+          }&page=${pageNo}`
         );
         console.log(res);
         setOrders(res.data.salesOrders);
@@ -199,6 +206,20 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
               ))}
           </select>
         </div>
+        <div className={`col-3 formcontent`}>
+        <label htmlFor="">Status :</label>
+        <select
+          value={status}
+          onChange={(e) =>
+            setStatus(e.target.value === "null" ? null : e.target.value)
+          }
+        >
+          <option value="null">--select--</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Dispatched">Dispatched</option>
+          <option value="Delivered">Delivered</option>
+        </select>
+      </div>
       </div>
       <div className="row m-0 p-3 justify-content-center">
         <div className={`col-3 formcontent`}>
