@@ -6,7 +6,7 @@ import Loading from "@/components/Loading";
 
 function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   const { axiosAPI } = useAuth();
-
+  console.log(employee)
   const [form, setForm] = useState({
     name: employee.name,
     employeeId: employee.employeeId,
@@ -18,8 +18,9 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   const [roles, setRoles] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState(employee.roles?.map((role) => role.id));
   const [supervisors, setSupervisors] = useState([]);
-  const [selectedSupervisor, setSelectedSupervisor] = useState(employee.supervisorId);
+  const [selectedSupervisor, setSelectedSupervisor] = useState(Number(employee.supervisorId));
   const [warehouses, setWarehouses] = useState([]);
+
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -75,6 +76,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
         console.log(`/employees/supervisors/${lastRoleId}`)
         const res = await axiosAPI.get(`/employees/supervisors/${lastRoleId}`);
         setSupervisors(res.data.supervisors || []);
+        console.log(res)
       } catch (err) {
         setError(err?.response?.data?.message || "Failed to load supervisors.");
         setIsModalOpen(true);
