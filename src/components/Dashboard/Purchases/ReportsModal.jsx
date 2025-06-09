@@ -16,6 +16,9 @@ function ReportsModal({ pdetails, warehouses }) {
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
   const closeModal = () => {
     setIsModalOpen(false);
   };
@@ -176,13 +179,82 @@ function ReportsModal({ pdetails, warehouses }) {
               Download
             </button>
           )}
+          {pdetails?.status !== "Received" && (
+            <button className="m-3 submitbtn ms-3" onClick={() => setShowConfirm(true)}>
+              Stock In
+            </button>
+          )}
+
           {/* <DialogActionTrigger asChild>
             <button className="cancelbtn">Cancel</button>
           </DialogActionTrigger> */}
           {loading && <Loading />}
         </div>
       </div>
+      {showConfirm && (
+          <div className={styles.popupOverlay}>
+            <div className={styles.popupCard}>
+              <h5 className="mb-3">Confirm Stock In</h5>
+              <p>Please confirm the received quantities for the following products:</p>
+              <table className="table table-sm table-bordered mt-2">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Ordered Qty</th>
+                    <th>Received Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pdetails.items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td>{item.quantity}</td>
+                      <td>{item.quantity}</td> {/* assuming full quantity is received */}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
+              <div className="d-flex justify-content-end mt-3">
+                <button
+                  className="cancelbtn me-2"
+                  onClick={() => setShowConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="submitbtn"
+                  onClick={async () => {
+                    try {
+                      setConfirmLoading(true);
+                      const receivedItems = pdetails.items.map((item) => ({
+                        productId: item.productId,
+                        receivedQuantity: item.quantity,
+                      }));
+
+                      await axiosAPI.post(`/warehouse/incoming/purchases/${pdetails.id}`, {
+                        receivedItems,
+                      });
+
+                      setShowConfirm(false);
+                      window.location.reload(); // or refetch purchase details
+                    } catch (err) {
+                      console.error(err);
+                      setError(
+                        err.response?.data?.message || "Failed to stock in."
+                      );
+                      setIsModalOpen(true);
+                    } finally {
+                      setConfirmLoading(false);
+                    }
+                  }}
+                >
+                  {confirmLoading ? "Processing..." : "Confirm Stock In"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}

@@ -40,6 +40,7 @@ function StockSummary() {
     try {
       const query = `/warehouse/stock-summary?fromDate=${from}&toDate=${to}${warehouseId ? `&warehouseId=${warehouseId}` : ""}`;
       const res = await axiosAPI.get(query);
+      console.log(res)
       setStockData(res.data.data || {});
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch stock data.");
@@ -70,7 +71,7 @@ function StockSummary() {
         {Object.entries(products).map(([productId, data]) => (
           <tr key={productId}>
             <td>{data.productName}</td>
-            <td>{data.opening.toFixed(2)}</td>
+            <td>{data.opening?.toFixed(2)}</td>
             <td>{data.inward.toFixed(2)}</td>
             <td>{data.outward.toFixed(2)}</td>
             <td>{data.closing.toFixed(2)}</td>

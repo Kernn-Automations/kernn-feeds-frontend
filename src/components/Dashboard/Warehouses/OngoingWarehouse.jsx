@@ -10,7 +10,9 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
+
   // const navigate = useNavigate();
+
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,7 +56,7 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
                   <th>Warehouse ID</th>
                   <th>Warehouse Name</th>
                   {/* <th>Enable/Disable</th> */}
-                  {isAdmin && <th>Action</th>}
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -78,7 +80,6 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
                           val={warehouse.managerId ? "enable" : "disable"}
                         />
                       </td> */}
-                      {isAdmin && (
                       <td>
                         <button
                           className="btn btn-sm btn-outline-primary"
@@ -87,7 +88,6 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
                           View
                         </button>
                       </td>
-                      )}
                     </tr>
                   ))}
               </tbody>

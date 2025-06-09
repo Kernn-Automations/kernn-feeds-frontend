@@ -123,7 +123,53 @@ function NavBg({ hover, setTab, tab }) {
             {hover && <p>Sales</p>}
           </Link>
         </div>
+         <div
+          className={`${
+            location.pathname.includes("invoices") ? styles.active : ""
+          } `}
+          onClick={() => setTab("invoices")}
+        >
+          <Link to="/invoices">
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M6 2H14L18 6V22H6V2Z"
+                stroke="black"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M14 2V6H18"
+                stroke="black"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9 13H15"
+                stroke="black"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9 17H13"
+                stroke="black"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
 
+            {hover && <p>Invoices</p>}
+          </Link>
+        </div> 
         <div
           className={`${
             location.pathname.includes("customers") ? styles.active : ""

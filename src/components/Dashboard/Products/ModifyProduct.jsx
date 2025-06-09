@@ -29,6 +29,21 @@ function ModifyProduct({ navigate, isAdmin }) {
   };
 
   const [products, setProducts] = useState();
+  const handleStatusToggle = async (productId, currentStatus) => {
+  try {
+    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+    await axiosAPI.put(`/products/${productId}/status`, { status: newStatus });
+
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, status: newStatus } : p
+      )
+    );
+  } catch (e) {
+    setError("Failed to update status");
+    setIsModalOpen(true);
+  }
+};
 
   useEffect(() => {
     async function fetch() {
@@ -83,6 +98,7 @@ function ModifyProduct({ navigate, isAdmin }) {
                   {isAdmin && (
                     <>
                       <th>Purchase Price</th>
+                      <th>Status</th>
                       <th>Action</th>
                     </>
                   )}
@@ -129,6 +145,19 @@ function ModifyProduct({ navigate, isAdmin }) {
                             </span>
                           </td>
                           <td>
+                          <div className="form-check form-switch">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              checked={product.status === "Active"}
+                              onChange={() => handleStatusToggle(product.id, product.status)}
+                            />
+                            <label className="form-check-label">
+                              {product.status}
+                            </label>
+                          </div>
+                        </td>
+                          <td>
                             <button onClick={() => onViewClick(product)}>
                               view
                             </button>
@@ -144,7 +173,7 @@ function ModifyProduct({ navigate, isAdmin }) {
       )}
 
       {viewclick && (
-        <ModifyProductForm onViewClick={onViewClick} productId={product.id} />
+        <ModifyProductForm onViewClick={onViewClick} productId={product.id} isAdmin={isAdmin} />
       )}
 
       {isModalOpen && (

@@ -6,14 +6,11 @@ import { useAuth } from "@/Auth";
 import WarehouseHeaderCard from "./Components/WarehouseHeaderCard";
 import WarehouseTabSection from "./Components/WarehouseTabSection";
 
-function WarehouseDetailsPage() {
+function WarehouseDetailsPage({managers}) {
   const { id } = useParams(); // Get warehouseId from URL
     const {axiosAPI} = useAuth();
   const [warehouse, setWarehouse] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-
     async function fetchWarehouse() {
       try {
         const res = await axiosAPI.get(`/warehouse/details/${id}`);
@@ -26,6 +23,7 @@ function WarehouseDetailsPage() {
       }
     }
 
+  useEffect(() => {
     fetchWarehouse();
   }, [id]);
 
@@ -33,7 +31,7 @@ function WarehouseDetailsPage() {
 
   return (
     <div className="p-4">
-      <WarehouseHeaderCard warehouse={warehouse} />
+      <WarehouseHeaderCard warehouse={warehouse} refreshData={()=>fetchWarehouse()} managers={managers} />
       <WarehouseTabSection warehouseDetails={warehouse} />
     </div>
   );

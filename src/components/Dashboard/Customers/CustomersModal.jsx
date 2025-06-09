@@ -9,8 +9,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import img from "./../../../images/dummy-img.jpeg";
+import { useAuth } from "@/Auth";
 
-function CustomersModal({ customerdata }) {
+
+function CustomersModal({ customerdata, refetchCustomer }) {
+  const [email, setEmail] = useState(customerdata.email || "");
+  const [gstin, setGstin] = useState(customerdata.gstin || "");
+  const [msme, setMsme] = useState(customerdata.msme || "");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const { axiosAPI } = useAuth();
   return (
     <>
       <h3 className={`px-3 mdl-title`}>Customer</h3>
@@ -46,6 +55,29 @@ function CustomersModal({ customerdata }) {
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">WhatsApp Number :</label>
           <input type="text" value={customerdata.whatsapp} />
+        </div>
+        <div className={`col-4 ${styles.longformmdl}`}>
+          <label htmlFor="">Email :</label>
+          <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+
+        <div className={`col-4 ${styles.longformmdl}`}>
+          <label htmlFor="">GSTIN :</label>
+          <input type="text" value={gstin} onChange={(e) => setGstin(e.target.value)} />
+        </div>
+
+        <div className={`col-4 ${styles.longformmdl}`}>
+          <label htmlFor="">MSME Number :</label>
+          <input type="text" value={msme} onChange={(e) => setMsme(e.target.value)} />
+        </div>
+
+        <div className={`col-4 ${styles.longformmdl}`}>
+          <label htmlFor="">Latitude :</label>
+          <input type="text" value={customerdata.latitude} readOnly />
+        </div>
+        <div className={`col-4 ${styles.longformmdl}`}>
+          <label htmlFor="">Longitude :</label>
+          <input type="text" value={customerdata.longitude} readOnly />
         </div>
       </div>
 
@@ -184,6 +216,40 @@ function CustomersModal({ customerdata }) {
           </DialogRoot>
         </div>
       </div>
+      <div className="row m-0 p-3 pt-4 justify-content-center">
+      <div className={`col-4`}>
+        <button className="submitbtn" onClick={async () => {
+          try {
+            setLoading(true);
+            const formData = new FormData();
+            formData.append("email", email);
+            formData.append("gstin", gstin);
+            formData.append("msme", msme);
+            if (photoFile) {
+              formData.append("photo", photoFile);
+            }
+
+            const res = await axiosAPI.put(`/customers/${customerdata.id}`, formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+            
+            if (refetchCustomer) {
+              await refetchCustomer();
+            }
+
+            setSuccessMessage("Customer updated successfully.");
+          } catch (err) {
+            setSuccessMessage("Failed to update customer.");
+            console.error(err);
+          } finally {
+            setLoading(false);
+          }
+        }}>
+          {loading ? "Updating..." : "Update"}
+        </button>
+        {successMessage && <p className="text-success mt-2">{successMessage}</p>}
+      </div>
+    </div>
       {/* <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
           <DialogActionTrigger asChild>

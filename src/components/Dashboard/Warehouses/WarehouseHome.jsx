@@ -2,11 +2,11 @@
 import React from "react";
 import NewWarehouseViewModal from "./NewWarehouseViewModal";
 import DeleteWarehouseViewModal from "./DeleteWarehouseViewModal";
+import OngoingWarehousesPage from './OngoingWarehouse'; // Adjust path if needed
 
 import OngoingWarehousesPage from './OngoingWarehouse'; // Adjust path if needed
 
 function WarehouseHome({ navigate, managers, products, isAdmin }) {
-
 
   return (
     <>
@@ -38,7 +38,7 @@ function WarehouseHome({ navigate, managers, products, isAdmin }) {
 
       {/* Direct Embed of Ongoing Warehouses */}
       <div className="p-3">
-        <OngoingWarehousesPage />
+        <OngoingWarehousesPage navigate={navigate} />
       </div>
     </>
   );

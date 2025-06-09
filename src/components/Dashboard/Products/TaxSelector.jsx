@@ -42,6 +42,11 @@ function TaxSelector({ selectedTaxes = [], setSelectedTaxes }) {
 
   const availableTaxes = allTaxes.filter((t) => !selectedTaxIds.includes(t.id));
 
+  const hasExemptTax = selectedTaxIds
+  .map((id) => allTaxes.find((t) => t.id === id))
+  .some((tax) => tax?.taxNature === "Exempt");
+
+
   return (
     <>
       <label className="fw-bold">Taxes:</label>
@@ -83,9 +88,14 @@ function TaxSelector({ selectedTaxes = [], setSelectedTaxes }) {
         );
       })}
 
-      {availableTaxes.length > 0 && (
+      {hasExemptTax ? (
+        <div className="alert alert-warning mt-2 p-2">
+          <strong>Note:</strong> An <b>Exempt</b> tax is selected. No other taxes can be added.
+        </div>
+      ) : availableTaxes.length > 0 ? (
         <select
           className="form-select mt-2"
+          style={{ minWidth: "300px", height: "45px", fontSize: "1rem" }}
           value={newTaxId}
           onChange={handleSelect}
         >
@@ -98,7 +108,10 @@ function TaxSelector({ selectedTaxes = [], setSelectedTaxes }) {
             </option>
           ))}
         </select>
+      ) : (
+        <p className="fw-bold text-muted mt-2">All taxes are selected.</p>
       )}
+
 
       {availableTaxes.length === 0 && (
         <p className="fw-bold text-muted mt-2">All taxes are selected.</p>

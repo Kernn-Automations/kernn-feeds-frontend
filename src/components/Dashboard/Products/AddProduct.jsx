@@ -455,7 +455,7 @@ function AddProduct({ navigate }) {
 
       <div className="row m-0 p-3">
         <h5 className={styles.head}>TAXES</h5>
-        <div className={`col-3 ${styles.longform}`}>
+        <div className={`col-4 ${styles.longform}`}>
           <TaxSelector
             selectedTaxes={selectedTaxes}
             setSelectedTaxes={setSelectedTaxes}
@@ -495,29 +495,8 @@ function AddProduct({ navigate }) {
             className={errors.thresholdValue ? styles.errorField : ""}
           />
         </div>
-        <div className={`col-3 ${styles.longform}`}>
-          <label htmlFor="">Pricing List :</label>
-          <select
-            name=""
-            id=""
-            value={pricing}
-            onChange={(e) => onError(e, pricing, setPricing)}
-            className={errors.pricing ? styles.errorField : ""}
-          >
-            <option value="null">--select--</option>
-            {pricingList &&
-              pricingList.map((pl) => <option value={pl.id}>{pl.name}</option>)}
-          </select>
-        </div>
       </div>
 
-      <div className="row m-0 p-3">
-        <h5 className={styles.head}>Pricing Slabs</h5>
-        <PricingSlabs
-          pricingSlabs={pricingSlabs}
-          setPricingSlabs={setPricingSlabs}
-        />
-      </div>
 
       <div className="row m-0 justify-content-center p-3">
         {!loading && !successful && (

@@ -12,9 +12,6 @@ function TaxAddModal({ trigger, setTrigger }) {
   const [hsnCode, setHsnCode] = useState("");
   const [taxNature, setTaxNature] = useState("Taxable");
   const [applicableOn, setApplicableOn] = useState("Both");
-  const [isCess, setIsCess] = useState(false);
-  const [cessPercentage, setCessPercentage] = useState("");
-  const [isAdditionalDuty, setIsAdditionalDuty] = useState(false);
 
   const [successfull, setSuccessfull] = useState(null);
   const [error, setError] = useState();
@@ -30,8 +27,8 @@ function TaxAddModal({ trigger, setTrigger }) {
   const validateFields = () => {
     const newErrors = {};
     if (!name) newErrors.name = true;
-    if (!percentage) newErrors.percentage = true;
-    if (isCess && !cessPercentage) newErrors.cessPercentage = true;
+    if (!hsnCode) newErrors.hsnCode = true;
+    if (taxNature !== "Exempt" && percentage === "") newErrors.percentage = true;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -53,9 +50,6 @@ function TaxAddModal({ trigger, setTrigger }) {
           hsnCode,
           taxNature,
           applicableOn,
-          isCess,
-          cessPercentage: isCess ? cessPercentage : null,
-          isAdditionalDuty,
         });
 
         setTrigger(!trigger);
@@ -72,176 +66,152 @@ function TaxAddModal({ trigger, setTrigger }) {
   };
 
   return (
-    <>
-      <h3 className="px-3 pb-3 mdl-title">Create Tax</h3>
+  <>
+    <h3 className="px-3 pb-3 mdl-title">Create Tax</h3>
 
-      {/* DATE */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>Date:</label>
-          <input type="date" value={today} disabled />
-        </div>
+    {/* DATE */}
+    <div className="row justify-content-center">
+      <div className="col-4 inputcolumn-mdl">
+        <label>Date:</label>
+        <input type="date" value={today} disabled />
       </div>
+    </div>
 
-      {/* TAX NAME */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>Tax Name:</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={errors.name ? styles.errorField : ""}
-            required
-          />
-        </div>
+    {/* TAX NAME */}
+    <div className="row justify-content-center">
+      <div className="col-4 inputcolumn-mdl">
+        <label>Tax Name:</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={errors.name ? styles.errorField : ""}
+          required
+        />
       </div>
+    </div>
 
-      {/* PERCENTAGE */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>Percentage:</label>
-          <input
-            type="number"
-            value={percentage}
-            onChange={(e) => setPercentage(e.target.value)}
-            className={errors.percentage ? styles.errorField : ""}
-            required
-          />
-        </div>
-      </div>
-
-      {/* HSN CODE */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>HSN Code:</label>
-          <input
-            type="text"
-            value={hsnCode}
-            onChange={(e) => setHsnCode(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* TAX NATURE */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>Tax Nature:</label>
-          <select value={taxNature} onChange={(e) => setTaxNature(e.target.value)}>
-            {["Taxable", "Exempt", "Nil Rated", "Non-GST", "Reverse Charge"].map((t) => (
+    {/* TAX NATURE */}
+    <div className="row justify-content-center">
+      <div className="col-4 inputcolumn-mdl">
+        <label>Tax Nature:</label>
+        <select
+          value={taxNature}
+          onChange={(e) => setTaxNature(e.target.value)}
+        >
+          {["Taxable", "Exempt", "Nil Rated", "Non-GST", "Reverse Charge"].map(
+            (t) => (
               <option key={t}>{t}</option>
-            ))}
-          </select>
-        </div>
+            )
+          )}
+        </select>
       </div>
-
-      {/* APPLICABLE ON */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>Applicable On:</label>
-          <select value={applicableOn} onChange={(e) => setApplicableOn(e.target.value)}>
-            {["Sale", "Purchase", "Both"].map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-        </div>
+    </div>
+    {/* HSN CODE */}
+    <div className="row justify-content-center">
+      <div className="col-4 inputcolumn-mdl">
+        <label>HSN Code:</label>
+        <input
+          type="text"
+          value={hsnCode}
+          onChange={(e) => setHsnCode(e.target.value)}
+        />
       </div>
+    </div>
 
-      {/* IS CESS */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>
-            <input
-              type="checkbox"
-              checked={isCess}
-              onChange={(e) => setIsCess(e.target.checked)}
-            />
-            &nbsp;Is Cess?
-          </label>
-        </div>
-      </div>
-
-      {/* CESS PERCENTAGE */}
-      {isCess && (
+    {/* Render all other fields ONLY if taxNature is not Exempt */}
+    {taxNature !== "Exempt" && (
+      <>
+        {/* PERCENTAGE */}
         <div className="row justify-content-center">
           <div className="col-4 inputcolumn-mdl">
-            <label>Cess Percentage:</label>
+            <label>Percentage:</label>
             <input
               type="number"
-              value={cessPercentage}
-              onChange={(e) => setCessPercentage(e.target.value)}
-              className={errors.cessPercentage ? styles.errorField : ""}
+              value={percentage}
+              onChange={(e) => setPercentage(e.target.value)}
+              className={errors.percentage ? styles.errorField : ""}
+              required
             />
           </div>
         </div>
-      )}
 
-      {/* ADDITIONAL DUTY */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>
-            <input
-              type="checkbox"
-              checked={isAdditionalDuty}
-              onChange={(e) => setIsAdditionalDuty(e.target.checked)}
-            />
-            &nbsp;Additional Duty?
-          </label>
+        {/* APPLICABLE ON */}
+        <div className="row justify-content-center">
+          <div className="col-4 inputcolumn-mdl">
+            <label>Applicable On:</label>
+            <select
+              value={applicableOn}
+              onChange={(e) => setApplicableOn(e.target.value)}
+            >
+              {["Sale", "Purchase", "Both"].map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
 
-      {/* DESCRIPTION */}
-      <div className="row justify-content-center">
-        <div className="col-4 inputcolumn-mdl">
-          <label>Description:</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          ></textarea>
+
+        
+        {/* DESCRIPTION */}
+        <div className="row justify-content-center">
+          <div className="col-4 inputcolumn-mdl">
+            <label>Description:</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            ></textarea>
+          </div>
         </div>
-      </div>
+      </>
+    )}
 
-      {/* ACTIONS */}
-      {!loading && !successfull && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className="col-5">
-            <button type="submit" className="submitbtn" data-bs-dismiss="modal" onClick={onSubmitClick}>
-              Create
+    {/* ACTIONS */}
+    {!loading && !successfull && (
+      <div className="row pt-3 mt-3 justify-content-center">
+        <div className="col-5">
+          <button
+            type="submit"
+            className="submitbtn"
+            data-bs-dismiss="modal"
+            onClick={onSubmitClick}
+          >
+            Create
+          </button>
+          <DialogActionTrigger asChild>
+            <button type="button" className="cancelbtn" data-bs-dismiss="modal">
+              Close
             </button>
-            <DialogActionTrigger asChild>
-              <button type="button" className="cancelbtn" data-bs-dismiss="modal">
-                Close
-              </button>
-            </DialogActionTrigger>
-          </div>
+          </DialogActionTrigger>
         </div>
-      )}
+      </div>
+    )}
 
-      {successfull && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className="col-6">
-            <DialogActionTrigger asChild>
-              <button type="submit" className="submitbtn" data-bs-dismiss="modal">
-                {successfull}
-              </button>
-            </DialogActionTrigger>
-          </div>
+    {successfull && (
+      <div className="row pt-3 mt-3 justify-content-center">
+        <div className="col-6">
+          <DialogActionTrigger asChild>
+            <button type="submit" className="submitbtn" data-bs-dismiss="modal">
+              {successfull}
+            </button>
+          </DialogActionTrigger>
         </div>
-      )}
+      </div>
+    )}
 
-      {loading && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className="col-5">
-            <Loading />
-          </div>
+    {loading && (
+      <div className="row pt-3 mt-3 justify-content-center">
+        <div className="col-5">
+          <Loading />
         </div>
-      )}
+      </div>
+    )}
 
-      {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
-      )}
-    </>
-  );
+    {isModalOpen && (
+      <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+    )}
+  </>
+);
 }
 
 export default TaxAddModal;

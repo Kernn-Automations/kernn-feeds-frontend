@@ -84,7 +84,16 @@ function WarehouseRoutes() {
             </Suspense>
           }
         />
-        <Route path="/:id" element={<WarehouseDetailsPage />} />
+        <Route
+          path="/:id"
+          element={
+            managers ? (
+              <WarehouseDetailsPage managers={managers} />
+            ) : (
+              <PageSkeleton /> // or any loading fallback
+            )
+          }
+        />
       </Routes>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

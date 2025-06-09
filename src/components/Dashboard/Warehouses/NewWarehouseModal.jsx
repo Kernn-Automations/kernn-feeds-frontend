@@ -155,12 +155,7 @@ function NewWarehouseModal({ managers, products }) {
           openingStock: openingStock.filter(
             (s) => s.productId && s.stockQuantity
           ),
-
-          // console.log(res);
-          openingStock: openingStock.filter(
-            (s) => s.productId && s.stockQuantity
-          ),
-        };
+        }
 
         const res = await axiosAPI.post("/warehouse/add", payload);
 

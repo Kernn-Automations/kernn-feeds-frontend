@@ -134,7 +134,6 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
     if (
       !form.name ||
       !form.employeeId ||
-      !form.email ||
       !form.mobile ||
       selectedRoles.length === 0 ||
       (warehouseRequired && !form.warehouseId) ||
