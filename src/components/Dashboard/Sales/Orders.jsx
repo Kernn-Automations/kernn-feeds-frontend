@@ -98,12 +98,12 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
       "Status"
     ];
 
-    const xlarr = [];
-    columns = [
-      "S.No",
-      "Date",
-      "Order ID"
-    ]
+    // const xlarr = [];
+    // columns = [
+    //   "S.No",
+    //   "Date",
+    //   "Order ID"
+    // ]
     if (orders && orders.length > 0) {
       orders.map((order) =>
         arr.push({
