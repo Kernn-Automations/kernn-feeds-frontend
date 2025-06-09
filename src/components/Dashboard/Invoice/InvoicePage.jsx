@@ -109,6 +109,36 @@ function InvoicesPage({ navigate }) {
     if (type === "PDF") handleExportPDF(columns, data, "Invoices");
     else handleExportExcel(columns, data, "Invoices");
   };
+  const handleDownloadDC = async (inv) => {
+    try {
+      setDownloadingInvoiceId(inv.id)
+      const token = localStorage.getItem("access_token");
+      const VITE_API = import.meta.env.VITE_API_URL;
+      const response = await axios.get(
+      `${VITE_API}/sales-orders/dc/${inv.salesOrder?.id}/pdf`,
+      {
+          responseType: "blob",
+          headers: {
+          Authorization: `Bearer ${token}`,
+          },
+      }
+      );
+      console.log(response);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `DeliveryChallan_SO${inv.salesOrder?.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Failed to download Delivery Challan PDF", error);
+      alert("Failed to download Delivery Challan");
+    } finally{
+      setDownloadingInvoiceId(null);
+    }
+  };
+
 
   return (
     <>
@@ -170,6 +200,7 @@ function InvoicesPage({ navigate }) {
                   <th>Amount</th>
                   <th>Status</th>
                   <th>PDF</th>
+                  <th>DC</th> {/* ✅ NEW COLUMN */}
                 </tr>
               </thead>
               <tbody>
@@ -236,6 +267,15 @@ function InvoicesPage({ navigate }) {
                         )}
                         </button>
                       </td>
+                        {/* ✅ DC PDF View Button */}
+                        <td>
+                          <button
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => handleDownloadDC(inv)}
+                          >
+                            View
+                          </button>
+                        </td>
                     </tr>
                   ))
                 )}
