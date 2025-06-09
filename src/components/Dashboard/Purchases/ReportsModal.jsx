@@ -172,6 +172,7 @@ function ReportsModal({ pdetails, warehouses }) {
         </div>
       </div>
 
+
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
           {!loading && (
