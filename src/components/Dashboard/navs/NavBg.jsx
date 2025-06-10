@@ -120,7 +120,7 @@ function NavBg({ hover, setTab, tab }) {
               />
             </svg>
 
-            {hover && <p>Sales</p>}
+            {hover && <p>Sales Order</p>}
           </Link>
         </div>
          <div
@@ -167,7 +167,7 @@ function NavBg({ hover, setTab, tab }) {
               />
             </svg>
 
-            {hover && <p>Invoices</p>}
+            {hover && <p>Sales & Invoices</p>}
           </Link>
         </div> 
         <div

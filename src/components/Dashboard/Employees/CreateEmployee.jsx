@@ -74,6 +74,7 @@ function CreateEmployee({ navigate }) {
       try {
         const res = await axiosAPI.get(`/employees/supervisors/${lastRoleId}`);
         setSupervisors(res.data.supervisors || []);
+        console.log(res)
       } catch (err) {
         setError(err?.response?.data?.message || "Failed to load supervisors.");
         setIsModalOpen(true);

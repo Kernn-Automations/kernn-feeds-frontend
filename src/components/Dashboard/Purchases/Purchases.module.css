@@ -189,3 +189,9 @@
   font-weight: 600;
   font-size: 18px;
 }
+.bluebtn{
+  background-color: #208fff;
+}
+.bluebtn:hover{
+  background-color: #1d7cdc;
+}

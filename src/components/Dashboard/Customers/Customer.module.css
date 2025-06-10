@@ -29,7 +29,7 @@
 }
 
 
-.longformmdl{
+.longformmdl, .location{
   max-width: 300px !important;
   min-width: 280px !important;
   margin-bottom: 8px;
@@ -39,7 +39,8 @@
   min-width: 400px !important;
   margin-bottom: 8px;
 }
-.longformmdl label, .textform label, .longformmdl2 label{
+
+.longformmdl label, .textform label, .longformmdl2 label, .location label{
   width: 140px;
   font-weight: 600;
   font-size: 12px;
@@ -50,7 +51,7 @@
   color: var(--primary-color);
 }
 .longformmdl input,
-.longformmdl select, .longformmdl2 input {
+.longformmdl select, .longformmdl2 input{
   width: 120px;
   height: 25px;
   padding-left: 4px;
@@ -105,14 +106,32 @@
 }
 .imagemd{
   width: 150px;
-  height: 100px;
+  height: auto;
 }
-
+.imagesmdl{
+   width: 250px;
+   height: auto;
+}
+.imagesbtn{
+  width: 130px;
+  height: auto;
+}
 .imagebg{
   width: 450px;
-  height: 150px;
+  height: auto;
 }
 
 .imglg{
   max-height: 300px;
+}
+
+.mapLink{
+  display: flex;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.location{
+  display: flex;
 }
