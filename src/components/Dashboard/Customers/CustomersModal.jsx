@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import img from "./../../../images/dummy-img.jpeg";
 import { useAuth } from "@/Auth";
-
+import { FaMapMarkerAlt } from "react-icons/fa";
 
 function CustomersModal({ customerdata, refetchCustomer }) {
   const [email, setEmail] = useState(customerdata.email || "");
@@ -20,6 +20,9 @@ function CustomersModal({ customerdata, refetchCustomer }) {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const { axiosAPI } = useAuth();
+
+  const googleMapsURL = `https://www.google.com/maps?q=${customerdata.latitude},${customerdata.longitude}`;
+
   return (
     <>
       <h3 className={`px-3 mdl-title`}>Customer</h3>
@@ -58,26 +61,41 @@ function CustomersModal({ customerdata, refetchCustomer }) {
         </div>
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">Email :</label>
-          <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="text"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
 
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">GSTIN :</label>
-          <input type="text" value={gstin} onChange={(e) => setGstin(e.target.value)} />
+          <input
+            type="text"
+            value={gstin}
+            onChange={(e) => setGstin(e.target.value)}
+          />
         </div>
 
         <div className={`col-4 ${styles.longformmdl}`}>
           <label htmlFor="">MSME Number :</label>
-          <input type="text" value={msme} onChange={(e) => setMsme(e.target.value)} />
+          <input
+            type="text"
+            value={msme}
+            onChange={(e) => setMsme(e.target.value)}
+          />
         </div>
 
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Latitude :</label>
-          <input type="text" value={customerdata.latitude} readOnly />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Longitude :</label>
-          <input type="text" value={customerdata.longitude} readOnly />
+        <div className={`col-4 ${styles.location}`}>
+          <label htmlFor="">Location :</label>
+          <a
+            href={googleMapsURL}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.mapLink}
+          >
+            <FaMapMarkerAlt /> View on Map
+          </a>
         </div>
       </div>
 
@@ -217,39 +235,48 @@ function CustomersModal({ customerdata, refetchCustomer }) {
         </div>
       </div>
       <div className="row m-0 p-3 pt-4 justify-content-center">
-      <div className={`col-4`}>
-        <button className="submitbtn" onClick={async () => {
-          try {
-            setLoading(true);
-            const formData = new FormData();
-            formData.append("email", email);
-            formData.append("gstin", gstin);
-            formData.append("msme", msme);
-            if (photoFile) {
-              formData.append("photo", photoFile);
-            }
+        <div className={`col-4`}>
+          <button
+            className="submitbtn"
+            onClick={async () => {
+              try {
+                setLoading(true);
+                const formData = new FormData();
+                formData.append("email", email);
+                formData.append("gstin", gstin);
+                formData.append("msme", msme);
+                if (photoFile) {
+                  formData.append("photo", photoFile);
+                }
 
-            const res = await axiosAPI.put(`/customers/${customerdata.id}`, formData, {
-              headers: { "Content-Type": "multipart/form-data" },
-            });
-            
-            if (refetchCustomer) {
-              await refetchCustomer();
-            }
+                const res = await axiosAPI.put(
+                  `/customers/${customerdata.id}`,
+                  formData,
+                  {
+                    headers: { "Content-Type": "multipart/form-data" },
+                  }
+                );
 
-            setSuccessMessage("Customer updated successfully.");
-          } catch (err) {
-            setSuccessMessage("Failed to update customer.");
-            console.error(err);
-          } finally {
-            setLoading(false);
-          }
-        }}>
-          {loading ? "Updating..." : "Update"}
-        </button>
-        {successMessage && <p className="text-success mt-2">{successMessage}</p>}
+                if (refetchCustomer) {
+                  await refetchCustomer();
+                }
+
+                setSuccessMessage("Customer updated successfully.");
+              } catch (err) {
+                setSuccessMessage("Failed to update customer.");
+                console.error(err);
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? "Updating..." : "Update"}
+          </button>
+          {successMessage && (
+            <p className="text-success mt-2">{successMessage}</p>
+          )}
+        </div>
       </div>
-    </div>
       {/* <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-2`}>
           <DialogActionTrigger asChild>

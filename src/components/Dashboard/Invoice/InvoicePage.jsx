@@ -22,7 +22,7 @@ function InvoicesPage({ navigate }) {
   const [warehouse, setWarehouse] = useState();
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
-  const [invoices, setInvoices] = useState([]);
+  const [invoices, setInvoices] = useState();
   const [loading, setLoading] = useState(false);
   const [pageNo, setPageNo] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -53,13 +53,13 @@ function InvoicesPage({ navigate }) {
     async function fetchInvoices() {
       try {
         setLoading(true);
-        setInvoices([]);
+        setInvoices(null);
         const res = await axiosAPI.get(
           `/invoice?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
         );
-        setInvoices(res.data.invoices || []);
+        setInvoices(res.data.invoices);
         setTotalPages(res.data.totalPages || 1);
       } catch (e) {
         setError(e.response?.data?.message || "Failed to load invoices");
@@ -227,7 +227,6 @@ function InvoicesPage({ navigate }) {
                       <td>{inv.salesOrder?.orderStatus}</td>
                       <td>
                         <button
-                        className="btn btn-sm btn-outline-primary"
                         onClick={async () => {
                             try {
                                 setDownloadingInvoiceId(inv.id)
@@ -261,9 +260,9 @@ function InvoicesPage({ navigate }) {
                             }}
                         >
                         {downloadingInvoiceId === inv.id ? (
-                        <Loading size="sm" thickness="1px" color="#003176" />
+                        "Loading..."
                         ) : (
-                        "View"
+                        "Download"
                         )}
                         </button>
                       </td>

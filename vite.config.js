@@ -8,6 +8,6 @@ export default defineConfig({
    server: {
     host: '0.0.0.0', // binds to all IPs
     port: 5173,       // or any open port
-    allowedHosts: ["wallpaper-launch-reward-pmc.trycloudflare.com","kernn.feedbazaar.in"]
+    allowedHosts: ["wallpaper-launch-reward-pmc.trycloudflare.com","kernn.feedbazaar.in","web.kernn.xyz"]
   }
 })
