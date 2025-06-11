@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Purchases.module.css";
-import { DialogActionTrigger } from "@/components/ui/dialog";
+import {
+  DialogActionTrigger,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogRoot,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/Auth";
 import axios from "axios";
 import ErrorModal from "@/components/ErrorModal";
@@ -173,16 +180,104 @@ function ReportsModal({ pdetails, warehouses }) {
       </div>
 
       <div className="row m-0 p-3 pt-4 justify-content-center">
-        <div className={`col-2`}>
+        <div className={`col-4`}>
           {!loading && (
-            <button className="submitbtn" onClick={downloadPDF}>
-              Download
-            </button>
-          )}
-          {pdetails?.status !== "Received" && (
-            <button className="m-3 submitbtn ms-3" onClick={() => setShowConfirm(true)}>
-              Stock In
-            </button>
+            <>
+              <button
+                className={`submitbtn ${styles.bluebtn}`}
+                onClick={downloadPDF}
+              >
+                Download
+              </button>
+
+              {pdetails?.status !== "Received" && (
+                <DialogRoot
+                  placement={"center"}
+                  size={"lg"}
+                  className={styles.mdl}
+                >
+                  <DialogTrigger asChild>
+                    <button className={`submitbtn`}>Stock IN</button>
+                  </DialogTrigger>
+                  <DialogContent className="mdl">
+                    <DialogBody>
+                      <div className="row m-0 p-3">
+                        <div className={`col`}>
+                          <h5 className="mdltitle">Confirm Stock In</h5>
+                          <p>
+                            Please confirm the received quantities for the
+                            following products:
+                          </p>
+                          <table className="table table-sm table-bordered borderedtable">
+                            <thead>
+                              <tr>
+                                <th>Product</th>
+                                <th>Ordered Qty</th>
+                                <th>Received Qty</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pdetails.items.map((item) => (
+                                <tr key={item.id}>
+                                  <td>{item.name}</td>
+                                  <td>{item.quantity}</td>
+                                  <td>{item.quantity}</td>{" "}
+                                  {/* assuming full quantity is received */}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+
+                          <div className="d-flex justify-content-end mt-3">
+                            <DialogActionTrigger asChild>
+                              <button className="cancelbtn me-2">Cancel</button>
+                            </DialogActionTrigger>
+                            <button
+                              className="submitbtn"
+                              onClick={async () => {
+                                try {
+                                  setConfirmLoading(true);
+                                  const receivedItems = pdetails.items.map(
+                                    (item) => ({
+                                      productId: item.productId,
+                                      receivedQuantity: item.quantity,
+                                    })
+                                  );
+
+                                  await axiosAPI.post(
+                                    `/warehouse/incoming/purchases/${pdetails.id}`,
+                                    {
+                                      receivedItems,
+                                    }
+                                  );
+
+                                  setShowConfirm(false);
+                                  window.location.reload(); // or refetch purchase details
+                                } catch (err) {
+                                  console.error(err);
+                                  setError(
+                                    err.response?.data?.message ||
+                                      "Failed to stock in."
+                                  );
+                                  setIsModalOpen(true);
+                                } finally {
+                                  setConfirmLoading(false);
+                                }
+                              }}
+                            >
+                              {confirmLoading
+                                ? "Processing..."
+                                : "Confirm Stock In"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogBody>
+                    <DialogCloseTrigger className="inputcolumn-mdl-close" />
+                  </DialogContent>
+                </DialogRoot>
+              )}
+            </>
           )}
 
           {/* <DialogActionTrigger asChild>
@@ -191,70 +286,7 @@ function ReportsModal({ pdetails, warehouses }) {
           {loading && <Loading />}
         </div>
       </div>
-      {showConfirm && (
-          <div className={styles.popupOverlay}>
-            <div className={styles.popupCard}>
-              <h5 className="mb-3">Confirm Stock In</h5>
-              <p>Please confirm the received quantities for the following products:</p>
-              <table className="table table-sm table-bordered mt-2">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Ordered Qty</th>
-                    <th>Received Qty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pdetails.items.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.name}</td>
-                      <td>{item.quantity}</td>
-                      <td>{item.quantity}</td> {/* assuming full quantity is received */}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
 
-              <div className="d-flex justify-content-end mt-3">
-                <button
-                  className="cancelbtn me-2"
-                  onClick={() => setShowConfirm(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="submitbtn"
-                  onClick={async () => {
-                    try {
-                      setConfirmLoading(true);
-                      const receivedItems = pdetails.items.map((item) => ({
-                        productId: item.productId,
-                        receivedQuantity: item.quantity,
-                      }));
-
-                      await axiosAPI.post(`/warehouse/incoming/purchases/${pdetails.id}`, {
-                        receivedItems,
-                      });
-
-                      setShowConfirm(false);
-                      window.location.reload(); // or refetch purchase details
-                    } catch (err) {
-                      console.error(err);
-                      setError(
-                        err.response?.data?.message || "Failed to stock in."
-                      );
-                      setIsModalOpen(true);
-                    } finally {
-                      setConfirmLoading(false);
-                    }
-                  }}
-                >
-                  {confirmLoading ? "Processing..." : "Confirm Stock In"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
