@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react(), jsconfigpaths()],
    server: {
     host: '0.0.0.0', // binds to all IPs
-    port: 5173       // or any open port
+    port: 5173,       // or any open port
+    allowedHosts:["web.kernn.xyz"]
   }
 })

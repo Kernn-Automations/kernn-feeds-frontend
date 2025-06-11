@@ -6,6 +6,7 @@ import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
 import ImagesViewModal from "./ImagesViewModal";
+import { FaMapMarkerAlt } from "react-icons/fa";
 
 function KYCModal({ customerdata, changeTrigger }) {
   const { axiosAPI } = useAuth();
@@ -90,6 +91,8 @@ function KYCModal({ customerdata, changeTrigger }) {
     }
   };
 
+  const googleMapsURL = `https://www.google.com/maps?q=${customerdata.latitude},${customerdata.longitude}`;
+
   return (
     <>
       <h3 className={`px-3 mdl-title`}>KYC Approval</h3>
@@ -115,7 +118,7 @@ function KYCModal({ customerdata, changeTrigger }) {
             type="text"
             value={customerdata.email || "-"}
             style={{
-              width: `${(customerdata.email?.length || 1) + 1}ch`,
+              width: `${(customerdata.email?.length || 10) + 1}ch`,
               padding: "0.3rem 0.5rem",
               border: "1px solid #ccc",
               borderRadius: "4px",
@@ -186,6 +189,17 @@ function KYCModal({ customerdata, changeTrigger }) {
             value={customerdata.salesExecutive?.name || "NA"}
             readOnly
           />
+        </div>
+        <div className={`col-4 ${styles.location}`}>
+          <label htmlFor="">Location :</label>
+          <a
+            href={googleMapsURL}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.mapLink}
+          >
+            <FaMapMarkerAlt /> View on Map
+          </a>
         </div>
       </div>
 

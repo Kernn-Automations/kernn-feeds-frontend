@@ -8,6 +8,7 @@ import ProductsList from "./ProductsList";
 import PaymentInfo from "./PaymentInfo";
 import axios from "axios";
 import SignUploadModal from "./SignUploadModal";
+import VerifyOTP from "./VerifyOTP";
 
 const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [order, setOrder] = useState();
@@ -26,6 +27,10 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [enteredOtp, setEnteredOtp] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const openDialog = () => setIsDialogOpen(true);
+  const closeDialog = () => setIsDialogOpen(false);
 
   useEffect(() => {
     async function fetch() {
@@ -130,7 +135,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
         salesOrderId: orderId,
       });
       console.log(res);
-      setShowOtpModal(true);
+      openDialog();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to send OTP");
       setIsModalOpen(true);
@@ -219,84 +224,39 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
               )}
 
               {order?.orderStatus === "Dispatched" && (
-                <button
-                  className={styles.otpBtn}
-                  onClick={handleSendOtp}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? "Sending OTP..." : "Send Delivery OTP"}
-                </button>
+                <>
+                  <button
+                    className={styles.otpBtn}
+                    onClick={handleSendOtp}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? "Sending OTP..." : "Send Delivery OTP"}
+                  </button>
+                  <VerifyOTP
+                    actionLoading={actionLoading}
+                    enteredOtp={enteredOtp}
+                    handleSendOtp={handleSendOtp}
+                    order={order}
+                    orderId={orderId}
+                    setActionLoading={setActionLoading}
+                    setEnteredOtp={setEnteredOtp}
+                    isDialogOpen={isDialogOpen}
+                    setIsDialogOpen={setIsDialogOpen}
+                    closeDialog={closeDialog}
+                  />
+                </>
               )}
-              {showOtpModal && (
+              {/* {showOtpModal && (
                 <div
                   className="modal d-block"
                   tabIndex="-1"
                   style={{ background: "rgba(0,0,0,0.5)" }}
                 >
                   <div className="modal-dialog modal-dialog-centered">
-                    <div
-                      className="modal-content p-3"
-                      style={{ background: "var(--primary-light)" }}
-                    >
-                      <h5>Enter Delivery OTP</h5>
-                      <input
-                        type="text"
-                        className="form-control my-4"
-                        placeholder="Enter OTP"
-                        value={enteredOtp}
-                        onChange={(e) => setEnteredOtp(e.target.value)}
-                      />
-                      <SignUploadModal />
-                      <div className="d-flex justify-content-end gap-2">
-                        <button
-                          className="cancelbtn"
-                          onClick={() => {
-                            setEnteredOtp("");
-                            setShowOtpModal(false);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          className="submitbtn"
-                          disabled={actionLoading}
-                          onClick={async () => {
-                            if (!enteredOtp) {
-                              setError("OTP is required");
-                              setIsModalOpen(true);
-                              return;
-                            }
-                            try {
-                              setActionLoading(true);
-                              const res = await axiosAPI.post(
-                                `/sales-orders/${orderId}/deliver`,
-                                {
-                                  otp: enteredOtp,
-                                }
-                              );
-                              setOrder({
-                                ...order,
-                                orderStatus: res.data.orderStatus,
-                              });
-                              setShowOtpModal(false);
-                            } catch (err) {
-                              setError(
-                                err.response?.data?.message ||
-                                  "OTP verification failed"
-                              );
-                              setIsModalOpen(true);
-                            } finally {
-                              setActionLoading(false);
-                            }
-                          }}
-                        >
-                          {actionLoading ? "Verifying..." : "Confirm"}
-                        </button>
-                      </div>
-                    </div>
+                    
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
 
