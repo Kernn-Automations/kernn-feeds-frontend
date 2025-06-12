@@ -13,6 +13,7 @@ import {
   DialogRoot,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import KYCModal from "./KYCModal";
 
 function KYCApproval({ navigate }) {
   const [customers, setCustomers] = useState();
@@ -20,6 +21,8 @@ function KYCApproval({ navigate }) {
   const [trigger, setTrigger] = useState(false);
 
   const changeTrigger = () => setTrigger(!trigger);
+
+  const [customerId, setCustomerId] = useState();
 
   const { axiosAPI } = useAuth();
 
@@ -55,7 +58,7 @@ function KYCApproval({ navigate }) {
         <span onClick={() => navigate("/customers")}>Customers</span>{" "}
         <i class="bi bi-chevron-right"></i> KYC-Approvals
       </p>
-      {customers && (
+      {customers && !customerId &&  (
         <>
           <div className="row m-0 p-3 pt-5 justify-content-end">
             <div className={`col-4 ${styles.search}`}>
@@ -105,10 +108,13 @@ function KYCApproval({ navigate }) {
                         <td>{customer.salesExecutive.name}</td>
                         <td>{customer.warehouse && customer.warehouse.name}</td>
                         <td>
-                          <KYCViewModal
+                          {/* <KYCViewModal
                             customer={customer}
                             changeTrigger={changeTrigger}
-                          />
+                          /> */}
+                          <button onClick={() => setCustomerId(customer.id)}>
+                            view
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -117,6 +123,10 @@ function KYCApproval({ navigate }) {
             </div>
           </div>
         </>
+      )}
+
+      {customerId && (
+        <KYCModal customerId={customerId} setCustomerId={setCustomerId} />
       )}
 
       {isModalOpen && (

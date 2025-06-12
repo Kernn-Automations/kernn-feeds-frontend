@@ -1,4 +1,3 @@
-
 .search {
   position: relative;
   display: inline-block;
@@ -28,19 +27,21 @@
   pointer-events: none; /* Makes the icon unclickable */
 }
 
-
-.longformmdl, .location{
+.longformmdl,
+.location {
   max-width: 300px !important;
   min-width: 280px !important;
   margin-bottom: 8px;
 }
-.longformmdl2{
-   max-width: 550px !important;
+.longformmdl2 {
+  max-width: 550px !important;
   min-width: 400px !important;
   margin-bottom: 8px;
 }
 
-.longformmdl label, .textform label, .longformmdl2 label, .location label{
+.longformmdl label,
+.textform label,
+.longformmdl2 label {
   width: 140px;
   font-weight: 600;
   font-size: 12px;
@@ -51,7 +52,8 @@
   color: var(--primary-color);
 }
 .longformmdl input,
-.longformmdl select, .longformmdl2 input{
+.longformmdl select,
+.longformmdl2 input {
   width: 120px;
   height: 25px;
   padding-left: 4px;
@@ -69,7 +71,7 @@
   letter-spacing: 1.5%;
 }
 
-.textform textarea{
+.textform textarea {
   width: 350px;
   height: 80px;
   padding-left: 4px;
@@ -91,47 +93,172 @@
   text-decoration-thickness: Auto;
   color: #555;
 }
-.mdltable thead th{
+.mdltable thead th {
   font-size: 12px !important;
   padding: 3px;
 }
-.mdltable tbody td{
+.mdltable tbody td {
   font-size: 12px !important;
   padding: 3px;
 }
-.images{
+.images {
   width: 130px;
   height: 60px;
   opacity: 0.7;
 }
-.imagemd{
-  width: 150px;
+.imagemd {
+  width: 200px;
   height: auto;
 }
-.imagesmdl{
-   width: 250px;
-   height: auto;
-}
-.imagesbtn{
-  width: 130px;
+.imagesmdl {
+  width: 200px;
   height: auto;
 }
-.imagebg{
+.imagesbtn {
+  width: 200px;
+  height: auto;
+}
+.imagebg {
   width: 450px;
   height: auto;
 }
 
-.imglg{
+.imglg {
   max-height: 300px;
 }
 
-.mapLink{
+.mapLink {
   display: flex;
   gap: 5px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
-.location{
+.location {
   display: flex;
+}
+
+/*  */
+.longform {
+  max-width: 360px !important;
+  min-width: 350px !important;
+  margin-bottom: 20px;
+}
+.longform label,
+.location label {
+  max-width: 160px;
+  min-width: 150px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 26.82px;
+  letter-spacing: 0%;
+  text-align: right;
+  padding-right: 15px;
+  color: var(--primary-color);
+}
+.changedField {
+  border: 2px solid #198754 !important; /* green border */
+  background-color: #e7f9f0; /* light green background */
+  transition: all 0.3s ease;
+}
+.longform input,
+.longform select {
+  width: 150px;
+  height: 27px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+.longform span {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 16.26px;
+  letter-spacing: 1.5%;
+}
+
+.head {
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 29.26px;
+  letter-spacing: 1.5%;
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: Auto;
+  color: #555;
+}
+
+.taxform {
+  max-width: 170px !important;
+  min-width: 150px !important;
+  margin-bottom: 20px;
+  position: relative;
+}
+.taxform select,
+.taxform input {
+  width: 150px;
+  height: 27px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  position: relative;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.editbtn {
+  background-color: #3658e3;
+}
+.editbtn:hover {
+  background-color: #3553cc;
+}
+
+.uploadbutton {
+  width: 150px;
+  height: 100px;
+  background-color: transparent;
+  border: 2px solid #555;
+  border-radius: 4px;
+  font-size: 30px;
+  text-align: center;
+  overflow: hidden;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+}
+.upload p {
+  height: 20px;
+}
+
+.deletebtn {
+  position: absolute;
+  top: -8px;
+  right: 23px;
+  font-size: 13px;
+  width: fit-content;
+  padding: 2px 4px;
+  border-radius: 0.5px solid gray;
+  background-color: #ff2727;
+  color: white;
+  border-radius: 4px;
+}
+.imglabel {
+  width: 150px;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 26.82px;
+  letter-spacing: 0%;
+  text-align: center;
+  color: var(--primary-color);
+  padding: 0 !important;
+}
+.upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }

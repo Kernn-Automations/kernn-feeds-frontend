@@ -11,31 +11,7 @@ import KYCModal from "./KYCModal";
 import { useAuth } from "@/Auth";
 
 function KYCViewModal({ customer, changeTrigger }) {
-  const [customerdata, setCustomerdata] = useState();
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const { axiosAPI } = useAuth();
-  useEffect(() => {
-    async function fetch() {
-      try {
-        setLoading(true);
-        const res = await axiosAPI.get(`/customers/${customer.id}`);
-        console.log(res);
-        setCustomerdata(res.data.customer);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, []);
+  
   return (
     <>
       {!customerdata && <span className="text-denger"></span>}
