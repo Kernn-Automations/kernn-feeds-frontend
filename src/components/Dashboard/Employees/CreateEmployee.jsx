@@ -34,7 +34,7 @@ function CreateEmployee({ navigate }) {
   const warehouseRequired = roles.some(
     (r) =>
       selectedRoles.includes(r.id) &&
-      ["sales executive", "warehouse manager", "area manager"].includes(r.name.toLowerCase())
+      ["business officer", "warehouse manager", "area manager"].includes(r.name.toLowerCase())
   );
 
   // Load roles and warehouses
@@ -108,7 +108,7 @@ function CreateEmployee({ navigate }) {
     if (
       !updatedRoles.some((roleId) => {
         const role = roles.find((r) => r.id === roleId);
-        return ["sales executive", "warehouse manager"].includes(
+        return ["business officer", "warehouse manager"].includes(
           role?.name.toLowerCase()
         );
       })

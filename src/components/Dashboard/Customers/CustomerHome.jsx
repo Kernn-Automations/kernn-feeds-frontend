@@ -1,13 +1,22 @@
-import React from 'react'
+import React from "react";
 import styles from "./Customer.module.css";
 
-function CustomerHome({navigate}) {
+function CustomerHome({ navigate }) {
   return (
     <>
-       <div className="row m-0 p-3">
+      <div className="row m-0 p-3">
         <div className="col">
-          <button className="homebtn" onClick={() => navigate("/customers/customer-list")}>
-            Customers
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/create")}
+          >
+            Create Customer
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/customer-list")}
+          >
+            Customers List
           </button>
           <button
             className="homebtn"
@@ -15,13 +24,16 @@ function CustomerHome({navigate}) {
           >
             KYC Approvals
           </button>
-          <button className="homebtn" onClick={() => navigate("/customers/reports")}>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/reports")}
+          >
             Customer Reports
           </button>
         </div>
       </div>
     </>
-  )
+  );
 }
 
-export default CustomerHome
+export default CustomerHome;

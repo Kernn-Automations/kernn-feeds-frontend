@@ -5,6 +5,7 @@ import CustomersViewModal from "./CustomersViewModal";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
+import CustomersModal from "./CustomersModal";
 
 function CustomerList({ navigate }) {
   const [customers, setCustomers] = useState();
@@ -19,6 +20,8 @@ function CustomerList({ navigate }) {
   const closeModal = () => {
     setIsModalOpen(false);
   };
+
+ const [customerId, setCustomerId] = useState();
 
   useEffect(() => {
     async function fetch() {
@@ -76,7 +79,7 @@ function CustomerList({ navigate }) {
         <i class="bi bi-chevron-right"></i> Customer-list
       </p>
 
-      <div className="row m-0 p-3">
+      {!customerId && <div className="row m-0 p-3">
         <div className={`col-3 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select
@@ -110,9 +113,9 @@ function CustomerList({ navigate }) {
             {ses && ses.map((se) => <option value={se.id}>{se.name}</option>)}
           </select>
         </div>
-      </div>
+      </div>}
 
-      {customers && (
+      {customers && !customerId && (
         <>
           <div className="row m-0 p-3 justify-content-end">
             <div className={`col-md-5 ${styles.search}`}>
@@ -159,7 +162,11 @@ function CustomerList({ navigate }) {
                         <td>{customer.salesExecutive.name}</td>
                         <td>{customer.warehouse && customer.warehouse.name}</td>
                         <td>
-                          <CustomersViewModal customer={customer} />
+                          {/* <CustomersViewModal customer={customer} /> */}
+
+                          <button onClick={() => setCustomerId(customer.id)}>
+                            view
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -169,6 +176,9 @@ function CustomerList({ navigate }) {
           </div>
         </>
       )}
+
+{customerId && <CustomersModal customerId={customerId} setCustomerId={setCustomerId}/>}
+
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
