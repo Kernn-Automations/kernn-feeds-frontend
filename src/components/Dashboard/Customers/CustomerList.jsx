@@ -7,7 +7,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import CustomersModal from "./CustomersModal";
 
-function CustomerList({ navigate }) {
+function CustomerList({ navigate, isAdmin }) {
   const [customers, setCustomers] = useState();
   const [warehouses, setWarehouses] = useState();
   const [ses, setSes] = useState();
@@ -21,7 +21,7 @@ function CustomerList({ navigate }) {
     setIsModalOpen(false);
   };
 
- const [customerId, setCustomerId] = useState();
+  const [customerId, setCustomerId] = useState();
 
   useEffect(() => {
     async function fetch() {
@@ -79,41 +79,43 @@ function CustomerList({ navigate }) {
         <i class="bi bi-chevron-right"></i> Customer-list
       </p>
 
-      {!customerId && <div className="row m-0 p-3">
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">WareHouse :</label>
-          <select
-            name=""
-            id=""
-            value={warehouse}
-            onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-          </select>
+      {!customerId && (
+        <div className="row m-0 p-3">
+          <div className={`col-3 formcontent`}>
+            <label htmlFor="">WareHouse :</label>
+            <select
+              name=""
+              id=""
+              value={warehouse}
+              onChange={(e) =>
+                setWarehouse(e.target.value === "null" ? null : e.target.value)
+              }
+            >
+              <option value="null">--select--</option>
+              {warehouses &&
+                warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className={`col-3 formcontent`}>
+            <label htmlFor="">Sales Executive :</label>
+            <select
+              name=""
+              id=""
+              value={se}
+              onChange={(e) =>
+                setSe(e.target.value === "null" ? null : e.target.value)
+              }
+            >
+              <option value="null">--select--</option>
+              {ses && ses.map((se) => <option value={se.id}>{se.name}</option>)}
+            </select>
+          </div>
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Sales Executive :</label>
-          <select
-            name=""
-            id=""
-            value={se}
-            onChange={(e) =>
-              setSe(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {ses && ses.map((se) => <option value={se.id}>{se.name}</option>)}
-          </select>
-        </div>
-      </div>}
+      )}
 
       {customers && !customerId && (
         <>
@@ -177,7 +179,13 @@ function CustomerList({ navigate }) {
         </>
       )}
 
-{customerId && <CustomersModal customerId={customerId} setCustomerId={setCustomerId}/>}
+      {customerId && (
+        <CustomersModal
+          customerId={customerId}
+          setCustomerId={setCustomerId}
+          isAdmin={isAdmin}
+        />
+      )}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

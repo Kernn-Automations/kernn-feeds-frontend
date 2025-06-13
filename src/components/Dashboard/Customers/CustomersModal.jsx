@@ -16,7 +16,7 @@ import Loading from "@/components/Loading";
 import ImagesViewModal from "./ImagesViewModal";
 import axios from "axios";
 
-function CustomersModal({ customerId, setCustomerId }) {
+function CustomersModal({ customerId, setCustomerId, isAdmin }) {
   const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
@@ -475,13 +475,20 @@ function CustomersModal({ customerId, setCustomerId }) {
             <div className="row m-0 p-3 pt-4 justify-content-center">
               {!editclick && (
                 <div className={`col-5`}>
-                  <button className="submitbtn" onClick={() => setEditclick(true)}>
-                    Edit
-                  </button>
-                  <button className="cancelbtn" onClick={() => setCustomerId(null)}>
+                  {isAdmin && (
+                    <button
+                      className="submitbtn"
+                      onClick={() => setEditclick(true)}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    className="cancelbtn"
+                    onClick={() => setCustomerId(null)}
+                  >
                     cancel
                   </button>
-                  
                 </div>
               )}
               {editclick && (
