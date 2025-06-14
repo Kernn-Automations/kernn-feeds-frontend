@@ -13,6 +13,12 @@ const CreateCustomer = lazy(() => import("./CreateCustomer"));
 function CustomerRoutes() {
   const navigate = useNavigate();
 
+   const user = JSON.parse(localStorage.getItem("user"));
+
+  const roles = JSON.stringify(user.roles);
+
+  const isAdmin = roles.includes("Admin");
+
   return (
     <Routes>
      
@@ -20,7 +26,7 @@ function CustomerRoutes() {
         index
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <CustomerHome navigate={navigate} />
+            <CustomerHome navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -28,7 +34,7 @@ function CustomerRoutes() {
         path="/create"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <CreateCustomer navigate={navigate} />
+            <CreateCustomer navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -36,7 +42,7 @@ function CustomerRoutes() {
         path="/customer-list"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <CustomerList navigate={navigate} />
+            <CustomerList navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
@@ -44,7 +50,7 @@ function CustomerRoutes() {
         path="/kyc-approvals"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <KYCApproval navigate={navigate} />
+            <KYCApproval navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />

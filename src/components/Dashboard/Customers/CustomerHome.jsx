@@ -1,17 +1,19 @@
 import React from "react";
 import styles from "./Customer.module.css";
 
-function CustomerHome({ navigate }) {
+function CustomerHome({ navigate, isAdmin }) {
   return (
     <>
       <div className="row m-0 p-3">
         <div className="col">
-          <button
-            className="homebtn"
-            onClick={() => navigate("/customers/create")}
-          >
-            Create Customer
-          </button>
+          {isAdmin && (
+            <button
+              className="homebtn"
+              onClick={() => navigate("/customers/create")}
+            >
+              Create Customer
+            </button>
+          )}
           <button
             className="homebtn"
             onClick={() => navigate("/customers/customer-list")}

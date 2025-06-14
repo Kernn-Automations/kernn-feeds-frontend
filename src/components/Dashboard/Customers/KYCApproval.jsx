@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import KYCModal from "./KYCModal";
 
-function KYCApproval({ navigate }) {
+function KYCApproval({ navigate, isAdmin }) {
   const [customers, setCustomers] = useState();
 
   const [trigger, setTrigger] = useState(false);
@@ -126,7 +126,7 @@ function KYCApproval({ navigate }) {
       )}
 
       {customerId && (
-        <KYCModal customerId={customerId} setCustomerId={setCustomerId} />
+        <KYCModal customerId={customerId} setCustomerId={setCustomerId} isAdmin={isAdmin} />
       )}
 
       {isModalOpen && (

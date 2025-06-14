@@ -9,7 +9,7 @@ import ImagesViewModal from "./ImagesViewModal";
 import { FaMapMarkerAlt } from "react-icons/fa";
 import axios from "axios";
 
-function KYCModal({ customerId, setCustomerId }) {
+function KYCModal({ customerId, setCustomerId, isAdmin }) {
   const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
@@ -472,12 +472,12 @@ function KYCModal({ customerId, setCustomerId }) {
                   <button className="cancelbtn" onClick={onDeclineClick}>
                     Decline
                   </button>
-                  <button
+                  {isAdmin && <button
                     className={`cancelbtn ${styles.editbtn}`}
                     onClick={() => setEditclick(true)}
                   >
                     Edit
-                  </button>
+                  </button>}
                 </div>
               )}
               {editclick && (
