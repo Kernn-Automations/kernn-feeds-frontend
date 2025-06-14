@@ -11,6 +11,7 @@ import TicketingService from "./TicketService/TicketingService";
 import PageSkeleton from "../SkeletonLoaders/PageSkeleton";
 import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
 import SettingRoutes from "./SettingsTab/SettingRoutes";
+import StockRoutes from "./StockTransfer/StockRoutes";
 // import HomePage from "./HomePage/HomePage";
 // import InventoryRoutes from "./Inventory/InventoryRoutes";
 // import PurchaseRoutes from "./Purchases/PurchaseRoutes";
@@ -90,14 +91,14 @@ function Dashboard({
   //   async function fetch() {
   //     try {
   //       const res = await axiosAPI.post("/employees/mdashboard");
-        // console.log(res);
+  // console.log(res);
 
   //       setLeavebalance(res.data.data.leaveBalances);
   //       setNotifications(res.data.data.latestNotifications);
   //       setPendingtasks(res.data.data.pendingTasks);
   //       setDashboard(res.data.data);
   //     } catch (e) {
-        // console.log(e);
+  // console.log(e);
   //       removeLogin();
   //     }
   //   }
@@ -216,6 +217,14 @@ function Dashboard({
                       element={
                         <Suspense fallback={<RouteSkeleton />}>
                           <PaymentRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/stock-transfer/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <StockRoutes />
                         </Suspense>
                       }
                     />

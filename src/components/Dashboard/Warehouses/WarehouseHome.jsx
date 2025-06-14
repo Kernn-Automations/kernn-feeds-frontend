@@ -20,12 +20,12 @@ function WarehouseHome({ navigate, managers, products, isAdmin }) {
           )}
 
           {/* New Buttons */}
-          <button
+          {/* <button
             className="homebtn me-2"
             onClick={() => navigate("/warehouses/stock-transfer")}
           >
             Stock Transfer
-          </button>
+          </button> */}
           <button
             className="homebtn"
             onClick={() => navigate("/warehouses/order-transfer")}
