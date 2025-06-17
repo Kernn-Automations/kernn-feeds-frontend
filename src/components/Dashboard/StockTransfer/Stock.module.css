@@ -399,3 +399,24 @@
 .signtext:hover{
   color: #003d7e;
 }
+
+.downloadBtn {
+  width: 200px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.downloadBtn:hover {
+  background-color: #218838;
+}
+
+.downloadBtn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
