@@ -67,7 +67,6 @@ function TransferDetail({ transfer, setTransfer, navigate }) {
 
       <div className={styles.trackingContainer}>
         <h2 className={styles.trackingTitle}>Stock Transfer Details</h2>
-
         <div className={styles.flexx}>
           <div className={styles.infoCard}>
             <div>
