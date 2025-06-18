@@ -29,7 +29,6 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
   const [trigger, setTrigger] = useState(false);
   const [status, setStatus] = useState();
 
-
   let index = 1;
 
   // backend -----------------
@@ -85,6 +84,36 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
     setTrigger(trigger ? false : true);
   };
 
+  // GrandTotal
+  const GrandTotal = () => {
+    let total = 0;
+    for (const order of orders) total += order?.totalAmount;
+
+    return total;
+  };
+
+  // Quantity
+  const Qty = (items) => {
+    let kgs = 0;
+    for (const item of items) {
+      if (item?.product?.productType === "packed") {
+        if (item?.unit === "kg") {
+          kgs += item.quantity * item?.product?.packageWeight;
+        } else if (item?.unit === "tons") {
+          kgs += (item.quantity * item?.product?.packageWeight) / 1000;
+        }
+      } else if (item?.product?.productType === "loose") {
+        if (item?.unit === "kg") {
+          kgs += item.quantity;
+        } else if (item?.unit === "tons") {
+          kgs += item.quantity / 1000;
+        }
+      }
+
+      return kgs / 1000;
+    }
+  };
+
   // pdf code -----------------------------------
 
   const [tableData, setTableData] = useState([]);
@@ -99,10 +128,11 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
       "Order ID",
       "Warehouse Name",
       "Customer ID",
+      "Qty",
       "Customer Name",
       "TNX Amount",
       "Payment Mode",
-      "Status"
+      "Status",
     ];
 
     // const xlarr = [];
@@ -118,18 +148,19 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
           Date: order.createdAt.slice(0, 10),
           "Order ID": order.orderNumber,
           "Warehouse Name": order.warehouse?.name,
+          Qty: `${Qty(order.items)} Tons`,
           "Customer ID": order.customer?.customer_id,
           "Customer Name": order.customer?.name,
           "TNX Amount": order.totalAmount,
           "Payment Mode": "UPI",
-          "Status" : order.orderStatus
+          Status: order.orderStatus,
         })
       );
       setTableData(arr);
 
+      const total = GrandTotal();
 
-
-      if (type === "PDF") handleExportPDF(columns, tableData, "Orders");
+      if (type === "PDF") handleExportPDF(columns, tableData, "Orders", total);
       else if (type === "XLS") handleExportExcel(columns, tableData, "Orders");
     } else {
       setError("Table is Empty");
@@ -207,19 +238,19 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
           </select>
         </div>
         <div className={`col-3 formcontent`}>
-        <label htmlFor="">Status :</label>
-        <select
-          value={status}
-          onChange={(e) =>
-            setStatus(e.target.value === "null" ? null : e.target.value)
-          }
-        >
-          <option value="null">--select--</option>
-          <option value="Confirmed">Confirmed</option>
-          <option value="Dispatched">Dispatched</option>
-          <option value="Delivered">Delivered</option>
-        </select>
-      </div>
+          <label htmlFor="">Status :</label>
+          <select
+            value={status}
+            onChange={(e) =>
+              setStatus(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Dispatched">Dispatched</option>
+            <option value="Delivered">Delivered</option>
+          </select>
+        </div>
       </div>
       <div className="row m-0 p-3 justify-content-center">
         <div className={`col-3 formcontent`}>
@@ -254,6 +285,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
                   <th>Warehouse Name</th>
                   <th>Customer ID</th>
                   <th>Customer Name</th>
+                  <th>Qunatity</th>
                   <th>TNX Amount</th>
                   <th>Payment Mode</th>
                   <th>Status</th>
@@ -262,7 +294,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
               <tbody>
                 {orders.length === 0 && (
                   <tr>
-                    <td colSpan={8}>NO DATA FOUND</td>
+                    <td colSpan={10}>NO DATA FOUND</td>
                   </tr>
                 )}
                 {orders.length > 0 &&
@@ -282,6 +314,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
                       <td>{order.warehouse?.name}</td>
                       <td>{order.customer?.customer_id}</td>
                       <td>{order.customer?.name}</td>
+                      <td>{Qty(order.items)} Tons</td>
                       <td>{order.totalAmount}</td>
                       <td>UPI</td>
                       <td className={styles.imageCol}>
@@ -351,6 +384,11 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
                   ))}
               </tbody>
             </table>
+            {orders.length > 0 && (
+              <p className="text-end fs-5 pe-3 py-2" colSpan={10}>
+                Grand Total : {GrandTotal()}
+              </p>
+            )}
 
             <div className="row m-0 p-0 pt-3 justify-content-between">
               <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>

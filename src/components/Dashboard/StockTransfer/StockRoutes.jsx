@@ -1,22 +1,16 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
-import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
-import ErrorModal from "@/components/ErrorModal";
-import { useAuth } from "@/Auth";
-import OrderTransferPage from "./OrderTransferPage";
+import PageSkeleton from "@/components/SkeletonLoaders/PageSkeleton";
+import TransferList from "./TransferList";
 
-// Lazy-loaded components
-const WarehouseHome = lazy(() => import("./WarehouseHome"));
-const OngoingWarehouse = lazy(() => import("./OngoingWarehouse"));
+const StockHome = lazy(() => import("./StockHome"));
+const StockTransferPage = lazy(() => import("./StockTransferPage"));
+const WarehouseDetailsPage = lazy(() => import("./WarehouseDetailsPage"));
+// const Deliveries = lazy(() => import("./Deliveries"));
 
-function WarehouseRoutes() {
+function StockRoutes() {
   const navigate = useNavigate();
-
-  const {axiosAPI} = useAuth();
-
   const [managers, setManagers] = useState();
-
-  const [products, setProducts] = useState([]);
 
   const [error, setError] = useState();
 
@@ -38,51 +32,38 @@ function WarehouseRoutes() {
         // console.log(res);
         setManagers(res.data.employees);
         setProducts(res1.data.products);
-        console.log(res1.data.products)
+        console.log(res1.data.products);
       } catch (e) {
         // console.log(e);
-        setError(e.response.data.message);
+        setError(e.response?.data?.message);
       }
     }
     fetch();
   }, []);
-
   return (
     <>
       <Routes>
+        <Route index element={<StockHome navigate={navigate} />} />
+
         <Route
-          index
-          element={
-            <Suspense fallback={<PageSkeleton />}>
-              <WarehouseHome navigate={navigate} managers={managers} products={products} isAdmin={isAdmin}  />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/ongoing"
-          element={
-            <Suspense fallback={<PageSkeleton />}>
-              <OngoingWarehouse navigate={navigate} managers={managers} isAdmin={isAdmin} />
-            </Suspense>
-          }
-        />
-        {/* <Route
-          path="/stock-transfer"
+          path="/transfer"
           element={
             <Suspense fallback={<PageSkeleton />}>
               <StockTransferPage navigate={navigate} managers={managers} />
             </Suspense>
           }
-        /> */}
+        />
+
         <Route
-          path="/order-transfer"
+          path="/list"
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <OrderTransferPage navigate={navigate} managers={managers} />
+              <TransferList navigate={navigate} managers={managers} />
             </Suspense>
           }
         />
-        {/* <Route
+
+        <Route
           path="/:id"
           element={
             managers ? (
@@ -91,7 +72,7 @@ function WarehouseRoutes() {
               <PageSkeleton /> // or any loading fallback
             )
           }
-        /> */}
+        />
       </Routes>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
@@ -100,4 +81,4 @@ function WarehouseRoutes() {
   );
 }
 
-export default WarehouseRoutes;
+export default StockRoutes;
