@@ -127,14 +127,18 @@ function OngoingDropoffModal({ rule, trigger, setTrigger }) {
             <div className="row justify-content-center">
               <div className={`col-4  inputcolumn-mdl`}>
                 <label htmlFor="">max Drop-off Points :</label>
-                <input
-                  type="text"
+                <select
                   name=""
                   id=""
                   value={maxDropOffPoints}
                   onChange={(e) => setMaxDropOffPoints(e.target.value)}
                   disabled={!editclick}
-                />
+                >
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={4}>4</option>
+                </select>
               </div>
             </div>
             {!editclick && (

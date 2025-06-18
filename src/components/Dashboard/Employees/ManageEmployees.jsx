@@ -6,6 +6,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import EmployeeViewModal from "./EmployeeViewModal";
 import UpdateEmployee from "./UpdateEmployee";
+import DeleteModal from "./DeleteModal";
 
 function ManageEmployees({ navigate, isAdmin }) {
   const [employees, setEmployees] = useState();
@@ -89,10 +90,14 @@ function ManageEmployees({ navigate, isAdmin }) {
                       <td>{emp.email}</td>
                       <td>{emp.roles[0]?.name}</td>
                       {isAdmin && (
-                        <td>
+                        <td className={styles.delcol}>
                           <button onClick={() => setOnUpdate(emp)}>
                             Update
                           </button>
+                          <DeleteModal
+                            employee={emp}
+                            changeTrigger={onTrigger}
+                          />
                         </td>
                       )}
                     </tr>

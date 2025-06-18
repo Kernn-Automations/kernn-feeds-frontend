@@ -67,7 +67,7 @@ function MapViewModal({ setLocation, defaultLocation, setDefaultLocation, onClos
             </div>
           </DialogBody>
 
-          <DialogCloseTrigger className="inputcolumn-mdl-close" />
+          <DialogCloseTrigger className="inputcolumn-mdl-close" asChild><span onClick={() => onClose()}><i class="bi bi-x"></i></span></DialogCloseTrigger>
         </DialogContent>
       </DialogRoot>
     </>

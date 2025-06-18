@@ -11,6 +11,7 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 
 function PurchaseReport({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
@@ -60,23 +61,26 @@ function PurchaseReport({ navigate }) {
     setTrigger(trigger ? false : true);
   };
 
+  const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
   useEffect(() => {
     async function fetch() {
       try {
         setPurchases(null);
         setLoading(true);
-        // console.log(
-        //   `/purchases?fromDate=${from}&toDate=${to}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }`
-        // );
-        const res = await axiosAPI.get(
-          `/purchases?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }`
-        );
+
+        const query = `/purchases?fromDate=${from}&toDate=${to}${
+          warehouse ? `&warehouseId=${warehouse}` : ""
+        }&page=${pageNo}&limit=${limit}`;
+
+        console.log(query);
+
+        const res = await axiosAPI.get(query);
         console.log(res);
         setPurchases(res.data.purchaseOrders);
+        setTotalPages(res.data.totalPages);
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -86,7 +90,7 @@ function PurchaseReport({ navigate }) {
       }
     }
     fetch();
-  }, [trigger]);
+  }, [trigger, pageNo, limit]);
 
   const [tableData, setTableData] = useState([]);
 
@@ -170,8 +174,8 @@ function PurchaseReport({ navigate }) {
       </div>
 
       {purchases && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-lg-8">
+        <div className="row m-0 p-3 justify-content-around">
+          <div className="col-lg-5">
             <button className={styles.xls} onClick={() => onExport("XLS")}>
               <p>Export to </p>
               <img src={xls} alt="" />
@@ -180,6 +184,21 @@ function PurchaseReport({ navigate }) {
               <p>Export to </p>
               <img src={pdf} alt="" />
             </button>
+          </div>
+          <div className={`col-lg-2 ${styles.entity}`}>
+            <label htmlFor="">Entity :</label>
+            <select
+              name=""
+              id=""
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+              <option value={40}>40</option>
+              <option value={50}>50</option>
+            </select>
           </div>
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
@@ -221,6 +240,28 @@ function PurchaseReport({ navigate }) {
                   ))}
               </tbody>
             </table>
+            <div className="row m-0 p-0 pt-3 justify-content-between">
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo > 1 && (
+                  <button onClick={() => setPageNo(pageNo - 1)}>
+                    <span>
+                      <FaArrowLeftLong />
+                    </span>{" "}
+                    Previous
+                  </button>
+                )}
+              </div>
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo < totalPages && (
+                  <button onClick={() => setPageNo(pageNo + 1)}>
+                    Next{" "}
+                    <span>
+                      <FaArrowRightLong />
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

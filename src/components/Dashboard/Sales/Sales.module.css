@@ -593,3 +593,25 @@
 .signtext:hover{
   color: #003d7e;
 }
+
+/*  */
+.entity{
+  width: 200px !important;
+  height: 40px;
+  position: relative;
+  top: 20px;
+}
+.entity label{
+  color: black;
+  font-size: 15px;
+  font-weight: 600;
+}
+.entity select{
+  width: 60px;
+  height: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid gray;
+  border-radius: 6px;
+  margin-left: 10px;
+}

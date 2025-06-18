@@ -79,7 +79,7 @@
   pointer-events: none; /* Makes the icon unclickable */
 }
 
-.xls{
+.xls {
   width: 150px;
   height: 40px;
   padding-left: 30px;
@@ -89,20 +89,64 @@
   /* box-shadow: 1px 1px 3px black; */
   color: #555;
 }
-.xls:hover{
+.xls:hover {
   outline: 1px solid #555;
 }
-.xls p{
+.xls p {
   float: left;
   margin-bottom: 0;
   font-size: 16px;
   font-weight: 500;
   padding-top: 6px;
 }
-.xls img{
+.xls img {
   width: 35px;
   height: 35px;
 }
-.images{
+.images {
   width: 200px;
+}
+
+/*  */
+.buttonbox {
+  width: 80px;
+  height: auto;
+}
+.buttonbox button {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600px;
+  transition: 0.2s ease;
+}
+
+.buttonbox button span {
+  padding-top: 3px;
+}
+.buttonbox button:hover {
+  color: #555;
+  transform: scale(1.05);
+}
+
+.entity {
+  /* width: 200px !important; */
+  height: 40px;
+  position: relative;
+  /* top: 20px; */
+}
+.entity label {
+  color: black;
+  font-size: 15px;
+  font-weight: 600;
+}
+.entity select {
+  width: 60px;
+  height: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid gray;
+  border-radius: 6px;
+  margin-left: 10px;
 }
