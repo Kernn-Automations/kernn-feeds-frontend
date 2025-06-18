@@ -195,3 +195,25 @@
 .bluebtn:hover{
   background-color: #1d7cdc;
 }
+
+.delcol{
+  position: relative;
+}
+.delcol .deletebtn{
+  position: absolute;
+  left: 110%;
+  background-color: transparent;
+  color: black;
+  font-size: 14px;
+}
+.deletebtn:hover{
+  color: #ff2020;
+}
+.deltext{
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+}
+.deltext span{
+  font-weight: 600;
+}

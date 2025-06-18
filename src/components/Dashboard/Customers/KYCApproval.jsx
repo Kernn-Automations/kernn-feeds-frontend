@@ -1,81 +1,80 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Customer.module.css";
-import KYCViewModal from "./KYCViewModal";
 import { IoSearch } from "react-icons/io5";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-import {
-  DialogActionTrigger,
-  DialogBody,
-  DialogCloseTrigger,
-  DialogContent,
-  DialogRoot,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import KYCModal from "./KYCModal";
 
 function KYCApproval({ navigate, isAdmin }) {
-  const [customers, setCustomers] = useState();
-
-  const [trigger, setTrigger] = useState(false);
-
-  const changeTrigger = () => setTrigger(!trigger);
-
-  const [customerId, setCustomerId] = useState();
-
   const { axiosAPI } = useAuth();
+
+  const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [customerId, setCustomerId] = useState(null);
+  const [trigger, setTrigger] = useState(false);
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const closeModal = () => setIsModalOpen(false);
+
+  const changeTrigger = () => setTrigger((prev) => !prev);
 
   useEffect(() => {
-    async function fetch() {
+    async function fetchPendingKYC() {
       try {
         setLoading(true);
         const res = await axiosAPI.get("/customers?kycStatus=Pending");
-        //console.log(res);
-        setCustomers(res.data.customers);
+        setCustomers(res.data.customers || []);
       } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+        setError(e.response?.data?.message || "Failed to fetch data.");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
-    fetch();
+    fetchPendingKYC();
   }, [trigger]);
 
+  useEffect(() => {
+    const filtered = customers.filter((customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
+    );
+    setFilteredCustomers(filtered);
+  }, [searchTerm, customers]);
+
   let count = 1;
+
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/customers")}>Customers</span>{" "}
-        <i class="bi bi-chevron-right"></i> KYC-Approvals
+        <i className="bi bi-chevron-right"></i> KYC-Approvals
       </p>
-      {customers && !customerId &&  (
+
+      {!customerId && (
         <>
           <div className="row m-0 p-3 pt-5 justify-content-end">
             <div className={`col-4 ${styles.search}`}>
-              <input type="text" placeholder="Search..." />
+              <input
+                type="text"
+                placeholder="Search by customer name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
               <span className={styles.searchicon}>
                 <IoSearch />
               </span>
             </div>
           </div>
+
           <div className="row m-0 p-3 justify-content-center">
             <div className="col-10">
-              <table className={`table table-bordered borderedtable`}>
+              <table className="table table-bordered borderedtable">
                 <thead>
-                  <tr
-                    className="animated-row"
-                    style={{ animationDelay: `${count * 0.1}s` }}
-                  >
+                  <tr className="animated-row" style={{ animationDelay: `${count * 0.1}s` }}>
                     <th>S.No</th>
                     <th>Customer ID</th>
                     <th>Customer Name</th>
@@ -86,38 +85,30 @@ function KYCApproval({ navigate, isAdmin }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.length === 0 && (
-                    <tr
-                      className="animated-row"
-                      style={{ animationDelay: `${count * 0.1}s` }}
-                    >
+                  {filteredCustomers.length === 0 && (
+                    <tr className="animated-row">
                       <td colSpan={7}>NO DATA FOUND</td>
                     </tr>
                   )}
-                  {customers.length > 0 &&
-                    customers.map((customer) => (
-                      <tr
-                        key={customer.id}
-                        className="animated-row"
-                        style={{ animationDelay: `${count * 0.1}s` }}
-                      >
-                        <td>{count++}</td>
-                        <td>{customer.customer_id}</td>
-                        <td>{customer.name}</td>
-                        <td>{customer.salesExecutive.id}</td>
-                        <td>{customer.salesExecutive.name}</td>
-                        <td>{customer.warehouse && customer.warehouse.name}</td>
-                        <td>
-                          {/* <KYCViewModal
-                            customer={customer}
-                            changeTrigger={changeTrigger}
-                          /> */}
-                          <button onClick={() => setCustomerId(customer.id)}>
-                            view
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  {filteredCustomers.map((customer) => (
+                    <tr
+                      key={customer.id}
+                      className="animated-row"
+                      style={{ animationDelay: `${count * 0.1}s` }}
+                    >
+                      <td>{count++}</td>
+                      <td>{customer.customer_id}</td>
+                      <td>{customer.name}</td>
+                      <td>{customer.salesExecutive?.id}</td>
+                      <td>{customer.salesExecutive?.name}</td>
+                      <td>{customer.warehouse?.name}</td>
+                      <td>
+                        <button onClick={() => setCustomerId(customer.id)}>
+                          view
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -126,7 +117,12 @@ function KYCApproval({ navigate, isAdmin }) {
       )}
 
       {customerId && (
-        <KYCModal customerId={customerId} setCustomerId={setCustomerId} isAdmin={isAdmin} />
+        <KYCModal
+          customerId={customerId}
+          setCustomerId={setCustomerId}
+          isAdmin={isAdmin}
+          changeTrigger={changeTrigger}
+        />
       )}
 
       {isModalOpen && (

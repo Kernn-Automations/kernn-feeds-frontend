@@ -127,17 +127,17 @@ function NewDroppOffRuleModal() {
             <div className="row justify-content-center">
               <div className={`col-4  inputcolumn-mdl`}>
                 <label htmlFor="">Max Drop-off Points :</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={4}
-                  value={maxDropOffPoints}
+                <select name="" id="" value={maxDropOffPoints}
                   onChange={(e) =>
                     onError(e, maxDropOffPoints, setMaxDropOffPoints)
                   }
                   required
-                  className={errors.maxDropOffPoints ? styles.errorField : ""}
-                />
+                  className={errors.maxDropOffPoints ? styles.errorField : ""}>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
+                  </select>
               </div>
             </div>
             <div className="row justify-content-center">

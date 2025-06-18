@@ -44,6 +44,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
   };
 
   const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   useEffect(() => {
     async function fetch() {
@@ -55,7 +56,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}${
             status ? `&orderStatus=${status}` : ""
-          }&page=${pageNo}`
+          }&page=${pageNo}&limit=${limit}`
         );
 
         const res = await axiosAPI.get(
@@ -63,7 +64,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}${
             status ? `&status=${status}` : ""
-          }&page=${pageNo}`
+          }&page=${pageNo}&limit=${limit}`
         );
         console.log(res);
         setOrders(res.data.salesOrders);
@@ -77,7 +78,7 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
       }
     }
     fetch();
-  }, [trigger, pageNo]);
+  }, [trigger, pageNo, limit]);
 
   const onSubmit = () => {
     // console.log(from, to, warehouse, customer);
@@ -264,8 +265,8 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
       </div>
 
       {orders && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-lg-8">
+        <div className="row m-0 p-3 justify-content-around">
+          <div className="col-lg-5">
             <button className={styles.xls} onClick={() => onExport("XLS")}>
               <p>Export to </p>
               <img src={xls} alt="" />
@@ -274,6 +275,21 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
               <p>Export to </p>
               <img src={pdf} alt="" />
             </button>
+          </div>
+          <div className={`col-lg-3 ${styles.entity}`}>
+            <label htmlFor="">Entity :</label>
+            <select
+              name=""
+              id=""
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+              <option value={40}>40</option>
+              <option value={50}>50</option>
+            </select>
           </div>
           <div className="col-lg-10">
             <table className={`table table-hover table-bordered borderedtable`}>

@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import AddVendorViewModal from "./AddVendorViewModal";
 import styles from "./Purchases.module.css";
 import EditVendorViewModal from "./EditVendorViewModal";
+import DeleteModal from "./DeleteModal";
 
 function Vendors({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -85,8 +86,9 @@ function Vendors({ navigate }) {
                       <td>{supplier.createdAt.slice(0, 10)}</td>
                       <td>{supplier.supplierCode}</td>
                       <td>{supplier.name}</td>
-                      <td>
+                      <td className={styles.delcol}>
                         <EditVendorViewModal supplier={supplier} />
+                        <DeleteModal supplier={supplier} changeTrigger={changeTrigger}/>
                       </td>
                     </tr>
                   ))}
