@@ -11,6 +11,7 @@ import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 
 function OutgoingStock({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
@@ -69,27 +70,28 @@ function OutgoingStock({ navigate }) {
     setTrigger(trigger ? false : true);
   };
 
+  const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
   useEffect(() => {
     async function fetch() {
       try {
         setStock(null);
         setLoading(true);
-        // console.log(
-        //   `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }${customer ? `&customerId=${customer}` : ""}${
-        //     product ? `&customerId=${customer}` : ""
-        //   }`
-        // );
-        const res = await axiosAPI.get(
-          `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}${
-            product ? `&productId=${product}` : ""
-          }`
-        );
-        // console.log(res);
+
+        const query = `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
+          warehouse ? `&warehouseId=${warehouse}` : ""
+        }${customer ? `&customerId=${customer}` : ""}${
+          product ? `&productId=${product}` : ""
+        }&page=${pageNo}&limit=${limit}`;
+
+        console.log(query);
+
+        const res = await axiosAPI.get(query);
+        console.log(res);
         setStock(res.data.outgoingStock);
+        setTotalPages(res.data.totalPages);
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -99,22 +101,9 @@ function OutgoingStock({ navigate }) {
       }
     }
     fetch();
-  }, [trigger]);
+  }, [trigger, pageNo, limit]);
 
   // Function to export as Excel
-  const exportToExcel = () => {
-    const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-    const excelFile = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    saveAs(excelFile, "incoming_stock_table_data.xlsx");
-  };
 
   const [tableData, setTableData] = useState();
 
@@ -249,8 +238,8 @@ function OutgoingStock({ navigate }) {
       </div>
 
       {stock && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-lg-10">
+        <div className="row m-0 p-3 justify-content-around">
+          <div className="col-lg-7">
             <button className={styles.xls} onClick={() => onExport("XLS")}>
               <p>Export to </p>
               <img src={xls} alt="" />
@@ -259,6 +248,21 @@ function OutgoingStock({ navigate }) {
               <p>Export to </p>
               <img src={pdf} alt="" />
             </button>
+          </div>
+          <div className={`col-lg-2 ${styles.entity}`}>
+            <label htmlFor="">Entity :</label>
+            <select
+              name=""
+              id=""
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+              <option value={40}>40</option>
+              <option value={50}>50</option>
+            </select>
           </div>
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
@@ -304,6 +308,29 @@ function OutgoingStock({ navigate }) {
                   ))}
               </tbody>
             </table>
+
+            <div className="row m-0 p-0 pt-3 justify-content-between">
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo > 1 && (
+                  <button onClick={() => setPageNo(pageNo - 1)}>
+                    <span>
+                      <FaArrowLeftLong />
+                    </span>{" "}
+                    Previous
+                  </button>
+                )}
+              </div>
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo < totalPages && (
+                  <button onClick={() => setPageNo(pageNo + 1)}>
+                    Next{" "}
+                    <span>
+                      <FaArrowRightLong />
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

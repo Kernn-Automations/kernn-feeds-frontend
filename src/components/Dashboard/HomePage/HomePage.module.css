@@ -7,7 +7,6 @@
   color: var(--secondary-color);
   line-height: 33px;
   letter-spacing: 0%;
-
 }
 .bigbox,
 .smallbox {
@@ -64,8 +63,18 @@
   margin-bottom: 15px;
   /* opacity: 0.6; */
 }
+
+.stockbox {
+  flex: 0 0 auto;
+  max-width: 200px;
+  min-width: 140px;
+  text-align: center;
+  margin-right: 15px;
+}
+
 .imagebox h6,
-.kyccontent h6, .num {
+.kyccontent h6,
+.num {
   font-weight: 600;
   font-size: 16px;
   line-height: 20.82px;
@@ -83,7 +92,6 @@
   font-size: 16px;
   color: var(--secondary-color);
 }
-
 
 .imagebox p,
 .kyccontent p {
@@ -184,7 +192,7 @@
 }
 
 .mild {
-  background-color: 	#FFB400; /* yellow */
+  background-color: #ffb400; /* yellow */
 }
 
 .alertCard h6 {
@@ -202,4 +210,3 @@
   letter-spacing: 0.5px;
   text-align: center;
 }
-

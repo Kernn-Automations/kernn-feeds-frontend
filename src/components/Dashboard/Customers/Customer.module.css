@@ -262,3 +262,47 @@
   height: 100%;
   object-fit: contain;
 }
+
+/*  */
+.buttonbox {
+  width: 80px;
+  height: auto;
+}
+.buttonbox button {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600px;
+  transition: 0.2s ease;
+}
+
+.buttonbox button span {
+  padding-top: 3px;
+}
+.buttonbox button:hover {
+  color: #555;
+  transform: scale(1.05);
+}
+
+.entity {
+  /* width: 200px !important; */
+  height: 40px;
+  position: relative;
+  /* top: 20px; */
+}
+.entity label {
+  color: black;
+  font-size: 15px;
+  font-weight: 600;
+}
+.entity select {
+  width: 60px;
+  height: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid gray;
+  border-radius: 6px;
+  margin-left: 10px;
+}

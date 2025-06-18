@@ -5,11 +5,12 @@ import CustomersModal from "./CustomersModal";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 
 function CustomerList({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
 
-  const [customers, setCustomers] = useState([]);
+  const [customers, setCustomers] = useState(null);
   const [filteredCustomers, setFilteredCustomers] = useState(null);
   const [warehouses, setWarehouses] = useState([]);
   const [salesExecutives, setSalesExecutives] = useState([]);
@@ -44,18 +45,27 @@ function CustomerList({ navigate, isAdmin }) {
     fetchMeta();
   }, []);
 
+  const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
   // Fetch customers on filter change
   useEffect(() => {
     async function fetchCustomers() {
       try {
-        // setCustomers([]);
+        setCustomers(null);
+        setFilteredCustomers(null)
         setLoading(true);
         const query = `/customers?kycStatus=Approved${
           warehouse ? `&warehouseId=${warehouse}` : ""
-        }${se ? `&salesExecutiveId=${se}` : ""}`;
+        }${se ? `&salesExecutiveId=${se}` : ""}&page=${pageNo}&limit=${limit}`;
+
+        console.log(query);
 
         const res = await axiosAPI.get(query);
-        setCustomers(res.data.customers || []);
+        console.log(res);
+        setCustomers(res.data.customers);
+        setTotalPages(res.data.totalPages);
       } catch (e) {
         setError(e.response?.data?.message || "Failed to fetch customers.");
         setIsModalOpen(true);
@@ -64,11 +74,11 @@ function CustomerList({ navigate, isAdmin }) {
       }
     }
     fetchCustomers();
-  }, [warehouse, se]);
+  }, [warehouse, se, pageNo, limit]);
 
   // Filter customers on search
   useEffect(() => {
-    const filtered = customers.filter((customer) =>
+    const filtered = customers?.filter((customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
     );
     setFilteredCustomers(filtered);
@@ -120,7 +130,7 @@ function CustomerList({ navigate, isAdmin }) {
         </div>
       )}
 
-      {!customerId && (
+      {!customerId && filteredCustomers && (
         <>
           <div className="row m-0 p-3 justify-content-end">
             <div className={`col-md-5 ${styles.search}`}>
@@ -138,6 +148,22 @@ function CustomerList({ navigate, isAdmin }) {
 
           {filteredCustomers && (
             <div className="row m-0 p-3 justify-content-center">
+              <div className={`col-lg-10 ${styles.entity}`}>
+                <label htmlFor="">Entity :</label>
+                <select
+                  name=""
+                  id=""
+                  value={limit}
+                  onChange={(e) => setLimit(e.target.value)}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={30}>30</option>
+                  <option value={40}>40</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+
               <div className="col-md-10">
                 <table className="table table-bordered borderedtable">
                   <thead>
@@ -178,6 +204,28 @@ function CustomerList({ navigate, isAdmin }) {
                     ))}
                   </tbody>
                 </table>
+                <div className="row m-0 p-0 pt-3 justify-content-between">
+                  <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                    {pageNo > 1 && (
+                      <button onClick={() => setPageNo(pageNo - 1)}>
+                        <span>
+                          <FaArrowLeftLong />
+                        </span>{" "}
+                        Previous
+                      </button>
+                    )}
+                  </div>
+                  <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                    {pageNo < totalPages && (
+                      <button onClick={() => setPageNo(pageNo + 1)}>
+                        Next{" "}
+                        <span>
+                          <FaArrowRightLong />
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

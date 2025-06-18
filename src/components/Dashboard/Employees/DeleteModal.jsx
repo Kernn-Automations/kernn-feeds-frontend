@@ -27,7 +27,7 @@ function DeleteModal({ employee, changeTrigger }) {
     console.log(employee)
     try {
       setLoading(true);
-      const res = await axiosAPI.delete(`/employees/remove/${employee.employeeId}`);
+      const res = await axiosAPI.delete(`/employees/hard-delete/${employee.employeeId}`);
       console.log(res);
       changeTrigger();
       setSuccessful(res.data?.message)
