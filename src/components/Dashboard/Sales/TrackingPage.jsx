@@ -9,15 +9,13 @@ import PaymentInfo from "./PaymentInfo";
 import axios from "axios";
 import SignUploadModal from "./SignUploadModal";
 import VerifyOTP from "./VerifyOTP";
+import DispatchForm from "./DispatchForm";
 
 const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [order, setOrder] = useState();
   const { axiosAPI } = useAuth();
 
   const [showDispatchModal, setShowDispatchModal] = useState(false);
-  const [truckNumber, setTruckNumber] = useState("");
-  const [driverName, setDriverName] = useState("");
-  const [driverMobile, setDriverMobile] = useState("");
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -215,12 +213,17 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
               </div>
               {downloadLoading && <Loading />}
               {order?.orderStatus === "Confirmed" && (
-                <button
-                  className={styles.dispatchBtn}
-                  onClick={() => setShowDispatchModal(true)}
-                >
-                  {actionLoading ? "Checking..." : "Dispatch Order"}
-                </button>
+                <DispatchForm
+                  actionLoading={actionLoading}
+                  orderId={orderId}
+                  setActionLoading={setActionLoading}
+                  setShowDispatchModal={setShowDispatchModal}
+                  showDispatchModal={showDispatchModal}
+                  order={order}
+                  setOrder={setOrder}
+                  setError={setError}
+                  setIsModalOpen={setIsModalOpen}
+                />
               )}
 
               {order?.orderStatus === "Dispatched" && (
@@ -575,100 +578,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
       {loading && <Loading />}
-      {showDispatchModal && (
-        <div
-          className="modal d-block"
-          tabIndex="-1"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content p-3">
-              <h5>Dispatch Order</h5>
-              <div className="mb-2">
-                <label>Truck Number</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={truckNumber}
-                  onChange={(e) => setTruckNumber(e.target.value)}
-                  placeholder="Enter truck number"
-                />
-              </div>
-              <div className="mb-2">
-                <label>Driver Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={driverName}
-                  onChange={(e) => setDriverName(e.target.value)}
-                  placeholder="Enter driver name"
-                />
-              </div>
-              <div className="mb-3">
-                <label>Driver Mobile</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={driverMobile}
-                  onChange={(e) => setDriverMobile(e.target.value)}
-                  placeholder="Enter driver mobile"
-                />
-              </div>
-              <div className="d-flex justify-content-end gap-2">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setShowDispatchModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-primary"
-                  disabled={actionLoading}
-                  onClick={async () => {
-                    if (!truckNumber || !driverName || !driverMobile) {
-                      setError("All fields are required");
-                      setIsModalOpen(true);
-                      return;
-                    }
-                    try {
-                      setActionLoading(true);
-                      const eligibility = await axiosAPI.get(
-                        `/sales-orders/${orderId}/dispatch/eligibility`
-                      );
-                      if (!eligibility.data.eligible) {
-                        setError(
-                          eligibility.data.reason || "Not eligible for dispatch"
-                        );
-                        setIsModalOpen(true);
-                        return;
-                      }
-                      const res = await axiosAPI.put(
-                        `/sales-orders/${orderId}/dispatch`,
-                        {
-                          truckNumber,
-                          driverName,
-                          driverMobile,
-                        }
-                      );
-                      setOrder({ ...order, orderStatus: res.data.orderStatus });
-                      setShowDispatchModal(false);
-                    } catch (err) {
-                      setError(
-                        err.response?.data?.message || "Dispatch failed"
-                      );
-                      setIsModalOpen(true);
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }}
-                >
-                  {actionLoading ? "Dispatching..." : "Dispatch"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {showDispatchModal && <></>}
     </>
   );
 };

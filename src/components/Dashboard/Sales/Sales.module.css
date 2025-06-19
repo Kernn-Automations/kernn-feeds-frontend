@@ -4,7 +4,7 @@
   margin-bottom: 15px;
 }
 .dispatchBtn {
-   width: 200px;
+  width: 200px;
   background-color: #007bff;
   color: white;
   border: none;
@@ -585,29 +585,29 @@
   color: var(--primary-color);
   letter-spacing: 1px;
 }
-.signtext{
+.signtext {
   font-size: 13px;
   font-weight: 400px;
   margin: 0;
   color: #0056b3;
 }
-.signtext:hover{
+.signtext:hover {
   color: #003d7e;
 }
 
 /*  */
-.entity{
+.entity {
   width: 200px !important;
   height: 40px;
   position: relative;
   top: 20px;
 }
-.entity label{
+.entity label {
   color: black;
   font-size: 15px;
   font-weight: 600;
 }
-.entity select{
+.entity select {
   width: 60px;
   height: 25px;
   font-size: 14px;
@@ -615,4 +615,23 @@
   border: 1px solid gray;
   border-radius: 6px;
   margin-left: 10px;
+}
+
+.dispatchForm label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 3px;
+}
+
+.dispatchForm input {
+  font-size: 14px;
+  font-weight: 500;
+  width: 100% !important;
+  height: 40px !important;
+  padding-left: 4px;
+  /* margin: 10px 0; */
+  border-radius: 5px;
+  /* box-shadow: 1px 1px 1px rgba(34, 34, 34, 0.5); */
+  outline: 1px solid gray;
 }
