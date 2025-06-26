@@ -14,24 +14,30 @@ function CreateCustomer({ navigate }) {
     mobile: "",
     whatsapp: "",
     email: "",
-    aadharNumber: "",
+    aadhaarNumber: "",
     panNumber: "",
     firmName: "",
     gstin: "",
     msme: "",
-    seId: "",
-    address: "",
+    discountType: "bill_to_bill", // default backend expected value
+    isTcsApplicable: false,
+    salesExecutiveId: "",
+    plot: "",
+    street: "",
+    area: "",
+    city: "",
+    mandal: "",
+    district: "",
+    state: "",
+    pincode: "",
     location: { lat: 17.4065, lng: 78.4772 },
   });
-
-  // const [images, setImages] = useState({
-  //   photo: null,
-  //   aadhaarFront: null,
-  //   aadhaarBack: null,
-  //   panFront: null,
-  //   panBack: null,
-  // });
-
+  const isValidAadhaar = (value) => /^\d{12}$/.test(value);
+  const isValidPAN = (value) => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(value.toUpperCase());
+  const isValidGSTIN = (value) =>
+  /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9]{1}[A-Z]{2}$/.test(
+    value.toUpperCase()
+  );
   const [photo, setPhoto] = useState();
   const [aadhaarFront, setAadhaarFront] = useState();
   const [aadhaarBack, setAadhaarBack] = useState();
@@ -43,6 +49,24 @@ function CreateCustomer({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "aadhaarNumber") {
+      // Remove non-digits and allow only 12 digits
+      value = value.replace(/\D/g, "").slice(0, 12);
+    }
+
+    if (field === "panNumber") {
+      value = value.toUpperCase().slice(0, 10); // Auto-uppercase, max 10 chars
+    }
+
+    if (field === "gstin") {
+      value = value.toUpperCase().slice(0, 15);
+    }
+
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
 
   const { axiosAPI } = useAuth();
   const token = localStorage.getItem("access_token");
@@ -65,13 +89,6 @@ function CreateCustomer({ navigate }) {
     fetchBusinessOfficers();
   }, []);
 
-  const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleImageChange = (field, file) => {
-    setImages((prev) => ({ ...prev, [field]: file }));
-  };
 
   const handleCreate = async () => {
     const formData = new FormData();
@@ -79,16 +96,19 @@ function CreateCustomer({ navigate }) {
       if (key === "location") {
         formData.append("latitude", value.lat);
         formData.append("longitude", value.lng);
+      } else if (typeof value === "boolean") {
+        formData.append(key, value ? "true" : "false");
       } else {
         formData.append(key, value);
       }
     });
 
-    formData.append("aadhaarFront", aadhaarFront.file);
-    formData.append("aadhaarBack", aadhaarBack.file);
-    formData.append("panFront", panFront.file);
-    formData.append("panBack", panBack.file);
-    formData.append("photo", photo.file);
+    formData.append("aadhaarFront", aadhaarFront?.file);
+    formData.append("aadhaarBack", aadhaarBack?.file);
+    formData.append("panFront", panFront?.file);
+    formData.append("panBack", panBack?.file);
+    formData.append("photo", photo?.file);
+
     try {
       setLoading(true);
       const res = await axios.post(
@@ -118,7 +138,6 @@ function CreateCustomer({ navigate }) {
         <i className="bi bi-chevron-right"></i> Add Customer
       </p>
 
-      {/* Customer Details */}
       <div className="row m-0 p-3">
         <h5 className={styles.head}>Customer Details</h5>
         {[
@@ -126,11 +145,8 @@ function CreateCustomer({ navigate }) {
           { label: "Mobile Number", field: "mobile" },
           { label: "Whatsapp", field: "whatsapp" },
           { label: "Email", field: "email" },
-          { label: "Aadhaar Number", field: "aadharNumber" },
-          { label: "PAN Number", field: "panNumber" },
-          { label: "GSTIN", field: "gstin" },
-          { label: "MSME Number", field: "msme" },
           { label: "Firm Name", field: "firmName" },
+          { label: "MSME Number", field: "msme" },
         ].map(({ label, field }) => (
           <div key={field} className={`col-3 ${styles.longform}`}>
             <label>{label} :</label>
@@ -142,12 +158,75 @@ function CreateCustomer({ navigate }) {
             />
           </div>
         ))}
+        {/* Aadhaar Number */}
+        <div className={`col-3 ${styles.longform}`}>
+          <label>Aadhaar Number :</label>
+          <input
+            type="text"
+            value={form.aadhaarNumber}
+            onChange={(e) => handleChange("aadhaarNumber", e.target.value)}
+            required
+          />
+          {form.aadhaarNumber && !isValidAadhaar(form.aadhaarNumber) && (
+            <small className="text-danger">Enter a valid 12-digit Aadhaar number</small>
+          )}
+        </div>
+
+        {/* PAN Number */}
+        <div className={`col-3 ${styles.longform}`}>
+          <label>PAN Number :</label>
+          <input
+            type="text"
+            value={form.panNumber}
+            onChange={(e) => handleChange("panNumber", e.target.value)}
+            required
+          />
+          {form.panNumber && !isValidPAN(form.panNumber) && (
+            <small className="text-danger">Enter valid PAN (e.g. ABCDE1234F)</small>
+          )}
+        </div>
+
+        {/* GSTIN */}  
+        <div className={`col-3 ${styles.longform}`}>
+          <label>GSTIN :</label>
+          <input
+            type="text"
+            value={form.gstin}
+            onChange={(e) => handleChange("gstin", e.target.value)}
+            required
+          />
+          {form.gstin && !isValidGSTIN(form.gstin) && (
+            <small className="text-danger">
+              GSTIN must be 15 characters (e.g. 27ABCDE1234F1IJ)
+            </small>
+          )}
+        </div>  
+        <div className={`col-3 ${styles.longform}`}>
+          <label>Discount Type :</label>
+          <select
+            value={form.discountType}
+            onChange={(e) => handleChange("discountType", e.target.value)}
+            required
+          >
+            <option value="bill_to_bill">Bill to Bill</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <div className={`col-3 ${styles.longform}`}>
+          <label>TCS Applicable :</label>
+          <input
+            type="checkbox"
+            checked={form.isTcsApplicable}
+            onChange={(e) => handleChange("isTcsApplicable", e.target.checked)}
+          />
+        </div>
 
         <div className={`col-3 ${styles.longform}`}>
           <label>Sales Executive :</label>
           <select
-            value={form.seId}
-            onChange={(e) => handleChange("seId", e.target.value)}
+            value={form.salesExecutiveId}
+            onChange={(e) => handleChange("salesExecutiveId", e.target.value)}
             required
           >
             <option value="">--select--</option>
@@ -182,19 +261,31 @@ function CreateCustomer({ navigate }) {
         </div>
       </div>
 
-      {/* Address */}
-      <div className="row m-0 p-0">
+      {/* Address Fields */}
+      <div className="row m-0 p-3">
         <h5 className={styles.headmdl}>Address</h5>
-        <div className={`col-10 ${styles.textform}`}>
-          <textarea
-            value={form.address}
-            onChange={(e) => handleChange("address", e.target.value)}
-          />
-        </div>
+        {[
+          "plot",
+          "street",
+          "area",
+          "city",
+          "mandal",
+          "district",
+          "state",
+          "pincode",
+        ].map((field) => (
+          <div key={field} className={`col-3 ${styles.longform}`}>
+            <label>{field.charAt(0).toUpperCase() + field.slice(1)} :</label>
+            <input
+              type="text"
+              value={form[field]}
+              onChange={(e) => handleChange(field, e.target.value)}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Image Uploads */}
-
       <div className="row m-0 p-0">
         <h5 className={styles.headmdl}>Customer Photo</h5>
         <div className={`col-3 ${styles.longform}`}>
@@ -241,6 +332,7 @@ function CreateCustomer({ navigate }) {
           />
         </div>
       </div>
+
       {/* Actions */}
       {!loading && (
         <div className="row m-0 p-3 justify-content-center">

@@ -56,7 +56,7 @@ function CustomerList({ navigate, isAdmin }) {
         setCustomers(null);
         setFilteredCustomers(null)
         setLoading(true);
-        const query = `/customers?kycStatus=Approved${
+        const query = `/customers?${
           warehouse ? `&warehouseId=${warehouse}` : ""
         }${se ? `&salesExecutiveId=${se}` : ""}&page=${pageNo}&limit=${limit}`;
 
@@ -171,9 +171,9 @@ function CustomerList({ navigate, isAdmin }) {
                       <th>S.No</th>
                       <th>Customer ID</th>
                       <th>Customer Name</th>
-                      <th>SE ID</th>
                       <th>SE Name</th>
                       <th>Warehouse</th>
+                      <th>Status</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -192,9 +192,9 @@ function CustomerList({ navigate, isAdmin }) {
                         <td>{count++}</td>
                         <td>{customer.customer_id}</td>
                         <td>{customer.name}</td>
-                        <td>{customer.salesExecutive?.id}</td>
                         <td>{customer.salesExecutive?.name}</td>
                         <td>{customer.warehouse?.name}</td>
+                        <td>{customer.kycStatus}</td>
                         <td>
                           <button onClick={() => setCustomerId(customer.id)}>
                             view
