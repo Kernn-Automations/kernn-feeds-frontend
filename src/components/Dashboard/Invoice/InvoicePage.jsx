@@ -59,7 +59,7 @@ function InvoicesPage({ navigate }) {
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
         );
-        console.log(res)
+        console.log(res)  
         setInvoices(res.data.invoices);
         setTotalPages(res.data.totalPages || 1);
 
