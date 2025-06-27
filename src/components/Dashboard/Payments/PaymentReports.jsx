@@ -91,7 +91,7 @@ function PaymentReports({ navigate }) {
             se ? `&salesExecutiveId=${se}` : ""
           }`
         );
-        // console.log(res);
+        console.log(res);
         setReports(res.data.paymentRequests);
       } catch (e) {
         // console.log(e);

@@ -59,8 +59,10 @@ function InvoicesPage({ navigate }) {
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
         );
+        console.log(res)
         setInvoices(res.data.invoices);
         setTotalPages(res.data.totalPages || 1);
+
       } catch (e) {
         setError(e.response?.data?.message || "Failed to load invoices");
         setIsModalOpen(true);

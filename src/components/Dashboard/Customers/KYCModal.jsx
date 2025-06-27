@@ -292,8 +292,8 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
               <input
                 type="text"
                 value={customerdata.customer_id || "-"}
-                onChange={(e) => setEmail(e.target.value)}
-                readOnly={!editclick}
+                // onChange={(e) => setEmail(e.target.value)}
+                // readOnly={!editclick}
               />
             </div>
             <div className={`col-4 ${styles.longform}`}>

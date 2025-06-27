@@ -18,15 +18,16 @@
 
 .navicons {
   background-color: #d9d9d9;
-  margin-top: 30px;
+  margin-top: 10px;
 }
 
 .navicons > div a {
   display: flex;
   padding: 0 0 0 8px;
   gap: 20px;
-  margin: 14px 4px;
-
+  margin: 11px 4px;
+  font-size: 14px;
+  font-weight: 500;
   color: #2c2c2c;
 }
 
