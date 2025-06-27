@@ -11,7 +11,7 @@ import TicketingService from "./TicketService/TicketingService";
 import PageSkeleton from "../SkeletonLoaders/PageSkeleton";
 import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
 import SettingRoutes from "./SettingsTab/SettingRoutes";
-import StockRoutes from "./StockTransfer/StockRoutes";
+
 // import HomePage from "./HomePage/HomePage";
 // import InventoryRoutes from "./Inventory/InventoryRoutes";
 // import PurchaseRoutes from "./Purchases/PurchaseRoutes";
@@ -36,7 +36,8 @@ const WarehouseRoutes = lazy(() => import("./Warehouses/WarehouseRoutes"));
 const ProductRoutes = lazy(() => import("./Products/ProductRoutes"));
 const LocationsHome = lazy(() => import("./Locations/LocationsHome"));
 const InvoiceRoutes = lazy(() => import("./Invoice/InvoiceRoutes"));
-
+const StockRoutes = lazy(() => import("./StockTransfer/StockRoutes"));
+const DiscountRoutes = lazy(() => import("./Discounts/DiscountRoutes"));
 // const AnnouncementHome = lazy(() => import("./Annoucement/AnnouncementHome"));
 
 function Dashboard({
@@ -233,6 +234,14 @@ function Dashboard({
                       element={
                         <Suspense fallback={<RouteSkeleton />}>
                           <EmployeeRoutes />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="/discounts/*"
+                      element={
+                        <Suspense fallback={<RouteSkeleton />}>
+                          <DiscountRoutes />
                         </Suspense>
                       }
                     />

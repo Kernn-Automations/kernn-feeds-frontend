@@ -38,6 +38,7 @@ function PaymentApprovals({ navigate }) {
         console.log(query);
 
         const res = await axiosAPI.get(query);
+        console.log(res)
         setReports(res.data.paymentRequests);
         setTotalPages(res.data.totalPages);
       } catch (e) {

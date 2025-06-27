@@ -18,6 +18,12 @@ function PaymentHome({ navigate }) {
           >
             Payment Approvals
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/payments/credit-notes")}
+          >
+            Credit Notes
+          </button>
         </div>
       </div>
     </>
