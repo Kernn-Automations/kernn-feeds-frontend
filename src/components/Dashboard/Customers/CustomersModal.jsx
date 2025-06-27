@@ -139,6 +139,14 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
   const [aadharNumber, setAadharNumber] = useState();
   const [panNumber, setPanNumber] = useState();
   const [firmName, setFirmName] = useState();
+  const [plot, setPlot] = useState();
+  const [street, setStreet] = useState();
+  const [area, setArea] = useState();
+  const [city, setCity] = useState();
+  const [mandal, setMandal] = useState();
+  const [district, setDistrict] = useState();
+  const [stateName, setStateName] = useState(); // "state" is a reserved word
+  const [pincode, setPincode] = useState();
   const [seId, setSeId] = useState();
 
   useEffect(() => {
@@ -146,7 +154,14 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
     setMobile(customerdata?.mobile);
     setWhatsapp(customerdata?.whatsapp);
     setEmail(customerdata?.email);
-    setAddress(customerdata?.address);
+    setPlot(customerdata?.plot);
+    setStreet(customerdata?.street);
+    setArea(customerdata?.area);
+    setCity(customerdata?.city);
+    setMandal(customerdata?.mandal);
+    setDistrict(customerdata?.district);
+    setStateName(customerdata?.state);
+    setPincode(customerdata?.pincode);
     setAadharNumber(customerdata?.aadhaarNumber);
     setPanNumber(customerdata?.panNumber);
     setFirmName(customerdata?.firmName);
@@ -163,7 +178,6 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
     if (!mobile) newErrors.mobile = true;
     if (!whatsapp) newErrors.whatsapp = true;
     if (!email) newErrors.email = true;
-    if (!address) newErrors.address = true;
     if (!latitude) newErrors.latitude = true;
     if (!longitude) newErrors.longitude = true;
     if (!aadharNumber) newErrors.aadharNumber = true;
@@ -225,7 +239,14 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
     formdata.append("msme", msme);
     formdata.append("salesExecutiveId", seId);
     formdata.append("firmName", firmName);
-    formdata.append("address", address);
+    formdata.append("plot", plot);
+    formdata.append("street", street);
+    formdata.append("area", area);
+    formdata.append("city", city);
+    formdata.append("mandal", mandal);
+    formdata.append("district", district);
+    formdata.append("state", stateName);
+    formdata.append("pincode", pincode);
 
     try {
       setLoading(true);
@@ -439,13 +460,26 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
 
           <div className="row m-0 p-0">
             <h5 className={styles.headmdl}>Address</h5>
-            <div className={`col-10 ${styles.textform}`}>
-              <textarea
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                readOnly={!editclick}
-              />
-            </div>
+            {[
+              { label: "Plot", value: plot, set: setPlot },
+              { label: "Street", value: street, set: setStreet },
+              { label: "Area", value: area, set: setArea },
+              { label: "City", value: city, set: setCity },
+              { label: "Mandal", value: mandal, set: setMandal },
+              { label: "District", value: district, set: setDistrict },
+              { label: "State", value: stateName, set: setStateName },
+              { label: "Pincode", value: pincode, set: setPincode },
+            ].map(({ label, value, set }) => (
+              <div key={label} className={`col-4 ${styles.longform}`}>
+                <label>{label} :</label>
+                <input
+                  type="text"
+                  value={value || ""}
+                  onChange={(e) => set(e.target.value)}
+                  readOnly={!editclick}
+                />
+              </div>
+            ))}
           </div>
 
           <div className="row m-0 p-0 justify-content-center">
