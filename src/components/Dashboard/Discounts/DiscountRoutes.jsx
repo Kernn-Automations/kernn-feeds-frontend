@@ -8,6 +8,13 @@ const MonthlyDiscount = lazy(() => import("./MonthlyDiscount"));
 
 function DiscountRoutes() {
   const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const roles = JSON.stringify(user.roles);
+
+  const isAdmin = roles.includes("Admin");
+
   return (
     <>
       <Routes>
@@ -24,7 +31,7 @@ function DiscountRoutes() {
           path="/bill-to-bill"
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <BillToBill navigate={navigate} />
+              <BillToBill navigate={navigate} isAdmin={isAdmin} />
             </Suspense>
           }
         />
@@ -33,7 +40,7 @@ function DiscountRoutes() {
           path="/monthly"
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <MonthlyDiscount navigate={navigate} />
+              <MonthlyDiscount navigate={navigate} isAdmin={isAdmin} />
             </Suspense>
           }
         />

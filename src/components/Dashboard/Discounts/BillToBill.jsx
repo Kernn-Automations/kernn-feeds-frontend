@@ -7,7 +7,7 @@ import EditBilltoBillModal from "./EditBilltoBillModal";
 import DeleteBilltoBillModal from "./DeleteBilltoBillModal";
 import AddBilltoBillModal from "./AddBilltoBillModal";
 
-function BillToBill({ navigate }) {
+function BillToBill({ navigate, isAdmin }) {
   const [discounts, setDiscounts] = useState();
 
   const { axiosAPI } = useAuth();
@@ -50,11 +50,13 @@ function BillToBill({ navigate }) {
         <i className="bi bi-chevron-right"></i> Bill-to-Bill
       </p>
 
-      <div className="row m-0 p-3 pt-0">
-        <div className="col-3">
-          <AddBilltoBillModal changeTrigger={changeTrigger} />
+      {isAdmin && (
+        <div className="row m-0 p-3 pt-0">
+          <div className="col-3">
+            <AddBilltoBillModal changeTrigger={changeTrigger} />
+          </div>
         </div>
-      </div>
+      )}
 
       {discounts && (
         <div className="row m-0 p-3 justify-content-center">
@@ -94,11 +96,14 @@ function BillToBill({ navigate }) {
                         <EditBilltoBillModal
                           changeTrigger={changeTrigger}
                           discount={discount}
+                          isAdmin={isAdmin}
                         />
-                        <DeleteBilltoBillModal
-                          discount={discount}
-                          changeTrigger={changeTrigger}
-                        />
+                        {isAdmin && (
+                          <DeleteBilltoBillModal
+                            discount={discount}
+                            changeTrigger={changeTrigger}
+                          />
+                        )}
                       </td>
                     </tr>
                   ))}

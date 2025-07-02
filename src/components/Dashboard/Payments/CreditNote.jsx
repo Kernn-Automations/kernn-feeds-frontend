@@ -4,12 +4,9 @@ import Loading from "@/components/Loading";
 import React, { useEffect, useState } from "react";
 import styles from "./Payments.module.css";
 import CreditNoteModal from "./CreditNoteModal";
+import CreditNoteViewModal from "./CreditNoteViewModal";
 
 function CreditNote({ navigate }) {
-  const [customer, setCustomer] = useState();
-
-  const [customers, setCustomers] = useState();
-
   const { axiosAPI } = useAuth();
 
   const [error, setError] = useState();
@@ -19,16 +16,56 @@ function CreditNote({ navigate }) {
     setIsModalOpen(false);
   };
 
-  const [custDetails, setCustDetails] = useState();
+  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const today = new Date(Date.now()).toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(date);
+  const [to, setTo] = useState(today);
+
+  const [customers, setCustomers] = useState();
+
+  const [warehouse, setWarehouse] = useState();
+  const [customer, setCustomer] = useState();
+  const [discountType, setDiscountType] = useState();
+  const [status, setStatus] = useState();
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true)
+      try {
+        const res = await axiosAPI.get("/customers?limit=50");
+
+        setCustomers(res.data.customers);
+      } catch (e) {
+        // console.log(e);
+      }finally{
+        setLoading(false)
+      }
+    }
+    fetch();
+  }, []);
+
+  const [creditNotes, setCreditNotes] = useState();
 
   useEffect(() => {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/customers?limit=50");
+        const query = `/credit-notes?fromDate=${from}&toDate=${to}${
+          customer ? `&customerId=${customer}` : ""
+        }${
+          status ? `&orderStatus=${status}` : ""
+        }${discountType ? `&discountType=${discountType}` : ""}`;
+
+        console.log(query)
+
+        const res = await axiosAPI.get(query);
         console.log(res);
 
-        setCustomers(res.data.customers);
+        setCreditNotes(res.data);
       } catch (e) {
         // console.log(e);
         setError(e.response?.data?.message);
@@ -40,34 +77,6 @@ function CreditNote({ navigate }) {
     fetch();
   }, []);
 
-  const [creditNotes, setCreditNotes] = useState();
-
-  useEffect(() => {
-    if (!customer) return;
-
-    async function fetch() {
-      setCreditNotes(null);
-
-      try {
-        const cust = customers.find((cust) => cust.id === Number(customer));
-        console.log(cust);
-        setCustDetails(cust);
-        setLoading(true);
-        const res = await axiosAPI.get(`/credit-notes/customer/${customer}`);
-        console.log(res);
-
-        setCreditNotes(res.data.creditNotes);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response?.data?.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, [customer]);
-
   let index = 1;
 
   return (
@@ -78,36 +87,82 @@ function CreditNote({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        {customers && (
-          <div className={`col-3 formcontent`}>
-            <label htmlFor="">Customers :</label>
-            <select
-              name=""
-              id=""
-              value={customer}
-              onChange={(e) =>
-                setCustomer(e.target.value === "null" ? null : e.target.value)
-              }
-            >
-              <option value="null">--select--</option>
-              {customers &&
-                customers.map((customer) => (
-                  <option value={customer.id}>{customer.name}</option>
-                ))}
-            </select>
-          </div>
-        )}
+        <div className="col-3">
+          <button className="homebtn">Generate Monthly</button>
+        </div>
+      </div>
+
+      <div className="row m-0 p-3">
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">From :</label>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">To :</label>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Customers :</label>
+          <select
+            name=""
+            id=""
+            value={customer}
+            onChange={(e) =>
+              setCustomer(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            {customers &&
+              customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Discount Type :</label>
+          <select
+            name=""
+            id=""
+            value={discountType}
+            onChange={(e) =>
+              setDiscountType(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            <option value="bill_to_bill">Bill to Bill</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Status :</label>
+          <select
+            name=""
+            id=""
+            value={discountType}
+            onChange={(e) =>
+              setDiscountType(e.target.value === "null" ? null : e.target.value)
+            }
+          >
+            <option value="null">--select--</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+          </select>
+        </div>
       </div>
 
       {creditNotes && (
         <div className="row m-0 p-3 justify-content-center">
-          {custDetails && (
-            <div className={`col-lg-10 ${styles.custDetails}`}>
-              <h5>{custDetails.name}</h5>
-              <p>ID : {custDetails.customer_id}</p>
-              <p>Mobile : {custDetails.mobile}</p>
-            </div>
-          )}
           <div className="col-lg-10">
             <table className={`table table-bordered borderedtable`}>
               <thead>
@@ -116,9 +171,12 @@ function CreditNote({ navigate }) {
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <th>S.No</th>
-                  <th>Order Date</th>
-                  <th>Order ID</th>
+                  <th>Credit Note</th>
                   <th>Discount Type</th>
+                  <th>Customer Id</th>
+                  <th>Customer Name</th>
+                  {/* <th>Warehouse Name</th> */}
+                  <th>Status</th>
                   <th>Amount</th>
                   <th>Action</th>
                 </tr>
@@ -138,11 +196,16 @@ function CreditNote({ navigate }) {
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <td>{index++}</td>
-                      <td>{creditNote.orderDate?.slice(0, 10)}</td>
-                      <td>{creditNote.orderNumber}</td>
+                      <td>{creditNote.creditNoteNumber}</td>
                       <td>{creditNote.discountType}</td>
-                      <td>{creditNote.amount}</td>
-                      <td><CreditNoteModal credit={creditNote} /></td>
+                      <td>{creditNote.customer?.customer_id}</td>
+                      <td>{creditNote.customer?.name}</td>
+                      {/* <td>{creditNote.warehouse?.name}</td> */}
+                      <td>{creditNote.status}</td>
+                      <td>{creditNote.totalCreditAmount}</td>
+                      <td>
+                        <CreditNoteViewModal creditNote={creditNote} />
+                      </td>
                     </tr>
                   ))}
               </tbody>

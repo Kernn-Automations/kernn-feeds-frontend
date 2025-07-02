@@ -12,7 +12,7 @@ import {
 import React, { useState } from "react";
 import styles from "./Discount.module.css";
 
-function EditBilltoBillModal({ discount, changeTrigger }) {
+function EditBilltoBillModal({ discount, changeTrigger, isAdmin }) {
   const [editclick, setEditclick] = useState(false);
 
   const onEditClick = () => setEditclick(!editclick);
@@ -148,9 +148,11 @@ function EditBilltoBillModal({ discount, changeTrigger }) {
             {!editclick && (
               <div className="row m-0 p-3 justify-content-center">
                 <div className="col-5">
-                  <button className="submitbtn" onClick={onEditClick}>
-                    Edit
-                  </button>
+                  {isAdmin && (
+                    <button className="submitbtn" onClick={onEditClick}>
+                      Edit
+                    </button>
+                  )}
                   <DialogActionTrigger asChild>
                     <button className="cancelbtn">Close</button>
                   </DialogActionTrigger>

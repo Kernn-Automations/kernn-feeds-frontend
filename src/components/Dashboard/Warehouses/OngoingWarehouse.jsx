@@ -30,7 +30,7 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
         setLoading(true);
         setWarehouses(null);
         const res = await axiosAPI.get("/warehouse");
-        // console.log(res);
+        console.log(res);
         setWarehouses(res.data.warehouses);
       } catch (e) {
         // console.log(e);
@@ -82,7 +82,7 @@ function OngoingWarehouse({ navigate, managers, isAdmin }) {
                       </td> */}
                       <td>
                         <button
-                          className="btn btn-sm btn-outline-primary"
+                          // className="btn btn-sm btn-outline-primary"
                           onClick={() => navigate(`/warehouses/${warehouse.id}`)}
                         >
                           View
