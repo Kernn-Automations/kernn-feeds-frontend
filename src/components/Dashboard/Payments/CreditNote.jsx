@@ -34,15 +34,15 @@ function CreditNote({ navigate }) {
 
   useEffect(() => {
     async function fetch() {
-      setLoading(true)
+      setLoading(true);
       try {
         const res = await axiosAPI.get("/customers?limit=50");
 
         setCustomers(res.data.customers);
       } catch (e) {
         // console.log(e);
-      }finally{
-        setLoading(false)
+      } finally {
+        setLoading(false);
       }
     }
     fetch();
@@ -60,7 +60,7 @@ function CreditNote({ navigate }) {
           status ? `&orderStatus=${status}` : ""
         }${discountType ? `&discountType=${discountType}` : ""}`;
 
-        console.log(query)
+        console.log(query);
 
         const res = await axiosAPI.get(query);
         console.log(res);
@@ -75,7 +75,7 @@ function CreditNote({ navigate }) {
       }
     }
     fetch();
-  }, []);
+  }, [from, to, discountType, customer, status]);
 
   let index = 1;
 
@@ -83,14 +83,12 @@ function CreditNote({ navigate }) {
     <>
       <p className="path">
         <span onClick={() => navigate("/payments")}>Payments</span>{" "}
-        <i class="bi bi-chevron-right"></i> Credit-Notes
+        <i class="bi bi-chevron-right"></i>{" "}
+        <span onClick={() => navigate("/payments/credit-notes")}>
+          Credit-Notes
+        </span>{" "}
+        <i class="bi bi-chevron-right"></i> List
       </p>
-
-      <div className="row m-0 p-3">
-        <div className="col-3">
-          <button className="homebtn">Generate Monthly</button>
-        </div>
-      </div>
 
       <div className="row m-0 p-3">
         <div className={`col-3 formcontent`}>
@@ -149,14 +147,14 @@ function CreditNote({ navigate }) {
           <select
             name=""
             id=""
-            value={discountType}
+            value={status}
             onChange={(e) =>
-              setDiscountType(e.target.value === "null" ? null : e.target.value)
+              setStatus(e.target.value === "null" ? null : e.target.value)
             }
           >
             <option value="null">--select--</option>
             <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
+            <option value="paid">Paid</option>
           </select>
         </div>
       </div>

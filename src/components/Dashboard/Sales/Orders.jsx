@@ -13,17 +13,18 @@ import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong } from "react-icons/fa6";
 import { FaArrowRightLong } from "react-icons/fa6";
 
-function Orders({ navigate, warehouses, customers, setOrderId }) {
+function Orders({
+  navigate,
+  warehouses,
+  customers,
+  setOrderId,
+  from,
+  setFrom,
+  to,
+  setTo,
+}) {
   const [onsubmit, setonsubmit] = useState(false);
 
-  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-
-  const today = new Date(Date.now()).toISOString().slice(0, 10);
-
-  const [from, setFrom] = useState(date);
-  const [to, setTo] = useState(today);
   const [warehouse, setWarehouse] = useState();
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
@@ -88,7 +89,10 @@ function Orders({ navigate, warehouses, customers, setOrderId }) {
   // GrandTotal
   const GrandTotal = () => {
     let total = 0;
-    for (const order of orders) total += order?.totalAmount;
+    for (const order of orders) {
+      if (order.paymentRequest?.status === "Approved")
+        total += order?.totalAmount;
+    }
 
     return total;
   };

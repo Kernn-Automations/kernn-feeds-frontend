@@ -13,6 +13,7 @@ export default defineConfig({
       "kernn.feedbazaar.in",
       "web.kernn.xyz",
       "fb-web.kernn.xyz",
+      "fb-frontend-hari.kernn.xyz"
     ],
   },
 });

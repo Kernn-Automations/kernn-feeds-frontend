@@ -29,7 +29,9 @@ function CreditNoteViewModal({ creditNote }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get(`/credit-notes/${creditNote.creditNoteId}`);
+        const res = await axiosAPI.get(
+          `/credit-notes/${creditNote.creditNoteId}`
+        );
         console.log(res);
         setCredit(res.data);
       } catch (e) {
@@ -53,11 +55,9 @@ function CreditNoteViewModal({ creditNote }) {
             {credit && <CreditNoteModal credit={credit} />}
             {loading && <Loading />}
             {isModalOpen && (
-              <ErrorModal
-                isOpen={isModalOpen}
-                message={error}
-                onClose={closeModal}
-              />
+              <p className="text-center" style={{ color: "red", fontSize: "20px" }}>
+                {error || "Error While Fetching"}
+              </p>
             )}
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />

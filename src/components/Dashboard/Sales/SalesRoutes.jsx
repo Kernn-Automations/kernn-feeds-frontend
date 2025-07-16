@@ -20,6 +20,15 @@ function SalesRoutes() {
 
   const { axiosAPI } = useAuth();
 
+  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+     .toISOString()
+     .slice(0, 10);
+ 
+   const today = new Date(Date.now()).toISOString().slice(0, 10);
+ 
+   const [from, setFrom] = useState(date);
+   const [to, setTo] = useState(today);
+
   useEffect(() => {
     async function fetch() {
       try {
@@ -54,46 +63,16 @@ function SalesRoutes() {
               warehouses={warehouses}
               customers={customers}
               setOrderId={setOrderId}
+              from={from}
+              setFrom={setFrom}
+              to={to}
+              setTo={setTo}
             />
           </Suspense>
         }
       />
-      <Route
-        path="/orders"
-        element={
-          <Suspense fallback={<PageSkeleton />}>
-            <Orders
-              navigate={navigate}
-              warehouses={warehouses}
-              customers={customers}
-            />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/dispatches"
-        element={
-          <Suspense fallback={<PageSkeleton />}>
-            <Dispaches
-              navigate={navigate}
-              warehouses={warehouses}
-              customers={customers}
-            />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/deliveries"
-        element={
-          <Suspense fallback={<PageSkeleton />}>
-            <Deliveries
-              navigate={navigate}
-              warehouses={warehouses}
-              customers={customers}
-            />
-          </Suspense>
-        }
-      />
+     
+      
       <Route
         path="/tracking"
         element={

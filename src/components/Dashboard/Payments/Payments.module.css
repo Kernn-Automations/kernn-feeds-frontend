@@ -249,7 +249,7 @@
 }
 
 /* credit note details */
-.creditDetails{
+.creditDetails {
   margin: 20px;
 }
 .creditDetails p {
@@ -259,10 +259,25 @@
   padding-left: 40px;
   margin: 3px;
 }
-.creditDetails p span{
+.creditDetails p span {
   color: #333;
   font-weight: 600;
   font-size: 15px;
   padding-right: 20px;
 }
 
+.select input {
+  background: #ffffff !important;
+}
+.selectall {
+  width: 15px;
+  height: 15px;
+}
+
+.select label {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 30.38px;
+  letter-spacing: 0.015em;
+  padding: 6px 10px;
+}

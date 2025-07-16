@@ -115,6 +115,31 @@ function App() {
 
   // console.log(user);
 
+
+  // Prevent Right click and inspect
+  // useEffect(() => {
+  //   // Disable right-click
+  //   const handleContextMenu = (e) => {
+  //     e.preventDefault();
+  //   };
+
+  //   // Block Alt + Shift + I
+  //   const handleKeyDown = (e) => {
+  //     if (e.altKey && e.shiftKey && e.key.toLowerCase() === "i") {
+  //       e.preventDefault();
+  //       console.log("Alt + Shift + I blocked");
+  //     }
+  //   };
+
+  //   document.addEventListener("contextmenu", handleContextMenu);
+  //   document.addEventListener("keydown", handleKeyDown);
+
+  //   return () => {
+  //     document.removeEventListener("contextmenu", handleContextMenu);
+  //     document.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, []);
+
   return (
     <>
       <Routes>

@@ -73,9 +73,9 @@ function StockSummary({navigate}) {
           <tr key={productId}>
             <td>{data.productName}</td>
             <td>{data.opening?.toFixed(2)}</td>
-            <td>{data.inward.toFixed(2)}</td>
-            <td>{data.outward.toFixed(2)}</td>
-            <td>{data.closing.toFixed(2)}</td>
+            <td>{data.inward?.toFixed(2)}</td>
+            <td>{data.outward?.toFixed(2)}</td>
+            <td>{data.closing?.toFixed(2)}</td>
             <td>{data.productType}</td>
             <td>
               {data.productType === "packed"

@@ -1,13 +1,5 @@
-// components/PDFPreviewModal.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import {
-  DialogRoot,
-  DialogTrigger,
-  DialogBody,
-  DialogContent,
-  DialogCloseTrigger,
-} from "@/components/ui/dialog";
 
 const PDFPreviewModal = ({
   triggerText = "Preview PDF",
@@ -77,49 +69,62 @@ const PDFPreviewModal = ({
   };
 
   return (
-    <DialogRoot open={open} onOpenChange={setOpen} placement="center" size="xl">
-      <DialogTrigger asChild>
-        <button className="submitbtn">{triggerText}</button>
-      </DialogTrigger>
-      <DialogContent style={{ maxWidth: "1000px", padding: "1rem", backgroundColor: "rgba(0,0,0,0.3)" }}>
-        <DialogBody>
+    <>
+      <button className="submitbtn" onClick={() => setOpen(true)}>
+        {triggerText}
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "fixed",
+            top: "5vh",
+            left: "5vw",
+            width: "90vw",
+            height: "90vh",
+            backgroundColor: "rgba(0,0,0,0.7)",
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* Header */}
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: "10px",
+              padding: "1rem",
+              backgroundColor: "transparent",
             }}
           >
-            <h5>PDF Preview</h5>
+            <h5 style={{ margin: 0, color: "white"}}>PDF Preview</h5>
             <div>
-              <button className="submitbtn me-2" onClick={handleDownload}>
-                Save
+              <button className="text-white" onClick={() => setOpen(false)}>
+                <i class="bi bi-x-lg"></i>
               </button>
-              <button className="submitbtn me-2" onClick={handlePrint}>
-                Print
-              </button>
-              <DialogCloseTrigger asChild>
-                <button className="cancelbtn" onClick={() => setOpen(false)}>Close</button>
-              </DialogCloseTrigger>
             </div>
           </div>
-          {loading ? (
-            <p>Loading PDF...</p>
-          ) : blobUrl ? (
-            <iframe
-              src={blobUrl}
-              title="PDF Preview"
-              width="100%"
-              height="600px"
-              style={{ border: "1px solid #ccc" }}
-            />
-          ) : (
-            <p style={{ color: "red" }}>Unable to load PDF</p>
-          )}
-        </DialogBody>
-      </DialogContent>
-    </DialogRoot>
+
+          {/* Content */}
+          <div style={{ flex: 1, overflow: "hidden", backgroundColor: "#f0f0f0" }}>
+            {loading ? (
+              <p style={{ padding: "1rem", color: "#000" }}>Loading PDF...</p>
+            ) : blobUrl ? (
+              <iframe
+                src={blobUrl}
+                title="PDF Preview"
+                width="100%"
+                height="100%"
+                style={{ border: "none" }}
+              />
+            ) : (
+              <p style={{ color: "red", padding: "1rem" }}>Unable to load PDF</p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
