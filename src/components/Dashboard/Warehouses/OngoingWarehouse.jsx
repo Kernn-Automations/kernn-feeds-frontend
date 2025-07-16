@@ -25,24 +25,48 @@ function OngoingWarehouse({ navigate, managers, isAdmin, warehouseId }) {
 
   const changeTrigger = () => setTrigger(!trigger);
 
-  useEffect(() => {
-    async function fetch() {
-      try {
-        setLoading(true);
-        setWarehouses(null);
-        const res = await axiosAPI.get("/warehouse");
-        console.log(res);
-        setWarehouses(res.data.warehouses);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
+
+ 
+useEffect(() => {
+  async function fetch() {
+    try {
+      setLoading(true);
+      setWarehouses(null);
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      const roles = user?.roles || []; // make sure it's an array
+      //const roles = ["Area Business Manager"]; // For testing purposes, replace with user.roles in production
+      // Determine endpoint
+      let endpoint = "/warehouse";
+
+      const managerRoles = [
+        "Area Business Manager",
+        "Regional Business Manager",
+        "Zonal Business Manager"
+      ];
+
+      const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
+      const isManager = managerRoles.some(role => roles.includes(role));
+
+      if (isManager && !isAdmin) {
+        endpoint = "/warehouse/manager";
+
       }
+
+      const res = await axiosAPI.get(endpoint);
+      setWarehouses(res.data.warehouses);
+    } catch (e) {
+      console.error("Error fetching warehouses:", e);
+      setError(e.response?.data?.message || "Something went wrong");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
     }
-    fetch();
-  }, [trigger]);
+  }
+
+  fetch();
+}, [trigger]);
+
 
   // const [warehouseId, setWarehouseId] = useState();
 
