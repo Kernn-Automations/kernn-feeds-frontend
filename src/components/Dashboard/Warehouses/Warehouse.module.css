@@ -64,52 +64,53 @@
   color: white;
   background-color: #fd3b3b;
 }
-.lant{
+.lant {
   font-weight: 600;
   font-size: 15px;
   line-height: 14.82px;
   letter-spacing: 0%;
-  text-align: left; 
+  text-align: left;
   margin-bottom: 15px;
 }
-.lant span{
+.lant span {
   color: #a92726;
   padding-right: 10px;
 }
 
-.selectmode select{
+.selectmode select {
   width: 100px;
   border-radius: 3px;
   color: white;
   /* padding-right: 10px; */
 }
-.selectmode select option{
+.selectmode select option {
   background-color: white;
   color: black;
 }
-.selectmode select:focus{
+.selectmode select:focus {
   outline: none;
 }
 
-.enable{
+.enable {
   background-color: #2fa924;
 }
-.disable{
+.disable {
   background-color: #ff2727;
 }
 
-.errorField{
+.errorField {
   outline: 1px solid #ff2727;
 }
 
 /* xl modal */
 
-.longformmdl{
+.longformmdl {
   max-width: 300px !important;
   min-width: 280px !important;
   margin-bottom: 8px;
 }
-.longformmdl label, .textform label{
+.longformmdl label,
+.textform label {
   width: 140px;
   font-weight: 600;
   font-size: 12px;
@@ -138,7 +139,7 @@
   letter-spacing: 1.5%;
 }
 
-.textform textarea{
+.textform textarea {
   width: 350px;
   height: 80px;
   padding-left: 4px;
@@ -160,7 +161,7 @@
   text-decoration-thickness: Auto;
   color: #555;
 }
-.mdltable thead th{
+.mdltable thead th {
   font-size: 12px !important;
   padding: 3px;
   letter-spacing: 1.5%;
@@ -168,12 +169,11 @@
   background-color: var(--primary-color);
   text-align: center;
 }
-.mdltable tbody td{
+.mdltable tbody td {
   font-size: 12px !important;
   padding: 3px;
 }
-.mdltable button{
- 
+.mdltable button {
   width: fit-content;
   height: 20px;
   font-size: 11px;
@@ -183,4 +183,56 @@
   margin: 0;
   border-radius: 3px;
   background-color: #fd3b3b;
+}
+
+.longform {
+  max-width: 360px !important;
+  min-width: 350px !important;
+  margin-bottom: 20px;
+}
+.longform label,
+.location label {
+  max-width: 160px;
+  min-width: 150px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 26.82px;
+  letter-spacing: 0%;
+  text-align: right;
+  padding-right: 15px;
+  color: var(--primary-color);
+}
+.changedField {
+  border: 2px solid #198754 !important; /* green border */
+  background-color: #e7f9f0; /* light green background */
+  transition: all 0.3s ease;
+}
+.longform input,
+.longform select {
+  width: 150px;
+  height: 27px;
+  padding-left: 4px;
+  border-radius: 4px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+.longform span {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 16.26px;
+  letter-spacing: 1.5%;
+}
+
+.head {
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 29.26px;
+  letter-spacing: 1.5%;
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: Auto;
+  color: #555;
 }

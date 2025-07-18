@@ -6,7 +6,8 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
-function OngoingWarehouse({ navigate, managers, isAdmin }) {
+import WarehouseDetails from "./WarehouseDetails";
+function OngoingWarehouse({ navigate, managers, isAdmin, warehouseId }) {
   const [warehouses, setWarehouses] = useState();
 
   const { axiosAPI } = useAuth();
@@ -63,18 +64,20 @@ useEffect(() => {
   fetch();
 }, [trigger]);
 
+  // const [warehouseId, setWarehouseId] = useState();
 
   let count = 1;
   return (
-    <>     
-        <div className="row m-0 p-3 pt-5 justify-content-center">
-          <div className="col-lg-10">
+    <>
+      {!warehouseId && <div className="row m-0 p-3 pt-5 justify-content-center">
+        <div className="col-lg-10">
           {warehouses && (
             <table className="table table-bordered borderedtable">
               <thead>
                 <tr>
                   <th>S.No</th>
                   <th>Warehouse ID</th>
+                  {/* <th>Warehouse Manager</th> */}
                   <th>Warehouse Name</th>
                   {/* <th>Enable/Disable</th> */}
                   <th>Action</th>
@@ -94,7 +97,9 @@ useEffect(() => {
                       style={{ animationDelay: `${count * 0.1}s` }}
                     >
                       <td>{count++}</td>
+
                       <td>{warehouse.id}</td>
+                      {/* <td>{warehouse.manager?.name}</td> */}
                       <td>{warehouse.name}</td>
                       {/* <td className={styles.selectmode}>
                         <SelectMode
@@ -103,8 +108,12 @@ useEffect(() => {
                       </td> */}
                       <td>
                         <button
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => navigate(`/warehouses/${warehouse.id}`)}
+                          // className="btn btn-sm btn-outline-primary"
+                          onClick={() => {
+                            // onWarehouseChange(warehouse.id)
+                            navigate(`/warehouses/${warehouse.id}`);
+                            
+                          }}
                         >
                           View
                         </button>
@@ -115,7 +124,9 @@ useEffect(() => {
             </table>
           )}
         </div>
-      </div>
+      </div>}
+
+      
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
