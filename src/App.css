@@ -292,8 +292,9 @@ a {
 .bi-chat path {
   stroke: rgb(23, 23, 23);
 }
+/* added generate report button of customerreports module */
 
-.submitbtn,
+.submitbtn,.generatebtn,
 .cancelbtn {
   min-width: 80px;
   height: 27px;
@@ -308,11 +309,21 @@ a {
   /* box-shadow: 1px 1px 3px #333; */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+.generatebtn{
+  align-items: center;
+  display: flex;
+  align-items: center;
+  padding: 20px 50px;
+}
+
 .submitbtn {
   background-color: #2fa924;
 }
 .cancelbtn {
   background-color: #fd3b3b;
+}
+.generatebtn {
+  background-color: #2fa924;
 }
 
 .submitbtn:hover {

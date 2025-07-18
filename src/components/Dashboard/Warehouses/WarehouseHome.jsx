@@ -26,12 +26,12 @@ function WarehouseHome({ navigate, managers, products, isAdmin }) {
           >
             Stock Transfer
           </button> */}
-          <button
+          {/* <button
             className="homebtn"
             onClick={() => navigate("/warehouses/order-transfer")}
           >
             Order Transfer
-          </button>
+          </button> */}
         </div>
       </div>
 
