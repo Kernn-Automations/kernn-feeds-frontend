@@ -11,10 +11,12 @@ import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import axios from "axios";
 import Loading from "@/components/Loading";
 
-function InvoicesPage({ navigate }) {
+function InvoicesPage({ navigate, setInvoiceId }) {
   const { axiosAPI } = useAuth();
 
-  const defaultFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const defaultFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
 
   const [from, setFrom] = useState(defaultFrom);
@@ -29,25 +31,24 @@ function InvoicesPage({ navigate }) {
 
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
 
-
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const closeModal = () => setIsModalOpen(false);
 
   const [customers, setCustomers] = useState([]);
 
-    useEffect(() => {
+  useEffect(() => {
     async function fetchCustomers() {
-        try {
+      try {
         const res = await axiosAPI.get("/customers");
         setCustomers(res.data.customers || []);
-        } catch (err) {
+      } catch (err) {
         setError("Failed to fetch customers");
         setIsModalOpen(true);
-        }
+      }
     }
     fetchCustomers();
-    }, []);
+  }, []);
 
   useEffect(() => {
     async function fetchInvoices() {
@@ -59,10 +60,9 @@ function InvoicesPage({ navigate }) {
             warehouse ? `&warehouseId=${warehouse}` : ""
           }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
         );
-        console.log(res)
+        console.log(res);
         setInvoices(res.data.invoices);
         setTotalPages(res.data.totalPages || 1);
-
       } catch (e) {
         setError(e.response?.data?.message || "Failed to load invoices");
         setIsModalOpen(true);
@@ -113,49 +113,56 @@ function InvoicesPage({ navigate }) {
   };
   const handleDownloadDC = async (inv) => {
     try {
-      setDownloadingInvoiceId(inv.id)
+      setDownloadingInvoiceId(inv.id);
       const token = localStorage.getItem("access_token");
       const VITE_API = import.meta.env.VITE_API_URL;
-      const response = await axios.get(
-      `${VITE_API}/sales-orders/dc/${inv.salesOrder?.id}/pdf`,
-      {
-          responseType: "blob",
-          headers: {
+      const response = await axios.get(`${VITE_API}`, {
+        responseType: "blob",
+        headers: {
           Authorization: `Bearer ${token}`,
-          },
-      }
-      );
+        },
+      });
       console.log(response);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `DeliveryChallan_SO${inv.salesOrder?.id}.pdf`);
+      link.setAttribute("download", ``);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (error) {
       console.error("Failed to download Delivery Challan PDF", error);
       alert("Failed to download Delivery Challan");
-    } finally{
+    } finally {
       setDownloadingInvoiceId(null);
     }
   };
-
 
   return (
     <>
       <div className="row m-0 p-3">
         <div className="col-3 formcontent">
           <label>From:</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </div>
         <div className="col-3 formcontent">
           <label>To:</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </div>
         <div className="col-3 formcontent">
           <label>Customer:</label>
-          <select value={customer} onChange={(e) => setCustomer(e.target.value || null)}>
+          <select
+            value={customer}
+            onChange={(e) => setCustomer(e.target.value || null)}
+          >
             <option value="">--select--</option>
             {customers?.map((c) => (
               <option key={c.id} value={c.id}>
@@ -171,7 +178,10 @@ function InvoicesPage({ navigate }) {
           <button className="submitbtn" onClick={onSubmit}>
             Submit
           </button>
-          <button className="cancelbtn" onClick={() => window.location.reload()}>
+          <button
+            className="cancelbtn"
+            onClick={() => window.location.reload()}
+          >
             Cancel
           </button>
         </div>
@@ -201,8 +211,7 @@ function InvoicesPage({ navigate }) {
                   <th>Customer</th>
                   <th>Amount</th>
                   <th>Status</th>
-                  <th>PDF</th>
-                  <th>DC</th> {/* ✅ NEW COLUMN */}
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,65 +227,28 @@ function InvoicesPage({ navigate }) {
                       <td>{inv.invoiceNumber}</td>
                       <td>
                         {inv.type === "bill_of_supply"
-                            ? "Bill Of Supply"
-                            : inv.type === "tax_invoice"
+                          ? "Bill Of Supply"
+                          : inv.type === "tax_invoice"
                             ? "Tax Invoice"
                             : inv.type}
-                        </td>
+                      </td>
                       <td>{inv.customer?.customer_id}</td>
                       <td>{inv.customer?.name}</td>
                       <td>₹{Number(inv.grandTotal || 0).toFixed(2)}</td>
                       <td>{inv.salesOrder?.orderStatus}</td>
+
+                      {/* ✅ DC PDF View Button */}
                       <td>
                         <button
-                        onClick={async () => {
-                            try {
-                                setDownloadingInvoiceId(inv.id)
-                                const token = localStorage.getItem("access_token");
-                                const VITE_API = import.meta.env.VITE_API_URL;
-
-                                const res = await axios.get(
-                                `${VITE_API}/invoice/${inv.salesOrder?.id}/pdf?type=${inv.type}`,
-                                {
-                                    responseType: "blob",
-                                    headers: {
-                                    Authorization: `Bearer ${token}`,
-                                    },
-                                }
-                                );
-
-                                const url = window.URL.createObjectURL(new Blob([res.data]));
-                                const link = document.createElement("a");
-                                link.href = url;
-                                link.setAttribute("download", `${inv.invoiceNumber}.pdf`);
-                                document.body.appendChild(link);
-                                link.click();
-                                link.remove();
-                                window.URL.revokeObjectURL(url); // cleanup
-                            } catch {
-                                setError("Failed to open PDF");
-                                setIsModalOpen(true);
-                            } finally{
-                                setDownloadingInvoiceId(null);
-                            }
-                            }}
+                          className=""
+                          onClick={() => {
+                            setInvoiceId(inv.id);
+                            navigate("/invoices/details");
+                          }}
                         >
-                        {downloadingInvoiceId === inv.id ? (
-                        "Loading..."
-                        ) : (
-                        "Download"
-                        )}
+                          View
                         </button>
                       </td>
-                        {/* ✅ DC PDF View Button */}
-                        <td>
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => handleDownloadDC(inv)}
-                          >
-                            View
-                          </button>
-                        </td>
                     </tr>
                   ))
                 )}
@@ -305,7 +277,9 @@ function InvoicesPage({ navigate }) {
       )}
 
       {loading && <LoadingAnimation gif={invoiceAni} />}
-      {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
     </>
   );
 }

@@ -12,6 +12,7 @@ import { useAuth } from "@/Auth";
 import axios from "axios";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
+import PDFPreviewModal from "@/utils/PDFPreviewModal";
 
 function ReportsModal({ pdetails, warehouses }) {
   const { axiosAPI } = useAuth();
@@ -183,13 +184,13 @@ function ReportsModal({ pdetails, warehouses }) {
         <div className={`col-4`}>
           {!loading && (
             <>
-              <button
-                className={`submitbtn ${styles.bluebtn}`}
-                onClick={downloadPDF}
-              >
-                Download
-              </button>
-
+             
+                <PDFPreviewModal
+                  pdfUrl={`/purchases/${pdetails.id}/pdf`}
+                  filename={`Purchase-${pdetails.orderNumber || pdetails.id}.pdf`}
+                  triggerText="Preview PDF"
+                />
+            
               {pdetails?.status !== "Received" && (
                 <DialogRoot
                   placement={"center"}

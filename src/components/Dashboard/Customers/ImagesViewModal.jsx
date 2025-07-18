@@ -14,11 +14,7 @@ function ImagesViewModal({ title, front, back }) {
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
         <DialogTrigger asChild>
-          <img
-            src={front || img}
-            alt={`${title}-front`}
-            className={styles.imagesbtn}
-          />
+          
         </DialogTrigger>
         <DialogContent className="mdl">
           <DialogBody>

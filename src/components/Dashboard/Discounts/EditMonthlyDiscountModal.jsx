@@ -12,7 +12,7 @@ import {
 import React, { useState } from "react";
 import styles from "./Discount.module.css";
 
-function EditMonthlyDiscountModal({ discount, changeTrigger }) {
+function EditMonthlyDiscountModal({ discount, changeTrigger, isAdmin }) {
   const [editclick, setEditclick] = useState(false);
 
   const onEditClick = () => setEditclick(!editclick);
@@ -59,14 +59,11 @@ function EditMonthlyDiscountModal({ discount, changeTrigger }) {
     async function create() {
       try {
         setLoading(true);
-        const res = await axiosAPI.put(
-          `/discounts/monthly/${discount.id}`,
-          {
-            productType,
-            minTurnover: minTurnover,
-            discountPerUnit: discountPerUnit,
-          }
-        );
+        const res = await axiosAPI.put(`/discounts/monthly/${discount.id}`, {
+          productType,
+          minTurnover: minTurnover,
+          discountPerUnit: discountPerUnit,
+        });
 
         // console.log(res);
         changeTrigger();
@@ -148,9 +145,11 @@ function EditMonthlyDiscountModal({ discount, changeTrigger }) {
             {!editclick && (
               <div className="row m-0 p-3 justify-content-center">
                 <div className="col-5">
-                  <button className="submitbtn" onClick={onEditClick}>
-                    Edit
-                  </button>
+                  {isAdmin && (
+                    <button className="submitbtn" onClick={onEditClick}>
+                      Edit
+                    </button>
+                  )}
                   <DialogActionTrigger asChild>
                     <button className="cancelbtn">Close</button>
                   </DialogActionTrigger>

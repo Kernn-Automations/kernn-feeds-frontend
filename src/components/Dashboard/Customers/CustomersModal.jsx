@@ -15,6 +15,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import ImagesViewModal from "./ImagesViewModal";
 import axios from "axios";
+import PhotosDrawer from "./PhotosDrawer";
 
 function CustomersModal({ customerId, setCustomerId, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -485,23 +486,37 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
           <div className="row m-0 p-0 justify-content-center">
             <div className={`col-4`}>
               <h5 className={styles.headmdl}>Aadhaar Proof</h5>
-              <ImagesViewModal
+              {/* <ImagesViewModal
                 title={"Aadhar"}
+                front={customerdata.kycDocuments?.[0]?.frontImage}
+                back={customerdata.kycDocuments?.[0]?.backImage}
+              /> */}
+              <PhotosDrawer
+                title={"Aadhaar Details"}
                 front={customerdata.kycDocuments?.[0]?.frontImage}
                 back={customerdata.kycDocuments?.[0]?.backImage}
               />
             </div>
             <div className={`col-4`}>
               <h5 className={styles.headmdl}>PAN Card Proof</h5>
-              <ImagesViewModal
+              {/* <ImagesViewModal
                 title={"PAN"}
+                front={customerdata.kycDocuments?.[1]?.frontImage}
+                back={customerdata.kycDocuments?.[1]?.backImage}
+              /> */}
+              <PhotosDrawer
+                title={"PAN Details"}
                 front={customerdata.kycDocuments?.[1]?.frontImage}
                 back={customerdata.kycDocuments?.[1]?.backImage}
               />
             </div>
             <div className={`col-4`}>
               <h5 className={styles.headmdl}>Customer Photo</h5>
-              <ImagesViewModal title={"Photo"} front={customerdata.photo} />
+              {/* <ImagesViewModal title={"Photo"} front={customerdata.photo} /> */}
+              <PhotosDrawer
+                title={"Customer Photo"}
+                front={customerdata.photo}
+              />
             </div>
           </div>
 

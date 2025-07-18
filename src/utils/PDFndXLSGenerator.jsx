@@ -108,7 +108,11 @@ export const handleExportPDF = async (
     didDrawPage: drawFooterAndHeader,
   });
 
-  doc.save(`${title}.pdf`);
+  // doc.save(`${title}.pdf`);
+
+  const blob = doc.output("blob");
+  return URL.createObjectURL(blob);
+
 };
 
 export const handleExportExcel = (columns, data, title) => {

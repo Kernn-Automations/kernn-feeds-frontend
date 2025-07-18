@@ -8,11 +8,12 @@ import OrderTransferPage from "./OrderTransferPage";
 // Lazy-loaded components
 const WarehouseHome = lazy(() => import("./WarehouseHome"));
 const OngoingWarehouse = lazy(() => import("./OngoingWarehouse"));
+const WarehouseDetailsPage = lazy(() => import("./WarehouseDetailsPage"));
 
 function WarehouseRoutes() {
   const navigate = useNavigate();
 
-  const {axiosAPI} = useAuth();
+  const { axiosAPI } = useAuth();
 
   const [managers, setManagers] = useState();
 
@@ -30,6 +31,8 @@ function WarehouseRoutes() {
 
   const isAdmin = roles.includes("Admin");
 
+
+
   useEffect(() => {
     async function fetch() {
       try {
@@ -38,7 +41,7 @@ function WarehouseRoutes() {
         // console.log(res);
         setManagers(res.data.employees);
         setProducts(res1.data.products);
-        console.log(res1.data.products)
+        console.log(res1.data.products);
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -47,6 +50,9 @@ function WarehouseRoutes() {
     fetch();
   }, []);
 
+  const [warehouseId, setWarehouseId] = useState();
+  const onWarehouseChange = (id) => setWarehouseId(id)
+
   return (
     <>
       <Routes>
@@ -54,7 +60,12 @@ function WarehouseRoutes() {
           index
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <WarehouseHome navigate={navigate} managers={managers} products={products} isAdmin={isAdmin}  />
+              <WarehouseHome
+                navigate={navigate}
+                managers={managers}
+                products={products}
+                isAdmin={isAdmin}
+              />
             </Suspense>
           }
         />
@@ -62,18 +73,17 @@ function WarehouseRoutes() {
           path="/ongoing"
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <OngoingWarehouse navigate={navigate} managers={managers} isAdmin={isAdmin} />
+              <OngoingWarehouse
+                navigate={navigate}
+                managers={managers}
+                isAdmin={isAdmin}
+                warehouseId={warehouseId}
+                onWarehouseChange={onWarehouseChange}
+              />
             </Suspense>
           }
         />
-        {/* <Route
-          path="/stock-transfer"
-          element={
-            <Suspense fallback={<PageSkeleton />}>
-              <StockTransferPage navigate={navigate} managers={managers} />
-            </Suspense>
-          }
-        /> */}
+       
         <Route
           path="/order-transfer"
           element={
@@ -82,16 +92,14 @@ function WarehouseRoutes() {
             </Suspense>
           }
         />
-        {/* <Route
+        <Route
           path="/:id"
           element={
-            managers ? (
-              <WarehouseDetailsPage managers={managers} />
-            ) : (
-              <PageSkeleton /> // or any loading fallback
-            )
+            <Suspense fallback={<PageSkeleton />}>
+              <WarehouseDetailsPage navigate={navigate} managers={managers} products={products} />
+            </Suspense>
           }
-        /> */}
+        />
       </Routes>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

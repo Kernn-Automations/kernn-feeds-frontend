@@ -13,7 +13,7 @@ const CreateCustomer = lazy(() => import("./CreateCustomer"));
 function CustomerRoutes() {
   const navigate = useNavigate();
 
-   const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user"));
 
   const roles = JSON.stringify(user.roles);
 
@@ -21,7 +21,6 @@ function CustomerRoutes() {
 
   return (
     <Routes>
-     
       <Route
         index
         element={
@@ -30,7 +29,7 @@ function CustomerRoutes() {
           </Suspense>
         }
       />
-       <Route
+      <Route
         path="/create"
         element={
           <Suspense fallback={<PageSkeleton />}>

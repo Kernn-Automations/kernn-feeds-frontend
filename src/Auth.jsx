@@ -23,8 +23,39 @@ export const AuthProvider = ({ children }) => {
     },
   });
 
+  const formApi = axios.create({
+    baseURL: VITE_API, // Change to your actual API URL
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  const getPdf = axios.create({
+    baseURL: VITE_API, // Change to your actual API URL
+    headers: {
+      "Content-Type": "Application/pdf",
+    },
+    responseType: "blob",
+  });
+
   api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("access_token"); // Assuming token is stored in local storage
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
+  getPdf.interceptors.request.use((config) => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
+  formApi.interceptors.request.use((config) => {
+    const token = localStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -36,16 +67,16 @@ export const AuthProvider = ({ children }) => {
     post: (url, data) => api.post(url, data),
     put: (url, data) => api.put(url, data),
     delete: (url) => api.delete(url),
+    formData: (url, formdata) => formApi.post(url, formdata),
+    getpdf: (url, params = {}) => getPdf.get(url, { params }),
   };
-
-
 
   useEffect(() => {
     const refreshAccessToken = async () => {
       try {
-        const accesstokenfromst = localStorage.getItem("access_token");
-        const reftokenfromst = localStorage.getItem("refresh_token");
         
+        const reftokenfromst = localStorage.getItem("refresh_token");
+
         // console.log("My token", config.headers.Authorization);
 
         let config = {
@@ -90,14 +121,16 @@ export const AuthProvider = ({ children }) => {
 
       // console.log("new token : ", token);
       // console.log("newref token : ", reftoken);
-      
     };
 
     refreshAccessToken();
 
-    const interval = setInterval(() => {
-      refreshAccessToken();
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        refreshAccessToken();
+      },
+      5 * 60 * 1000
+    );
 
     return () => clearInterval(interval);
   }, []);
@@ -128,12 +161,7 @@ export const AuthProvider = ({ children }) => {
   };
   const removeToken = async () => {
     try {
-      const res = await axios.post(
-        `${VITE_API}/api/v1/logout`,
-        config
-      );
-
-    
+      const res = await axios.post(`${VITE_API}/api/v1/logout`, config);
 
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");

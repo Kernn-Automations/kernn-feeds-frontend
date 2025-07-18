@@ -172,7 +172,7 @@ function StockTransferPage({ navigate }) {
           ))}
         {/* Warehouse Selectors */}
         <div className="row mb-4">
-          <div className="col-md-5">
+          <div className="col-md-5 dateForms">
             <label>From Warehouse</label>
             <select
               className="form-select"
@@ -183,7 +183,7 @@ function StockTransferPage({ navigate }) {
                 )
               }
             >
-              <option value="">Select From Warehouse</option>
+              <option value="">--Select From Warehouse--</option>
               {filteredFromWarehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
@@ -194,7 +194,7 @@ function StockTransferPage({ navigate }) {
           <div className="col-md-2 d-flex align-items-center justify-content-center">
             <div className="border-start h-100 mx-2"></div>
           </div>
-          <div className="col-md-5">
+          <div className="col-md-5 dateForms">
             <label>To Warehouse</label>
             <select
               className="form-select"
@@ -205,7 +205,7 @@ function StockTransferPage({ navigate }) {
                 )
               }
             >
-              <option value="">Select To Warehouse</option>
+              <option value="">--Select To Warehouse--</option>
               {filteredToWarehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
@@ -219,8 +219,8 @@ function StockTransferPage({ navigate }) {
         {fromWarehouse && toWarehouse && (
           <>
             <div className="row mb-3">
-              <div className="col-md-6">
-                <label>Select Product to Transfer</label>
+              <div className="col-md-6 dateForms">
+                <label>--Select Product to Transfer--</label>
                 <select
                   className="form-select"
                   onChange={(e) => {

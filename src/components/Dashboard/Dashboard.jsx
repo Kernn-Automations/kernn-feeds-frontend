@@ -12,17 +12,7 @@ import PageSkeleton from "../SkeletonLoaders/PageSkeleton";
 import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
 import SettingRoutes from "./SettingsTab/SettingRoutes";
 
-// import HomePage from "./HomePage/HomePage";
-// import InventoryRoutes from "./Inventory/InventoryRoutes";
-// import PurchaseRoutes from "./Purchases/PurchaseRoutes";
-// import SalesRoutes from "./Sales/SalesRoutes";
-// import CustomerRoutes from "./Customers/CustomerRoutes";
-// import PaymentRoutes from "./Payments/PaymentRoutes";
-// import EmployeeRoutes from "./Employees/EmployeeRoutes";
-// import WarehouseRoutes from "./Warehouses/WarehouseRoutes";
-// import ProductRoutes from "./Products/ProductRoutes";
-// import LocationsHome from "./Locations/LocationsHome";
-// import AnnouncementHome from "./Annoucement/AnnouncementHome";
+
 
 // Lazy-loaded Pages
 const HomePage = lazy(() => import("./HomePage/HomePage"));

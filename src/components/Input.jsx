@@ -41,7 +41,7 @@ function Input({ setLogin, setUser, setRole }) {
       }
     } catch (e) {
       setOntap(false);
-      setError(e.response?.data?.message || "Unknown error");
+      setError(e.response?.data?.message || "Server error");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
