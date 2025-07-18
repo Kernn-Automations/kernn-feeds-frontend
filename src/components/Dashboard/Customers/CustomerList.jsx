@@ -21,18 +21,21 @@ function CustomerList({ navigate, isAdmin }) {
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const closeModal = () => setIsModalOpen(false);
 
-  // Fetch sales executives and warehouses
+  // Fetch metadata (executives & warehouses)
   useEffect(() => {
     async function fetchMeta() {
       try {
         setLoading(true);
-        const res1 = await axiosAPI.get("/employees/role/Business Officer");
-        const res2 = await axiosAPI.get("/warehouse");
+        const [res1, res2] = await Promise.all([
+          axiosAPI.get("/employees/role/Business Officer"),
+          axiosAPI.get("/warehouse"),
+        ]);
         setSalesExecutives(res1.data.employees);
         setWarehouses(res2.data.warehouses);
       } catch (e) {
@@ -45,27 +48,27 @@ function CustomerList({ navigate, isAdmin }) {
     fetchMeta();
   }, []);
 
-  const [pageNo, setPageNo] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
-
-  // Fetch customers on filter change
+  // Unified API call for both filtered and search-based results
   useEffect(() => {
     async function fetchCustomers() {
       try {
         setCustomers(null);
-        setFilteredCustomers(null)
+        setFilteredCustomers(null);
         setLoading(true);
-        const query = `/customers?${
-          warehouse ? `&warehouseId=${warehouse}` : ""
-        }${se ? `&salesExecutiveId=${se}` : ""}&page=${pageNo}&limit=${limit}`;
 
-        console.log(query);
+        let query = "";
+        if (searchTerm.trim().length >= 3) {
+          query = `/customers/search?customerName=${searchTerm.trim()}`;
+        } else {
+          query = `/customers?${
+            warehouse ? `&warehouseId=${warehouse}` : ""
+          }${se ? `&salesExecutiveId=${se}` : ""}&page=${pageNo}&limit=${limit}`;
+        }
 
         const res = await axiosAPI.get(query);
-        console.log(res);
+        console.log(res)
         setCustomers(res.data.customers);
-        setTotalPages(res.data.totalPages);
+        setTotalPages(res.data.totalPages || 1);
       } catch (e) {
         setError(e.response?.data?.message || "Failed to fetch customers.");
         setIsModalOpen(true);
@@ -73,16 +76,15 @@ function CustomerList({ navigate, isAdmin }) {
         setLoading(false);
       }
     }
-    fetchCustomers();
-  }, [warehouse, se, pageNo, limit]);
 
-  // Filter customers on search
+    fetchCustomers();
+  }, [warehouse, se, pageNo, limit, searchTerm]);
+
+  // Whenever customers change, update filteredCustomers
   useEffect(() => {
-    const filtered = customers?.filter((customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
-    );
-    setFilteredCustomers(filtered);
-  }, [searchTerm, customers]);
+    if (!customers) return;
+    setFilteredCustomers(customers);
+  }, [customers]);
 
   let count = 1;
 
@@ -130,7 +132,7 @@ function CustomerList({ navigate, isAdmin }) {
         </div>
       )}
 
-      {!customerId && filteredCustomers && (
+      {!customerId && (
         <>
           <div className="row m-0 p-3 justify-content-end">
             <div className={`col-md-5 ${styles.search}`}>
@@ -149,18 +151,16 @@ function CustomerList({ navigate, isAdmin }) {
           {filteredCustomers && (
             <div className="row m-0 p-3 justify-content-center">
               <div className={`col-lg-10 ${styles.entity}`}>
-                <label htmlFor="">Entity :</label>
+                <label>Entity :</label>
                 <select
-                  name=""
-                  id=""
                   value={limit}
-                  onChange={(e) => setLimit(e.target.value)}
+                  onChange={(e) => setLimit(Number(e.target.value))}
                 >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={30}>30</option>
-                  <option value={40}>40</option>
-                  <option value={50}>50</option>
+                  {[10, 20, 30, 40, 50].map((val) => (
+                    <option key={val} value={val}>
+                      {val}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -204,6 +204,7 @@ function CustomerList({ navigate, isAdmin }) {
                     ))}
                   </tbody>
                 </table>
+
                 <div className="row m-0 p-0 pt-3 justify-content-between">
                   <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
                     {pageNo > 1 && (

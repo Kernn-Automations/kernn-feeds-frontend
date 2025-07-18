@@ -2,12 +2,13 @@ import React, { lazy, Suspense } from "react";
 import styles from "./Payments.module.css";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
-import CreditNote from "./CreditNote";
+
 
 // Lazy-loaded components
 const PaymentHome = lazy(() => import("./PaymentHome"));
 const PaymentReports = lazy(() => import("./PaymentReports"));
 const PaymentApprovals = lazy(() => import("./PaymentApprovals"));
+const CreditNoteRoutes = lazy(() => import("./CreditNoteRoutes"));
 
 function PaymentRoutes() {
   const navigate = useNavigate();
@@ -39,10 +40,10 @@ function PaymentRoutes() {
         }
       />
       <Route
-        path="/credit-notes"
+        path="/credit-notes/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <CreditNote navigate={navigate} />
+            <CreditNoteRoutes navigate={navigate} />
           </Suspense>
         }
       />

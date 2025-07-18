@@ -3,11 +3,12 @@ import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
-import OrderTransferPage from "./OrderTransferPage";
+import OrderTransferPage from "../Sales/OrderTransferPage";
 
 // Lazy-loaded components
 const WarehouseHome = lazy(() => import("./WarehouseHome"));
 const OngoingWarehouse = lazy(() => import("./OngoingWarehouse"));
+const WarehouseDetailsPage = lazy(() => import("./WarehouseDetailsPage"));
 const WarehouseDetails = lazy(() => import("./WarehouseDetails"));
 
 function WarehouseRoutes() {
@@ -41,6 +42,7 @@ function WarehouseRoutes() {
         // console.log(res);
         setManagers(res.data.employees);
         setProducts(res1.data.products);
+        console.log(res1.data.products)
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -82,12 +84,11 @@ function WarehouseRoutes() {
             </Suspense>
           }
         />
-       
         {/* <Route
-          path="/order-transfer"
+          path="/stock-transfer"
           element={
             <Suspense fallback={<PageSkeleton />}>
-              <OrderTransferPage navigate={navigate} managers={managers} />
+              <StockTransferPage navigate={navigate} managers={managers} />
             </Suspense>
           }
         /> */}
@@ -99,6 +100,16 @@ function WarehouseRoutes() {
             </Suspense>
           }
         />
+        {/* <Route
+          path="/:id"
+          element={
+            managers ? (
+              <WarehouseDetailsPage managers={managers} />
+            ) : (
+              <PageSkeleton /> // or any loading fallback
+            )
+          }
+        /> */}
       </Routes>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

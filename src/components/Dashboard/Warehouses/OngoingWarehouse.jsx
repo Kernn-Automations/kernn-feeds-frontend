@@ -25,6 +25,8 @@ function OngoingWarehouse({ navigate, managers, isAdmin, warehouseId }) {
 
   const changeTrigger = () => setTrigger(!trigger);
 
+
+ 
 useEffect(() => {
   async function fetch() {
     try {
@@ -48,6 +50,7 @@ useEffect(() => {
 
       if (isManager && !isAdmin) {
         endpoint = "/warehouse/manager";
+
       }
 
       const res = await axiosAPI.get(endpoint);
@@ -64,7 +67,6 @@ useEffect(() => {
   fetch();
 }, [trigger]);
 
-  // const [warehouseId, setWarehouseId] = useState();
 
   let count = 1;
   return (
@@ -77,7 +79,6 @@ useEffect(() => {
                 <tr>
                   <th>S.No</th>
                   <th>Warehouse ID</th>
-                  {/* <th>Warehouse Manager</th> */}
                   <th>Warehouse Name</th>
                   {/* <th>Enable/Disable</th> */}
                   <th>Action</th>
@@ -99,7 +100,6 @@ useEffect(() => {
                       <td>{count++}</td>
 
                       <td>{warehouse.id}</td>
-                      {/* <td>{warehouse.manager?.name}</td> */}
                       <td>{warehouse.name}</td>
                       {/* <td className={styles.selectmode}>
                         <SelectMode
@@ -108,12 +108,8 @@ useEffect(() => {
                       </td> */}
                       <td>
                         <button
-                          // className="btn btn-sm btn-outline-primary"
-                          onClick={() => {
-                            // onWarehouseChange(warehouse.id)
-                            navigate(`/warehouses/${warehouse.id}`);
-                            
-                          }}
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => navigate(`/warehouses/${warehouse.id}`)}
                         >
                           View
                         </button>

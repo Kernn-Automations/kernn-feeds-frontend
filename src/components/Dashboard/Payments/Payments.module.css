@@ -151,17 +151,133 @@
   margin-left: 10px;
 }
 
-.custDetails{
+.custDetails {
   margin-bottom: 10px;
 }
-.custDetails h5{
+.custDetails h5 {
   margin-bottom: 3px;
   font-size: 16px;
   font-weight: 600;
 }
-.custDetails p{
+.custDetails p {
   margin-bottom: 3px;
   font-size: 14px;
   font-weight: 500;
 }
 
+/* xl modal */
+
+.longformmdl {
+  max-width: 300px !important;
+  min-width: 280px !important;
+  margin-bottom: 8px;
+}
+.longformmdl label,
+.textform label {
+  width: 140px;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14.82px;
+  letter-spacing: 0%;
+  text-align: right;
+  padding-right: 15px;
+  color: var(--primary-color);
+}
+.longformmdl input,
+.longformmdl select {
+  width: 120px;
+  height: 25px;
+  padding-left: 2px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 12px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+}
+.longformmdl span {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 14.26px;
+  letter-spacing: 1.5%;
+}
+
+.textform textarea {
+  width: 350px;
+  height: 80px;
+  padding-left: 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 12px;
+  /* background-color: #d9d9d9; */
+  border: 1px solid #d9d9d9;
+  box-shadow: 1px 1px 3px #333;
+}
+
+.headmdl {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 29.26px;
+  letter-spacing: 1.5%;
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: Auto;
+  color: #555;
+}
+.mdltable thead th {
+  font-size: 12px !important;
+  padding: 3px;
+  letter-spacing: 1.5%;
+  color: white;
+  background-color: var(--primary-color);
+  text-align: center;
+}
+.mdltable tbody td {
+  font-size: 12px !important;
+  padding: 3px;
+}
+.mdltable button {
+  width: fit-content;
+  height: 20px;
+  font-size: 11px;
+  padding: 0px 10px;
+  border: none;
+  color: white;
+  margin: 0;
+  border-radius: 3px;
+  background-color: #fd3b3b;
+}
+
+/* credit note details */
+.creditDetails {
+  margin: 20px;
+}
+.creditDetails p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary-color);
+  padding-left: 40px;
+  margin: 3px;
+}
+.creditDetails p span {
+  color: #333;
+  font-weight: 600;
+  font-size: 15px;
+  padding-right: 20px;
+}
+
+.select input {
+  background: #ffffff !important;
+}
+.selectall {
+  width: 15px;
+  height: 15px;
+}
+
+.select label {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 30.38px;
+  letter-spacing: 0.015em;
+  padding: 6px 10px;
+}

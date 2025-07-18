@@ -8,7 +8,7 @@ import DeleteMonthlyDiscModal from "./DeleteMonthlyDiscModal";
 
 import styles from "./Discount.module.css";
 
-function MonthlyDiscount({ navigate }) {
+function MonthlyDiscount({ navigate, isAdmin }) {
   const [discounts, setDiscounts] = useState();
 
   const { axiosAPI } = useAuth();
@@ -50,11 +50,13 @@ function MonthlyDiscount({ navigate }) {
         <i className="bi bi-chevron-right"></i> Monthly Discount
       </p>
 
-      <div className="row m-0 p-3 pt-0">
-        <div className="col-3">
-          <AddMonthlyDiscountModal changeTrigger={changeTrigger} />
+      {isAdmin && (
+        <div className="row m-0 p-3 pt-0">
+          <div className="col-3">
+            <AddMonthlyDiscountModal changeTrigger={changeTrigger} />
+          </div>
         </div>
-      </div>
+      )}
 
       {discounts && (
         <div className="row m-0 p-3 justify-content-center">
@@ -94,11 +96,14 @@ function MonthlyDiscount({ navigate }) {
                         <EditMonthlyDiscountModal
                           discount={discount}
                           changeTrigger={changeTrigger}
+                          isAdmin={isAdmin}
                         />
-                        <DeleteMonthlyDiscModal
-                          discount={discount}
-                          changeTrigger={changeTrigger}
-                        />
+                        {isAdmin && (
+                          <DeleteMonthlyDiscModal
+                            discount={discount}
+                            changeTrigger={changeTrigger}
+                          />
+                        )}
                       </td>
                     </tr>
                   ))}

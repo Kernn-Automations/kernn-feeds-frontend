@@ -8,6 +8,7 @@ import { useAuth } from "@/Auth";
 import ImagesViewModal from "./ImagesViewModal";
 import { FaMapMarkerAlt } from "react-icons/fa";
 import axios from "axios";
+import PhotosDrawer from "./PhotosDrawer";
 
 function KYCModal({ customerId, setCustomerId, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -277,9 +278,11 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={{
-                  width: `${(customerdata.email?.length > 15
+                  width: `${
+                    (customerdata.email?.length > 15
                       ? customerdata.email?.length
-                      : 15) + 1}ch`,
+                      : 15) + 1
+                  }ch`,
                   padding: "0.3rem 0.5rem",
                   border: "1px solid #ccc",
                   borderRadius: "4px",
@@ -297,20 +300,10 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
               />
             </div>
             <div className={`col-4 ${styles.longform}`}>
-              <label>Mobile :</label>
+              <label>KYC Status :</label>
               <input
                 type="text"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                readOnly={!editclick}
-              />
-            </div>
-            <div className={`col-4 ${styles.longform}`}>
-              <label>WhatsApp :</label>
-              <input
-                type="text"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
+                value={customerdata.kycStatus || "-"}
                 readOnly={!editclick}
               />
             </div>
@@ -338,10 +331,11 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
               />
             </div>
             <div className={`col-4 ${styles.longform}`}>
-              <label>KYC Status :</label>
+              <label>WhatsApp :</label>
               <input
                 type="text"
-                value={customerdata.kycStatus || "-"}
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
                 readOnly={!editclick}
               />
             </div>
@@ -352,6 +346,16 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
                 type="text"
                 value={gstin}
                 onChange={(e) => setGstin(e.target.value)}
+              />
+            </div>
+
+            <div className={`col-4 ${styles.longform}`}>
+              <label>Mobile :</label>
+              <input
+                type="text"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                readOnly={!editclick}
               />
             </div>
 
@@ -442,15 +446,25 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
           <div className="row m-0 p-0 justify-content-center">
             <div className={`col-4`}>
               <h5 className={styles.headmdl}>Aadhaar Proof</h5>
-              <ImagesViewModal
+              {/* <ImagesViewModal
                 title={"Aadhar"}
+                front={customerdata.kycDocuments?.[0]?.frontImage}
+                back={customerdata.kycDocuments?.[0]?.backImage}
+              /> */}
+              <PhotosDrawer
+                title={"Aadhaar "}
                 front={customerdata.kycDocuments?.[0]?.frontImage}
                 back={customerdata.kycDocuments?.[0]?.backImage}
               />
             </div>
             <div className={`col-4`}>
               <h5 className={styles.headmdl}>PAN Card Proof</h5>
-              <ImagesViewModal
+              {/* <ImagesViewModal
+                title={"PAN"}
+                front={customerdata.kycDocuments?.[1]?.frontImage}
+                back={customerdata.kycDocuments?.[1]?.backImage}
+              /> */}
+              <PhotosDrawer
                 title={"PAN"}
                 front={customerdata.kycDocuments?.[1]?.frontImage}
                 back={customerdata.kycDocuments?.[1]?.backImage}
@@ -458,7 +472,8 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
             </div>
             <div className={`col-4`}>
               <h5 className={styles.headmdl}>Customer Photo</h5>
-              <ImagesViewModal title={"Photo"} front={customerdata.photo} />
+              {/* <ImagesViewModal title={"Photo"} front={customerdata.photo} /> */}
+              <PhotosDrawer title={"Photo"} front={customerdata.photo} />
             </div>
           </div>
 
@@ -472,12 +487,14 @@ function KYCModal({ customerId, setCustomerId, isAdmin }) {
                   <button className="cancelbtn" onClick={onDeclineClick}>
                     Decline
                   </button>
-                  {isAdmin && <button
-                    className={`cancelbtn ${styles.editbtn}`}
-                    onClick={() => setEditclick(true)}
-                  >
-                    Edit
-                  </button>}
+                  {isAdmin && (
+                    <button
+                      className={`cancelbtn ${styles.editbtn}`}
+                      onClick={() => setEditclick(true)}
+                    >
+                      Edit
+                    </button>
+                  )}
                 </div>
               )}
               {editclick && (

@@ -332,7 +332,7 @@ function NewWarehouseModal({ managers, products }) {
                 onClick={() => setShowMap(true)}
               />
             </>
-          ) : null}
+          ) : <button>Locate</button>}
         </div>
       </div>
 
