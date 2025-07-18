@@ -3,7 +3,7 @@ import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
-import OrderTransferPage from "./OrderTransferPage";
+import OrderTransferPage from "../Sales/OrderTransferPage";
 
 // Lazy-loaded components
 const WarehouseHome = lazy(() => import("./WarehouseHome"));

@@ -26,7 +26,7 @@ function CustomerReportsPage({ navigate }) {
     async function fetchCustomers() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get(`/customers`);
+        const res = await axiosAPI.get(`/customers?limit=all`);
         setCustomers(res.data.customers);
       } catch (e) {
         setError(e.response?.data?.message || "Error fetching customers");
@@ -156,7 +156,7 @@ function CustomerReportsPage({ navigate }) {
           <DatePicker selected={toDate} onChange={setToDate} dateFormat="dd/MM/yyyy" customInput={<CustomDateInput />} />
         </div>
         <div className="col-3 d-flex align-items-end">
-          <button className="btn btn-primary w-100" onClick={fetchReport}>Generate Report</button>
+          <button className="generatebtn" onClick={fetchReport}>Generate Report</button>
         </div>
       </div>
 
@@ -183,7 +183,7 @@ function CustomerReportsPage({ navigate }) {
             <button className="btn btn-danger" onClick={() => handleExport("PDF")}>Export PDF</button>
           </div>
           <div className="col-12">
-            <table className="table table-bordered">
+            <table className="table table-bordered borderedtable">
               <thead>
                 <tr>
                   <th>S.No</th>
@@ -219,7 +219,7 @@ function CustomerReportsPage({ navigate }) {
             </table>
           </div>
         </div>
-      )}
+      )} 
 
       {/* 🔎 View Modal */}
       {selectedOrder && (
