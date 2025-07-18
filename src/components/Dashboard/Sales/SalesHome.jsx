@@ -11,6 +11,18 @@ function SalesHome({navigate}) {
           </button>
           <button
             className="homebtn"
+            onClick={() => navigate("/sales/order-transfer")}
+          >
+            Order Transfer
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/sales/cancelled-order")}
+          >
+            Cancelled Orders
+          </button>
+          {/* <button
+            className="homebtn"
             onClick={() => navigate("/sales/dispatches")}
           >
             Dispatches
@@ -20,7 +32,7 @@ function SalesHome({navigate}) {
             onClick={() => navigate("/sales/deliveries")}
           >
             Deliveries
-          </button>
+          </button> */}
         </div>
       </div>
     </>

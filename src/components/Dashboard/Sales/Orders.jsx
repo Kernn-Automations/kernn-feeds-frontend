@@ -175,12 +175,20 @@ function Orders({
 
   return (
     <>
-      {/* <p className="path">
+      <p className="path">
         <span onClick={() => navigate("/sales")}>Sales</span>{" "}
         <i class="bi bi-chevron-right"></i> Orders
-      </p> */}
+      </p>
 
       <div className="row m-0 p-3">
+        {/* <div className={`col-3 formcontent`}>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/warehouses/order-transfer")}
+          >
+            Order Transfer
+          </button>
+        </div> */}
         <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
           <input

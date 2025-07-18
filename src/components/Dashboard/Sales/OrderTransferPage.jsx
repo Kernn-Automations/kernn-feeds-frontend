@@ -20,7 +20,7 @@ function OrderTransferPage({ navigate }) {
   const [modalMessage, setModalMessage] = useState("");
 
   useEffect(() => {
-    axiosAPI.get("/warehouse").then((res) => {
+    axiosAPI.get("/sales").then((res) => {
       setWarehouses(res.data.warehouses || []);
     });
   }, []);
@@ -48,7 +48,7 @@ function OrderTransferPage({ navigate }) {
     if (!selectedOrderId || !targetWarehouseId) return;
     setLoading(true);
     try {
-      await axiosAPI.post(`/warehouse/transfer/order`, {
+      await axiosAPI.post(`/sales/transfer/order`, {
         orderId: selectedOrderId,
         newWarehouseId: targetWarehouseId,
       });
@@ -65,16 +65,16 @@ function OrderTransferPage({ navigate }) {
 
   const handleSuccessClose = () => {
     setSuccessOpen(false);
-    navigate("/warehouses");
+    navigate("/sales");
   };
 
   return (
     <>
       <p className="path">
         <span
-          onClick={() => navigate("/warehouses")}
+          onClick={() => navigate("/sales")}
         >
-          Warehouse
+          sales
         </span>{" "}
         <i className="bi bi-chevron-right"></i> Stock Transfer
       </p>
