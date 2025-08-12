@@ -5,9 +5,9 @@ function NavBg({ hover, setTab, tab }) {
   const location = useLocation();
   // console.log(location.pathname)
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user")) || { roles: [] };
 
-  const roles = JSON.stringify(user.roles);
+  const roles = JSON.stringify(user.roles || []);
 
   // console.log(roles);
   return (
@@ -28,9 +28,9 @@ function NavBg({ hover, setTab, tab }) {
               <path
                 d="M2 15.8303C2 14.8731 2 14.3945 2.12338 13.9537C2.23267 13.5632 2.41228 13.196 2.65338 12.87C2.92556 12.502 3.30337 12.2082 4.05898 11.6205L15.3628 2.82859C15.9484 2.37317 16.2411 2.14546 16.5644 2.05793C16.8497 1.98069 17.1503 1.98069 17.4356 2.05793C17.7589 2.14546 18.0516 2.37317 18.6372 2.82859L29.941 11.6205C30.6966 12.2082 31.0744 12.502 31.3466 12.87C31.5877 13.196 31.7673 13.5632 31.8766 13.9537C32 14.3945 32 14.8731 32 15.8303V27.8886C32 29.7554 32 30.6888 31.6367 31.4019C31.3171 32.0291 30.8072 32.539 30.18 32.8586C29.4669 33.2219 28.5335 33.2219 26.6667 33.2219H7.33333C5.46649 33.2219 4.53307 33.2219 3.82003 32.8586C3.19282 32.539 2.68289 32.0291 2.36331 31.4019C2 30.6888 2 29.7554 2 27.8886V15.8303Z"
                 stroke="black"
-                stroke-width="3.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3.33333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
 
@@ -114,9 +114,9 @@ function NavBg({ hover, setTab, tab }) {
               <path
                 d="M27.6667 13L17.7038 22.9629C17.3407 23.3259 17.1592 23.5074 16.9499 23.5754C16.7658 23.6353 16.5675 23.6353 16.3834 23.5754C16.1741 23.5074 15.9926 23.3259 15.6296 22.9629L12.2038 19.5371C11.8407 19.1741 11.6592 18.9926 11.4499 18.9246C11.2658 18.8647 11.0675 18.8647 10.8834 18.9246C10.6741 18.9926 10.4926 19.1741 10.1296 19.5371L2 27.6667M27.6667 13H20.3333M27.6667 13V20.3333M10.8 35H26.2C29.2803 35 30.8204 35 31.9969 34.4005C33.0318 33.8732 33.8732 33.0318 34.4005 31.9969C35 30.8204 35 29.2803 35 26.2V10.8C35 7.71971 35 6.17957 34.4005 5.00305C33.8732 3.96816 33.0318 3.12677 31.9969 2.59946C30.8204 2 29.2803 2 26.2 2H10.8C7.71971 2 6.17957 2 5.00305 2.59946C3.96816 3.12677 3.12677 3.96816 2.59946 5.00305C2 6.17957 2 7.71971 2 10.8V26.2C2 29.2803 2 30.8204 2.59946 31.9969C3.12677 33.0318 3.96816 33.8732 5.00305 34.4005C6.17957 35 7.71971 35 10.8 35Z"
                 stroke="black"
-                stroke-width="3.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3.33333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
 
@@ -224,9 +224,9 @@ function NavBg({ hover, setTab, tab }) {
               <path
                 d="M30.8333 14.6458V11.1C30.8333 9.37314 30.8333 8.50971 30.4973 7.85016C30.2017 7.27 29.73 6.79831 29.1498 6.50269C28.4903 6.16663 27.6268 6.16663 25.9 6.16663H8.01668C6.28986 6.16663 5.42643 6.16663 4.76687 6.50269C4.18671 6.79829 3.71501 7.26998 3.41941 7.85016C3.08334 8.50971 3.08334 9.37314 3.08334 11.1V25.9C3.08334 27.6268 3.08334 28.4903 3.41941 29.1498C3.71501 29.7299 4.1867 30.2017 4.76687 30.4972C5.42643 30.8333 6.28984 30.8333 8.01668 30.8333H25.9C27.6268 30.8333 28.4903 30.8333 29.1498 30.4972C29.73 30.2017 30.2017 29.7299 30.4973 29.1498C30.8333 28.4903 30.8333 27.6268 30.8333 25.9V22.3541M23.125 18.5C23.125 17.7835 23.125 17.4254 23.1842 17.1276C23.4275 15.9044 24.3836 14.9483 25.6068 14.705C25.9046 14.6458 26.2628 14.6458 26.9792 14.6458H30.0625C30.7789 14.6458 31.1371 14.6458 31.4349 14.705C32.6581 14.9483 33.6142 15.9044 33.8575 17.1276C33.9167 17.4254 33.9167 17.7835 33.9167 18.5C33.9167 19.2164 33.9167 19.5745 33.8575 19.8724C33.6142 21.0955 32.6581 22.0517 31.4349 22.2949C31.1371 22.3541 30.7789 22.3541 30.0625 22.3541H26.9792C26.2628 22.3541 25.9046 22.3541 25.6068 22.2949C24.3836 22.0517 23.4275 21.0955 23.1842 19.8724C23.125 19.5745 23.125 19.2164 23.125 18.5Z"
                 stroke="black"
-                stroke-width="3.33"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3.33"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
 
@@ -274,9 +274,9 @@ function NavBg({ hover, setTab, tab }) {
               <path
                 d="M29.3333 28V25.3333C29.3333 22.8483 27.6336 20.7601 25.3333 20.168M20.6667 4.38768C22.6212 5.17887 24 7.09508 24 9.33333C24 11.5716 22.6212 13.4879 20.6667 14.2789M22.6667 28C22.6667 25.5149 22.6667 24.2725 22.2607 23.2924C21.7193 21.9856 20.6811 20.9473 19.3743 20.406C18.3941 20 17.1517 20 14.6667 20H10.6667C8.18164 20 6.93913 20 5.95903 20.406C4.6522 20.9473 3.61395 21.9856 3.07264 23.2924C2.66667 24.2725 2.66667 25.5149 2.66667 28M18 9.33333C18 12.2789 15.6121 14.6667 12.6667 14.6667C9.72115 14.6667 7.33333 12.2789 7.33333 9.33333C7.33333 6.38781 9.72115 4 12.6667 4C15.6121 4 18 6.38781 18 9.33333Z"
                 stroke="black"
-                stroke-width="3.33"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3.33"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
 
@@ -306,39 +306,30 @@ function NavBg({ hover, setTab, tab }) {
             {hover && <p>Discounts</p>}
           </Link>
         </div>
-        {/* <div
-          className={`${
-            location.pathname.includes("location") ? styles.active : ""
-          } `}
-          onClick={() => setTab("location")}
+        <div
+          className={`${location.pathname.includes("locations") ? styles.active : ""}`}
+          onClick={() => setTab("locations")}
         >
-          <Link to="/location">
-            <svg
-              width="31"
-              height="37"
-              viewBox="0 0 31 37"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+          <Link to="/locations">
+            <svg width="31" height="37" viewBox="0 0 31 37" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
                 d="M15.3333 20.3333C18.0948 20.3333 20.3333 18.0948 20.3333 15.3333C20.3333 12.5719 18.0948 10.3333 15.3333 10.3333C12.5719 10.3333 10.3333 12.5719 10.3333 15.3333C10.3333 18.0948 12.5719 20.3333 15.3333 20.3333Z"
                 stroke="black"
-                stroke-width="3.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3.33333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
               <path
                 d="M15.3333 35.3333C22 28.6667 28.6667 22.6971 28.6667 15.3333C28.6667 7.96954 22.6971 2 15.3333 2C7.96954 2 2 7.96954 2 15.3333C2 22.6971 8.66667 28.6667 15.3333 35.3333Z"
                 stroke="black"
-                stroke-width="3.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3.33333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
-
-            {hover && <p>Live Locations</p>}
+            {hover && <p>Locations</p>}
           </Link>
-        </div> */}
+        </div>
         <div
           className={`${
             location.pathname.includes("warehouses") ? styles.active : ""
@@ -387,23 +378,23 @@ function NavBg({ hover, setTab, tab }) {
                 <path
                   d="M3.16699 11.0859L19.0003 19.0026"
                   stroke="black"
-                  stroke-width="4.14683"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+                  strokeWidth="4.14683"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
                 <path
                   d="M19 34.8333V19"
                   stroke="black"
-                  stroke-width="4.14683"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+                  strokeWidth="4.14683"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
                 <path
                   d="M34.8333 11.0859L19 19.0026"
                   stroke="black"
-                  stroke-width="4.14683"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+                  strokeWidth="4.14683"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
                 <path
                   d="M27.6246 8.54286C28.4068 8.15178 28.7237 7.20069 28.3327 6.41856C27.9417 5.63643 26.9905 5.31941 26.2085 5.71047L27.6246 8.54286ZM10.3751 13.6271C9.59296 14.0182 9.27598 14.9693 9.66698 15.7514C10.0581 16.5335 11.0092 16.8505 11.7913 16.4595L10.3751 13.6271ZM26.2085 5.71047L10.3751 13.6271L11.7913 16.4595L27.6246 8.54286L26.2085 5.71047Z"
@@ -473,6 +464,42 @@ function NavBg({ hover, setTab, tab }) {
           </div>
         )}
 
+        {roles.includes("Admin") && (
+          <div
+            className={`${
+              location.pathname.includes("divisions") ? styles.active : ""
+            } `}
+            onClick={() => setTab("divisions")}
+          >
+            <Link to="/divisions">
+              <svg
+                width="38"
+                height="38"
+                viewBox="0 0 38 38"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g>
+                  <path
+                    d="M19 2C9.626 2 2 9.626 2 19C2 28.374 9.626 36 19 36C28.374 36 36 28.374 36 19C36 9.626 28.374 2 19 2ZM19 33C11.268 33 5 26.732 5 19C5 11.268 11.268 5 19 5C26.732 5 33 11.268 33 19C33 26.732 26.732 33 19 33Z"
+                    fill="black"
+                  />
+                  <path
+                    d="M19 8C13.477 8 9 12.477 9 18C9 23.523 13.477 28 19 28C24.523 28 29 23.523 29 18C29 12.477 24.523 8 19 8ZM19 25C15.134 25 12 21.866 12 18C12 14.134 15.134 11 19 11C23.866 11 27 14.134 27 18C27 21.866 23.866 25 19 25Z"
+                    fill="black"
+                  />
+                  <path
+                    d="M19 14C16.243 14 14 16.243 14 19C14 21.757 16.243 24 19 24C21.757 24 24 21.757 24 19C24 16.243 21.757 14 19 14ZM19 21C17.346 21 16 19.654 16 18C16 16.346 17.346 15 19 15C20.654 15 22 16.346 22 18C22 19.654 20.654 21 19 21Z"
+                    fill="black"
+                  />
+                </g>
+              </svg>
+
+              {hover && <p>Divisions</p>}
+            </Link>
+          </div>
+        )}
+
         {/* <div
           className={`${location.pathname.includes("logout") ? styles.active : ""} `}
           onClick={() => setTab("logout")}
@@ -487,9 +514,9 @@ function NavBg({ hover, setTab, tab }) {
             <path
               d="M4.20751 10.25C7.06043 5.31813 12.3927 2 18.5001 2C27.6127 2 35 9.38728 35 18.4999C35 27.6126 27.6127 34.9999 18.5001 34.9999C12.3927 34.9999 7.06043 31.6818 4.20751 26.7499M18.4999 25.0999L25.0999 18.4999M25.0999 18.4999L18.4999 11.9M25.0999 18.4999H2"
               stroke="black"
-              stroke-width="3.33333"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+              strokeWidth="3.33333"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
 

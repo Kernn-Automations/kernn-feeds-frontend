@@ -41,7 +41,7 @@ function LowStockAlerts({ lowStockNotifications }) {
                     <strong>{item.product}</strong>
                     <p>{item.warehouse}</p>
                     <p>
-                      <b>Stock:</b> {item.currentStock} / {item.threshold}
+                      <b>Stock:</b> {item.stock} / {item.threshold}
                     </p>
                   </div>
                 </div>

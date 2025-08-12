@@ -29,7 +29,7 @@ function WarehouseTabSection({ warehouseDetails }) {
       case "Activity":
         return <WarehouseActivityTab activities={activities} />;
       case "StockSummary":
-        return <WarehouseStockSummaryTab stockSummary={stockSummary} />;
+        return <WarehouseStockSummaryTab warehouse={warehouse} />;
       default:
         return null;
     }

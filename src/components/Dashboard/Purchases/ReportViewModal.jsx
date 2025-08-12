@@ -11,7 +11,7 @@ import ReportsModal from "./ReportsModal";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 
-function ReportViewModal({ order, warehouses }) {
+function ReportViewModal({ order, warehouses , setWarehouses }) {
   const [pdetails, setPdetails] = useState();
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ function ReportViewModal({ order, warehouses }) {
         console.log(res);
         setPdetails(res.data.purchaseOrder);
       } catch (e) {
-        // console.log(e);
+        console.log(e);
         setError(e.response.data.message);
       } finally {
         setLoading(false);
@@ -47,7 +47,7 @@ function ReportViewModal({ order, warehouses }) {
           </DialogTrigger>
           <DialogContent className="mdl">
             <DialogBody>
-              <ReportsModal pdetails={pdetails} warehouses={warehouses} />
+              <ReportsModal pdetails={pdetails} warehouses={warehouses} setWarehouses={setWarehouses}/>
             </DialogBody>
             <DialogCloseTrigger className="inputcolumn-mdl-close" />
           </DialogContent>

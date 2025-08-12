@@ -29,7 +29,7 @@ function DeleteWarehouseModal() {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/warehouse");
+        const res = await axiosAPI.get("/warehouses");
         // console.log(res);
         setWarehouses(res.data.warehouses);
       } catch (e) {
@@ -55,7 +55,7 @@ function DeleteWarehouseModal() {
     async function del() {
       try {
         setLoading(true);
-        const res = await axiosAPI.delete(`/warehouse/delete/${warehouse}`);
+        const res = await axiosAPI.delete(`/warehouses/delete/${warehouse}`);
         // console.log(res);
         setError(res.data.message);
         setIssuccessModalOpen(true)

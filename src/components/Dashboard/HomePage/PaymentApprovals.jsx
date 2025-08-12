@@ -8,13 +8,13 @@ function PaymentApprovals({ orderStatuses }) {
   return (
     <>
       {orderStatuses && (
-        <div className={`col-6 ${styles.smallbox}`}>
+        <div className={`col-6 ${styles.bigbox}`}>
           <h4>Order Statuses</h4>
           <div className={styles.kyccontent}>
             <p onClick={() => navigate("/payments/payment-approvals")} style={{ cursor: "pointer" }}>
               <span>Pending Payment Approvals :</span>{" "}
               <span className={styles.num}>
-                {orderStatuses.paymentApprovalPending}
+                {orderStatuses.pendingPaymentApprovals}
               </span>
             </p>
             <p onClick={() => navigate("/sales")} style={{ cursor: "pointer" }}>

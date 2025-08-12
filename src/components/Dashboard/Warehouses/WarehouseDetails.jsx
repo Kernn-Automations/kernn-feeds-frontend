@@ -77,7 +77,7 @@ function WarehouseDetails({ navigate, managers, products }) {
       try {
         setLoading(true);
         // setWarehouses(null);
-        const res = await axiosAPI.get(`/warehouse/details/${warehouseId}`);
+        const res = await axiosAPI.get(`/warehouses/details/${warehouseId}`);
         console.log(res);
         setWarehouse(res.data.warehouse);
       } catch (e) {
@@ -192,7 +192,7 @@ function WarehouseDetails({ navigate, managers, products }) {
         };
 
         const res = await axiosAPI.put(
-          `/warehouse/update/${warehouseId}`,
+          `/warehouses/update/${warehouseId}`,
           payload
         );
 

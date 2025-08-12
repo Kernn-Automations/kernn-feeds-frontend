@@ -160,7 +160,7 @@ function InvoicesPage({ navigate, setInvoiceId }) {
         <div className="col-3 formcontent">
           <label>Customer:</label>
           <select
-            value={customer}
+            value={customer || ""}
             onChange={(e) => setCustomer(e.target.value || null)}
           >
             <option value="">--select--</option>

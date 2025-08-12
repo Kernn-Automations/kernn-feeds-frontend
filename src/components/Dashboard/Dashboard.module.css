@@ -54,6 +54,27 @@
   width: 370px !important;
   padding-right: 50px !important;
 }
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 15px;
+  height: 100%;
+}
+
+.searchContainer {
+  flex: 1;
+  max-width: 300px;
+}
+
+.divisionContainer {
+  flex-shrink: 0;
+}
+
+.profileContainer {
+  flex-shrink: 0;
+}
 .headcontentTitle {
   min-width: 300px !important;
   width: 300px !important;

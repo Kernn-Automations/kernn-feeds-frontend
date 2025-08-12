@@ -31,9 +31,15 @@ function Productbox({ products }) {
             <div className={styles.scrollRow} ref={scrollRef}>
               {products.map((product, index) => (
                 <div className={styles.imagebox} key={index}>
-                  <img src={product.imageUrl || img} alt="product" />
-                  <h6>{product.productName}</h6>
-                  <p>{product.totalRevenue}</p>
+                  <img 
+                    src={product.image ? `${import.meta.env.VITE_API_URL}/${product.image}` : img} 
+                    alt="product" 
+                    onError={(e) => {
+                      e.target.src = img;
+                    }}
+                  />
+                  <h6>{product.name}</h6>
+                  <p>₹{product.sales}</p>
                 </div>
               ))}
             </div>

@@ -263,3 +263,11 @@
   border-radius: 6px;
   margin-left: 10px;
 }
+
+/* Tighter rows for Damaged Goods modal table only */
+.damagedGoodsTable th,
+.damagedGoodsTable td {
+  padding: 4px 8px !important;  /* Less vertical space */
+  font-size: 14px !important;   /* Slightly smaller text if needed */
+  line-height: 1.1;
+}

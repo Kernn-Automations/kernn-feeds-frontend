@@ -227,7 +227,7 @@ function CreateEmployee({ navigate }) {
               <label className="mt-3">Warehouse:</label>
               <select
                 name="warehouseId"
-                value={form.warehouseId}
+                value={form.warehouseId || ""}
                 onChange={handleFormChange}
               >
                 <option value="">-- Select Warehouse --</option>

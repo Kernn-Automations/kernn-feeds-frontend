@@ -100,10 +100,8 @@ function CustomerList({ navigate, isAdmin }) {
           <div className="col-3 formcontent">
             <label>WareHouse:</label>
             <select
-              value={warehouse ?? "null"}
-              onChange={(e) =>
-                setWarehouse(e.target.value === "null" ? null : e.target.value)
-              }
+              value={warehouse || ""}
+              onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
             >
               <option value="null">--select--</option>
               {warehouses.map((w) => (
@@ -116,10 +114,8 @@ function CustomerList({ navigate, isAdmin }) {
           <div className="col-3 formcontent">
             <label>Sales Executive:</label>
             <select
-              value={se ?? "null"}
-              onChange={(e) =>
-                setSe(e.target.value === "null" ? null : e.target.value)
-              }
+              value={se || ""}
+              onChange={(e) => setSe(e.target.value === "null" ? "" : e.target.value)}
             >
               <option value="null">--select--</option>
               {salesExecutives.map((se) => (

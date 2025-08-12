@@ -68,9 +68,9 @@ function PaymentReports({ navigate }) {
 
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
-  const [warehouse, setWarehouse] = useState();
+  const [warehouse, setWarehouse] = useState("");
   const [customer, setCustomer] = useState();
-  const [se, setSe] = useState();
+  const [se, setSe] = useState("");
 
   useEffect(() => {
     setReports(null);
@@ -172,9 +172,9 @@ function PaymentReports({ navigate }) {
           <select
             name=""
             id=""
-            value={warehouse}
+            value={warehouse || ""}
             onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
+              setWarehouse(e.target.value === "null" ? "" : e.target.value)
             }
           >
             <option value="null">--select--</option>
@@ -189,9 +189,9 @@ function PaymentReports({ navigate }) {
           <select
             name=""
             id=""
-            value={se}
+            value={se || ""}
             onChange={(e) =>
-              setSe(e.target.value === "null" ? null : e.target.value)
+              setSe(e.target.value === "null" ? "" : e.target.value)
             }
           >
             <option value="null">--select--</option>

@@ -226,7 +226,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
               <label className="mt-3">Warehouse:</label>
               <select
                 name="warehouseId"
-                value={form.warehouseId}
+                value={form.warehouseId || ""}
                 onChange={handleFormChange}
               >
                 <option value="">-- Select Warehouse --</option>
@@ -243,7 +243,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
             <>
               <label className="mt-3">Supervisor:</label>
               <select
-                value={selectedSupervisor}
+                value={selectedSupervisor || ""}
                 onChange={(e) => setSelectedSupervisor(e.target.value)}
               >
                 <option value="">-- Select Supervisor --</option>

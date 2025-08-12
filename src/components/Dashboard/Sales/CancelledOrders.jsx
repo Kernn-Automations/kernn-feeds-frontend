@@ -12,7 +12,7 @@ function CancelledOrders() {
   const navigate = useNavigate();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [warehouse, setWarehouse] = useState(null);
+  const [warehouse, setWarehouse] = useState("");
   const [customer, setCustomer] = useState(null);
   const [limit, setLimit] = useState(10);
   const [pageNo, setPageNo] = useState(1);
@@ -33,8 +33,8 @@ function CancelledOrders() {
     // Fetch warehouses, customers etc.
       async function fetchFilters() {
     try {
-      const res1 = await axiosAPI.get("/warehouse");
-      const res2 = await axiosAPI.get("/customers");
+      const res1 = await axiosAPI.get("/warehouses");
+      const res2 = await axiosAPI.get("/customers?limit=all");
 
       setWarehouses(res1.data.warehouses);
       setCustomers(res2.data.customers);
@@ -61,8 +61,10 @@ function CancelledOrders() {
             page: pageNo,
             }).toString();
 
-            const response = await axiosAPI.get(`/cancelled-sales-orders?${queryParams}`);
-            setOrders(response.data.orders || response.data); // depending on API structure
+            const response = await axiosAPI.get(`/sales-orders/cancelled?${queryParams}`);
+            const ordersData = response.data.cancelledOrders || response.data.orders || response.data;
+            setOrders(Array.isArray(ordersData) ? ordersData : []); // Always set as array
+            console.log(response)
         } catch (err) {
             setError("Failed to fetch cancelled orders.");
             setIsModalOpen(true);
@@ -76,9 +78,50 @@ function CancelledOrders() {
     return orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
   };
 
-  const onExport = (format) => {
-    // Export logic (XLS / PDF)
-  };
+  const onExport = (type) => {
+  const arr = [];
+  let x = 1;
+  const columns = [
+    "S.No",
+    "Date",
+    "Order ID",
+    "Warehouse Name",
+    "Customer ID",
+    "Customer Name",
+    "Amount",
+    "Cancelled Date",
+    "Cancelled Reason"
+  ];
+
+  if (orders && orders.length > 0) {
+    orders.forEach((order) =>
+      arr.push({
+        "S.No": x++,
+        "Date": order.createdAt?.slice(0, 10),
+        "Order ID": order.orderNumber,
+        "Warehouse Name": order.warehouse?.name || "-",
+        "Customer ID": order.customer?.customer_id || "-",
+        "Customer Name": order.customer?.name || "-",
+        "Amount": order.totalAmount,
+        "Cancelled Date": order.cancelledAt?.slice(0, 10) || "-",
+        "Cancelled Reason": order.cancelReason || "-",
+      })
+    );
+
+    setTableData(arr);
+    const total = GrandTotal();
+
+    if (type === "PDF") {
+      handleExportPDF(columns, arr, "Cancelled_Orders", total);
+    } else if (type === "XLS") {
+      handleExportExcel(columns, arr, "Cancelled_Orders");
+    }
+  } else {
+    setError("Table is Empty");
+    setIsModalOpen(true);
+  }
+};
+
 
   const closeModal = () => setIsModalOpen(false);
 
@@ -101,8 +144,8 @@ function CancelledOrders() {
         <div className="col-3 formcontent">
           <label>Warehouse :</label>
           <select
-            value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}
+            value={warehouse || ""}
+            onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
             {warehouses.map((w) => (
@@ -176,28 +219,28 @@ function CancelledOrders() {
                     <td colSpan={9}>NO DATA FOUND</td>
                   </tr>
                 )}
-                {orders.map((order, index) => (
-                  <tr key={order.id} className="animated-row">
-                    <td>{index + 1}</td>
-                    <td>{order.createdAt?.slice(0, 10)}</td>
-                    <td>{order.orderNumber}</td>
-                    <td>{order.warehouse?.name}</td>
-                    <td>{order.customer?.customer_id}</td>
-                    <td>{order.customer?.name}</td>
-                    <td>{order.totalAmount}</td>
-                    <td>{order.cancelledAt?.slice(0, 10)}</td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() =>
-                          setReasonPopup({ open: true, text: order.cancelReason })
-                        }
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {orders.map((order, index) => {
+                  // Find warehouse name from warehouses list
+                  let warehouseName = '-';
+                  const warehouseId = order.salesOrder?.warehouseId;
+                  if (warehouseId && Array.isArray(warehouses)) {
+                    const wh = warehouses.find(w => String(w.id) === String(warehouseId));
+                    if (wh) warehouseName = wh.name;
+                  }
+                  return (
+                    <tr key={order.id} className="animated-row">
+                      <td>{index + 1}</td>
+                      <td>{order.createdAt?.slice(0, 10)}</td>
+                      <td>{order.salesOrder?.orderNumber}</td>
+                      <td>{warehouseName}</td>
+                      <td>{order.salesOrder?.customer?.customer_id || order.salesOrder?.customerId || '-'}</td>
+                      <td>{order.salesOrder?.customer?.name || '-'}</td>
+                      <td>{order.salesOrder?.totalAmount}</td>
+                      <td>{order.cancelledAt?.slice(0, 10)}</td>
+                      <td>{order.cancellationReason}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {orders.length > 0 && (

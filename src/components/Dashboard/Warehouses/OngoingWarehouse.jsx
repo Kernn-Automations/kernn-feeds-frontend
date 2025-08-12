@@ -37,7 +37,7 @@ useEffect(() => {
       const roles = user?.roles || []; // make sure it's an array
       //const roles = ["Area Business Manager"]; // For testing purposes, replace with user.roles in production
       // Determine endpoint
-      let endpoint = "/warehouse";
+      let endpoint = "/warehouses";
 
       const managerRoles = [
         "Area Business Manager",
@@ -49,7 +49,7 @@ useEffect(() => {
       const isManager = managerRoles.some(role => roles.includes(role));
 
       if (isManager && !isAdmin) {
-        endpoint = "/warehouse/manager";
+        endpoint = "/warehouses/manager";
 
       }
 

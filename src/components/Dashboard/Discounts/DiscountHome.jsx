@@ -1,77 +1,169 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
+import { useAuth } from "@/Auth";
+import LoadingAnimation from "@/components/LoadingAnimation";
+import discountAni from "../../../images/animations/fetchingAnimation.gif";
 
 function DiscountHome({ navigate }) {
-  const dummyTrendData = {
-    labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
-    datasets: [
-      {
-        label: "Discounts ₹",
-        data: [20000, 25000, 18000, 30000, 35000, 42000],
-        borderColor: "#2a4d9b",
-        backgroundColor: "rgba(42,77,155,0.1)",
-        fill: true,
-        tension: 0.3,
-      },
-    ],
-  };
+  const { axiosAPI } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [discountData, setDiscountData] = useState(null);
+  const [error, setError] = useState(null);
 
-  const dummyTypeData = {
-    labels: ["Bill-to-Bill", "Monthly"],
-    datasets: [
-      {
-        label: "₹",
-        data: [28000, 14000],
-        backgroundColor: ["#4e73df", "#1cc88a"],
-      },
-    ],
-  };
+  useEffect(() => {
+    async function fetchDiscountDashboard() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/dashboard/discounts");
+        console.log("Discount Dashboard Response:", res.data);
+        setDiscountData(res.data);
+      } catch (err) {
+        console.error("Discount dashboard fetch error:", err);
+        setError(err?.response?.data?.message || "Failed to load discount dashboard");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDiscountDashboard();
+  }, []);
+
+  // Transform backend data for Chart.js format
+  const trendData = React.useMemo(() => {
+    if (!discountData?.discountsTrend || !Array.isArray(discountData.discountsTrend)) {
+      return {
+        labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+        datasets: [
+          {
+            label: "Discounts ₹",
+            data: [0, 0, 0, 0, 0, 0],
+            borderColor: "#2a4d9b",
+            backgroundColor: "rgba(42,77,155,0.1)",
+            fill: true,
+            tension: 0.3,
+          },
+        ],
+      };
+    }
+
+    const labels = discountData.discountsTrend.map(item => item.month);
+    const data = discountData.discountsTrend.map(item => item.amount);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Discounts ₹",
+          data,
+          borderColor: "#2a4d9b",
+          backgroundColor: "rgba(42,77,155,0.1)",
+          fill: true,
+          tension: 0.3,
+        },
+      ],
+    };
+  }, [discountData?.discountsTrend]);
+
+  const typeData = React.useMemo(() => {
+    if (!discountData?.discountProductTypeShare || !Array.isArray(discountData.discountProductTypeShare)) {
+      return {
+        labels: ["Packed", "Loose"],
+        datasets: [
+          {
+            label: "₹",
+            data: [0, 0],
+            backgroundColor: ["#4e73df", "#1cc88a"],
+          },
+        ],
+      };
+    }
+
+    const labels = discountData.discountProductTypeShare.map(item => item.type);
+    const data = discountData.discountProductTypeShare.map(item => item.amount);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "₹",
+          data,
+          backgroundColor: ["#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b"],
+        },
+      ],
+    };
+  }, [discountData?.discountProductTypeShare]);
 
   return (
     <>
-      {/* Buttons */}
-      <div className="row m-0 p-3">
-        <div className="col">
-          <button
-            className="homebtn"
-            onClick={() => navigate("/discounts/bill-to-bill")}
-          >
-            Bill-to-Bill
-          </button>
-          <button
-            className="homebtn"
-            onClick={() => navigate("/discounts/monthly")}
-          >
-            Monthly Discount
-          </button>
-        </div>
-      </div>
+      {/* Loading Animation */}
+      {loading && <LoadingAnimation gif={discountAni} msg="Loading discount dashboard..." />}
 
-      {/* Cards */}
-      <Flex wrap="wrap" justify="space-between" px={4}>
-        <ReusableCard title="Total Discounts" value="₹42,000" />
-        <ReusableCard title="Bill-to-Bill Discounts" value="₹28,000" color="blue.500" />
-        <ReusableCard title="Monthly Discounts" value="₹14,000" color="green.500" />
-        <ReusableCard title="Avg Discount %" value="3.5%" color="yellow.500" />
-      </Flex>
+      {!loading && (
+        <>
+          {/* Buttons */}
+          <div className="row m-0 p-3">
+            <div className="col">
+              <button
+                className="homebtn"
+                onClick={() => navigate("/discounts/bill-to-bill")}
+              >
+                Bill-to-Bill
+              </button>
+              <button
+                className="homebtn"
+                onClick={() => navigate("/discounts/monthly")}
+              >
+                Monthly Discount
+              </button>
+            </div>
+          </div>
 
-      {/* Charts */}
-      <Flex wrap="wrap" px={4}>
-        <ChartComponent
-          type="line"
-          title="Discounts Trend"
-          data={dummyTrendData}
-          options={{ responsive: true }}
-        />
-        <ChartComponent
-          type="doughnut"
-          title="Discount Type Share"
-          data={dummyTypeData}
-          options={{ responsive: true }}
-        />
-      </Flex>
+          {/* Cards */}
+          <Flex wrap="wrap" justify="space-between" px={4}>
+            <ReusableCard 
+              title="Total Discounts" 
+              value={`₹${Number(discountData?.totalDiscounts ?? 0).toLocaleString("en-IN")}`} 
+            />
+            <ReusableCard 
+              title="Avg Discount Per Unit" 
+              value={`₹${discountData?.avgDiscountPerUnit ?? "0"}`} 
+              color="blue.500" 
+            />
+            <ReusableCard 
+              title="Product Types" 
+              value={discountData?.discountProductTypeShare?.length ?? "0"} 
+              color="green.500" 
+            />
+            <ReusableCard 
+              title="Trend Months" 
+              value={discountData?.discountsTrend?.length ?? "0"} 
+              color="yellow.500" 
+            />
+          </Flex>
+
+          {/* Charts */}
+          <Flex wrap="wrap" px={4}>
+            {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
+              <ChartComponent
+                type="line"
+                title="Discounts Trend"
+                data={trendData}
+                options={{ responsive: true }}
+              />
+            )}
+            {typeData && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
+              <ChartComponent
+                type="doughnut"
+                title="Discount by Product Type"
+                data={typeData}
+                options={{ responsive: true }}
+                legendPosition="left"
+              />
+            )}
+          </Flex>
+        </>
+      )}
     </>
   );
 }

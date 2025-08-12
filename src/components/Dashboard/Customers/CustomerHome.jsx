@@ -1,92 +1,186 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Customer.module.css";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import ChartComponent from "../../ChartComponent";
+import { useAuth } from "@/Auth";
+import LoadingAnimation from "@/components/LoadingAnimation";
+import customerAni from "../../../images/animations/fetchingAnimation.gif";
 
 function CustomerHome({ navigate, isAdmin }) {
-    const dummyTrendData = {
-    labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
-    datasets: [
-      {
-        label: "New Customers",
-        data: [5, 8, 6, 10, 7, 9],
-        borderColor: "#2a4d9b",
-        backgroundColor: "rgba(42,77,155,0.1)",
-        fill: true,
-        tension: 0.3,
-      },
-    ],
-  };
+  const { axiosAPI } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [customerData, setCustomerData] = useState(null);
+  const [error, setError] = useState(null);
 
-  const dummyTypeData = {
-    labels: ["Bill-Bill","Monthly"],
-    datasets: [
-      {
-        label: "Customers",
-        data: [45,35],
-        backgroundColor: [
-          "#1cc88a",
-          "#36b9cc",
-          "#f6c23e",
+  useEffect(() => {
+    async function fetchCustomerDashboard() {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get("/dashboard/customers");
+        console.log("Customer Dashboard Response:", res.data);
+        setCustomerData(res.data);
+      } catch (err) {
+        console.error("Customer dashboard fetch error:", err);
+        setError(err?.response?.data?.message || "Failed to load customer dashboard");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCustomerDashboard();
+  }, []);
+
+  // Transform backend data for Chart.js format
+  const trendData = React.useMemo(() => {
+    if (!customerData?.newCustomersTrend || !Array.isArray(customerData.newCustomersTrend)) {
+      return {
+        labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+        datasets: [
+          {
+            label: "New Customers",
+            data: [0, 0, 0, 0, 0, 0],
+            borderColor: "#2a4d9b",
+            backgroundColor: "rgba(42,77,155,0.1)",
+            fill: true,
+            tension: 0.3,
+          },
         ],
-      },
-    ],
-  };
+      };
+    }
+
+    const labels = customerData.newCustomersTrend.map(item => item.month);
+    const data = customerData.newCustomersTrend.map(item => item.count);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "New Customers",
+          data,
+          borderColor: "#2a4d9b",
+          backgroundColor: "rgba(42,77,155,0.1)",
+          fill: true,
+          tension: 0.3,
+        },
+      ],
+    };
+  }, [customerData?.newCustomersTrend]);
+
+  const typeData = React.useMemo(() => {
+    if (!customerData?.customerTypes || !Array.isArray(customerData.customerTypes)) {
+      return {
+        labels: ["Bill-to-Bill", "Monthly"],
+        datasets: [
+          {
+            label: "Customers",
+            data: [0, 0],
+            backgroundColor: [
+              "#1cc88a",
+              "#36b9cc",
+            ],
+          },
+        ],
+      };
+    }
+
+    const labels = customerData.customerTypes.map(item => item.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const data = customerData.customerTypes.map(item => item.count);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Customers",
+          data,
+          backgroundColor: [
+            "#1cc88a",
+            "#36b9cc",
+            "#f6c23e",
+            "#e74a3b",
+            "#858796",
+          ],
+        },
+      ],
+    };
+  }, [customerData?.customerTypes]);
+
   return (
     <>
-      <div className="row m-0 p-3">
-        <div className="col">
-          {isAdmin && (
-            <button
-              className="homebtn"
-              onClick={() => navigate("/customers/create")}
-            >
-              Create Customer
-            </button>
-          )}
-          <button
-            className="homebtn"
-            onClick={() => navigate("/customers/customer-list")}
-          >
-            Customers List
-          </button>
-          <button
-            className="homebtn"
-            onClick={() => navigate("/customers/kyc-approvals")}
-          >
-            KYC Approvals
-          </button>
-          <button
-            className="homebtn"
-            onClick={() => navigate("/customers/reports")}
-          >
-            Customer Reports
-          </button>
-        </div>
-        {/* Cards */}
-      <Flex wrap="wrap" justify="space-between" px={4} marginTop={50}>
-        <ReusableCard title="Total Customers" value="150" />
-        <ReusableCard title="Active Customers" value="140" color="green.500" />
-        <ReusableCard title="Pending KYC" value="10" color="yellow.500" />
-      </Flex>
+      {/* Loading Animation */}
+      {loading && <LoadingAnimation gif={customerAni} msg="Loading customer dashboard..." />}
 
-      {/* Charts */}
-      <Flex wrap="wrap" px={4}>
-        <ChartComponent
-          type="line"
-          title="New Customers Trend"
-          data={dummyTrendData}
-          options={{ responsive: true }}
-        />
-        <ChartComponent
-          type="doughnut"
-          title="Customer Types"
-          data={dummyTypeData}
-          options={{ responsive: true }}
-        />
-      </Flex>
-      </div>
+      {!loading && (
+        <>
+          <div className="row m-0 p-3">
+            <div className="col">
+              {isAdmin && (
+                <button
+                  className="homebtn"
+                  onClick={() => navigate("/customers/create")}
+                >
+                  Create Customer
+                </button>
+              )}
+              <button
+                className="homebtn"
+                onClick={() => navigate("/customers/customer-list")}
+              >
+                Customers List
+              </button>
+              <button
+                className="homebtn"
+                onClick={() => navigate("/customers/kyc-approvals")}
+              >
+                KYC Approvals
+              </button>
+              <button
+                className="homebtn"
+                onClick={() => navigate("/customers/reports")}
+              >
+                Customer Reports
+              </button>
+            </div>
+            {/* Cards */}
+            <Flex wrap="wrap" justify="space-between" px={4} marginTop={50}>
+              <ReusableCard 
+                title="Total Customers" 
+                value={customerData?.totalCustomers ?? "0"} 
+              />
+              <ReusableCard 
+                title="Active Customers" 
+                value={customerData?.activeCustomers ?? "0"} 
+                color="green.500" 
+              />
+              <ReusableCard 
+                title="Pending KYC" 
+                value={customerData?.pendingKYC ?? "0"} 
+                color="yellow.500" 
+              />
+            </Flex>
+
+            {/* Charts */}
+            <Flex wrap="wrap" px={4}>
+              {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
+                <ChartComponent
+                  type="line"
+                  title="New Customers Trend"
+                  data={trendData}
+                  options={{ responsive: true }}
+                />
+              )}
+              {typeData && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
+                <ChartComponent
+                  type="doughnut"
+                  title="Customer Types"
+                  data={typeData}
+                  options={{ responsive: true }}
+                  legendPosition="left"
+                />
+              )}
+            </Flex>
+          </div>
+        </>
+      )}
     </>
   );
 }

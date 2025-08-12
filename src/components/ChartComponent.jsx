@@ -38,9 +38,52 @@ const ChartComponent = ({
   data,
   options,
   height = "250px",
+  legendPosition = "right", // New prop for legend position
 }) => {
   const Chart =
     type === "line" ? Line : type === "doughnut" ? Doughnut : Bar;
+
+  // Validate data structure to prevent Chart.js errors
+  const isValidData = data && 
+    typeof data === 'object' && 
+    Array.isArray(data.datasets) && 
+    data.datasets.length > 0 &&
+    Array.isArray(data.labels);
+
+  // Default fallback data if the provided data is invalid
+  const safeData = isValidData ? data : {
+    labels: ["No Data"],
+    datasets: [{
+      label: "No Data",
+      data: [0],
+      backgroundColor: "#e2e8f0",
+      borderColor: "#cbd5e0",
+    }]
+  };
+
+  // Custom options for pie/doughnut charts with left legend
+  const customOptions = {
+    ...options,
+    plugins: {
+      ...options?.plugins,
+      legend: {
+        ...options?.plugins?.legend,
+        position: legendPosition,
+        align: legendPosition === "left" ? "start" : "center",
+        labels: {
+          ...options?.plugins?.legend?.labels,
+          usePointStyle: true,
+          padding: 15,
+          font: {
+            size: 12,
+          },
+        },
+      },
+    },
+    layout: {
+      padding: legendPosition === "left" ? { left: 20, right: 20 } : { left: 20, right: 20 },
+    },
+  };
 
   return (
     <Box
@@ -56,7 +99,7 @@ const ChartComponent = ({
         {title}
       </Heading>
       <Box height={height}>
-        <Chart data={data} options={options} />
+        <Chart data={safeData} options={customOptions} />
       </Box>
     </Box>
   );

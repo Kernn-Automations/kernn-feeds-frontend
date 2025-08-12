@@ -22,7 +22,7 @@ function StockSummary({navigate}) {
 
   useEffect(() => {
     axiosAPI
-      .get("/warehouse")
+      .get("/warehouses")
       .then((res) => setWarehouses(res.data.warehouses || []))
       .catch(() => {
         setError("Failed to load warehouse list");

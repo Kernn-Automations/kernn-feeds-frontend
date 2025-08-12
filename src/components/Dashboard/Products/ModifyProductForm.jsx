@@ -178,7 +178,7 @@ function ModifyProductForm({ onViewClick, productId, isAdmin }) {
       <label>{label}</label>
       {options ? (
         <select
-          value={fields[field]}
+          value={fields[field] || ""}
           onChange={(e) => handleChange(field, e.target.value)}
           className={modified[field] ? styles.changedField : ""}
         >

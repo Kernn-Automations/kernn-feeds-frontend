@@ -65,8 +65,8 @@ function Dispaches({ navigate, warehouses, customers }) {
 
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
-  const [warehouse, setWarehouse] = useState();
-  const [customer, setCustomer] = useState();
+  const [warehouse, setWarehouse] = useState("");
+  const [customer, setCustomer] = useState("");
   const [trigger, setTrigger] = useState(false);
 
   const onSubmit = () => {
@@ -140,8 +140,8 @@ function Dispaches({ navigate, warehouses, customers }) {
           <select
             name=""
             id=""
-            value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}
+            value={warehouse || ""}
+            onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
             {warehouses &&
@@ -162,8 +162,8 @@ function Dispaches({ navigate, warehouses, customers }) {
           <select
             name=""
             id=""
-            value={customer}
-            onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}
+            value={customer || ""}
+            onChange={(e) => setCustomer(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
             {customers &&

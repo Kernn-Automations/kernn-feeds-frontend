@@ -92,15 +92,15 @@ function WarehouseRoutes() {
             </Suspense>
           }
         /> */}
-        <Route
+        {/* <Route
           path="/:id"
           element={
             <Suspense fallback={<PageSkeleton />}>
               <WarehouseDetails navigate={navigate} managers={managers} products={products} />
             </Suspense>
           }
-        />
-        {/* <Route
+        /> */}
+        <Route
           path="/:id"
           element={
             managers ? (
@@ -109,7 +109,7 @@ function WarehouseRoutes() {
               <PageSkeleton /> // or any loading fallback
             )
           }
-        /> */}
+        />
       </Routes>
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

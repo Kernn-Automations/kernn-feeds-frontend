@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "./Tickets.module.css";
-import { getSocket, disconnectSocket } from "../../../utils/Socket";
+
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import chatAni from "../../../images/animations/chatAnimation.gif";
@@ -23,23 +23,6 @@ function TicketChat({ ticket, setOpenchat, token }) {
   }, [messages]);
 
   useEffect(() => {
-    const socket = getSocket(token);
-
-    socket.on("connect", () => {
-      socket.emit("join_ticket", ticketId);
-    });
-
-    socket.on("new_message", (msg) => {
-      const isOwn = msg.senderType === "Employee";
-      setMessages((prev) => [
-        ...prev,
-        {
-          ...msg,
-          sender: isOwn ? "sent" : "received",
-        },
-      ]);
-    });
-
     const fetchMessages = async () => {
       try {
         setLoading(true);
@@ -59,8 +42,6 @@ function TicketChat({ ticket, setOpenchat, token }) {
     };
 
     fetchMessages();
-
-    return () => disconnectSocket();
   }, [ticketId, token]);
 
   const triggerFileSelect = () => fileInputRef.current.click();
@@ -87,22 +68,13 @@ function TicketChat({ ticket, setOpenchat, token }) {
   const sendMessage = async () => {
     if (!input.trim() && files.length === 0) return;
 
-    const socket = getSocket();
-
     let base64Files = [];
     for (const file of files) {
       const base64 = await convertToBase64(file);
       base64Files.push({ name: file.name, type: file.type, data: base64 });
     }
 
-    const payload = {
-      ticketId,
-      message: input,
-      files: base64Files,
-    };
-
-    socket.emit("send_message", payload);
-
+    // For now, just add the message locally since socket is not available
     setMessages((prev) => [
       ...prev,
       {

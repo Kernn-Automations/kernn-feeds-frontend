@@ -635,3 +635,104 @@
   /* box-shadow: 1px 1px 1px rgba(34, 34, 34, 0.5); */
   outline: 1px solid gray;
 }
+
+.cancelOrderBtn {
+  width: 200px;
+  background-color: #e53935; /* Material red */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 500;
+  margin-top: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 16px;
+}
+.cancelOrderBtn:hover {
+  background: #b71c1c;
+}
+
+.cancelModalOverlay {
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Prevent scroll behind modal */
+}
+
+.cancelModalBox {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(44,44,44,0.15);
+  padding: 36px 32px 24px 32px;
+  min-width: 340px;
+  max-width: 98vw;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cancelModalTitle {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 26px;
+  text-align: center;
+}
+
+.cancelModalBtns {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.cancelReasonTextarea {
+  width: 100%;
+  min-height: 60px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  margin-bottom: 12px;
+  padding: 8px;
+  resize: vertical;
+}
+
+/* Cancelled Banner (top) */
+.cancelledBanner {
+  width: 200px;
+  margin: 12px 0 0 0;
+  border-radius: 4px;
+  background: #ffeaea;
+  color: #e53935;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 10px;
+  text-align: center;
+  border: 1px solid #e53935;
+}
+
+.cancelledReason {
+  font-size: 13px;
+  margin-top: 3px;
+  color: #b71c1c;
+}
+
+/* Timeline Cancelled Step */
+.cancelledCircle {
+  background: #e53935 !important;
+  border: 2px solid #e53935 !important;
+}
+.cancelledText {
+  color: #e53935 !important;
+  font-weight: bold;
+  font-size: 17px;
+  margin: 0;
+}

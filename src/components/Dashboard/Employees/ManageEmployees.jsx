@@ -88,7 +88,7 @@ function ManageEmployees({ navigate, isAdmin }) {
                       <td>{emp.name}</td>
                       <td>{emp.mobile}</td>
                       <td>{emp.email}</td>
-                      <td>{emp.roles[0]?.name}</td>
+                      <td>{Array.isArray(emp.roles) && emp.roles.length > 0 ? emp.roles[0].name : "-"}</td>
                       {isAdmin && (
                         <td className={styles.delcol}>
                           <button onClick={() => setOnUpdate(emp)}>

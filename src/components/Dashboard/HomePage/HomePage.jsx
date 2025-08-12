@@ -4,7 +4,6 @@ import Productbox from "./Productbox";
 import KYCApproval from "./KYCApproval";
 import ProductBarchart from "./ProductBarchart";
 import PaymentApprovals from "./PaymentApprovals";
-import ProductLineChart from "./ProductLineChart";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
@@ -42,7 +41,6 @@ function HomePage() {
   const [products, setProducts] = useState();
   const [paymentsApprovals, setPaymentsApprovals] = useState();
   const [topPerformingBOs, setTopPerformingBOs] = useState();
-  const [salesAnalysis, setSalesAnalysis] = useState();
   const [kycApprovals, setKycApprovals] = useState();
   const [lowStock, setLowStock] = useState();
   const [orderStatuses, setOrderStatuses] = useState();
@@ -55,29 +53,20 @@ function HomePage() {
     async function fetchInitial() {
       try {
         setLoading(true);
-        const res = await axios.get(
-          `${VITE_API}/employees/dashboard`,
+        const res = await axiosAPI.get("/dashboard/home");
+        console.log("Dashboard Home Response:", res.data);
 
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-              roleName: user.roles[0].name,
-            },
-          }
-        );
-        console.log(res);
-
-        setKycApprovals(res.data.dashboard?.kycApprovals);
-        setPaymentsApprovals(res.data.dashboard?.paymentApprovals);
-        setSalesAnalysis(res.data.dashboard?.salesAnalysis);
-        setTopPerformingBOs(res.data.dashboard?.topPerformingBOs);
-        setProducts(res.data.dashboard?.topSellingProducts);
-        setLowStock(res.data.dashboard?.lowStockNotifications);
-        setOrderStatuses(res.data.dashboard?.orderStatuses);
+        // Map the new backend response structure
+        setKycApprovals(res.data.kycApprovals);
+        setPaymentsApprovals(res.data.orderStatuses?.pendingPaymentApprovals);
+        setTopPerformingBOs(res.data.topPerformingBOs);
+        setProducts(res.data.topSellingProducts);
+        setLowStock(res.data.lowStockAlerts);
+        setOrderStatuses(res.data.orderStatuses);
       } catch (err) {
+        console.error("Dashboard fetch error:", err);
         setError(err?.response?.data?.message || "Failed to load Dashboard.");
         setIsModalOpen(true);
-        // console.log(err);
       } finally {
         setLoading(false);
       }
@@ -101,7 +90,6 @@ function HomePage() {
         <PaymentApprovals orderStatuses={orderStatuses} />
         <LowStockAlerts lowStockNotifications={lowStock} />
         <ProductBarchart topPerformingBOs={topPerformingBOs} />
-        <ProductLineChart salesAnalysis={salesAnalysis} />
       </div>
 
       {isModalOpen && (
