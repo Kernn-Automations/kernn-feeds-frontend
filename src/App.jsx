@@ -82,92 +82,13 @@ export default function App() {
           </Suspense>
         } /> */}
         
-        {/* <Route path="/inventory/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <InventoryRoutes />
-          </Suspense>
-        } />
         
-        <Route path="/purchases/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <PurchaseRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/sales/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <SalesRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/invoices/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <InvoiceRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/customers/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <CustomerRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/payments/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <PaymentRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/stock-transfer/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <StockRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/employees/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <EmployeeRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/discounts/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <DiscountRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/location/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <LocationsHome />
-          </Suspense>
-        } />
-        
-        <Route path="/warehouses/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <WarehouseRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/products/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <ProductRoutes />
-          </Suspense>
-        } />
-        
-        <Route path="/settings/*" element={
-          <Suspense fallback={<DashboardSkeleton />}>
-            <SettingRoutes />
-          </Suspense>
-        } /> */}
-        
-        <Route path="/divisions" element={
+        {/* <Route path="/divisions" element={
           <Suspense fallback={<DashboardSkeleton />}>
             <DivisionManager />
           </Suspense>
-        } />
+        } /> */}
         
-        <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   );

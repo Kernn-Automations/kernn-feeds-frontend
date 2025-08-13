@@ -12,38 +12,62 @@ function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('Login.jsx - useEffect triggered:', { login, user, showDivisions: user.user?.showDivisions });
-    
-    if (login && (user.user?.showDivisions || user.user?.roles?.includes('admin') || user.user?.roles?.includes('super_admin'))) {
-      console.log('Login.jsx - User needs division selection, redirecting to /divs');
-      console.log('Login.jsx - Reason: showDivisions=', user.user?.showDivisions, 'roles=', user.user?.roles);
+    console.log("Login.jsx - useEffect triggered:", {
+      login,
+      user,
+      showDivisions: user.user?.showDivisions,
+    });
+
+    if (
+      login &&
+      (user.user?.showDivisions ||
+        user.user?.roles?.includes("admin") ||
+        user.user?.roles?.includes("super_admin"))
+    ) {
+      console.log(
+        "Login.jsx - User needs division selection, redirecting to /divs"
+      );
+      console.log(
+        "Login.jsx - Reason: showDivisions=",
+        user.user?.showDivisions,
+        "roles=",
+        user.user?.roles
+      );
       // Wait for token to be available before redirecting
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem("accessToken");
       if (token) {
-        console.log('Login.jsx - Token found, navigating to /divs');
-        navigate('/divs');
+        console.log("Login.jsx - Token found, navigating to /divs");
+        navigate("/divs");
       } else {
-        console.log('Login.jsx - Token not found, waiting...');
+        console.log("Login.jsx - Token not found, waiting...");
         // Wait a bit for token to be stored
         const timer = setTimeout(() => {
-          const tokenCheck = localStorage.getItem('accessToken');
+          const tokenCheck = localStorage.getItem("accessToken");
           if (tokenCheck) {
-            console.log('Login.jsx - Token found after delay, navigating to /divs');
-            navigate('/divs');
+            console.log(
+              "Login.jsx - Token found after delay, navigating to /divs"
+            );
+            navigate("/divs");
           }
         }, 100);
         return () => clearTimeout(timer);
       }
     } else if (login && !user.user?.showDivisions) {
-      console.log('Login.jsx - User does not need division selection, redirecting to /dashboard');
+      console.log(
+        "Login.jsx - User does not need division selection, redirecting to /dashboard"
+      );
       // User doesn't need division selection, go to dashboard
       // Add a small delay to ensure state is properly set
       const timer = setTimeout(() => {
-        navigate('/');
+        navigate("/");
       }, 200);
       return () => clearTimeout(timer);
     } else {
-      console.log('Login.jsx - No action taken:', { login, hasUser: !!user.user, showDivisions: user.user?.showDivisions });
+      console.log("Login.jsx - No action taken:", {
+        login,
+        hasUser: !!user.user,
+        showDivisions: user.user?.showDivisions,
+      });
     }
   }, [login, user, navigate]);
 
@@ -62,9 +86,7 @@ function Login() {
           </>
         )}
 
-        {login && !user.user?.showDivisions && (
-          <WelcomePage data={user} />
-        )}
+        {login && !user.user?.showDivisions && <WelcomePage data={user} />}
       </div>
     </>
   );

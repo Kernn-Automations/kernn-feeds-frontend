@@ -215,7 +215,7 @@ export default function Dashboard({
                   }
                 />
                 <Route
-                  path="/location/*"
+                  path="/locations/*"
                   element={
                     <Suspense fallback={<RouteSkeleton />}>
                       <LocationsHome />
@@ -247,7 +247,7 @@ export default function Dashboard({
                   }
                 />
                 <Route
-                  path="/divisions"
+                  path="/divisions/*"
                   element={
                     <Suspense fallback={<RouteSkeleton />}>
                       <DivisionManager />

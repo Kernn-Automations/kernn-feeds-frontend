@@ -216,14 +216,44 @@ function WarehouseStockSummaryTab({ warehouse }) {
   const convertToDisplayUnit = (tons, productInfo) => {
     if (!tons || !productInfo) return 0;
     
+    console.log(`Converting ${tons} tons for product:`, productInfo);
+    
     if (productInfo.productType === 'packed') {
-      // Convert tons to packets
-      return Math.round(tons * productInfo.packetsPerUnit);
+      // For packed products: Total Packets = Total Tons / Each Packet Weight
+      // packetsPerUnit represents weight in tons per packet
+      if (productInfo.packetsPerUnit && productInfo.packetsPerUnit > 0) {
+        const packets = Math.round(tons / productInfo.packetsPerUnit);
+        console.log(`Packed product: ${tons} tons ÷ ${productInfo.packetsPerUnit} tons/packet = ${packets} packets`);
+        return packets;
+      } else {
+        // Fallback: assume 1 packet = 0.001 tons (1 kg)
+        const packets = Math.round(tons / 0.001);
+        console.log(`Packed product (fallback): ${tons} tons ÷ 0.001 tons/packet = ${packets} packets`);
+        return packets;
+      }
     } else {
-      // Convert tons to primary units (kg, g, etc.)
-      const conversionFactor = productInfo.primaryUnit === 'kg' ? 1000 : 
-                              productInfo.primaryUnit === 'g' ? 1000000 : 1000;
-      return Math.round(tons * conversionFactor);
+      // For loose products: Convert tons to kg (1 ton = 1000 kg)
+      const kg = Math.round(tons * 1000);
+      console.log(`Loose product: ${tons} tons × 1000 kg/ton = ${kg} kg`);
+      return kg;
+    }
+  };
+
+  // Helper function to convert display units back to tons
+  const convertDisplayToTons = (displayValue, productInfo) => {
+    if (!displayValue || !productInfo) return 0;
+    
+    if (productInfo.productType === 'packed') {
+      // For packed products: Total Tons = Total Packets x Each Packet Weight
+      if (productInfo.packetsPerUnit && productInfo.packetsPerUnit > 0) {
+        return displayValue * productInfo.packetsPerUnit;
+      } else {
+        // Fallback: assume 1 packet = 0.001 tons (1 kg)
+        return displayValue * 0.001;
+      }
+    } else {
+      // For loose products: Convert kg to tons (1000 kg = 1 ton)
+      return displayValue / 1000;
     }
   };
 
@@ -378,9 +408,10 @@ function WarehouseStockSummaryTab({ warehouse }) {
               Type: {selectedProductInfo.productType === 'packed' ? 'Packed' : 'Loose'}
             </span>
             <span className={styles.productUnit}>
-              Unit: {selectedProductInfo.productType === 'packed' ? 
-                `${selectedProductInfo.packetsPerUnit} packets/ton` : 
-                `${selectedProductInfo.primaryUnit}/ton`}
+              {selectedProductInfo.productType === 'packed' ? 
+                `Packet Weight: ${(selectedProductInfo.packetsPerUnit * 1000).toFixed(2)} kg per packet` : 
+                `Unit: ${selectedProductInfo.primaryUnit}`
+              }
             </span>
           </div>
         </div>

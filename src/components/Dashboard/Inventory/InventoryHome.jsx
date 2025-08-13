@@ -69,6 +69,7 @@ function InventoryHome({ navigate }) {
             <div className="col">
                 <button className='homebtn' onClick={() => navigate('/inventory/incoming-stock')}>Incoming Stock</button>
                 <button className='homebtn' onClick={() => navigate('/inventory/outgoing-stock')}>Outgoing Stock</button>
+                <button className='homebtn' onClick={() => navigate('/inventory/current-stock')}>Current Stock</button>
                 <button className='homebtn' onClick={() => navigate('/inventory/stock-summary')}>Stock Summary</button>
                 <button className='homebtn' onClick={() => navigate('/inventory/damaged-goods')}>Damaged Goods</button>
             </div>

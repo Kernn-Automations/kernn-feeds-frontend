@@ -8,6 +8,7 @@ const InventoryHome = lazy(() => import("./InventoryHome"));
 const IncomingStock = lazy(() => import("./IncomingStock"));
 const OutgoingStock = lazy(() => import("./OutgoingStock"));
 const StockSummary = lazy(() => import("./StockSummary"));
+const CurrentStock = lazy(() => import("./CurrentStock"))
 const DamagedGoods = lazy(() => import("./DamagedGoods"));
 
 function InventoryRoutes() {
@@ -39,6 +40,15 @@ function InventoryRoutes() {
           </Suspense>
         }
       />
+      <Route
+        path="/current-stock"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CurrentStock navigate={navigate} />
+          </Suspense>
+        }
+      />
+      
       <Route
         path="/stock-summary"
         element={
