@@ -1,227 +1,330 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import styles from "./Purchases.module.css";
 import {
-  DialogActionTrigger,
   DialogBody,
-  DialogCloseTrigger,
   DialogContent,
   DialogRoot,
   DialogTrigger,
+  DialogCloseTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/Auth";
-import axios from "axios";
+import PDFPreviewModal from "@/utils/PDFPreviewModal";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-import PDFPreviewModal from "@/utils/PDFPreviewModal";
-import { useHighlight } from "@chakra-ui/react";
 
+function getDamageColor(damagePercent) {
+  if (damagePercent >= 50) return "#dc3545"; // red (>=50%)
+  if (damagePercent >= 10) return "#ffc107"; // yellow (10-49%)
+  if (damagePercent >= 0) return "#007bff"; // blue (0-9%)
+  return "inherit";
+}
 
-function ReportsModal({ pdetails, warehouses ,setWarehouses }) {
+function ReportsModal({ pdetails, warehouses, setWarehouses }) {
   const { axiosAPI } = useAuth();
-
-  const VITE_API = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("access_token");
 
+  // State for controlling modal, error, loading, etc.
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  // Damaged Goods UI state
+  // Delivery Challan upload
+  const [deliveryChallanFile, setDeliveryChallanFile] = useState(null);
+  const [deliveryChallanPreview, setDeliveryChallanPreview] = useState(null);
+
+  // Damaged goods list and new damaged good inputs
+  const [damagedRows, setDamagedRows] = useState([]);
   const [selectedSku, setSelectedSku] = useState("");
   const [damagedQty, setDamagedQty] = useState("");
   const [damagedReason, setDamagedReason] = useState("");
-  const [damagedGoods, setDamagedGoods] = useState([]);
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [newImageFile, setNewImageFile] = useState(null);
+  const [newImagePreview, setNewImagePreview] = useState(null);
+
   const [formErrors, setFormErrors] = useState({});
 
   const closeModal = () => setIsModalOpen(false);
 
-  // Validation function for damaged goods
-  const validateDamagedGoods = () => {
+
+  
+
+ // ✅ helper to compute live damaged total for a SKU including the "current input"
+  const getTotalDamagedForSku = (sku) => {
+    const already = damagedRows
+      .filter((d) => d.SKU === sku)
+      .reduce((sum, curr) => sum + Number(curr.damagedQty || 0), 0);
+    if (sku === selectedSku && damagedQty) {
+      return already + Number(damagedQty);
+    }
+    return already;
+  };
+
+  const calculateReceivedQty = (orderedQty, damagedQtySum) =>
+    Math.max(orderedQty - damagedQtySum, 0);
+
+  
+
+  // Validate inputs for adding a new damaged good row
+  const validateNewDamagedRow = () => {
     const errors = {};
-    
-    if (!selectedSku) {
-      errors.product = "Please select a product";
-    }
-    
-    if (!damagedQty || damagedQty <= 0) {
+    if (!selectedSku) errors.product = "Please select a product";
+    const prod = pdetails.items.find((i) => i.SKU === selectedSku);
+    const maxQty = prod?.quantity || 0;
+    const qtyNum = Number(damagedQty);
+    const alreadyDamagedQty = getTotalDamagedForSku(selectedSku);
+    if (!damagedQty || qtyNum <= 0) {
       errors.quantity = "Please enter a valid damaged quantity";
-    } else {
-      const selectedProduct = pdetails.items.find(item => item.SKU === selectedSku);
-      if (selectedProduct && Number(damagedQty) > selectedProduct.quantity) {
-        errors.quantity = `Damaged quantity cannot exceed ordered quantity (${selectedProduct.quantity})`;
-      }
+    } else if (qtyNum + alreadyDamagedQty > maxQty) {
+      errors.quantity = `Damaged quantity cannot exceed ordered quantity (${maxQty}) minus already added damaged quantity (${alreadyDamagedQty})`;
     }
-    
-    if (!damagedReason || damagedReason.trim() === '') {
+    if (!damagedReason || damagedReason.trim() === "") {
       errors.reason = "Please enter a reason for the damage";
     }
-    
-    if (!image) {
+    if (!newImageFile) {
       errors.image = "Please upload an image for the damaged goods";
     }
-    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const downloadPDF = async () => {
-    if (!pdetails?.id) return;
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        `${VITE_API}/purchases/${pdetails.id}/pdf`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "blob",
-        }
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `Purchase-${pdetails.orderNumber || pdetails.id}.pdf`
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.log(e)
-      setError(e.response?.data?.message || "Download error");
-      setIsModalOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handlers for Damaged Goods
+  // Handler to add new damaged good row
   const handleAddDamagedGood = () => {
-    // Validate before adding
-    if (!validateDamagedGoods()) {
-      return;
-    }
-
-    const prod = pdetails.items.find(item => item.SKU === selectedSku);
+    if (!validateNewDamagedRow()) return;
+    const prod = pdetails.items.find((i) => i.SKU === selectedSku);
     if (!prod) return;
 
-    const netAmount = (
-      ((prod.totalAmount || 0) * damagedQty) /
-      (prod.quantity || 1)
-    ).toFixed(2);
-
-    setDamagedGoods(prev => [
+    setDamagedRows((prev) => [
       ...prev,
       {
         SKU: prod.SKU,
+        productId: prod.productId,
         name: prod.name,
-        unit: prod.unit,
         orderedQty: prod.quantity,
         damagedQty: Number(damagedQty),
         reason: damagedReason,
-        netAmount,
-        image: image, // store the actual file
-        imagePreview: imagePreview || null, // for UI only
+        image: newImageFile,
+        imagePreview: newImagePreview,
       },
     ]);
-    
-    // Clear form and errors
+
+    // Reset inputs after adding
     setSelectedSku("");
     setDamagedQty("");
     setDamagedReason("");
-    setImage(null);
-    setImagePreview(null);
+    setNewImageFile(null);
+    setNewImagePreview(null);
     setFormErrors({});
   };
 
+  // Handler to remove damaged good row by index
   const handleRemoveDamagedGood = (idx) => {
-    setDamagedGoods(prev => prev.filter((_, i) => i !== idx));
+    setDamagedRows((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // ✅ When user selects image
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      console.log('✅ File selected:', file.name, file.size, file.type);
-      setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
-      reader.readAsDataURL(file);
-    } else {
-      setImage(null);
-      setImagePreview(null);
+  // Handle upload event for new damaged good image preview
+  const handleNewImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setNewImageFile(null);
+      setNewImagePreview(null);
+      return;
     }
+
+    if (!file.type.startsWith("image/")) {
+      alert("❌ Only images are allowed for damaged goods");
+      return;
+    }
+
+    if (file.size > 100 * 1024) {
+      alert("❌ Each damaged good image must be less than 100KB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewImageFile(reader.result); // ✅ base64 string
+      setNewImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
-  // useEffect(() => {
-  //   async function fetchDropdowns() {
-  //     try {
-  //       setLoading(true);
-  //       const [w, p, o] = await Promise.all([
-  //         axiosAPI.get("/warehouses"),
-  //         axiosAPI.get("/products/list"),
-  //         axiosAPI.get("/purchases?limit=100")
-  //       ]);
-  //       setWarehouses(w.data.warehouses);
-  //       setProducts(p.data.products);
-  //       setOrders(Array.isArray(o.data.purchaseOrders) ? o.data.purchaseOrders : []);
-  //     } catch (e) {
-  //       console.log(e)
-  //       setError(e.response?.data?.message);
-  //       setIsModalOpen(true);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   }
-  //   fetchDropdowns();
-  // }, []);
+
+  // Handle delivery challan upload
+  // ✅ preview DC (PDF or image)
+  // Handle delivery challan upload
+  const handleDeliveryChallanUpload = (e) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setDeliveryChallanFile(null);
+      setDeliveryChallanPreview(null);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("❌ Only image files are allowed for Delivery Challan");
+      return;
+    }
+
+    if (file.size > 100 * 1024) {
+      alert("❌ Delivery Challan must be less than 100KB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDeliveryChallanFile(reader.result); // ✅ store base64 string directly
+      setDeliveryChallanPreview({ type: "image", url: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+
+  // Check if stock-in action is allowed based on purchase order status
+  const canStockIn =
+    ["Received", "received", "Pending", "pending"].includes(
+      (pdetails?.status || "").trim()
+    ) &&
+    !["Stocked In", "stocked_in"].includes((pdetails?.status || "").trim());
+
+  // Handler for "Confirm Stock In" button click (backend integration to follow)
+// 1. Fix the validation check in handleStockIn:
+const handleStockIn = async () => {
+  console.log("Stock In button clicked"); // Debug log
+  console.log("=== Stock In Debug Info ===");
+  console.log("Delivery Challan File:", deliveryChallanFile);
+  console.log("Damaged Rows:", damagedRows);
+  console.log("PDetails:", pdetails);
+  console.log("Token:", token ? "Present" : "Missing");
+  if (!deliveryChallanFile) {
+    setError("Please upload the Delivery Challan image");
+    setIsModalOpen(true);
+    return;
+  }
+
+  // Fix: Check for 'image' property instead of 'imageBase64'
+  if (damagedRows.some(d => !d.image)) {
+    setError("All damaged goods must have an image (under 100KB).");
+    setIsModalOpen(true);
+    return;
+  }
+
+  setConfirmLoading(true);
+  
+  try {
+    // Fix: Properly extract base64 data
+    const dcBase64 = typeof deliveryChallanFile === 'string' 
+      ? deliveryChallanFile.split(",")[1] 
+      : deliveryChallanFile;
+
+    const payload = {
+      dcCopy: deliveryChallanFile.split(",")[1], 
+      receivedItems: pdetails.items.map((item) => {
+        // Send ORIGINAL quantity, not adjusted quantity
+        return { 
+          productId: item.productId, 
+          receivedQuantity: item.quantity  // Original quantity from PO
+        };
+      }),
+      damagedGoods: damagedRows.map((d) => ({
+        productId: d.productId,
+        receivedQuantity: d.orderedQty,  // Original ordered qty
+        damagedQuantity: d.damagedQty,
+        reason: d.reason,
+        imageFile: {
+          data: d.image.split(",")[1],
+          type: "image/jpeg",
+        },
+      })),
+    };
+
+    console.log("Payload:", payload); // This should now print
+
+    const response = await axiosAPI.post(
+      `warehouses/incoming/purchases/${pdetails.id}`,
+      payload,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    console.log("API Response:", response); // Debug log
+    
+    setError("✅ Stock IN completed successfully!");
+    setIsModalOpen(true);
+    setDamagedRows([]);
+    setDeliveryChallanFile(null);
+    setDeliveryChallanPreview(null);
+    
+  } catch (err) {
+    console.error("API Error:", err);
+    console.error("Error Response:", err.response?.data);
+    setError(`❌ Stock IN failed: ${err.response?.data?.message || err.message || 'Please try again.'}`);
+    setIsModalOpen(true);
+  } finally {
+    setConfirmLoading(false);
+  }
+};
+
+
+  // Adjust received quantities based on damaged goods totals
+  const adjustedReceivedQuantities = pdetails.items.map((item) => {
+    const totalDamaged = getTotalDamagedForSku(item.SKU);
+    const receivedQty = calculateReceivedQty(item.quantity, totalDamaged);
+    const damagePercent = (totalDamaged / item.quantity) * 100;
+    return {
+      SKU: item.SKU,
+      receivedQty,
+      damagePercent,
+    };
+  });
+
+  // Status color helper for purchase order status badge
+  const statusBg =
+    pdetails?.status === "Received"
+      ? "#d4edda"
+      : pdetails?.status === "Stocked In" || pdetails?.status === "stocked_in"
+      ? "#cce5ff"
+      : "#f8d7da";
+  const statusColor =
+    pdetails?.status === "Received"
+      ? "#155724"
+      : pdetails?.status === "Stocked In" || pdetails?.status === "stocked_in"
+      ? "#004085"
+      : "#721c24";
 
   return (
     <>
+      {/* Purchase Order Details Section */}
       <h3 className={`px-3 mdl-title`}>Purchase Report</h3>
+
       <div className="row m-0 p-0">
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Date :</label>
-          <input type="text" value={pdetails && pdetails.date} readOnly />
+          <label>Date :</label>
+          <input type="text" value={pdetails?.date || ""} readOnly />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Time :</label>
+          <label>Time :</label>
           <input
             type="text"
-            value={pdetails && pdetails.createdAt.slice(11, 16)}
+            value={pdetails?.createdAt?.slice(11, 16) || ""}
             readOnly
           />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Warehouse :</label>
+          <label>Warehouse :</label>
+          <input type="text" value={pdetails?.warehouse?.name || ""} readOnly />
+        </div>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Purchase ID :</label>
+          <input type="text" value={pdetails?.orderNumber || ""} readOnly />
+        </div>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Status :</label>
           <input
             type="text"
-            value={pdetails?.warehouse?.name}
+            value={pdetails?.status || "Unknown"}
             readOnly
-          />
-        </div>
-        <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Purchase ID :</label>
-          <input type="text" value={pdetails?.orderNumber} readOnly />
-        </div>
-        <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Status :</label>
-          <input 
-            type="text" 
-            value={pdetails?.status || 'Unknown'} 
-            readOnly 
-            style={{
-              backgroundColor: pdetails?.status === 'Received' ? '#d4edda' : 
-                              pdetails?.status === 'Stocked In' ? '#cce5ff' : 
-                              pdetails?.status === 'stocked_in' ? '#cce5ff' : '#f8d7da',
-              color: pdetails?.status === 'Received' ? '#155724' : 
-                    pdetails?.status === 'Stocked In' ? '#004085' : 
-                    pdetails?.status === 'stocked_in' ? '#004085' : '#721c24'
-            }}
+            style={{ backgroundColor: statusBg, color: statusColor }}
           />
         </div>
       </div>
@@ -229,39 +332,56 @@ function ReportsModal({ pdetails, warehouses ,setWarehouses }) {
       <div className="row m-0 p-0">
         <h5 className={styles.headmdl}>TO</h5>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Vendor Name :</label>
-          <input type="text" value={pdetails?.supplier?.name} readOnly />
+          <label>Vendor Name :</label>
+          <input type="text" value={pdetails?.supplier?.name || ""} readOnly />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Vendor ID :</label>
-          <input type="text" value={pdetails?.supplier?.supplierCode} readOnly />
+          <label>Vendor ID :</label>
+          <input
+            type="text"
+            value={pdetails?.supplier?.supplierCode || ""}
+            readOnly
+          />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Address Line 1 :</label>
-          <input type="text" value={pdetails?.supplier?.plot} readOnly />
+          <label>Address Line 1 :</label>
+          <input type="text" value={pdetails?.supplier?.plot || ""} readOnly />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Address Line 2 :</label>
-          <input type="text" value={pdetails?.supplier?.street} readOnly />
+          <label>Address Line 2 :</label>
+          <input
+            type="text"
+            value={pdetails?.supplier?.street || ""}
+            readOnly
+          />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Village/City :</label>
-          <input type="text" value={pdetails?.supplier?.city} readOnly />
+          <label>Village/City :</label>
+          <input type="text" value={pdetails?.supplier?.city || ""} readOnly />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">District :</label>
-          <input type="text" value={pdetails?.supplier?.district} readOnly />
+          <label>District :</label>
+          <input
+            type="text"
+            value={pdetails?.supplier?.district || ""}
+            readOnly
+          />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">State :</label>
-          <input type="text" value={pdetails?.supplier?.state} readOnly />
+          <label>State :</label>
+          <input type="text" value={pdetails?.supplier?.state || ""} readOnly />
         </div>
         <div className={`col-3 ${styles.longformmdl}`}>
-          <label htmlFor="">Pincode :</label>
-          <input type="text" value={pdetails?.supplier?.pincode} readOnly />
+          <label>Pincode :</label>
+          <input
+            type="text"
+            value={pdetails?.supplier?.pincode || ""}
+            readOnly
+          />
         </div>
       </div>
 
+      {/* Products Table */}
       <div className="row m-0 p-0 justify-content-center">
         <h5 className={styles.headmdl}>Products</h5>
         <div className="col-10">
@@ -279,539 +399,407 @@ function ReportsModal({ pdetails, warehouses ,setWarehouses }) {
               </tr>
             </thead>
             <tbody>
-              {pdetails &&
-                pdetails.items.map((item, idx) => (
-                  <tr key={item.id}>
-                    <td>{idx + 1}</td>
-                    <td>{item.SKU}</td>
-                    <td>{item.name}</td>
-                    <td>{item.unit}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.totalAmount}</td>
-                  </tr>
-                ))}
+              {pdetails?.items?.map((item, idx) => (
+                <tr key={item.id}>
+                  <td>{idx + 1}</td>
+                  <td>{item.SKU}</td>
+                  <td>{item.name}</td>
+                  <td>
+                    {item.type === "packed" ? "packets" : item.unit}
+                  </td>
+                  <td>{item.quantity}</td>
+                  <td>{item.totalAmount}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         <div className="row m-0 p-3 pt-4">
           <div className={`col-3 ${styles.longformmdl}`}>
-            <label htmlFor="">Total Amount :</label>
-            <span>{(pdetails && pdetails.totalAmount) || 0}/-</span>
+            <label>Total Amount :</label>
+            <span>{pdetails?.totalAmount || 0}/-</span>
           </div>
         </div>
       </div>
 
-      {/* STOCK IN MODAL */}
+      {/* STOCK IN Modal Trigger & Modal */}
       <div className="row m-0 p-3 pt-4 justify-content-center">
         <div className={`col-4`}>
-          {!loading && (
-            <>
-              <PDFPreviewModal
-                pdfUrl={`/purchases/${pdetails.id}/pdf`}
-                filename={`Purchase-${pdetails.orderNumber || pdetails.id}.pdf`}
-                triggerText="Preview PDF"
-              />
+          <PDFPreviewModal
+            pdfUrl={`/purchases/${pdetails.id}/pdf`}
+            filename={`Purchase-${pdetails.orderNumber || pdetails.id}.pdf`}
+            triggerText="Preview PDF"
+          />
+          {canStockIn && (
+            <DialogRoot
+              placement={"center"}
+              size={"lg"}
+              className={styles.mdl}
+            >
+              <DialogTrigger asChild>
+                <button className="submitbtn">Stock IN</button>
+              </DialogTrigger>
 
-              {pdetails?.status !== "Received" && (
-                <DialogRoot
-                  placement={"center"}
-                  size={"lg"}
-                  className={styles.mdl}
-                >
-                  <DialogTrigger asChild>
-                    <button className={`submitbtn`}>Stock IN</button>
-                  </DialogTrigger>
-                  <DialogContent className="mdl" style={{ minWidth: 700, maxWidth: 850 }}>
-                    <DialogBody>
-                      <div className="row m-0 p-3">
-                        <div className={`col`}>
-                          <h5 className="mdltitle">Confirm Stock In</h5>
-                          <p>
-                            Please confirm the received quantities for the following products:
-                          </p>
-                          <table className="table table-sm table-bordered borderedtable">
-                            <thead>
-                              <tr>
-                                <th>Product</th>
-                                <th>Ordered Qty</th>
-                                <th>Received Qty</th>
+              <DialogContent
+                className="mdl"
+                style={{
+                  minWidth: 750,
+                  maxWidth: 900,
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                }}
+              >
+                <DialogBody>
+                  <div className="row m-0 p-3">
+                    <div className={`col`}>
+                      <h5 className="mdltitle">Confirm Stock In</h5>
+
+                      {/* Products Table with adjusted received Qty and color */}
+                      <p>
+                        Please confirm the received quantities for the following
+                        products:
+                      </p>
+                      <table className="table table-sm table-bordered borderedtable mb-4">
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th>Ordered Qty</th>
+                            <th>Received Qty</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pdetails.items.map((item) => {
+                            const adj = adjustedReceivedQuantities.find(
+                              (adj) => adj.SKU === item.SKU
+                            );
+                            const color = getDamageColor(adj?.damagePercent || 0);
+                            return (
+                              <tr key={item.id}>
+                                <td>{item.name}</td>
+                                <td>{item.quantity}</td>
+                                <td
+                                  style={{ color, fontWeight: "600" }}
+                                >
+                                  {adj?.receivedQty ?? item.quantity}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {pdetails.items.map((item) => (
-                                <tr key={item.id}>
-                                  <td>{item.name}</td>
-                                  <td>{item.quantity}</td>
-                                  <td>{item.quantity}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                            );
+                          })}
+                        </tbody>
+                      </table>
 
-                          {/* Damaged Goods */}
-<h5 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}>
-  Damaged Goods
-</h5>
-<table className="table table-bordered">
-  <thead>
-    <tr>
-      <th>#</th>
-      <th>SKU</th>
-      <th>Ordered Qty</th>
-      <th>Damaged Qty</th>
-      <th>Reason</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    {/* Row to Add New Damaged Product */}
-    <tr>
-      <td>#</td>
-      <td>
-        <select
-          value={selectedSku}
-          onChange={e => setSelectedSku(e.target.value)}
-          style={{ 
-            border: formErrors.product ? '1px solid #dc3545' : '1px solid #ced4da',
-            borderRadius: '4px',
-            padding: '6px 12px',
-            width: '100%'
-          }}
-        >
-          <option value="">--select product--</option>
-          {pdetails.items.map(item => (
-            <option key={item.id} value={item.SKU}>
-              {item.SKU} - {item.name}
-            </option>
-          ))}
-        </select>
-        {formErrors.product && (
-          <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>
-            {formErrors.product}
-          </div>
-        )}
-      </td>
-      <td>
-        {pdetails.items.find(item => item.SKU === selectedSku)?.quantity || ""}
-      </td>
-      <td>
-        <input
-          type="number"
-          min={1}
-          max={pdetails.items.find(item => item.SKU === selectedSku)?.quantity || 1}
-          value={damagedQty}
-          onChange={e => setDamagedQty(e.target.value)}
-          placeholder="Qty"
-          style={{ 
-            border: formErrors.quantity ? '1px solid #dc3545' : '1px solid #ced4da',
-            borderRadius: '4px',
-            padding: '6px 12px',
-            width: '100%'
-          }}
-        />
-        {formErrors.quantity && (
-          <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>
-            {formErrors.quantity}
-          </div>
-        )}
-      </td>
-      <td>
-        <input
-          type="text"
-          value={damagedReason}
-          onChange={e => setDamagedReason(e.target.value)}
-          placeholder="Reason for damage"
-          style={{ 
-            border: formErrors.reason ? '1px solid #dc3545' : '1px solid #ced4da',
-            borderRadius: '4px',
-            padding: '6px 12px',
-            width: '100%'
-          }}
-        />
-        {formErrors.reason && (
-          <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>
-            {formErrors.reason}
-          </div>
-        )}
-      </td>
-      <td>
-        <button className="btn btn-success" onClick={handleAddDamagedGood}>
-          + Add Product
-        </button>
-      </td>
-    </tr>
-    {/* Existing Rows */}
-    {damagedGoods.length === 0 ? (
-      <tr>
-        <td colSpan={6} style={{ textAlign: "center" }}>
-          No damaged goods added.
-        </td>
-      </tr>
-    ) : (
-      damagedGoods.map((good, idx) => (
-        <tr key={idx}>
-          <td>{idx + 1}</td>
-          <td>{good.SKU}</td>
-          <td>{good.orderedQty}</td>
-          <td>{good.damagedQty}</td>
-          <td>{good.reason || '-'}</td>
-          <td>
-            <button className="btn btn-danger" onClick={() => handleRemoveDamagedGood(idx)}>
-              Delete
-            </button>
-          </td>
-        </tr>
-      ))
-    )}
-  </tbody>
-</table>
-                          {/* Image Upload below the table */}
-                          <div style={{ marginBottom: 8 }}>
-                            <label style={{ fontWeight: 600 }}>
-                              Image for Damaged Good <span style={{ color: '#dc3545' }}>*</span>:
-                            </label>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              onChange={handleImageUpload}
-                              style={{ 
-                                border: formErrors.image ? '1px solid #dc3545' : '1px solid #ced4da',
-                                borderRadius: '4px',
-                                padding: '6px 12px',
-                                width: '100%'
-                              }}
-                            />
-                            {formErrors.image && (
-                              <div style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>
-                                {formErrors.image}
-                              </div>
-                            )}
-                            {imagePreview && (
-                              <img
-                                src={imagePreview}
-                                alt="Preview"
+                      {/* Delivery Challan Upload */}
+                      <div style={{ marginBottom: 20 }}>
+                        <label style={{ fontWeight: 600, display: "block" }}>
+                          Upload Delivery Challan <span style={{ color: "#dc3545" }}>*</span>:
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={handleDeliveryChallanUpload}
+                          style={{ width: "100%" }}
+                        />
+                        {deliveryChallanFile && (
+                          <div style={{ marginTop: 8 }}>
+                            Selected file: <strong>{deliveryChallanFile.name}</strong>
+                          </div>
+                        )}
+                        {deliveryChallanPreview?.type === "pdf" && (
+                          <embed
+                            src={deliveryChallanPreview.url}
+                            type="application/pdf"
+                            width="100%"
+                            height="300px"
+                            style={{ marginTop: 8, border: "1px solid #ccc", borderRadius: 4 }}
+                          />
+                        )}
+                        {deliveryChallanPreview?.type === "image" && (
+                          <img
+                            src={deliveryChallanPreview.url}
+                            alt="Delivery Challan Preview"
+                            style={{ marginTop: 8, maxHeight: 200, borderRadius: 4 }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Damaged Goods Section */}
+                      <h5
+                        style={{ fontWeight: 600, marginTop: 16, marginBottom: 8 }}
+                      >
+                        Damaged Goods
+                      </h5>
+                      <table className="table table-bordered" style={{ width: "100%" }}>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>SKU - Product</th>
+                            <th>Ordered Qty</th>
+                            <th>Damaged Qty</th>
+                            <th>Reason</th>
+                            <th>Image</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Input row to add new damaged good */}
+                          <tr>
+                            <td>#</td>
+                            <td>
+                              <select
+                                value={selectedSku}
+                                onChange={(e) => setSelectedSku(e.target.value)}
                                 style={{
-                                  width: 40,
-                                  height: 40,
-                                  marginLeft: 8,
-                                  verticalAlign: "middle"
+                                  border: formErrors.product
+                                    ? "1px solid #dc3545"
+                                    : "1px solid #ced4da",
+                                  borderRadius: "4px",
+                                  padding: "6px 12px",
+                                  width: "100%",
+                                }}
+                              >
+                                <option value="">--select product--</option>
+                                {pdetails.items.map((item) => {
+                                  const totalDamaged = getTotalDamagedForSku(item.SKU);
+                                  const disabled = totalDamaged >= item.quantity;
+                                  return (
+                                    <option
+                                      key={item.id}
+                                      value={item.SKU}
+                                      disabled={disabled}
+                                    >
+                                      {item.SKU} - {item.name}{" "}
+                                      {disabled ? "(Max damaged reached)" : ""}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              {formErrors.product && (
+                                <div
+                                  style={{
+                                    color: "#dc3545",
+                                    fontSize: "12px",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  {formErrors.product}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              {
+                                pdetails.items.find((i) => i.SKU === selectedSku)
+                                  ?.quantity || ""
+                              }
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min={1}
+                                step={pdetails.items.find((i) => i.SKU === selectedSku)?.type === "loose" ? "0.01" : "1"}
+                                max={
+                                  pdetails.items.find((i) => i.SKU === selectedSku)?.quantity || 1
+                                }
+                                value={damagedQty}
+                                onChange={(e) => {
+                                  const product = pdetails.items.find((i) => i.SKU === selectedSku);
+                                  let value = e.target.value;
+
+                                  if (product?.type === "packed") {
+                                    // Only whole numbers allowed
+                                    value = value.replace(/\D/g, ""); // remove non-digits
+                                    value = value ? parseInt(value, 10) : "";
+                                  } else {
+                                    // Loose → allow decimals (but valid numbers only)
+                                    value = value.replace(/[^0-9.]/g, ""); // remove invalid chars
+                                  }
+
+                                  setDamagedQty(value);
+                                }}
+                                placeholder="Qty"
+                                style={{
+                                  border: formErrors.quantity
+                                    ? "1px solid #dc3545"
+                                    : "1px solid #ced4da",
+                                  borderRadius: "4px",
+                                  padding: "6px 12px",
+                                  width: "100%",
                                 }}
                               />
-                            )}
-                          </div>
-                          {/* Cancel and Confirm Buttons */}
-                          <div className="d-flex justify-content-end mt-3">
-                            <button 
-                              className="cancelbtn me-2"
-                              onClick={() => {
-                                // Close the modal manually
-                                const closeButton = document.querySelector('[data-radix-dialog-close]');
-                                if (closeButton) closeButton.click();
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="submitbtn"
-                              onClick={async () => {
-                                console.log('=== STOCK IN BUTTON CLICKED ===');
-                                console.log('Purchase details:', pdetails);
-                                console.log('Damaged goods:', damagedGoods);
-                                
-                                // Check if purchase order has already been stocked in
-                                if (pdetails.status === 'stocked_in' || pdetails.stockInStatus === 'completed' || pdetails.status === 'Stocked In') {
-                                  setError("This purchase order has already been stocked in. You cannot stock-in the same order twice.");
-                                  setIsModalOpen(true);
-                                  return;
-                                }
-                                
-                                // Check if purchase order status allows stock-in
-                                if (pdetails.status !== 'Received' && pdetails.status !== 'received' && pdetails.status !== 'Pending' && pdetails.status !== 'pending') {
-                                  setError(`Cannot stock-in purchase order. Current status: ${pdetails.status}. Status must be "Received" or "Pending" to proceed with stock-in.`);
-                                  setIsModalOpen(true);
-                                  return;
-                                }
-                                
-                                // Validate that all required fields are filled
-                                if (damagedGoods.length > 0) {
-                                  // Check if any damaged goods are missing required fields
-                                  const hasInvalidDamagedGoods = damagedGoods.some(good => 
-                                    !good.SKU || !good.damagedQty || !good.reason || !good.image
-                                  );
-                                  
-                                  if (hasInvalidDamagedGoods) {
-                                    setError("Please ensure all damaged goods have product, quantity, reason, and image filled.");
-                                    setIsModalOpen(true);
-                                    return;
-                                  }
-                                }
-                                
-                                // Declare variables outside try block to ensure they're always defined
-                                let requestData = null;
-                                let formData = null;
-                                
-                                try {
-                                  setConfirmLoading(true);
-                                  console.log('Starting Stock IN process for purchase:', pdetails.id);
-                                  
-                                  const receivedItems = pdetails.items.map(
-                                    (item) => ({
-                                      productId: item.productId,
-                                      receivedQuantity: item.quantity,
-                                    })
-                                  );
-                                  
-                                  console.log('📋 receivedItems array:', receivedItems);
-                                  console.log('📋 pdetails.items:', pdetails.items);
-                                  
-                                  // ✅ Validate that we have receivedItems
-                                  if (!receivedItems || receivedItems.length === 0) {
-                                    throw new Error('No received items found in purchase order');
-                                  }
-                                  
-                                  // Map damagedGoods to backend-required format
-                                  const mappedDamagedGoods = damagedGoods.map((good) => {
-                                    const prod = pdetails.items.find(item => item.SKU === good.SKU);
-                                    return {
-                                      productId: prod?.productId,
-                                      receivedQuantity: parseFloat(prod?.quantity || 0),
-                                      damagedQuantity: parseFloat(good.damagedQty || 0),
-                                      warehouseId: pdetails?.warehouse?.id || pdetails?.warehouseId,
-                                      reason: good.reason || 'Damaged during stock-in',
-                                      image: good.image, // Keep image for FormData processing
-                                    };
-                                  });
-                                  
-                                  console.log('📋 mappedDamagedGoods:', mappedDamagedGoods);
-                                  
-                                  console.log('Sending Stock IN request with data:', {
-                                    receivedItems,
-                                    damagedGoods: mappedDamagedGoods,
-                                  });
-                                  
-                                  console.log('Original damaged goods data:', damagedGoods);
-                                  console.log('Purchase details items:', pdetails.items);
-                                  
-                                  // ✅ Create request data in the correct format for stock-in
-                                  requestData = {
-                                    receivedItems: receivedItems,
-                                    damagedGoods: mappedDamagedGoods
-                                  };
-                                  
-                                  console.log('📋 Final request data:', requestData);
-                                  
-                                  // ✅ Create FormData
-                                  formData = new FormData();
+                              {formErrors.quantity && (
+                                <div
+                                  style={{
+                                    color: "#dc3545",
+                                    fontSize: "12px",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  {formErrors.quantity}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={damagedReason}
+                                onChange={(e) => setDamagedReason(e.target.value)}
+                                placeholder="Reason for damage"
+                                style={{
+                                  border: formErrors.reason
+                                    ? "1px solid #dc3545"
+                                    : "1px solid #ced4da",
+                                  borderRadius: "4px",
+                                  padding: "6px 12px",
+                                  width: "100%",
+                                }}
+                              />
+                              {formErrors.reason && (
+                                <div
+                                  style={{
+                                    color: "#dc3545",
+                                    fontSize: "12px",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  {formErrors.reason}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleNewImageUpload}
+                                style={{
+                                  border: formErrors.image
+                                    ? "1px solid #dc3545"
+                                    : "1px solid #ced4da",
+                                  borderRadius: "4px",
+                                  padding: "6px 12px",
+                                  width: "100%",
+                                }}
+                              />
+                              {formErrors.image && (
+                                <div
+                                  style={{
+                                    color: "#dc3545",
+                                    fontSize: "12px",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  {formErrors.image}
+                                </div>
+                              )}
+                              {newImagePreview && (
+                                <img
+                                  src={newImagePreview}
+                                  alt="Preview"
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    marginTop: 4,
+                                    borderRadius: 4,
+                                    display: "block",
+                                  }}
+                                />
+                              )}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <button
+                                className="btn btn-success btn-sm"
+                                onClick={handleAddDamagedGood}
+                              >
+                                + Add
+                              </button>
+                            </td>
+                          </tr>
 
-                                  // ✅ Append JSON data
-                                  formData.append('receivedItems', JSON.stringify(requestData.receivedItems));
-                                  
-                                  // ✅ Create damagedGoods without images for JSON
-                                  const damagedGoodsWithoutImages = requestData.damagedGoods.map(good => ({
-                                    productId: good.productId,
-                                    receivedQuantity: good.receivedQuantity,
-                                    damagedQuantity: good.damagedQuantity,
-                                    warehouseId: good.warehouseId,
-                                    reason: good.reason || 'Damaged during stock-in'
-                                  }));
-                                  formData.append('damagedGoods', JSON.stringify(damagedGoodsWithoutImages));
+                          {/* Existing damaged rows */}
+                          {damagedRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} style={{ textAlign: "center" }}>
+                                No damaged goods added.
+                              </td>
+                            </tr>
+                          ) : (
+                            damagedRows.map((row, idx) => (
+                              <tr key={idx}>
+                                <td>{idx + 1}</td>
+                                <td>
+                                  {row.SKU} - {row.name}
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  {row.orderedQty}
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  {row.damagedQty}
+                                </td>
+                                <td>{row.reason}</td>
+                                <td style={{ textAlign: "center" }}>
+                                  {row.imagePreview ? (
+                                    <img
+                                      src={row.imagePreview}
+                                      alt="Damaged"
+                                      style={{ width: 40, height: 40, borderRadius: 4 }}
+                                    />
+                                  ) : (
+                                    "-"
+                                  )}
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => handleRemoveDamagedGood(idx)}
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
 
-                                  // ✅ Append image files with indexed names as per backend requirements
-                                  console.log('🔍 Checking damaged goods for image files:');
-                                  requestData.damagedGoods.forEach((item, index) => {
-                                    console.log(`  Item ${index}:`, {
-                                      productId: item.productId,
-                                      hasImage: !!item.image,
-                                      imageType: typeof item.image,
-                                      isFile: item.image instanceof File,
-                                      imageName: item.image?.name,
-                                      imageSize: item.image?.size
-                                    });
-                                    
-                                    if (item.image && item.image instanceof File) {
-                                      formData.append(`damagedGoodsImages_${index}`, item.image);
-                                      console.log(`✅ Added image file: damagedGoodsImages_${index} = ${item.image.name} (${item.image.size} bytes)`);
-                                    } else {
-                                      console.log(`⚠️ No image file found for damaged good at index ${index}`);
-                                    }
-                                  });
-                                  
-                                  // Debug: Log what we're sending
-                                  console.log('🚀 Sending request to backend:');
-                                  console.log('URL:', `/warehouses/incoming/purchases/${pdetails.id}`);
-                                  console.log('Purchase ID:', pdetails.id);
-                                  console.log('Warehouse ID:', pdetails?.warehouse?.id);
-                                  console.log('FormData contents:');
-                                  for (let [key, value] of formData.entries()) {
-                                    if (value instanceof File) {
-                                      console.log('Field:', key, 'Value: File(' + value.name + ', ' + value.size + ' bytes)');
-                                    } else {
-                                      console.log('Field:', key, 'Value:', value);
-                                    }
-                                  }
-                                  
-                                  // Enhanced validation before sending
-                                  const receivedItemsData = formData.get('receivedItems');
-                                  const damagedGoodsData = formData.get('damagedGoods');
-                                  const imageFiles = [];
-                                  // Get all image files with indexed names
-                                  for (let i = 0; i < requestData.damagedGoods.length; i++) {
-                                    const imageFile = formData.get(`damagedGoodsImages_${i}`);
-                                    if (imageFile) {
-                                      imageFiles.push(imageFile);
-                                    }
-                                  }
-                                  
-                                  console.log('🔍 Enhanced validation:');
-                                  console.log('- receivedItems exists:', !!receivedItemsData);
-                                  console.log('- damagedGoods exists:', !!damagedGoodsData);
-                                  console.log('- imageFiles count:', imageFiles.length);
-                                  console.log('- receivedItems length:', receivedItemsData ? JSON.parse(receivedItemsData).length : 0);
-                                  console.log('- damagedGoods length:', damagedGoodsData ? JSON.parse(damagedGoodsData).length : 0);
-
-                                  // ✅ API call with FormData
-                                  let response;
-                                  try {
-                                    console.log('🔄 Sending FormData to warehouse route...');
-                                    console.log('🔍 Final FormData contents before sending:');
-                                    for (let [key, value] of formData.entries()) {
-                                      if (value instanceof File) {
-                                        console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
-                                      } else {
-                                        console.log(`  ${key}: ${value}`);
-                                      }
-                                    }
-                                    
-                                    response = await axiosAPI.post(
-                                      `/warehouses/incoming/purchases/${pdetails.id}`,
-                                      formData,
-                                      {
-                                        headers: {
-                                          // ❌ Don't set Content-Type - let browser set it for FormData
-                                        }
-                                      }
-                                    );
-                                    console.log('✅ Warehouse route successful');
-                                  } catch (warehouseError) {
-                                    console.log('❌ Warehouse route failed, trying JSON format...');
-                                    console.log('Warehouse error:', warehouseError.response?.data);
-                                    
-                                    // Fallback to JSON format without images
-                                    const jsonData = {
-                                      receivedItems: requestData.receivedItems,
-                                      damagedGoods: damagedGoodsWithoutImages
-                                    };
-                                    
-                                    // Try warehouse route with JSON
-                                    try {
-                                      response = await axiosAPI.post(
-                                        `/warehouses/incoming/purchases/${pdetails.id}`,
-                                        jsonData,
-                                        {
-                                          headers: {
-                                            'Content-Type': 'application/json',
-                                          }
-                                        }
-                                      );
-                                      console.log('✅ Warehouse route with JSON successful');
-                                    } catch (jsonError) {
-                                      console.log('❌ All routes failed');
-                                      throw jsonError; // Re-throw to be caught by outer catch
-                                    }
-                                  }
-                                  
-                                  console.log('Stock In response:', response.data);
-                                  console.log('Response status:', response.status);
-                                  console.log('Response success check:', response.data.success);
-                                  console.log('Response status:', response.status);
-                                  console.log('Response success check:', response.data.success);
-                                  
-                                  // Handle the response format - check for success or 200 status
-                                  if (response.data.success || response.status === 200 || response.status === 201) {
-                                    // Show success message
-                                    setError("Stock IN completed successfully!");
-                                    setIsModalOpen(true);
-                                    
-                                    // Close the modal manually after successful API call
-                                    setTimeout(() => {
-                                      const closeButton = document.querySelector('[data-radix-dialog-close]');
-                                      if (closeButton) closeButton.click();
-                                    }, 1000);
-                                    
-                                    // Multiple refresh mechanisms to ensure UI updates
-                                    console.log('Attempting to refresh UI after successful stock-in...');
-                                    if (typeof window.refreshPurchaseOrders === 'function') {
-                                      console.log('Using window.refreshPurchaseOrders()');
-                                      window.refreshPurchaseOrders();
-                                    } else if (typeof setWarehouses === 'function') {
-                                      console.log('Using setWarehouses() to force update');
-                                      setWarehouses((prev) => [...prev]); // force update
-                                    } else {
-                                      console.log('Using window.location.reload() as fallback');
-                                      // Reload after a short delay to show success
-                                      setTimeout(() => {
-                                        window.location.reload();
-                                      }, 2000);
-                                    }
-                                  } else {
-                                    // Handle backend error response
-                                    setError(response.data.message || "Stock IN failed");
-                                    setIsModalOpen(true);
-                                  }
-                                } catch (err) {
-                                  console.error('Stock IN Error:', err);
-                                  console.error('Error Response:', err.response?.data);
-                                  console.error('Error Status:', err.response?.status);
-                                  console.error('Error Message:', err.response?.data?.message);
-                                  console.error('Request Data:', requestData || 'Not defined');
-                                  console.error('Request was using FormData');
-                                  
-                                  // Log the actual FormData that was sent
-                                  console.error('FormData that was sent:');
-                                  if (formData) {
-                                    for (let [key, value] of formData.entries()) {
-                                      console.error('FormData Field:', key, 'Value:', value);
-                                    }
-                                  }
-                                  
-                                  // Handle the new error response format
-                                  let errorMessage = err.response?.data?.message || 
-                                                     err.response?.data?.error || 
-                                                     err.message || 
-                                                     "Stock IN failed. Please try again.";
-                                  
-                                  // Special handling for already stocked in error
-                                  if (errorMessage.includes("already been stocked in")) {
-                                    errorMessage = "This purchase order has already been stocked in. You cannot stock-in the same order twice.";
-                                    console.log('⚠️ Purchase order already stocked in - this is expected behavior');
-                                  }
-                                  
-                                  setError(errorMessage);
-                                  setIsModalOpen(true);
-                                } finally {
-                                  setConfirmLoading(false);
-                                }
-                              }}
-                            >
-                              {confirmLoading
-                                ? "Processing..."
-                                : "Confirm Stock In"}
-                            </button>
-                          </div>
-                        </div>
+                      {/* Modal Actions */}
+                      <div className="d-flex justify-content-end mt-3">
+                        <button
+                          className="cancelbtn me-2"
+                          onClick={(e) => {
+                              e.preventDefault(); // Add this
+                              e.stopPropagation(); // Add this
+                              const closeButton = document.querySelector("[data-radix-dialog-close]");
+                              if (closeButton) closeButton.click();
+                            }}
+                          disabled={confirmLoading}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="submitbtn"
+                          onClick={(e) => {
+                            e.preventDefault(); // Add this
+                            e.stopPropagation(); // Add this
+                            handleStockIn();
+                          }}
+                          disabled={confirmLoading}
+                        >
+                          {confirmLoading ? "Processing..." : "Confirm Stock In"}
+                        </button>
                       </div>
-                    </DialogBody>
-                    <DialogCloseTrigger className="inputcolumn-mdl-close" />
-                  </DialogContent>
-                </DialogRoot>
-              )}
-            </>
+                    </div>
+                  </div>
+                </DialogBody>
+                <DialogCloseTrigger className="inputcolumn-mdl-close" />
+              </DialogContent>
+            </DialogRoot>
           )}
-          {loading && <Loading />}
         </div>
       </div>
 
+      {/* Show loading spinner */}
+      {loading && <Loading />}
+
+      {/* Show error modal */}
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
