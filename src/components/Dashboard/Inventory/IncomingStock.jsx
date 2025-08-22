@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "@/Auth";
+import { useDivision } from "@/components/context/DivisionContext";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
@@ -18,6 +19,7 @@ function IncomingStock({ navigate }) {
   const [customers, setCustomers] = useState();
 
   const { axiosAPI } = useAuth();
+  const { selectedDivision } = useDivision();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -29,9 +31,29 @@ function IncomingStock({ navigate }) {
   useEffect(() => {
     async function fetch() {
       try {
-        const res1 = await axiosAPI.get("/warehouse");
-        const res2 = await axiosAPI.get("/customers");
-        const res3 = await axiosAPI.get("/products/list");
+        // ✅ Get division ID from context for division filtering
+        const currentDivisionId = selectedDivision?.id;
+
+        // ✅ Add division parameters to prevent wrong division data
+        let warehouseEndpoint = "/warehouse";
+        let customersEndpoint = "/customers";
+        let productsEndpoint = "/products/list";
+
+        if (currentDivisionId) {
+          warehouseEndpoint += `?divisionId=${currentDivisionId}`;
+          customersEndpoint += `?divisionId=${currentDivisionId}`;
+          productsEndpoint += `?divisionId=${currentDivisionId}`;
+        }
+
+        console.log('IncomingStock - Initial data fetch with division parameters:');
+        console.log('IncomingStock - Division ID:', currentDivisionId);
+        console.log('IncomingStock - Warehouse endpoint:', warehouseEndpoint);
+        console.log('IncomingStock - Customers endpoint:', customersEndpoint);
+        console.log('IncomingStock - Products endpoint:', productsEndpoint);
+
+        const res1 = await axiosAPI.get(warehouseEndpoint);
+        const res2 = await axiosAPI.get(customersEndpoint);
+        const res3 = await axiosAPI.get(productsEndpoint);
         // console.log(res1);
         // console.log(res2);
         // console.log(res3);
@@ -45,7 +67,7 @@ function IncomingStock({ navigate }) {
       }
     }
     fetch();
-  }, []);
+  }, [selectedDivision?.id]);
 
   // Backend
 
@@ -78,13 +100,32 @@ function IncomingStock({ navigate }) {
         setStock(null);
         setLoading(true);
 
-        const query = `/warehouse/inventory/incoming?fromDate=${from}&toDate=${to}${
-          warehouse ? `&warehouseId=${warehouse}` : ""
-        }${customer ? `&customerId=${customer}` : ""}${
-          product ? `&productId=${product}` : ""
-        }&page=${pageNo}&limit=${limit}`;
+        // ✅ Get division ID from context for division filtering
+        const currentDivisionId = selectedDivision?.id;
 
-        console.log(query);
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+
+        // ✅ Add division parameters to prevent wrong division data
+        let divisionParam = "";
+        if (currentDivisionId) {
+          divisionParam = `&divisionId=${currentDivisionId}`;
+        }
+
+        const query = `/warehouse/inventory/incoming?fromDate=${from}&toDate=${to}${warehouseParam}${
+          customer ? `&customerId=${customer}` : ""
+        }${
+          product ? `&productId=${product}` : ""
+        }${divisionParam}&page=${pageNo}&limit=${limit}`;
+
+        console.log('IncomingStock - Fetching stock with warehouse filter:', warehouse);
+        console.log('IncomingStock - Warehouse parameter:', warehouseParam);
+        console.log('IncomingStock - Division ID:', currentDivisionId);
+        console.log('IncomingStock - Division parameter:', divisionParam);
+        console.log('IncomingStock - Final query:', query);
 
         const res = await axiosAPI.get(query);
         console.log(res);
@@ -99,7 +140,7 @@ function IncomingStock({ navigate }) {
       }
     }
     fetch();
-  }, [trigger, pageNo, limit]);
+  }, [trigger, pageNo, limit, selectedDivision?.id]);
 
   // Function to export as Excel
 
@@ -174,6 +215,7 @@ function IncomingStock({ navigate }) {
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>
@@ -269,13 +311,13 @@ function IncomingStock({ navigate }) {
                   </tr>
                 )}
                 {stock.length > 0 &&
-                  stock.map((st) => (
+                  stock.map((st, stIndex) => (
                     <tr
                       key={st.id}
                       className="animated-row"
-                      style={{ animationDelay: `${index * 0.1}s` }}
+                      style={{ animationDelay: `${stIndex * 0.1}s` }}
                     >
-                      <td>{index++}</td>
+                      <td>{index + stIndex}</td>
                       <td>{st.date.slice(0, 10)}</td>
                       <td>{st.purchaseOrderId}</td>
                       <td>{st.warehouseName}</td>

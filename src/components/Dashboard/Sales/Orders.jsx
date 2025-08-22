@@ -33,7 +33,7 @@ function Orders({
   let index = 1;
 
   // backend -----------------
-  const [orders, setOrders] = useState();
+  const [orders, setOrders] = useState([]); // Initialize as empty array
 
   const { axiosAPI } = useAuth();
 
@@ -52,23 +52,43 @@ function Orders({
       try {
         setOrders(null);
         setLoading(true);
-        console.log(
-          `/sales-orders?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}${
-            status ? `&orderStatus=${status}` : ""
-          }&page=${pageNo}&limit=${limit}`
-        );
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let divisionParam = "";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          divisionParam = `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          divisionParam = `&showAllDivisions=true`;
+        }
+        
+        console.log('Orders - Fetching orders with warehouse filter:', warehouse);
+        console.log('Orders - Warehouse parameter:', warehouseParam);
+        console.log('Orders - Division ID:', currentDivisionId);
+        console.log('Orders - Division Name:', currentDivisionName);
+        console.log('Orders - Division parameters added:', divisionParam);
+        
+        const query = `/sales-orders?fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
+          customer ? `&customerId=${customer}` : ""
+        }${
+          status ? `&status=${status}` : ""
+        }&page=${pageNo}&limit=${limit}`;
+        
+        console.log('Orders - Final query:', query);
 
-        const res = await axiosAPI.get(
-          `/sales-orders?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}${
-            status ? `&status=${status}` : ""
-          }&page=${pageNo}&limit=${limit}`
-        );
-        console.log(res);
-        setOrders(res.data.salesOrders);
+        const res = await axiosAPI.get(query);
+        console.log(res, limit);
+        const ordersData = res.data.salesOrders || res.data.orders || res.data;
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
         setTotalPages(res.data.totalPages);
       } catch (e) {
         // console.log(e);
@@ -99,6 +119,7 @@ function Orders({
 
   // Quantity
   const Qty = (items) => {
+    if (!Array.isArray(items)) return 0; // Safeguard for undefined or non-array
     let kgs = 0;
     for (const item of items) {
       if (item?.product?.productType === "packed") {
@@ -114,9 +135,8 @@ function Orders({
           kgs += item.quantity / 1000;
         }
       }
-
-      return kgs / 1000;
     }
+    return kgs / 1000;
   };
 
   // pdf code -----------------------------------
@@ -216,6 +236,7 @@ function Orders({
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>
@@ -262,6 +283,7 @@ function Orders({
             <option value="Confirmed">Confirmed</option>
             <option value="Dispatched">Dispatched</option>
             <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
         </div>
       </div>
@@ -337,7 +359,9 @@ function Orders({
                       }}
                     >
                       <td>{index++}</td>
-                      <td>{order.createdAt.slice(0, 10)}</td>
+                      <td>
+                        {order.createdAt ? order.createdAt.slice(0, 10) : ""}
+                      </td>
                       <td>{order.orderNumber}</td>
                       <td>{order.warehouse?.name}</td>
                       <td>{order.customer?.customer_id}</td>
@@ -392,6 +416,18 @@ function Orders({
                               fill="#5CB338"
                             >
                               <path d="m342.62-51.47-77.51-132.04-151.86-32.06 16.48-150.28L31.23-480l98.5-113.49-16.48-150.44 151.86-31.89 77.51-132.71L480-846.75l137.54-61.78 78.02 132.71 151.19 31.89-16.48 150.44L928.77-480l-98.5 114.15 16.48 150.28-151.19 32.06-78.02 132.04L480-113.25 342.62-51.47Zm94.71-290.38 228.82-227.48-51.06-48.74-177.76 176.58-91.76-94.23-51.72 51.05 143.48 142.82Z" />
+                            </svg>
+                          </p>
+                        ) : order.orderStatus === "Cancelled" ? (
+                          <p>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              height="40px"
+                              viewBox="0 -960 960 960"
+                              width="40px"
+                              fill="#EA3323"
+                            >
+                              <path d="M586.96-484.33 666.63-564l-58.87-60.39-80.43 80.43 59.63 59.63Zm256.37 256.37L742.89-328.39l-5.76-68.81 72.8-82.8-72.8-84.8 9.52-111.05-108.56-23.52-57.29-95.04L480-750.65l-102.8-43.76-36.29 63.04-66.89-66.89 66.63-112.02L480-850.85l139.35-59.43 77.67 131.35 147.83 32.71-14.48 151.59L930.52-480 830.37-365.37l12.96 137.41ZM379.2-165.59 480-209.35l102.8 43.76 34.9-58.98-145.13-145.36L438-335.37 293.37-480l58.87-58.87L438-454.63l-25.3 25.06-194.87-194.86 5.04 59.63-72.8 84.8 72.8 82.8-9.52 113.05 108.56 23.52 57.29 95.04ZM340.65-49.72l-77.67-131.35-147.83-32.71 14.48-151.59L29.48-480l100.15-114.63-12.24-130.24-68.32-68.33 58.63-58.39L853.98-105.3l-58.63 58.39-111.76-111.76-64.24 108.95L480-109.15 340.65-49.72Zm186.68-494.24ZM383.76-458.5Z" />
                             </svg>
                           </p>
                         ) : (

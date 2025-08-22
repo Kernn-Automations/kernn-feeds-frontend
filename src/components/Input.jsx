@@ -7,7 +7,7 @@ import ErrorModal from "./ErrorModal";
 
 function Input({ setLogin, setUser, setRole }) {
   const [ontap, setOntap] = useState(false);
-  const [email, setEmail] = useState();
+  const [email, setEmail] = useState('');
   const [res, setRes] = useState();
   const [resp, setResp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,8 +72,7 @@ function Input({ setLogin, setUser, setRole }) {
             />
             {!ontap && (
               <button
-                data-bs-toggle="modal"
-                data-bs-target="#exampleModal"
+                type="submit"
                 className={styles.sendbutton}
               >
                 Send OTP

@@ -49,7 +49,24 @@ function ModifyProduct({ navigate, isAdmin }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/products/list");
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoint
+        let endpoint = "/products/list";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('ModifyProduct - Fetching products with endpoint:', endpoint);
+        console.log('ModifyProduct - Division ID:', currentDivisionId);
+        console.log('ModifyProduct - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
 
         console.log(res);
 

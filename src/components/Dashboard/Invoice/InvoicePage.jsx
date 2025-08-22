@@ -40,7 +40,23 @@ function InvoicesPage({ navigate, setInvoiceId }) {
   useEffect(() => {
     async function fetchCustomers() {
       try {
-        const res = await axiosAPI.get("/customers");
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let endpoint = "/customers";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('InvoicePage - Fetching customers with endpoint:', endpoint);
+        console.log('InvoicePage - Division ID:', currentDivisionId);
+        console.log('InvoicePage - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
         setCustomers(res.data.customers || []);
       } catch (err) {
         setError("Failed to fetch customers");
@@ -55,10 +71,28 @@ function InvoicesPage({ navigate, setInvoiceId }) {
       try {
         setLoading(true);
         setInvoices(null);
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let divisionParam = "";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          divisionParam = `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          divisionParam = `&showAllDivisions=true`;
+        }
+        
+        console.log('InvoicePage - Fetching invoices with division filter');
+        console.log('InvoicePage - Division ID:', currentDivisionId);
+        console.log('InvoicePage - Division Name:', currentDivisionName);
+        console.log('InvoicePage - Division parameters added:', divisionParam);
+        
         const res = await axiosAPI.get(
           `/invoice?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}&page=${pageNo}`
+          }${customer ? `&customerId=${customer}` : ""}${divisionParam}&page=${pageNo}`
         );
         console.log(res);
         setInvoices(res.data.invoices);
@@ -160,7 +194,7 @@ function InvoicesPage({ navigate, setInvoiceId }) {
         <div className="col-3 formcontent">
           <label>Customer:</label>
           <select
-            value={customer}
+            value={customer || ""}
             onChange={(e) => setCustomer(e.target.value || null)}
           >
             <option value="">--select--</option>

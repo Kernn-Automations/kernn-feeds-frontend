@@ -47,10 +47,36 @@ function NewPurchase({ navigate }) {
   useEffect(() => {
     const fetchInitial = async () => {
       try {
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoints
+        let warehousesEndpoint = "/warehouse";
+        let suppliersEndpoint = "/suppliers";
+        let productsEndpoint = "/products/list";
+        
+        if (currentDivisionId && currentDivisionId !== '1') {
+          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
+          suppliersEndpoint += `?divisionId=${currentDivisionId}`;
+          productsEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          warehousesEndpoint += `?showAllDivisions=true`;
+          suppliersEndpoint += `?showAllDivisions=true`;
+          productsEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('NewPurchase - Fetching data with endpoints:');
+        console.log('NewPurchase - Warehouses:', warehousesEndpoint);
+        console.log('NewPurchase - Suppliers:', suppliersEndpoint);
+        console.log('NewPurchase - Products:', productsEndpoint);
+        console.log('NewPurchase - Division ID:', currentDivisionId);
+        console.log('NewPurchase - Division Name:', currentDivisionName);
+        
         const [w, s, p] = await Promise.all([
-          axiosAPI.get("/warehouse"),
-          axiosAPI.get("/suppliers"),
-          axiosAPI.get("/products/list"),
+          axiosAPI.get(warehousesEndpoint),
+          axiosAPI.get(suppliersEndpoint),
+          axiosAPI.get(productsEndpoint),
         ]);
         setWarehouses(w.data.warehouses);
         setSuppliers(s.data.suppliers);

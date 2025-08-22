@@ -5,13 +5,11 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [islogin, setIslogin] = useState(
-    localStorage.getItem("access_token") ? true : false
+    localStorage.getItem("accessToken") ? true : false
   );
-  // const [token, setToken] = useState( localStorage.getItem("access_token") || null);
-  // const [reftoken, setReftoken] = useState(localStorage.getItem("refresh_token") || null);
 
-  let token = localStorage.getItem("access_token") || null;
-  let reftoken = localStorage.getItem("refresh_token") || null;
+  let token = localStorage.getItem("accessToken") || null;
+  let reftoken = localStorage.getItem("refreshToken") || null;
 
   const VITE_API = import.meta.env.VITE_API_URL;
 
@@ -39,7 +37,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -47,7 +45,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   getPdf.interceptors.request.use((config) => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -55,7 +53,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   formApi.interceptors.request.use((config) => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -71,74 +69,14 @@ export const AuthProvider = ({ children }) => {
     getpdf: (url, params = {}) => getPdf.get(url, { params }),
   };
 
-  useEffect(() => {
-    const refreshAccessToken = async () => {
-      try {
-        
-        const reftokenfromst = localStorage.getItem("refresh_token");
-
-        // console.log("My token", config.headers.Authorization);
-
-        let config = {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        };
-
-        const response = await axios.post(
-          `${VITE_API}/auth/refresh`,
-          {
-            refreshToken: reftokenfromst,
-          },
-          config
-        );
-        // console.log("refreshed :", response);
-
-        const newAccessToken = response.data.accessToken;
-        const newRef = response.data.refreshToken;
-
-        // console.log("current token : ", newAccessToken);
-        // console.log("current token : ", newRef);
-
-        token = response.data.accessToken;
-        reftoken = response.data.refreshToken;
-
-        // setToken(response.data.accessToken)
-        // setReftoken(response.data.refreshToken)
-
-        localStorage.setItem("access_token", response.data.accessToken);
-        localStorage.setItem("refresh_token", response.data.refreshToken);
-      } catch (error) {
-        // console.log("refesh error : ", error);
-        // removeLogin();
-        setIslogin(false);
-        token = null;
-        reftoken = null;
-        removeLogin();
-        // setToken(null)
-        // setReftoken(null)
-      }
-
-      // console.log("new token : ", token);
-      // console.log("newref token : ", reftoken);
-    };
-
-    refreshAccessToken();
-
-    const interval = setInterval(
-      () => {
-        refreshAccessToken();
-      },
-      5 * 60 * 1000
-    );
-
-    return () => clearInterval(interval);
-  }, []);
+  // Remove the old useEffect - we now use startRefreshCycle() when tokens are saved
 
   const removeLogin = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("selectedDivision");
+    localStorage.removeItem("showDivisions");
     setIslogin(false);
     token = null;
     reftoken = null;
@@ -148,23 +86,76 @@ export const AuthProvider = ({ children }) => {
   };
 
   const saveToken = (newToken) => {
-    localStorage.setItem("access_token", newToken);
-
+    localStorage.setItem("accessToken", newToken);
     token = newToken;
-    // setToken(newToken)
     setIslogin(true);
   };
+
   const saveRefreshToken = (refToken) => {
-    localStorage.setItem("refresh_token", refToken);
+    localStorage.setItem("refreshToken", refToken);
     reftoken = refToken;
-    // setReftoken(refToken)
+  };
+
+  // Function to save both tokens and start refresh cycle
+  const saveTokens = (accessToken, refreshToken) => {
+    if (accessToken && refreshToken) {
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+      token = accessToken;
+      reftoken = refreshToken;
+      setIslogin(true);
+      
+      // Start the refresh cycle
+      console.log("Tokens saved, starting refresh cycle");
+      startRefreshCycle();
+    }
+  };
+
+  // Function to start the refresh cycle
+  const startRefreshCycle = () => {
+    const accessToken = localStorage.getItem("accessToken");
+    const refreshToken = localStorage.getItem("refreshToken");
+    
+    if (accessToken && refreshToken) {
+      console.log("Starting token refresh cycle");
+      
+      // Set up periodic refresh
+      const interval = setInterval(
+        async () => {
+          try {
+            const refreshToken = localStorage.getItem("refreshToken");
+            if (!refreshToken) {
+              console.log("No refresh token found, stopping refresh cycle");
+              clearInterval(interval);
+              return;
+            }
+
+            const response = await axios.post(
+              `${VITE_API}/auth/refresh`,
+              { refreshToken: refreshToken }
+            );
+
+            console.log("Token refresh successful");
+            localStorage.setItem("accessToken", response.data.accessToken);
+            localStorage.setItem("refreshToken", response.data.refreshToken);
+            token = response.data.accessToken;
+            reftoken = response.data.refreshToken;
+          } catch (error) {
+            console.error("Token refresh failed:", error);
+            clearInterval(interval);
+            removeLogin();
+          }
+        },
+        5 * 60 * 1000 // Refresh every 5 minutes
+      );
+    }
   };
   const removeToken = async () => {
     try {
       const res = await axios.post(`${VITE_API}/api/v1/logout`, config);
 
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
       token = null;
       // setToken(null)
@@ -181,6 +172,7 @@ export const AuthProvider = ({ children }) => {
         saveToken,
         removeToken,
         saveRefreshToken,
+        saveTokens,
         removeLogin,
         islogin,
         setIslogin,

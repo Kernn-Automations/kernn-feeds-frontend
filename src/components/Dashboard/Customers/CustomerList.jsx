@@ -32,9 +32,26 @@ function CustomerList({ navigate, isAdmin }) {
     async function fetchMeta() {
       try {
         setLoading(true);
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to warehouses endpoint
+        let warehousesEndpoint = "/warehouse";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          warehousesEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('CustomerList - Fetching warehouses with endpoint:', warehousesEndpoint);
+        console.log('CustomerList - Division ID:', currentDivisionId);
+        console.log('CustomerList - Division Name:', currentDivisionName);
+        
         const [res1, res2] = await Promise.all([
           axiosAPI.get("/employees/role/Business Officer"),
-          axiosAPI.get("/warehouse"),
+          axiosAPI.get(warehousesEndpoint),
         ]);
         setSalesExecutives(res1.data.employees);
         setWarehouses(res2.data.warehouses);
@@ -56,14 +73,32 @@ function CustomerList({ navigate, isAdmin }) {
         setFilteredCustomers(null);
         setLoading(true);
 
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+
         let query = "";
         if (searchTerm.trim().length >= 3) {
           query = `/customers/search?customerName=${searchTerm.trim()}`;
         } else {
           query = `/customers?${
-            warehouse ? `&warehouseId=${warehouse}` : ""
+            warehouse && warehouse !== "all" ? `&warehouseId=${warehouse}` : ""
           }${se ? `&salesExecutiveId=${se}` : ""}&page=${pageNo}&limit=${limit}`;
         }
+
+        // ✅ Add division parameters to prevent wrong division data
+        if (currentDivisionId && currentDivisionId !== '1') {
+          query += `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          query += `&showAllDivisions=true`;
+        }
+
+        console.log('CustomerList - Fetching customers with query:', query);
+        console.log('CustomerList - Selected warehouse:', warehouse);
+        console.log('CustomerList - Warehouse filter applied:', warehouse && warehouse !== "all");
+        console.log('CustomerList - Division ID:', currentDivisionId);
+        console.log('CustomerList - Division Name:', currentDivisionName);
+        console.log('CustomerList - Division parameters added:', query.includes('divisionId') || query.includes('showAllDivisions'));
 
         const res = await axiosAPI.get(query);
         console.log(res)
@@ -100,12 +135,11 @@ function CustomerList({ navigate, isAdmin }) {
           <div className="col-3 formcontent">
             <label>WareHouse:</label>
             <select
-              value={warehouse ?? "null"}
-              onChange={(e) =>
-                setWarehouse(e.target.value === "null" ? null : e.target.value)
-              }
+              value={warehouse || ""}
+              onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
             >
               <option value="null">--select--</option>
+              <option value="all">All Warehouses</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
@@ -116,10 +150,8 @@ function CustomerList({ navigate, isAdmin }) {
           <div className="col-3 formcontent">
             <label>Sales Executive:</label>
             <select
-              value={se ?? "null"}
-              onChange={(e) =>
-                setSe(e.target.value === "null" ? null : e.target.value)
-              }
+              value={se || ""}
+              onChange={(e) => setSe(e.target.value === "null" ? "" : e.target.value)}
             >
               <option value="null">--select--</option>
               {salesExecutives.map((se) => (

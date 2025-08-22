@@ -65,8 +65,8 @@ function Dispaches({ navigate, warehouses, customers }) {
 
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
-  const [warehouse, setWarehouse] = useState();
-  const [customer, setCustomer] = useState();
+  const [warehouse, setWarehouse] = useState("");
+  const [customer, setCustomer] = useState("");
   const [trigger, setTrigger] = useState(false);
 
   const onSubmit = () => {
@@ -88,15 +88,35 @@ function Dispaches({ navigate, warehouses, customers }) {
       try {
         setOrders(null);
         setLoading(true);
-        // console.log(
-        //   `/sales-orders?status=Confirmed&fromDate=${from}&toDate=${to}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }${customer ? `&customerId=${customer}` : ""}`
-        // );
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let divisionParam = "";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          divisionParam = `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          divisionParam = `&showAllDivisions=true`;
+        }
+        
+        console.log('Dispaches - Fetching orders with warehouse filter:', warehouse);
+        console.log('Dispaches - Warehouse parameter:', warehouseParam);
+        console.log('Dispaches - Division ID:', currentDivisionId);
+        console.log('Dispaches - Division Name:', currentDivisionName);
+        console.log('Dispaches - Division parameters added:', divisionParam);
+        
         const res = await axiosAPI.get(
-          `/sales-orders?status=Dispatched&fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}`
+          `/sales-orders?status=Dispatched&fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
+            customer ? `&customerId=${customer}` : ""
+          }`
         );
         // console.log(res);
         setOrders(res.data.salesOrders);
@@ -140,10 +160,11 @@ function Dispaches({ navigate, warehouses, customers }) {
           <select
             name=""
             id=""
-            value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value === "null" ? null : e.target.value)}
+            value={warehouse || ""}
+            onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
@@ -162,8 +183,8 @@ function Dispaches({ navigate, warehouses, customers }) {
           <select
             name=""
             id=""
-            value={customer}
-            onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}
+            value={customer || ""}
+            onChange={(e) => setCustomer(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
             {customers &&

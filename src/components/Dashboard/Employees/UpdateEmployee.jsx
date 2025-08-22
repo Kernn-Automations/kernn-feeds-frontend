@@ -43,9 +43,26 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
     async function fetchInitial() {
       try {
         setLoading(true);
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to warehouses endpoint
+        let warehousesEndpoint = "/warehouse";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          warehousesEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('UpdateEmployee - Fetching warehouses with endpoint:', warehousesEndpoint);
+        console.log('UpdateEmployee - Division ID:', currentDivisionId);
+        console.log('UpdateEmployee - Division Name:', currentDivisionName);
+        
         const [rolesRes, warehousesRes] = await Promise.all([
           axiosAPI.get("/employees/roles"),
-          axiosAPI.get("/warehouse"),
+          axiosAPI.get(warehousesEndpoint),
         ]);
         setRoles(rolesRes.data.roles || []);
         setWarehouses(warehousesRes.data.warehouses || []);
@@ -226,7 +243,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
               <label className="mt-3">Warehouse:</label>
               <select
                 name="warehouseId"
-                value={form.warehouseId}
+                value={form.warehouseId || ""}
                 onChange={handleFormChange}
               >
                 <option value="">-- Select Warehouse --</option>
@@ -243,7 +260,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
             <>
               <label className="mt-3">Supervisor:</label>
               <select
-                value={selectedSupervisor}
+                value={selectedSupervisor || ""}
                 onChange={(e) => setSelectedSupervisor(e.target.value)}
               >
                 <option value="">-- Select Supervisor --</option>

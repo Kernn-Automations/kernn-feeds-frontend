@@ -2,7 +2,7 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import React, { useEffect, useState } from "react";
-import styles from "./Sales.module.css"; // Import CSS module
+import styles from "./Sales.module.css";
 import DropOffs from "./DropOffs";
 import ProductsList from "./ProductsList";
 import PaymentInfo from "./PaymentInfo";
@@ -27,6 +27,12 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [enteredOtp, setEnteredOtp] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Cancel-related states
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelReason, setShowCancelReason] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+
   const openDialog = () => setIsDialogOpen(true);
   const closeDialog = () => setIsDialogOpen(false);
 
@@ -36,7 +42,6 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
         setLoading(true);
         const res = await axiosAPI.get(`/sales-orders/order/${orderId}`);
         setOrder(res.data);
-        console.log(res);
       } catch (e) {
         setError(e.response?.data?.message || "Something went wrong");
         setIsModalOpen(true);
@@ -45,6 +50,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       }
     }
     fetch();
+    // eslint-disable-next-line
   }, []);
 
   const handleDownload = async () => {
@@ -75,7 +81,6 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       link.remove();
       window.URL.revokeObjectURL(url); // cleanup
     } catch (err) {
-      console.error(err);
       setError("Failed to download PDF.");
       setIsModalOpen(true);
     } finally {
@@ -129,10 +134,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     try {
       setActionLoading(true);
 
-      const res = await axiosAPI.post(`/sales-orders/${orderId}/deliver/otp`, {
+      await axiosAPI.get(`/sales-orders/${orderId}/deliver/otp`, {
         salesOrderId: orderId,
       });
-      console.log(res);
       openDialog();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to send OTP");
@@ -142,8 +146,52 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     }
   };
 
+  // === Cancel order feature ===
+  const handleCancelOrderClick = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false);
+    setShowCancelReason(true);
+  };
+
+  const handleCancelSubmit = async () => {
+  if (!cancelReason.trim()) {
+    setError("Reason is required to cancel order.");
+    setIsModalOpen(true);
+    return;
+  }
+  setCancelLoading(true);
+  try {
+    // Use POST and send reason in body
+    const res = await axiosAPI.post(
+      `/sales-orders/cancel/${orderId}`,
+      { reason: cancelReason }
+    );
+    setOrder({
+      ...order,
+      orderStatus: "Cancelled",
+      cancelledReason: cancelReason,
+      cancelledAt: new Date().toISOString(),
+    });
+    setShowCancelReason(false);
+    setCancelReason("");
+  } catch (err) {
+    setError(err.response?.data?.message || "Failed to cancel order");
+    setIsModalOpen(true);
+  } finally {
+    setCancelLoading(false);
+  }
+};
+  const handleCancelClose = () => {
+    setShowCancelConfirm(false);
+    setShowCancelReason(false);
+    setCancelReason("");
+  };
+
   const findTracking = (status, paymentStatus) => {
-    
+    if (status === "Cancelled") return 100; // Special marker
     if (paymentStatus === "pending") return 2;
     else if (paymentStatus === "awaitingPaymentConfirmation" && status === "pending") return 3;
     else if (status === "Confirmed") return 4;
@@ -173,7 +221,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     <>
       <p className="path">
         <span onClick={() => navigate("/sales")}>Sales</span>{" "}
-        <i class="bi bi-chevron-right"></i> Tracking-Details
+        <i className="bi bi-chevron-right"></i> Tracking-Details
       </p>
 
       {order && (
@@ -195,9 +243,6 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                 <p>Mobile : {order.customer.mobile}</p>
                 <p>WhatsApp : {order.customer.whatsapp}</p>
                 <p>Email : {order.customer.email}</p>
-                {/* <p>
-                <strong>Address:</strong> {order.customer.address}
-              </p> */}
               </div>
             </div>
 
@@ -212,6 +257,70 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                   {downloadLoading ? "Downloading..." : "Download PDF"}
                 </button>
               </div>
+
+              {/* Cancel Button logic */}
+              {(order.orderStatus !== "Dispatched" && order.orderStatus !== "Delivered" && order.orderStatus !== "Cancelled") && (
+                <div style={{ marginTop: "10px" }}>
+                  <button
+                    className={styles.cancelOrderBtn}
+                    onClick={handleCancelOrderClick}
+                    disabled={cancelLoading}
+                  >
+                    {cancelLoading ? "Cancelling..." : "Cancel Order"}
+                  </button>
+                </div>
+              )}
+
+              {/* Cancelled Banner */}
+              {order.orderStatus === "Cancelled" && (
+                <div className={styles.cancelledBanner}>
+                  Order Cancelled
+                  {order.cancelledReason ? (
+                    <div className={styles.cancelledReason}>
+                      <span>Reason: {order.cancelledReason}</span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Cancel Confirmation Modal */}
+              {showCancelConfirm && (
+                <div className={styles.cancelModalOverlay}>
+                  <div className={styles.cancelModalBox}>
+                    <div className={styles.cancelModalTitle}>
+                      Are you sure you want to cancel this order?
+                    </div>
+                    <div className={styles.cancelModalBtns}>
+                      <button className={styles.cancelBtn} onClick={handleCancelClose}>No</button>
+                      <button className={styles.confirmBtn} onClick={handleCancelConfirm}>Yes</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Cancel Reason Modal */}
+              {showCancelReason && (
+                <div className={styles.cancelModalOverlay}>
+                  <div className={styles.cancelModalBox}>
+                    <div className={styles.cancelModalTitle}>
+                      Enter reason for cancellation
+                    </div>
+                    <textarea
+                      className={styles.cancelReasonTextarea}
+                      value={cancelReason}
+                      onChange={e => setCancelReason(e.target.value)}
+                      disabled={cancelLoading}
+                    />
+                    <div className={styles.cancelModalBtns}>
+                      <button className={styles.cancelBtn} onClick={handleCancelClose}>Cancel</button>
+                      <button className={styles.confirmBtn} onClick={handleCancelSubmit} disabled={cancelLoading}>
+                        {cancelLoading ? "Cancelling..." : "Submit"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {downloadLoading && <Loading />}
               {order?.orderStatus === "Confirmed" && (
                 <DispatchForm
@@ -250,17 +359,6 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                   />
                 </>
               )}
-              {/* {showOtpModal && (
-                <div
-                  className="modal d-block"
-                  tabIndex="-1"
-                  style={{ background: "rgba(0,0,0,0.5)" }}
-                >
-                  <div className="modal-dialog modal-dialog-centered">
-                    
-                  </div>
-                </div>
-              )} */}
             </div>
           </div>
 
@@ -268,262 +366,271 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
             <div className="w-100">
               <h6 className={styles.title}>Order Tracking</h6>
               <div className={styles.container}>
-                <div
-                  className={`${styles.timeline} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 0
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`}
-                >
-                  <div className={styles.step}>
+                {/* If Cancelled show only Cancel step */}
+                {findTracking(order.orderStatus, order.paymentRequest?.status) === 100 ? (
+                  <div className={`${styles.timeline} ${styles.linecomplete}`}>
+                    <div className={styles.step}>
+                      <div
+                        className={`${styles.circle} ${styles.cancelledCircle}`}></div>
+<div className={styles.stepText}>
+  <p className={styles.cancelledText}>
+    Order Cancelled
+  </p>
+                        {order.cancelledReason && (
+                          <p className={styles.date}>
+                            Reason: {order.cancelledReason}
+                          </p>
+                        )}
+                        {order.cancelledAt && (
+                          <p className={styles.date}>
+                            Cancelled At: {formatToIST(order.cancelledAt)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                     <div
-                      className={`${styles.circle} ${
+                      className={`${styles.timeline} ${
                         findTracking(order.orderStatus, order.paymentRequest?.status) > 0
-                          ? styles.completed
+                          ? styles.linecomplete
                           : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
-                          ? styles.current
-                          : styles.pending
+                          ? styles.linecurrent
+                          : styles.linepending
                       }`}
-                    ></div>
-                    <div className={styles.stepText}>
-                      <p
-                        className={`${
-                          findTracking(order.orderStatus, order.paymentRequest?.status) > 0
-                            ? styles.completedText
-                            : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
-                            ? styles.currentText
-                            : styles.pendingText
-                        }`}
-                      >
-                        {findTracking(order.orderStatus, order.paymentRequest?.status) > 0
-                          ? "Payment Details Subbmitted"
-                          : "Awaiting For Payment Details"}
-                      </p>
-                      {/* {order.orderStatus && (
-                      <p className={styles.date}>{order.orderStatus}</p>
-                    )} */}
+                    >
+                      <div className={styles.step}>
+                        <div
+                          className={`${styles.circle} ${
+                            findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                              ? styles.completed
+                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
+                              ? styles.current
+                              : styles.pending
+                          }`}
+                        ></div>
+                        <div className={styles.stepText}>
+                          <p
+                            className={`${
+                              findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                                ? styles.completedText
+                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
+                                ? styles.currentText
+                                : styles.pendingText
+                            }`}
+                          >
+                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                              ? "Payment Details Submitted"
+                              : "Awaiting For Payment Details"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {/* 2 */}
-                <div
-                  className={`${styles.timeline} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 1
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`}
-                >
-                  <div className={styles.step}>
                     <div
-                      className={`${styles.circle} ${
+                      className={`${styles.timeline} ${
                         findTracking(order.orderStatus, order.paymentRequest?.status) > 1
-                          ? styles.completed
+                          ? styles.linecomplete
                           : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
-                          ? styles.current
-                          : styles.pending
+                          ? styles.linecurrent
+                          : styles.linepending
                       }`}
-                    ></div>
-                    <div className={styles.stepText}>
-                      <p
-                        className={`${
-                          findTracking(order.orderStatus, order.paymentRequest?.status) > 1
-                            ? styles.completedText
-                            : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
-                            ? styles.currentText
-                            : styles.pendingText
-                        }`}
-                      >
-                        {findTracking(order.orderStatus, order.paymentRequest?.status) > 1
-                          ? "Payment Processed"
-                          : "Awaiting Payment Processing"}
-                      </p>
-                      {/* {order.orderStatus && (
-                      <p className={styles.date}>{order.orderStatus}</p>
-                    )} */}
+                    >
+                      <div className={styles.step}>
+                        <div
+                          className={`${styles.circle} ${
+                            findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                              ? styles.completed
+                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
+                              ? styles.current
+                              : styles.pending
+                          }`}
+                        ></div>
+                        <div className={styles.stepText}>
+                          <p
+                            className={`${
+                              findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                                ? styles.completedText
+                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
+                                ? styles.currentText
+                                : styles.pendingText
+                            }`}
+                          >
+                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                              ? "Payment Processed"
+                              : "Awaiting Payment Processing"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {/* 3 */}
-                <div
-                  className={`${styles.timeline} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 2
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`}
-                >
-                  <div className={styles.step}>
                     <div
-                      className={`${styles.circle} ${
+                      className={`${styles.timeline} ${
                         findTracking(order.orderStatus, order.paymentRequest?.status) > 2
-                          ? styles.completed
+                          ? styles.linecomplete
                           : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
-                          ? styles.current
-                          : styles.pending
+                          ? styles.linecurrent
+                          : styles.linepending
                       }`}
-                    ></div>
-                    <div className={styles.stepText}>
-                      <p
-                        className={`${
-                          findTracking(order.orderStatus, order.paymentRequest?.status) > 2
-                            ? styles.completedText
-                            : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
-                            ? styles.currentText
-                            : styles.pendingText
-                        }`}
-                      >
-                        {findTracking(order.orderStatus, order.paymentRequest?.status) > 2
-                          ? "Payment Approved"
-                          : "Awaiting Payment Approval"}
-                      </p>
-                      {findTracking(order.orderStatus, order.paymentRequest?.status) > 2 &&
-                        order.paymentRequest?.updatedAt && (
-                          <p className={styles.date}>
-                            {formatToIST(order.paymentRequest?.updatedAt)}
+                    >
+                      <div className={styles.step}>
+                        <div
+                          className={`${styles.circle} ${
+                            findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                              ? styles.completed
+                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
+                              ? styles.current
+                              : styles.pending
+                          }`}
+                        ></div>
+                        <div className={styles.stepText}>
+                          <p
+                            className={`${
+                              findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                                ? styles.completedText
+                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
+                                ? styles.currentText
+                                : styles.pendingText
+                            }`}
+                          >
+                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                              ? "Payment Approved"
+                              : "Awaiting Payment Approval"}
                           </p>
-                        )}
+                          {findTracking(order.orderStatus, order.paymentRequest?.status) > 2 &&
+                            order.paymentRequest?.updatedAt && (
+                              <p className={styles.date}>
+                                {formatToIST(order.paymentRequest?.updatedAt)}
+                              </p>
+                            )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {/* 4 */}
-                <div
-                  className={`${styles.timeline} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 3
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`}
-                >
-                  <div className={styles.step}>
                     <div
-                      className={`${styles.circle} ${
+                      className={`${styles.timeline} ${
                         findTracking(order.orderStatus, order.paymentRequest?.status) > 3
-                          ? styles.completed
+                          ? styles.linecomplete
                           : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
-                          ? styles.current
-                          : styles.pending
+                          ? styles.linecurrent
+                          : styles.linepending
                       }`}
-                    ></div>
-                    <div className={styles.stepText}>
-                      <p
-                        className={`${
-                          findTracking(order.orderStatus, order.paymentRequest?.status) > 3
-                            ? styles.completedText
-                            : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
-                            ? styles.currentText
-                            : styles.pendingText
-                        }`}
-                      >
-                        {findTracking(order.orderStatus, order.paymentRequest?.status) > 3
-                          ? "Order Confirmed"
-                          : "Awaiting Order Confirmation"}
-                      </p>
-                      {findTracking(order.orderStatus, order.paymentRequest?.status) > 3 &&
-                        order.updatedAt && (
-                          <p className={styles.date}>
-                            {formatToIST(order?.updatedAt)}
+                    >
+                      <div className={styles.step}>
+                        <div
+                          className={`${styles.circle} ${
+                            findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                              ? styles.completed
+                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
+                              ? styles.current
+                              : styles.pending
+                          }`}
+                        ></div>
+                        <div className={styles.stepText}>
+                          <p
+                            className={`${
+                              findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                                ? styles.completedText
+                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
+                                ? styles.currentText
+                                : styles.pendingText
+                            }`}
+                          >
+                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                              ? "Order Confirmed"
+                              : "Awaiting Order Confirmation"}
                           </p>
-                        )}
+                          {findTracking(order.orderStatus, order.paymentRequest?.status) > 3 &&
+                            order.updatedAt && (
+                              <p className={styles.date}>
+                                {formatToIST(order?.updatedAt)}
+                              </p>
+                            )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {/* 5 */}
-                <div
-                  className={`${`${styles.timeline} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 4
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 4
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`}
-                >
-                  <div className={styles.step}>
                     <div
-                      className={`${styles.circle} ${
+                      className={`${styles.timeline} ${
                         findTracking(order.orderStatus, order.paymentRequest?.status) > 4
-                          ? styles.completed
+                          ? styles.linecomplete
                           : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
-                          ? styles.current
-                          : styles.pending
+                          ? styles.linecurrent
+                          : styles.linepending
                       }`}
-                    ></div>
-                    <div className={styles.stepText}>
-                      <p
-                        className={`${
-                          findTracking(order.orderStatus, order.paymentRequest?.status) > 4
-                            ? styles.completedText
-                            : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
-                            ? styles.currentText
-                            : styles.pendingText
-                        }`}
-                      >
-                        {findTracking(order.orderStatus, order.paymentRequest?.status) > 4
-                          ? "Order Dispatched"
-                          : "Awaiting Order Dispatch"}
-                      </p>
-                      {order.dispatchDate && (
-                        <p className={styles.date}>
-                          {formatToIST(order.dispatchDate)}
-                        </p>
-                      )}
+                    >
+                      <div className={styles.step}>
+                        <div
+                          className={`${styles.circle} ${
+                            findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                              ? styles.completed
+                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
+                              ? styles.current
+                              : styles.pending
+                          }`}
+                        ></div>
+                        <div className={styles.stepText}>
+                          <p
+                            className={`${
+                              findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                                ? styles.completedText
+                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
+                                ? styles.currentText
+                                : styles.pendingText
+                            }`}
+                          >
+                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                              ? "Order Dispatched"
+                              : "Awaiting Order Dispatch"}
+                          </p>
+                          {order.dispatchDate && (
+                            <p className={styles.date}>
+                              {formatToIST(order.dispatchDate)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {/* 6 */}
-                <div
-                  className={`${styles.timelinelast} ${
-                    findTracking(order.orderStatus, order.paymentRequest?.status) > 5
-                      ? styles.linecomplete
-                      : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
-                      ? styles.linecurrent
-                      : styles.linepending
-                  }`}
-                >
-                  <div className={styles.step}>
                     <div
-                      className={`${styles.circle} ${
+                      className={`${styles.timelinelast} ${
                         findTracking(order.orderStatus, order.paymentRequest?.status) > 5
-                          ? styles.completed
+                          ? styles.linecomplete
                           : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
-                          ? styles.current
-                          : styles.pending
+                          ? styles.linecurrent
+                          : styles.linepending
                       }`}
-                    ></div>
-                    <div className={styles.stepText}>
-                      <p
-                        className={`${
-                          findTracking(order.orderStatus, order.paymentRequest?.status) > 5
-                            ? styles.completedText
-                            : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
-                            ? styles.currentText
-                            : styles.pendingText
-                        }`}
-                      >
-                        {findTracking(order.orderStatus, order.paymentRequest?.status) > 5
-                          ? "Order Delivered"
-                          : "Awaiting Order to Deliver"}
-                      </p>
-                      {order.deliveredDate && (
-                        <p className={styles.date}>
-                          {formatToIST(order.deliveredDate)}
-                        </p>
-                      )}
+                    >
+                      <div className={styles.step}>
+                        <div
+                          className={`${styles.circle} ${
+                            findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                              ? styles.completed
+                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
+                              ? styles.current
+                              : styles.pending
+                          }`}
+                        ></div>
+                        <div className={styles.stepText}>
+                          <p
+                            className={`${
+                              findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                                ? styles.completedText
+                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
+                                ? styles.currentText
+                                : styles.pendingText
+                            }`}
+                          >
+                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                              ? "Order Delivered"
+                              : "Awaiting Order to Deliver"}
+                          </p>
+                          {order.deliveredDate && (
+                            <p className={styles.date}>
+                              {formatToIST(order.deliveredDate)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {/*  */}
+                  </>
+                )}
               </div>
             </div>
           </div>

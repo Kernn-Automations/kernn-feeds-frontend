@@ -38,7 +38,7 @@ function SalesRoutes() {
   useEffect(() => {
     async function fetch() {
       try {
-        const res1 = await axiosAPI.get("/warehouse");
+        const res1 = await axiosAPI.get("/warehouses");
         const res2 = await axiosAPI.get("/customers");
 
         // console.log(res1);

@@ -68,26 +68,28 @@ function PaymentReports({ navigate }) {
 
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
-  const [warehouse, setWarehouse] = useState();
+  const [warehouse, setWarehouse] = useState("");
   const [customer, setCustomer] = useState();
-  const [se, setSe] = useState();
+  const [se, setSe] = useState("");
 
   useEffect(() => {
     setReports(null);
     async function fetch() {
       try {
-        // console.log(
-        //   `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }${customer ? `&customerTd=${customer}` : ""}${
-        //     se ? `&salesExecutiveId=${se}` : ""
-        //   }`
-        // );
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+        
+        console.log('PaymentReports - Fetching reports with warehouse filter:', warehouse);
+        console.log('PaymentReports - Warehouse parameter:', warehouseParam);
+        
         setLoading(true);
         const res = await axiosAPI.get(
-          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerTd=${customer}` : ""}${
+          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${warehouseParam}${
+            customer ? `&customerTd=${customer}` : ""
+          }${
             se ? `&salesExecutiveId=${se}` : ""
           }`
         );
@@ -172,15 +174,16 @@ function PaymentReports({ navigate }) {
           <select
             name=""
             id=""
-            value={warehouse}
+            value={warehouse || ""}
             onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
+              setWarehouse(e.target.value === "null" ? "" : e.target.value)
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
-                <option value={warehouse.id}>{warehouse.name}</option>
+                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
               ))}
           </select>
         </div>
@@ -189,9 +192,9 @@ function PaymentReports({ navigate }) {
           <select
             name=""
             id=""
-            value={se}
+            value={se || ""}
             onChange={(e) =>
-              setSe(e.target.value === "null" ? null : e.target.value)
+              setSe(e.target.value === "null" ? "" : e.target.value)
             }
           >
             <option value="null">--select--</option>

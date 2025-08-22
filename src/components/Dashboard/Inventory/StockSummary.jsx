@@ -22,12 +22,43 @@ function StockSummary({navigate}) {
 
   useEffect(() => {
     axiosAPI
-      .get("/warehouse")
+      .get("/warehouses")
       .then((res) => setWarehouses(res.data.warehouses || []))
       .catch(() => {
         setError("Failed to load warehouse list");
         setIsModalOpen(true);
       });
+  }, []);
+
+  // ✅ Updated useEffect with division parameters
+  useEffect(() => {
+    async function fetchWarehouses() {
+      try {
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoint
+        let endpoint = "/warehouses";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('StockSummary - Fetching warehouses with endpoint:', endpoint);
+        console.log('StockSummary - Division ID:', currentDivisionId);
+        console.log('StockSummary - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
+        setWarehouses(res.data.warehouses || []);
+      } catch (error) {
+        setError("Failed to load warehouse list");
+        setIsModalOpen(true);
+      }
+    }
+    
+    fetchWarehouses();
   }, []);
 
   const fetchStock = async () => {
@@ -39,7 +70,25 @@ function StockSummary({navigate}) {
 
     setLoading(true);
     try {
-      const query = `/warehouse/stock-summary?fromDate=${from}&toDate=${to}${warehouseId ? `&warehouseId=${warehouseId}` : ""}`;
+      // ✅ Get division ID from localStorage for division filtering
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      const currentDivisionName = localStorage.getItem('currentDivisionName');
+      
+      // ✅ Add division parameters to prevent wrong division data
+      let divisionParam = "";
+      if (currentDivisionId && currentDivisionId !== '1') {
+        divisionParam = `&divisionId=${currentDivisionId}`;
+      } else if (currentDivisionId === '1') {
+        divisionParam = `&showAllDivisions=true`;
+      }
+      
+      const query = `/warehouse/stock-summary?fromDate=${from}&toDate=${to}${warehouseId ? `&warehouseId=${warehouseId}` : ""}${divisionParam}`;
+      
+      console.log('StockSummary - Fetching stock with query:', query);
+      console.log('StockSummary - Division ID:', currentDivisionId);
+      console.log('StockSummary - Division Name:', currentDivisionName);
+      console.log('StockSummary - Division parameters added:', divisionParam);
+      
       const res = await axiosAPI.get(query);
       console.log(res);
       setStockData(res.data.data || {});

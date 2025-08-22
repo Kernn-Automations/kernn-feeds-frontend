@@ -67,13 +67,13 @@ function AddProduct({ navigate }) {
 
   const [name, setName] = useState();
   const [sku, setSku] = useState();
-  const [category, setCategory] = useState();
+  const [category, setCategory] = useState("");
   const [units, setUnits] = useState();
   const [description, setDescription] = useState();
   const [baseprice, setBaseprice] = useState();
   const [purchaseprice, setPurchaseprice] = useState();
   const [thresholdValue, setThresholdValue] = useState();
-  const [productType, setProductType] = useState();
+  const [productType, setProductType] = useState("");
   const [packageWeight, setPackageWeight] = useState();
   const [packageWeightUnit, setPackageWeightUnit] = useState();
   const [pricing, setPricing] = useState();
@@ -362,7 +362,7 @@ function AddProduct({ navigate }) {
           <select
             name=""
             id=""
-            value={category}
+            value={category || ""}
             onChange={(e) => onError(e, category, setCategory)}
             required
             className={errors.category ? styles.errorField : ""}
@@ -379,7 +379,7 @@ function AddProduct({ navigate }) {
           <select
             name=""
             id=""
-            value={productType}
+            value={productType || ""}
             onChange={(e) => onError(e, productType, setProductType)}
             required
             className={errors.productType ? styles.errorField : ""}

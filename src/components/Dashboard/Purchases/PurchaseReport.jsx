@@ -30,7 +30,7 @@ function PurchaseReport({ navigate }) {
   useEffect(() => {
     async function fetch() {
       try {
-        const res1 = await axiosAPI.get("/warehouse");
+        const res1 = await axiosAPI.get("/warehouses");
         // console.log(res1);
         setWarehouses(res1.data.warehouses);
       } catch (e) {
@@ -46,18 +46,20 @@ function PurchaseReport({ navigate }) {
 
   const [purchases, setPurchases] = useState();
 
-  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  // Set default date range to last 6 months to get more records
+  const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 
   const today = new Date(Date.now()).toISOString().slice(0, 10);
 
-  const [from, setFrom] = useState(date);
+  const [from, setFrom] = useState(sixMonthsAgo);
   const [to, setTo] = useState(today);
   const [trigger, setTrigger] = useState(false);
   const [warehouse, setWarehouse] = useState();
 
   const onSubmit = () => {
+    console.log(from, to, warehouse, customer);
     setTrigger(trigger ? false : true);
   };
 
@@ -65,32 +67,126 @@ function PurchaseReport({ navigate }) {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
 
+  // Reset page number when limit changes
+  useEffect(() => {
+    setPageNo(1);
+  }, [limit]);
+
+  // Global refresh function for purchase orders
+  const refreshPurchaseOrders = async () => {
+    try {
+      setPurchases(null);
+      setLoading(true);
+
+      // Build query with optional date filters
+      let query = `/purchases`;
+      const params = [];
+      
+      if (from && to) {
+        params.push(`fromDate=${from}&toDate=${to}`);
+      }
+      
+      if (warehouse && warehouse !== "null") {
+        params.push(`warehouseId=${warehouse}`);
+      }
+      
+      if (params.length > 0) {
+        query += `?${params.join('&')}`;
+      }
+
+      console.log("Refreshing purchase orders...");
+      console.log("API Query:", query);
+
+      const res = await axiosAPI.get(query);
+      console.log("Refresh - Full API Response:", res);
+      console.log("Refresh - API purchaseOrders:", res.data.purchaseOrders);
+      
+      // Client-side pagination since backend is not respecting limit
+      const allPurchases = res.data.purchaseOrders || [];
+      const startIndex = (pageNo - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedPurchases = allPurchases.slice(startIndex, endIndex);
+      
+      setPurchases(paginatedPurchases);
+      console.log("✅ Purchase orders refreshed successfully");
+    } catch (error) {
+      console.error("❌ Error refreshing purchase orders:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Set global function for other components to use
+  React.useEffect(() => {
+    window.refreshPurchaseOrders = refreshPurchaseOrders;
+    return () => {
+      delete window.refreshPurchaseOrders;
+    };
+  }, [from, to, warehouse, pageNo, limit]);
+
   useEffect(() => {
     async function fetch() {
       try {
         setPurchases(null);
         setLoading(true);
 
-        const query = `/purchases?fromDate=${from}&toDate=${to}${
-          warehouse ? `&warehouseId=${warehouse}` : ""
-        }&page=${pageNo}&limit=${limit}`;
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
 
-        console.log(query);
+        // Build query with optional date filters and division parameters
+        let query = `/purchases`;
+        const params = [];
+        
+        if (from && to) {
+          params.push(`fromDate=${from}&toDate=${to}`);
+        }
+        
+        if (warehouse && warehouse !== "null") {
+          params.push(`warehouseId=${warehouse}`);
+        }
+        
+        // ✅ Add division parameters
+        if (currentDivisionId && currentDivisionId !== '1') {
+          params.push(`divisionId=${currentDivisionId}`);
+        } else if (currentDivisionId === '1') {
+          params.push(`showAllDivisions=true`);
+        }
+        
+        if (params.length > 0) {
+          query += `?${params.join('&')}`;
+        }
+
+        console.log("PurchaseReport - API Query:", query);
+        console.log("PurchaseReport - Division ID:", currentDivisionId);
+        console.log("PurchaseReport - Division Name:", currentDivisionName);
+        console.log("PurchaseReport - Limit value:", limit, "Type:", typeof limit);
+        console.log("PurchaseReport - Page number:", pageNo);
 
         const res = await axiosAPI.get(query);
-        console.log(res);
-        setPurchases(res.data.purchaseOrders);
-        setTotalPages(res.data.totalPages);
+        console.log("Full API Response:", res);
+        console.log("API purchaseOrders:", res.data.purchaseOrders);
+        console.log("Total Pages:", res.data.totalPages);
+        console.log("Records returned:", res.data.purchaseOrders?.length || 0);
+        
+        // Client-side pagination since backend is not respecting limit
+        const allPurchases = res.data.purchaseOrders || [];
+        const startIndex = (pageNo - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedPurchases = allPurchases.slice(startIndex, endIndex);
+        
+        setPurchases(paginatedPurchases);
+        setTotalPages(Math.ceil(allPurchases.length / limit));
       } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+        console.log("API Error:", e);
+        setError(e.response?.data?.message || "An error occurred");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
     fetch();
-  }, [trigger, pageNo, limit]);
+  }, [trigger, pageNo, limit, from, to, warehouse]);
 
   const [tableData, setTableData] = useState([]);
 
@@ -102,10 +198,10 @@ function PurchaseReport({ navigate }) {
       purchases.map((st) =>
         arr.push({
           "S.No": x++,
-          Date: st.date.slice(0, 10),
-          "PO ID": st.ordernumer,
-          "Warehouse Name": st.warehouse?.name || "na",
-          "Net Amount": st.totalAmount,
+  Date: st.createdAt ? st.createdAt.slice(0, 10) : '',
+  "PO ID": st.orderNumber || st.ordernumber || 'N/A',
+  "Warehouse Name": st.warehouse || warehouses?.find(w => w.id === st.warehouseId)?.name || st.warehouseId || 'N/A',
+  "Net Amount": st.totalAmount || "",
         })
       );
       setTableData(arr);
@@ -170,6 +266,9 @@ function PurchaseReport({ navigate }) {
           <button className="cancelbtn" onClick={() => navigate("/purchases")}>
             Cancel
           </button>
+          <button className="btn btn-info ms-2" onClick={refreshPurchaseOrders}>
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -191,7 +290,7 @@ function PurchaseReport({ navigate }) {
               name=""
               id=""
               value={limit}
-              onChange={(e) => setLimit(e.target.value)}
+              onChange={(e) => setLimit(Number(e.target.value))}
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -208,6 +307,7 @@ function PurchaseReport({ navigate }) {
                   <th>Date</th>
                   <th>Purchase ID</th>
                   <th>Warehouse</th>
+                  <th>Status</th>
                   {/* <th>Net Amount</th> */}
                   <th>Action</th>
                 </tr>
@@ -215,26 +315,29 @@ function PurchaseReport({ navigate }) {
               <tbody>
                 {purchases.length === 0 && (
                   <tr>
-                    <td colSpan={6}>NO DATA FOUND</td>
+      <td colSpan={7}>NO DATA FOUND</td>
                   </tr>
                 )}
                 {purchases.length > 0 &&
-                  purchases.map((order) => (
+                  purchases.map((order, index) => (
                     <tr
                       key={order.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <td>{index++}</td>
-                      <td>{order.date}</td>
-                      <td>{order.ordernumer}</td>
-                      <td>{order.warehouse.name}</td>
-                      {/* <td>{order.totalAmount !== undefined && order.totalAmount !== null ? order.totalAmount : "—"}</td> */}
+                      <td>{index + 1}</td>
+        <td>{order.createdAt ? order.createdAt.slice(0, 10) : ''}</td>
+        <td>{order.orderNumber || order.ordernumber || 'N/A'}</td>
+        <td>
+          {order.warehouse || warehouses?.find(w => w.id === order.warehouseId)?.name || order.warehouseId || 'N/A'}
+        </td>
+        <td>
+          <span className={`badge ${order.status === 'Received' ? 'bg-success' : 'bg-warning'}`}>
+            {order.status === 'Received' ? 'Stocked In' : 'Pending'}
+          </span>
+        </td>
                       <td>
-                        <ReportViewModal
-                          order={order}
-                          warehouses={warehouses}
-                        />
+          <ReportViewModal order={order} warehouses={warehouses} setWarehouses={setWarehouses} />
                       </td>
                     </tr>
                   ))}

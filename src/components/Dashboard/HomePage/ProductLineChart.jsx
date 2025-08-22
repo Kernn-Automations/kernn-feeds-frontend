@@ -13,14 +13,21 @@ import styles from "./HomePage.module.css";
 function ProductLineChart({ salesAnalysis }) {
   const data = [];
 
-  if (salesAnalysis)
-    salesAnalysis.data.map((sale) =>
+  // Handle different data structures from backend
+  if (salesAnalysis) {
+    // Check if it's the new structure (direct array) or old structure (with data property)
+    const salesData = Array.isArray(salesAnalysis) ? salesAnalysis : salesAnalysis.data;
+    
+    if (salesData && Array.isArray(salesData)) {
+      salesData.map((sale) =>
       data.push({ date: sale.date, sales: sale.sales })
     );
+    }
+  }
 
   return (
     <>
-      {salesAnalysis && salesAnalysis.data?.length !== 0 && (
+      {salesAnalysis && data.length > 0 && (
         <div className={`col-6 ${styles.bigbox}`}>
           <h4>Sales Analysis</h4>
           <div className={styles.chartcontainer}>

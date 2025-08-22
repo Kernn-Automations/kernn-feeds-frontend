@@ -37,7 +37,7 @@ useEffect(() => {
       const roles = user?.roles || []; // make sure it's an array
       //const roles = ["Area Business Manager"]; // For testing purposes, replace with user.roles in production
       // Determine endpoint
-      let endpoint = "/warehouse";
+      let endpoint = "/warehouses";
 
       const managerRoles = [
         "Area Business Manager",
@@ -49,9 +49,23 @@ useEffect(() => {
       const isManager = managerRoles.some(role => roles.includes(role));
 
       if (isManager && !isAdmin) {
-        endpoint = "/warehouse/manager";
-
+        endpoint = "/warehouses/manager";
       }
+
+      // ✅ Get division ID from localStorage for division filtering
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      const currentDivisionName = localStorage.getItem('currentDivisionName');
+      
+      // ✅ Add division parameters to endpoint
+      if (currentDivisionId && currentDivisionId !== '1') {
+        endpoint += `?divisionId=${currentDivisionId}`;
+      } else if (currentDivisionId === '1') {
+        endpoint += `?showAllDivisions=true`;
+      }
+      
+      console.log('OngoingWarehouse - Fetching warehouses with endpoint:', endpoint);
+      console.log('OngoingWarehouse - Division ID:', currentDivisionId);
+      console.log('OngoingWarehouse - Division Name:', currentDivisionName);
 
       const res = await axiosAPI.get(endpoint);
       setWarehouses(res.data.warehouses);

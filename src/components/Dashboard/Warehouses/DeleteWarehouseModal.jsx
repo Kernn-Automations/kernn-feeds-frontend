@@ -29,7 +29,24 @@ function DeleteWarehouseModal() {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/warehouse");
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoint
+        let endpoint = "/warehouses";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('DeleteWarehouseModal - Fetching warehouses with endpoint:', endpoint);
+        console.log('DeleteWarehouseModal - Division ID:', currentDivisionId);
+        console.log('DeleteWarehouseModal - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
         // console.log(res);
         setWarehouses(res.data.warehouses);
       } catch (e) {
@@ -55,7 +72,7 @@ function DeleteWarehouseModal() {
     async function del() {
       try {
         setLoading(true);
-        const res = await axiosAPI.delete(`/warehouse/delete/${warehouse}`);
+        const res = await axiosAPI.delete(`/warehouses/delete/${warehouse}`);
         // console.log(res);
         setError(res.data.message);
         setIssuccessModalOpen(true)

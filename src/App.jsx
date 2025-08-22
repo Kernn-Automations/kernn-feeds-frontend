@@ -1,183 +1,95 @@
-import { useEffect, useRef, useState } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "./Auth";
-// import Dashboard from './components/Dashboard/Dashboard';
-// import Login from './components/Login';
-// import ProtectedRoute from './ProtectedRoute';
+// src/App.jsx
+import React, { useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./Auth";              // <-- just the hook
 import "./App.css";
-import { logEvent } from "./utils/logger";
-
 import { lazy, Suspense } from "react";
-import PageSkeleton from "./components/SkeletonLoaders/PageSkeleton";
 import DashboardSkeleton from "./components/SkeletonLoaders/DashboardSkeleton";
-import LoginSkeleton from "./components/SkeletonLoaders/LoginSkeleton";
+import LoginSkeleton     from "./components/SkeletonLoaders/LoginSkeleton";
 
-// Lazy-loaded components
-const Dashboard = lazy(() => import("./components/Dashboard/Dashboard"));
-const Login = lazy(() => import("./components/Login"));
+
+// lazy imports
+const Dashboard      = lazy(() => import("./components/Dashboard/Dashboard"));
+const Login          = lazy(() => import("./components/Login"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
+const Divs           = lazy(() => import("./pages/Divs"));
 
-function App() {
+// Import all the route components
+const InventoryRoutes = lazy(() => import("./components/Dashboard/Inventory/InventoryRoutes"));
+const PurchaseRoutes  = lazy(() => import("./components/Dashboard/Purchases/PurchaseRoutes"));
+const SalesRoutes     = lazy(() => import("./components/Dashboard/Sales/SalesRoutes"));
+const CustomerRoutes  = lazy(() => import("./components/Dashboard/Customers/CustomerRoutes"));
+const PaymentRoutes   = lazy(() => import("./components/Dashboard/Payments/PaymentRoutes"));
+const EmployeeRoutes  = lazy(() => import("./components/Dashboard/Employees/EmployeeRoutes"));
+const WarehouseRoutes = lazy(() => import("./components/Dashboard/Warehouses/WarehouseRoutes"));
+const ProductRoutes   = lazy(() => import("./components/Dashboard/Products/ProductRoutes"));
+const LocationsHome   = lazy(() => import("./components/Dashboard/Locations/LocationsHome"));
+const InvoiceRoutes   = lazy(() => import("./components/Dashboard/Invoice/InvoiceRoutes"));
+const StockRoutes     = lazy(() => import("./components/Dashboard/StockTransfer/StockRoutes"));
+const DiscountRoutes  = lazy(() => import("./components/Dashboard/Discounts/DiscountRoutes"));
+const DivisionManager = lazy(() => import("./components/Dashboard/DivisionManager"));
+const HomePage        = lazy(() => import("./components/Dashboard/HomePage/HomePage"));
+const SettingRoutes   = lazy(() => import("./components/Dashboard/SettingsTab/SettingRoutes"));
+
+
+
+export default function App() {
   const { islogin, setIslogin } = useAuth();
+  const token = localStorage.getItem("accessToken");
 
-  const [role, setRole] = useState(null);
-  const [dept, setDept] = useState(null);
-  const [admin, setAdmin] = useState(null);
-  const [orgadmin, setOrgadmin] = useState(null);
-
-  const user = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("access_token");
-
-  // Loggers
-  const [logs, setLogs] = useState([]);
-
+  // restore your old islogin logic
   useEffect(() => {
-    // Load logs from localStorage on mount
-    const storedLogs = JSON.parse(localStorage.getItem("logs")) || [];
-    setLogs(storedLogs);
-
-    // Event Listeners
-    const handleClick = (e) => {
-      if (e.target.tagName === "BUTTON") {
-        // console.log("if called");
-        logEvent("Click", `Clicked on ${e.target.textContent}`);
-      } else {
-        // console.log("else called");
-        logEvent("Click", `Clicked on ${e.target.tagName}`);
-      }
-      setLogs(JSON.parse(localStorage.getItem("logs")));
-      // console.log(e);
-    };
-
-    const handleError = (e) => {
-      logEvent("Error", e.message);
-      setLogs(JSON.parse(localStorage.getItem("logs")));
-    };
-
-    window.addEventListener("click", handleClick);
-    window.addEventListener("error", handleError);
-
-    return () => {
-      window.removeEventListener("click", handleClick);
-      window.removeEventListener("error", handleError);
-    };
-  }, []);
-
-  const clearLogs = () => {
-    setLogs([]);
-    localStorage.removeItem("logs");
-  };
-
-  // ✅ Correct way to set islogin
-  useEffect(() => {
-    setIslogin(!!token);
+    console.log('App.jsx - Token changed:', token ? 'EXISTS' : 'MISSING');
+    console.log('App.jsx - Current pathname:', window.location.pathname);
+    
+    // Only set login state if we're not already on a protected route
+    if (window.location.pathname === '/login') {
+      setIslogin(!!token);
+    } else if (token) {
+      setIslogin(true);
+    }
   }, [token, setIslogin]);
 
-  // ✅ Handle role, dept, and admin state when islogin and user are available
-  useEffect(() => {
-    if (islogin && user) {
-      if (
-        // user.email === 'harikrishna@kernn.ai' ||
-        // user.email === 'founder@kernn.ai' ||
-        // user.email === 'cto@kernn.ai' ||
-        // user.email === 'tanishka@kernn.ai'
-        false
-      ) {
-        setAdmin(true);
-        setOrgadmin(true);
-      } else {
-        setAdmin(false);
-        setOrgadmin(false);
-        setRole(user?.roles[0].name);
-
-        switch (user?.department) {
-          case 1:
-            setDept("procurement");
-            break;
-          case 2:
-            setDept("production");
-            break;
-          case 3:
-            setDept("sales");
-            break;
-          case 4:
-            setDept("stores");
-            break;
-          case 5:
-            setDept("finance");
-            break;
-          default:
-            setDept(null);
-        }
-      }
-    }
-  }, [islogin, user]);
-
-  // console.log(user);
-
-
-  // Prevent Right click and inspect
-  // useEffect(() => {
-  //   // Disable right-click
-  //   const handleContextMenu = (e) => {
-  //     e.preventDefault();
-  //   };
-
-  //   // Block Alt + Shift + I
-  //   const handleKeyDown = (e) => {
-  //     if (e.altKey && e.shiftKey && e.key.toLowerCase() === "i") {
-  //       e.preventDefault();
-  //       console.log("Alt + Shift + I blocked");
-  //     }
-  //   };
-
-  //   document.addEventListener("contextmenu", handleContextMenu);
-  //   document.addEventListener("keydown", handleKeyDown);
-
-  //   return () => {
-  //     document.removeEventListener("contextmenu", handleContextMenu);
-  //     document.removeEventListener("keydown", handleKeyDown);
-  //   };
-  // }, []);
-
   return (
-    <>
-      <Routes>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <Suspense fallback={<LoginSkeleton />}>
+            <Login />
+          </Suspense>
+        }
+      />
+
+      <Route path="/divs" element={<Divs />} />
+      
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute token={token} />}>
+        {/* Dashboard with nested routes */}
         <Route
-          path="/login"
+          path="/*"
           element={
-            islogin ? (
-              <Navigate to="/" />
-            ) : (
-              <Suspense fallback={<LoginSkeleton />}>
-                <Login />
-              </Suspense>
-            )
+            <Suspense fallback={<DashboardSkeleton />}>
+              <Dashboard />
+            </Suspense>
           }
         />
-        <Route element={<ProtectedRoute token={token} />}>
-          <Route
-            path="/*"
-            element={
-              <Suspense fallback={<DashboardSkeleton />}>
-                <Dashboard
-                  admin={admin}
-                  role={role}
-                  dept={dept}
-                  setAdmin={() => {
-                    setAdmin(true);
-                    setDept(null);
-                  }}
-                  orgadmin={orgadmin}
-                />
-              </Suspense>
-            }
-          />
-          <Route path="/admin" element={<Navigate to="/" />} />
-        </Route>
-      </Routes>
-    </>
+        
+        {/* Direct routes to different sections */}
+        {/* <Route path="/home" element={
+          <Suspense fallback={<DashboardSkeleton />}>
+            <HomePage />
+          </Suspense>
+        } /> */}
+        
+        
+        {/* <Route path="/divisions" element={
+          <Suspense fallback={<DashboardSkeleton />}>
+            <DivisionManager />
+          </Suspense>
+        } /> */}
+        
+      </Route>
+    </Routes>
   );
 }
-
-export default App;

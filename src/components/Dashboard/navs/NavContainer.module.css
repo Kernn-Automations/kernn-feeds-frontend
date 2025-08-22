@@ -19,6 +19,13 @@
 .navicons {
   background-color: #d9d9d9;
   margin-top: 10px;
+   height: calc(100% - 80px);
+  overflow: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  
+ 
 }
 
 .navicons > div a {
