@@ -52,21 +52,40 @@ function Orders({
       try {
         setOrders(null);
         setLoading(true);
-        console.log(
-          `/sales-orders?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}${
-            status ? `&orderStatus=${status}` : ""
-          }&page=${pageNo}&limit=${limit}`
-        );
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let divisionParam = "";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          divisionParam = `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          divisionParam = `&showAllDivisions=true`;
+        }
+        
+        console.log('Orders - Fetching orders with warehouse filter:', warehouse);
+        console.log('Orders - Warehouse parameter:', warehouseParam);
+        console.log('Orders - Division ID:', currentDivisionId);
+        console.log('Orders - Division Name:', currentDivisionName);
+        console.log('Orders - Division parameters added:', divisionParam);
+        
+        const query = `/sales-orders?fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
+          customer ? `&customerId=${customer}` : ""
+        }${
+          status ? `&status=${status}` : ""
+        }&page=${pageNo}&limit=${limit}`;
+        
+        console.log('Orders - Final query:', query);
 
-        const res = await axiosAPI.get(
-          `/sales-orders?fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}${
-            status ? `&status=${status}` : ""
-          }&page=${pageNo}&limit=${limit}`
-        );
+        const res = await axiosAPI.get(query);
         console.log(res, limit);
         const ordersData = res.data.salesOrders || res.data.orders || res.data;
         setOrders(Array.isArray(ordersData) ? ordersData : []);
@@ -217,6 +236,7 @@ function Orders({
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>

@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import styles from "./Customer.module.css";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import ChartComponent from "../../ChartComponent";
 import { useAuth } from "@/Auth";
-import LoadingAnimation from "@/components/LoadingAnimation";
-import customerAni from "../../../images/animations/fetchingAnimation.gif";
+import Loading from "@/components/Loading";
 
 function CustomerHome({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -31,7 +30,7 @@ function CustomerHome({ navigate, isAdmin }) {
   }, []);
 
   // Transform backend data for Chart.js format
-  const trendData = React.useMemo(() => {
+  const trendData = useMemo(() => {
     if (!customerData?.newCustomersTrend || !Array.isArray(customerData.newCustomersTrend)) {
       return {
         labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
@@ -66,7 +65,7 @@ function CustomerHome({ navigate, isAdmin }) {
     };
   }, [customerData?.newCustomersTrend]);
 
-  const typeData = React.useMemo(() => {
+  const typeData = useMemo(() => {
     if (!customerData?.customerTypes || !Array.isArray(customerData.customerTypes)) {
       return {
         labels: ["Bill-to-Bill", "Monthly"],
@@ -106,81 +105,91 @@ function CustomerHome({ navigate, isAdmin }) {
 
   return (
     <>
-      {/* Loading Animation */}
-      {loading && <LoadingAnimation gif={customerAni} msg="Loading customer dashboard..." />}
-
-      {!loading && (
-        <>
+      {/* Error Display */}
+      {error && (
+        <div className="container-fluid">
           <div className="row m-0 p-3">
-            <div className="col">
-              {isAdmin && (
-                <button
-                  className="homebtn"
-                  onClick={() => navigate("/customers/create")}
-                >
-                  Create Customer
-                </button>
-              )}
-              <button
-                className="homebtn"
-                onClick={() => navigate("/customers/customer-list")}
-              >
-                Customers List
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/customers/kyc-approvals")}
-              >
-                KYC Approvals
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/customers/reports")}
-              >
-                Customer Reports
-              </button>
+            <div className="col text-center">
+              <div className="alert alert-danger">
+                <strong>Error loading customer dashboard</strong>
+                <br />
+                <small>{error}</small>
+              </div>
             </div>
-            {/* Cards */}
-            <Flex wrap="wrap" justify="space-between" px={4} marginTop={50}>
-              <ReusableCard 
-                title="Total Customers" 
-                value={customerData?.totalCustomers ?? "0"} 
-              />
-              <ReusableCard 
-                title="Active Customers" 
-                value={customerData?.activeCustomers ?? "0"} 
-                color="green.500" 
-              />
-              <ReusableCard 
-                title="Pending KYC" 
-                value={customerData?.pendingKYC ?? "0"} 
-                color="yellow.500" 
-              />
-            </Flex>
-
-            {/* Charts */}
-            <Flex wrap="wrap" px={4}>
-              {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
-                <ChartComponent
-                  type="line"
-                  title="New Customers Trend"
-                  data={trendData}
-                  options={{ responsive: true }}
-                />
-              )}
-              {typeData && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
-                <ChartComponent
-                  type="doughnut"
-                  title="Customer Types"
-                  data={typeData}
-                  options={{ responsive: true }}
-                  legendPosition="left"
-                />
-              )}
-            </Flex>
           </div>
-        </>
+        </div>
       )}
+
+      {/* Buttons - Always visible */}
+      <div className="row m-0 p-3">
+        <div className="col">
+          {isAdmin && (
+            <button
+              className="homebtn"
+              onClick={() => navigate("/customers/create")}
+            >
+              Create Customer
+            </button>
+          )}
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/customer-list")}
+          >
+            Customers List
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/kyc-approvals")}
+          >
+            KYC Approvals
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/reports")}
+          >
+            Customer Reports
+          </button>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <Flex wrap="wrap" justify="space-between" px={4} marginTop={50}>
+        <ReusableCard 
+          title="Total Customers" 
+          value={customerData?.totalCustomers ?? (loading ? <Loading /> : "0")} 
+        />
+        <ReusableCard 
+          title="Active Customers" 
+          value={customerData?.activeCustomers ?? (loading ? <Loading /> : "0")} 
+          color="green.500" 
+        />
+        <ReusableCard 
+          title="Pending KYC" 
+          value={customerData?.pendingKYC ?? (loading ? <Loading /> : "0")} 
+          color="yellow.500" 
+        />
+      </Flex>
+
+      {/* Charts */}
+      <Flex wrap="wrap" px={4}>
+        {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="line"
+            title="New Customers Trend"
+            data={trendData}
+            options={{ responsive: true }}
+          />
+        )}
+        {typeData && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="doughnut"
+            title="Customer Types"
+            data={typeData}
+            options={{ responsive: true }}
+            legendPosition="left"
+          />
+        )}
+      </Flex>
     </>
   );
 }

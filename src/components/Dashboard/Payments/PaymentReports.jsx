@@ -76,18 +76,20 @@ function PaymentReports({ navigate }) {
     setReports(null);
     async function fetch() {
       try {
-        // console.log(
-        //   `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }${customer ? `&customerTd=${customer}` : ""}${
-        //     se ? `&salesExecutiveId=${se}` : ""
-        //   }`
-        // );
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+        
+        console.log('PaymentReports - Fetching reports with warehouse filter:', warehouse);
+        console.log('PaymentReports - Warehouse parameter:', warehouseParam);
+        
         setLoading(true);
         const res = await axiosAPI.get(
-          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerTd=${customer}` : ""}${
+          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${warehouseParam}${
+            customer ? `&customerTd=${customer}` : ""
+          }${
             se ? `&salesExecutiveId=${se}` : ""
           }`
         );
@@ -178,9 +180,10 @@ function PaymentReports({ navigate }) {
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
-                <option value={warehouse.id}>{warehouse.name}</option>
+                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
               ))}
           </select>
         </div>

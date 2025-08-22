@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import styles from "./DivisionSelector.module.css";
+import { useDivision } from "../context/DivisionContext";
 
 export default function DivisionSelector({ userData }) {
   const [divisions, setDivisions] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { setSelectedDivision, refreshData } = useDivision();
 
   useEffect(() => {
     if (!userData?.user?.showDivisions) return;
@@ -49,6 +51,7 @@ export default function DivisionSelector({ userData }) {
         return alert("Unable to select division.");
       }
     }
+    
     // Store selected division with proper fields
     const divisionData = {
       id: division.id,
@@ -58,18 +61,36 @@ export default function DivisionSelector({ userData }) {
       createdAt: division.createdAt,
       updatedAt: division.updatedAt
     };
+    
+    // Update the division context
+    setSelectedDivision(divisionData);
+    
+    // Store in localStorage
     localStorage.setItem("selectedDivision", JSON.stringify(divisionData));
     localStorage.setItem(
       "user",
       JSON.stringify({ ...userData.user, showDivisions: false })
     );
+    
+    // Trigger data refresh for all components
+    refreshData();
+    
     // Navigate to dashboard instead of reloading
     window.location.href = '/';
   };
 
-  if (!userData?.user?.showDivisions) return null;
+  console.log('DivisionSelector - Checking conditions:', {
+    userData,
+    showDivisions: userData?.user?.showDivisions,
+    shouldShow: userData?.user?.showDivisions
+  });
+  
+  if (!userData?.user?.showDivisions) {
+    console.log('DivisionSelector - Not showing because showDivisions is false');
+    return null;
+  }
   if (loading) return <p>Loading divisions…</p>;
-  if (error)   return (
+  if (error) return (
     <div>
       <p style={{ color: "red" }}>{error}</p>
       <button onClick={() => window.location.reload()}>Retry</button>

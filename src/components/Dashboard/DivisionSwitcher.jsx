@@ -1,107 +1,76 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../Auth";
 import { useNavigate } from "react-router-dom";
+import { useDivision } from "../context/DivisionContext";
 import styles from "./DivisionSwitcher.module.css";
 
 function DivisionSwitcher() {
   const { axiosAPI } = useAuth();
   const navigate = useNavigate();
-  const [divisions, setDivisions] = useState([]);
-  const [selectedDivision, setSelectedDivision] = useState(null);
+  const { 
+    divisions, 
+    selectedDivision, 
+    setSelectedDivision, 
+    loading: contextLoading,
+    reload: reloadDivisions,
+    reset: resetDivisions
+  } = useDivision();
+  
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState(null);
   const user = JSON.parse(localStorage.getItem("user"));
-  const storedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
 
   useEffect(() => {
-    // Always try to fetch divisions if user exists
-    if (user) {
-      fetchUserDivisions();
+    // Only fetch divisions once when component mounts or when user changes
+    // Also check if divisions are already loaded to prevent unnecessary API calls
+    if (user && divisions.length === 0) {
+      reloadDivisions().catch(err => {
+        console.error("Failed to load divisions:", err);
+        setError("Failed to load divisions");
+      });
     }
-    if (storedDivision) {
-      setSelectedDivision(storedDivision);
-    }
-  }, []);
+  }, [user, divisions.length]); // Add divisions.length to prevent unnecessary calls
 
-  const fetchUserDivisions = async () => {
-    try {
-      setLoading(true);
-      console.log("Fetching divisions for user:", user);
-      
-      // Try multiple endpoints to get divisions
-      let divisionsData = [];
-      
-      try {
-        // First try the user-divisions endpoint
-        const response = await axiosAPI.get("/divisions/user-divisions");
-        console.log("Divisions API response:", response);
-        
-        if (response.status === 200) {
-          divisionsData = response.data.divisions || response.data.data || response.data || [];
-          console.log("Fetched divisions from user-divisions:", divisionsData);
-        }
-      } catch (error) {
-        console.log("user-divisions endpoint failed, trying /divisions");
-        
-        try {
-          // If user-divisions fails, try the main divisions endpoint
-          const response = await axiosAPI.get("/divisions");
-          console.log("Main divisions API response:", response);
-          
-          if (response.status === 200) {
-            divisionsData = response.data.divisions || response.data.data || response.data || [];
-            console.log("Fetched divisions from /divisions:", divisionsData);
-          }
-        } catch (secondError) {
-          console.log("Main divisions endpoint also failed, trying /divisions/all");
-          
-          try {
-            // If main divisions fails, try the all divisions endpoint
-            const response = await axiosAPI.get("/divisions/all");
-            console.log("All divisions API response:", response);
-            
-            if (response.status === 200) {
-              divisionsData = response.data.divisions || response.data.data || response.data || [];
-              console.log("Fetched divisions from /divisions/all:", divisionsData);
-            }
-          } catch (thirdError) {
-            console.error("All division endpoints failed:", thirdError);
-          }
-        }
-      }
-      
-      // If we still don't have divisions, use fallback data
-      if (!divisionsData || divisionsData.length === 0) {
-        console.log("No divisions from API, using fallback data");
-        divisionsData = [
-          { id: 1, name: "Default Division", state: "Default" },
-          { id: 2, name: "Maharastra", state: "Maharastra" },
-          { id: 3, name: "Telangana", state: "Telangana" }
-        ];
-      }
-      
-      console.log("Final divisions data:", divisionsData);
-      setDivisions(divisionsData);
-      
-      // If no division is selected, select the first one
-      if (!storedDivision && divisionsData.length > 0) {
-        setSelectedDivision(divisionsData[0]);
-        localStorage.setItem("selectedDivision", JSON.stringify(divisionsData[0]));
-      }
-      
-    } catch (error) {
-      console.error("Error fetching divisions:", error);
-      // Set fallback divisions if all API calls fail
-      const fallbackDivisions = [
-        { id: 1, name: "Default Division", state: "Default" },
-        { id: 2, name: "Maharastra", state: "Maharastra" },
-        { id: 3, name: "Telangana", state: "Telangana" }
-      ];
-      setDivisions(fallbackDivisions);
-    } finally {
-      setLoading(false);
+  // Reset error when divisions load successfully
+  useEffect(() => {
+    if (divisions.length > 0) {
+      setError(null);
     }
-  };
+  }, [divisions.length]);
+
+  // Listen for division change events
+  useEffect(() => {
+    const handleDivisionChange = (event) => {
+      const { divisionId, division } = event.detail;
+      console.log('DivisionSwitcher - Division changed to:', divisionId);
+      console.log('DivisionSwitcher - Division details:', division);
+      // The context will handle the state update automatically
+    };
+
+    window.addEventListener('divisionChanged', handleDivisionChange);
+    return () => {
+      window.removeEventListener('divisionChanged', handleDivisionChange);
+    };
+  }, []);
+  
+  // Add logging for context updates
+  useEffect(() => {
+    console.log('DivisionSwitcher - Context updated:', {
+      selectedDivision,
+      selectedDivisionName: selectedDivision?.name,
+      selectedDivisionId: selectedDivision?.id,
+      divisionsCount: divisions.length,
+      timestamp: new Date().toISOString()
+    });
+  }, [selectedDivision, divisions.length]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setError(null);
+      setLoading(false);
+    };
+  }, []);
 
   const handleDivisionClick = () => {
     // Navigate to the /divs route instead of reloading the page
@@ -113,19 +82,47 @@ function DivisionSwitcher() {
     return null;
   }
 
-  console.log("DivisionSwitcher render - divisions:", divisions);
+  // Remove console.log statements to prevent console spam
+  // console.log("DivisionSwitcher render - divisions:", divisions);
+  // console.log("DivisionSwitcher render - selectedDivision:", selectedDivision);
 
   return (
     <div className={styles.container}>
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '10px', fontSize: '12px' }}>
+          {error}
+          <button 
+            onClick={() => {
+              setError(null);
+              reloadDivisions().catch(err => {
+                console.error("Failed to reload divisions:", err);
+                setError("Failed to reload divisions");
+              });
+            }}
+            style={{ marginLeft: '10px', padding: '2px 8px', fontSize: '10px' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className={styles.selector}>
         <div className={styles.divisionDisplay}>
           <span className={styles.divisionName}>
-            {loading ? "Loading..." : (selectedDivision?.name || "Select Division")}
+            {(() => {
+              const displayName = contextLoading || loading ? "Loading..." : (selectedDivision?.name || "Select Division");
+              console.log('DivisionSwitcher - Rendering division name:', {
+                contextLoading,
+                loading,
+                selectedDivisionName: selectedDivision?.name,
+                finalDisplayName: displayName
+              });
+              return displayName;
+            })()}
           </span>
           <button
             className={styles.backArrowButton}
             onClick={handleDivisionClick}
-            disabled={loading}
+            disabled={contextLoading || loading}
           >
             <span className={styles.backArrow}>
               ←

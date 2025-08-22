@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/Auth";
+import { useDivision } from "@/components/context/DivisionContext"; // ✅ Add division context
 import LoadingAnimation from "@/components/LoadingAnimation";
 import ErrorModal from "@/components/ErrorModal";
 import inventoryAni from "../../../images/animations/fetchingAnimation.gif";
@@ -10,12 +11,14 @@ import pdf from "../../../images/pdf.jpg.jpg";
 
 function CurrentStock({ navigate }) {
   const { axiosAPI } = useAuth();
+  const { selectedDivision, showAllDivisions } = useDivision(); // ✅ Add division context
   const [loading, setLoading] = useState(false);
   const [currentStock, setCurrentStock] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [filteredStock, setFilteredStock] = useState([]);
 
   useEffect(() => {
     // Get user data from localStorage
@@ -24,6 +27,8 @@ function CurrentStock({ navigate }) {
     
     // Fetch warehouses and current stock
     fetchWarehouses();
+    // Also fetch current stock immediately
+    fetchCurrentStock();
   }, []);
 
   useEffect(() => {
@@ -31,30 +36,43 @@ function CurrentStock({ navigate }) {
     if (warehouses.length > 0) {
       fetchCurrentStock();
     }
-  }, [selectedWarehouse, warehouses]);
+  }, [selectedWarehouse]);
+
+  // ✅ Monitor division changes and refetch data when division changes
+  useEffect(() => {
+    const divisionId = selectedDivision?.id;
+    if (divisionId) {
+      fetchCurrentStock();
+    }
+  }, [selectedDivision?.id]);
+
+  // Filter stock based on warehouse selection
+  useEffect(() => {
+    let filtered = currentStock;
+    
+    // Filter by warehouse
+    if (selectedWarehouse !== "all") {
+      const selectedWarehouseName = warehouses.find(w => w.id == selectedWarehouse)?.name;
+      if (selectedWarehouseName) {
+        filtered = filtered.filter(item => 
+          item.warehouseName === selectedWarehouseName
+        );
+      }
+    }
+    
+    setFilteredStock(filtered);
+  }, [currentStock, selectedWarehouse, warehouses]);
 
   const fetchWarehouses = async () => {
     try {
+      // Get warehouses from the inventory response instead of separate API call
+      // This ensures we have the exact warehouses that have stock data
       const userData = JSON.parse(localStorage.getItem("user"));
       const roles = userData?.roles || [];
       
-      // Determine endpoint based on user role
-      let endpoint = "/warehouses";
-      const managerRoles = [
-        "Area Business Manager",
-        "Regional Business Manager",
-        "Zonal Business Manager"
-      ];
-      
-      const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
-      const isManager = managerRoles.some(role => roles.includes(role));
-      
-      if (isManager && !isAdmin) {
-        endpoint = "/warehouses/manager";
-      }
-      
-      const res = await axiosAPI.get(endpoint);
-      setWarehouses(res.data.warehouses || []);
+      // We'll get warehouses from the inventory response
+      // For now, set an empty array and populate it after fetching inventory
+      setWarehouses([]);
     } catch (err) {
       console.error("Error fetching warehouses:", err);
       setError("Failed to load warehouses");
@@ -66,18 +84,30 @@ function CurrentStock({ navigate }) {
       setLoading(true);
       setError(null);
       
+      // ✅ Get division ID from division context for proper filtering
+      const divisionId = selectedDivision?.id;
+      
+      // ✅ Wait for division to be available
+      if (!divisionId) {
+        setLoading(false);
+        setCurrentStock([]);
+        setWarehouses([]);
+        return;
+      }
+      
       const userData = JSON.parse(localStorage.getItem("user"));
       const roles = userData?.roles || [];
       
-      // Use the existing warehouse stock summary endpoint
-      // For current stock, we'll use today's date as both from and to
-      const today = new Date().toISOString().split('T')[0];
+      // Use the correct inventory endpoint
+      let endpoint = "/inventory/current-stock";
+      const params = {};
       
-      let endpoint = "/warehouse/stock-summary";
-      const params = {
-        fromDate: today,
-        toDate: today
-      };
+      // ✅ Use proper division filtering logic
+      if (showAllDivisions) {
+        params.showAllDivisions = 'true';
+      } else if (divisionId && divisionId !== 'all') {
+        params.divisionId = divisionId;
+      }
       
       const isAdmin = roles.includes("Admin") || roles.includes("Super Admin");
       
@@ -94,50 +124,92 @@ function CurrentStock({ navigate }) {
         }
       }
       
-      const res = await axiosAPI.get(endpoint, { params });
+      let res;
+      try {
+        // Try the main endpoint first
+        res = await axiosAPI.get(endpoint, { params });
+      } catch (mainError) {
+        // Try fallback endpoints
+        const fallbackEndpoints = [
+          "/inventory/stock",
+          "/stock/current",
+          "/products/stock"
+        ];
+        
+        for (const fallbackEndpoint of fallbackEndpoints) {
+          try {
+            res = await axiosAPI.get(fallbackEndpoint, { params });
+            break; // Success, exit loop
+          } catch (fallbackError) {
+            continue; // Try next endpoint
+          }
+        }
+        
+        // If all fallbacks failed, throw the original error
+        if (!res) {
+          throw mainError;
+        }
+      }
       
-      // Transform the data to show current stock
-      if (res.data.data) {
-        const stockData = res.data.data;
+      // Transform the data to show current stock using the correct backend structure
+      if (res.data && res.data.inventory) {
+        const inventoryData = res.data.inventory;
         let transformedStock = [];
         
-        if (Array.isArray(stockData)) {
-          // New format: flat array
-          transformedStock = stockData.map(item => ({
-            id: item.productId,
-            productName: item.product?.name || item.productName || "N/A",
-            productCode: item.product?.code || item.productCode || "N/A",
-            warehouseName: item.warehouse?.name || item.warehouseName || "N/A",
-            currentStock: item.closingStock || 0,
-            unit: item.unit || "kg",
-            unitPrice: item.product?.price || 0,
-            lastUpdated: item.date || today
-          }));
+        if (Array.isArray(inventoryData) && inventoryData.length > 0) {
+          // Transform the inventory data to match the table structure
+          transformedStock = inventoryData.map((item, index) => {
+            const transformed = {
+              id: item.id || index,
+              productName: item.product?.name || "N/A",
+              productCode: item.product?.SKU || "N/A", // ✅ Use SKU from product
+              warehouseName: item.warehouse?.name || "N/A",
+              currentStock: parseFloat(item.stockQuantity) || 0,
+              unit: item.product?.unit || "kg",
+              unitPrice: parseFloat(item.product?.basePrice) || 0, // ✅ Use basePrice from product
+              stockValue: parseFloat(item.stockValue) || 0, // ✅ Use stockValue from inventory
+              isLowStock: item.isLowStock || false,
+              stockStatus: item.stockStatus || "normal",
+              lastUpdated: item.lastUpdated || new Date().toISOString(),
+              productType: item.product?.productType || "unknown"
+            };
+            
+            return transformed;
+          });
+          
+          // Extract unique warehouses from the inventory data
+          const uniqueWarehouses = [];
+          const warehouseMap = new Map();
+          
+          inventoryData.forEach(item => {
+            if (item.warehouse && item.warehouse.id && !warehouseMap.has(item.warehouse.id)) {
+              warehouseMap.set(item.warehouse.id, item.warehouse);
+              uniqueWarehouses.push({
+                id: item.warehouse.id,
+                name: item.warehouse.name
+              });
+            }
+          });
+          
+          // Update warehouses state with the actual warehouses from inventory
+          setWarehouses(uniqueWarehouses);
         } else {
-          // Old format: nested structure - extract current stock from today's data
-          const todayData = stockData[today.split('-')[0]]?.[today.split('-')[1]]?.[today.split('-')[2]];
-          if (todayData) {
-            transformedStock = Object.entries(todayData).map(([productId, product]) => ({
-              id: productId,
-              productName: product.productName || "N/A",
-              productCode: product.productCode || "N/A",
-              warehouseName: "Current Warehouse", // This would need to be enhanced
-              currentStock: product.closing || 0,
-              unit: product.primaryUnit || "kg",
-              unitPrice: product.unitPrice || 0,
-              lastUpdated: today
-            }));
-          }
+          // ✅ No data found for this division
+          setCurrentStock([]);
+          setWarehouses([]);
+          setError(`No inventory data found for the selected division`);
         }
         
         setCurrentStock(transformedStock);
       } else {
+        setError("No inventory data in response");
         setCurrentStock([]);
+        setWarehouses([]);
       }
     } catch (err) {
-      console.error("Error fetching current stock:", err);
       setError(err?.response?.data?.message || "Failed to load current stock");
       setCurrentStock([]);
+      setWarehouses([]);
     } finally {
       setLoading(false);
     }
@@ -152,7 +224,7 @@ function CurrentStock({ navigate }) {
   };
 
   const onExport = (type) => {
-    if (currentStock.length === 0) {
+    if (filteredStock.length === 0) {
       setError("No data to export");
       return;
     }
@@ -169,7 +241,7 @@ function CurrentStock({ navigate }) {
       "Last Updated"
     ];
 
-    const rows = currentStock.map((item, index) => [
+    const rows = filteredStock.map((item, index) => [
       index + 1,
       item.productName,
       item.productCode,
@@ -177,7 +249,7 @@ function CurrentStock({ navigate }) {
       item.currentStock,
       item.unit,
       `₹${item.unitPrice}`,
-      `₹${(item.currentStock * item.unitPrice).toLocaleString()}`,
+      `₹${item.stockValue.toLocaleString()}`,
       item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A'
     ]);
 
@@ -200,10 +272,25 @@ function CurrentStock({ navigate }) {
       {/* Loading Animation */}
       {loading && <LoadingAnimation gif={inventoryAni} msg="Loading current stock..." />}
 
+      {/* ✅ Show loading when waiting for division */}
+      {!loading && !selectedDivision?.id && (
+        <div className="container-fluid">
+          <div className="row m-0 p-3">
+            <div className="col text-center">
+              <div className="alert alert-info">
+                <strong>Please select a division to view current stock</strong>
+                <br />
+                <small>Waiting for division selection...</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Modal */}
       {error && <ErrorModal message={error} onClose={closeErrorModal} />}
 
-      {!loading && (
+      {!loading && selectedDivision?.id && (
         <div className="container-fluid">
           {/* Header */}
           <div className="row m-0 p-3">
@@ -218,196 +305,142 @@ function CurrentStock({ navigate }) {
             </div>
           </div>
 
-          {/* Summary Cards */}
-          {currentStock.length > 0 && (
+          {/* ✅ Show empty state when no data */}
+          {currentStock.length === 0 && !error && (
             <div className="row m-0 p-3">
-              <div className="col-md-2">
-                <div className="card bg-primary text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">Total Products</h5>
-                    <h3>{currentStock.length}</h3>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-2">
-                <div className="card bg-success text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">In Stock</h5>
-                    <h3>
-                      {currentStock.filter(item => item.currentStock > 0).length}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-2">
-                <div className="card bg-warning text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">Low Stock</h5>
-                    <h3>
-                      {currentStock.filter(item => item.currentStock <= 10 && item.currentStock > 0).length}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-2">
-                <div className="card bg-danger text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">Out of Stock</h5>
-                    <h3>
-                      {currentStock.filter(item => item.currentStock === 0).length}
-                    </h3>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-2">
-                <div className="card bg-info text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">Total Value</h5>
-                    <h3>
-                      ₹{(currentStock.reduce((total, item) => total + (item.currentStock * item.unitPrice), 0) / 100000).toFixed(2)}L
-                    </h3>
-                    
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-2">
-                <div className="card bg-secondary text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">Packed Products</h5>
-                    <h3>
-                      {currentStock.filter(item => {
-                        // Check if product name contains keywords that indicate packed products
-                        const productName = (item.productName || '').toLowerCase();
-                        const unit = (item.unit || '').toLowerCase();
-                        
-                        // Check product name for packed keywords
-                        const hasPackedName = productName.includes('pack') || 
-                               productName.includes('bag') || 
-                               productName.includes('box') || 
-                               productName.includes('container') ||
-                               productName.includes('sachet') ||
-                               productName.includes('bottle') ||
-                               productName.includes('can') ||
-                               productName.includes('jar');
-                        
-                        // Check unit for packed units
-                        const hasPackedUnit = unit.includes('packet') || 
-                               unit.includes('packets') || 
-                               unit.includes('bag') || 
-                               unit.includes('bags') || 
-                               unit.includes('box') || 
-                               unit.includes('boxes') || 
-                               unit.includes('bottle') || 
-                               unit.includes('bottles') || 
-                               unit.includes('can') || 
-                               unit.includes('cans') || 
-                               unit.includes('jar') || 
-                               unit.includes('jars') || 
-                               unit.includes('sachet') || 
-                               unit.includes('sachets') ||
-                               unit.includes('container') || 
-                               unit.includes('containers');
-                        
-                        return hasPackedName || hasPackedUnit;
-                      }).length}
-                    </h3>
-                    <small>Packed Items</small>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-2">
-                <div className="card bg-dark text-white">
-                  <div className="card-body">
-                    <h5 className="card-title">Loose Products</h5>
-                    <h3>
-                      {currentStock.filter(item => {
-                        // Check if product name contains keywords that indicate loose products
-                        const productName = (item.productName || '').toLowerCase();
-                        const unit = (item.unit || '').toLowerCase();
-                        
-                        // Check product name for packed keywords
-                        const hasPackedName = productName.includes('pack') || 
-                               productName.includes('bag') || 
-                               productName.includes('box') || 
-                               productName.includes('container') ||
-                               productName.includes('sachet') ||
-                               productName.includes('bottle') ||
-                               productName.includes('can') ||
-                               productName.includes('jar');
-                        
-                        // Check unit for packed units
-                        const hasPackedUnit = unit.includes('packet') || 
-                               unit.includes('packets') || 
-                               unit.includes('bag') || 
-                               unit.includes('bags') || 
-                               unit.includes('box') || 
-                               unit.includes('boxes') || 
-                               unit.includes('bottle') || 
-                               unit.includes('bottles') || 
-                               unit.includes('can') || 
-                               unit.includes('cans') || 
-                               unit.includes('jar') || 
-                               unit.includes('jars') || 
-                               unit.includes('sachet') || 
-                               unit.includes('sachets') ||
-                               unit.includes('container') || 
-                               unit.includes('containers');
-                        
-                        // Loose products are those that are NOT packed
-                        return !hasPackedName && !hasPackedUnit;
-                      }).length}
-                    </h3>
-                    <small>Loose Items</small>
-                  </div>
+              <div className="col text-center">
+                <div className="alert alert-warning">
+                  <strong>No inventory data found</strong>
+                  <br />
+                  <small>There are no products in stock for the selected division.</small>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Warehouse Filter */}
-          <div className="row m-0 p-3">
-            <div className={`col-md-3 ${styles.dateForms}`}>
-              <label htmlFor="warehouseSelect" className="form-label">
-                Warehouse
-              </label>
-              <select
-                id="warehouseSelect"
-                className="form-select"
-                value={selectedWarehouse}
-                onChange={handleWarehouseChange}
-              >
-                <option value="all">-- All Warehouses --</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name || warehouse.warehouseName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-9 d-flex align-items-end">
-              <button 
-                className="submitbtn me-2"
-                onClick={fetchCurrentStock}
-              >
-                Submit
-              </button>
-              <button 
-                className="cancelbtn"
-                onClick={() => navigate('/inventory')}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          {/* Summary Cards - Only show when there's data */}
+          {currentStock.length > 0 && (
+            <>
+              {/* First Row - 5 main cards */}
+              <div className="row m-0 p-3 justify-content-center">
+                <div className="col-md-2">
+                  <div className="card bg-primary text-white">
+                    <div className="card-body">
+                      <h5 className="card-title">Total Products</h5>
+                      <h3>{filteredStock.length}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-2">
+                  <div className="card bg-success text-white">
+                    <div className="card-body">
+                      <h5 className="card-title">In Stock</h5>
+                      <h3>
+                        {filteredStock.filter(item => item.currentStock > 0).length}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-2">
+                  <div className="card bg-warning text-white">
+                    <div className="card-body">
+                      <h5 className="card-title">Low Stock</h5>
+                      <h3>
+                        {filteredStock.filter(item => item.isLowStock).length}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-2">
+                  <div className="card bg-danger text-white">
+                    <div className="card-body">
+                      <h5 className="card-title">Out of Stock</h5>
+                      <h3>
+                        {filteredStock.filter(item => item.currentStock === 0).length}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-2">
+                  <div className="card bg-info text-white">
+                    <div className="card-body">
+                      <h5 className="card-title">Total Value</h5>
+                      <h3>
+                        ₹{(filteredStock.reduce((total, item) => total + item.stockValue, 0) / 100000).toFixed(2)}L
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-          
+              {/* Second Row - 2 centered small horizontal cards */}
+              <div className="row m-0 p-3 justify-content-center">
+                <div className="col-md-3">
+                  <div className="card bg-secondary text-white">
+                    <div className="card-body text-center">
+                      <h6 className="card-title mb-1">Packed Products</h6>
+                      <h4 className="mb-0">
+                        {filteredStock.filter(item => item.productType === "packed").length}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-dark text-white">
+                    <div className="card-body text-center">
+                      <h6 className="card-title mb-1">Loose Products</h6>
+                      <h4 className="mb-0">
+                        {filteredStock.filter(item => item.productType === "loose").length}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
-          
-        </div>
-      )}
-      {/* Stock Table */}
-          {currentStock && (
+          {/* Search and Filter Section - Only show when there's data */}
+          {currentStock.length > 0 && (
+            <div className="row m-0 p-3">
+              <div className="col-md-3">
+                <label htmlFor="warehouseSelect" className="form-label">
+                  Warehouse
+                </label>
+                <select
+                  id="warehouseSelect"
+                  className="form-select"
+                  value={selectedWarehouse}
+                  onChange={handleWarehouseChange}
+                >
+                  <option value="all">-- All Warehouses --</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name || warehouse.warehouseName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-3 d-flex align-items-end">
+                <button 
+                  className="submitbtn me-2"
+                  onClick={fetchCurrentStock}
+                >
+                  Submit
+                </button>
+                <button 
+                  className="cancelbtn"
+                  onClick={() => navigate('/inventory')}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Stock Table - Only show when there's data */}
+          {currentStock.length > 0 && (
             <div className="row m-0 p-3 justify-content-around">
+              
               <div className="col-lg-5">
                 <button className={styles.xls} onClick={() => onExport("XLS")}>
                   <p>Export to </p>
@@ -434,12 +467,12 @@ function CurrentStock({ navigate }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentStock.length === 0 ? (
+                    {filteredStock.length === 0 ? (
                       <tr>
                         <td colSpan={9}>NO DATA FOUND</td>
                       </tr>
                     ) : (
-                      currentStock.map((item, index) => (
+                      filteredStock.map((item, index) => (
                         <tr key={item.id || index} className="animated-row">
                           <td>{index + 1}</td>
                           <td>{item.productName}</td>
@@ -447,14 +480,21 @@ function CurrentStock({ navigate }) {
                           <td>{item.warehouseName}</td>
                           <td>
                             <span className={`badge ${
-                              item.currentStock > 0 ? 'bg-success' : 'bg-danger'
+                              item.isLowStock 
+                                ? 'bg-warning' 
+                                : item.currentStock > 0 
+                                  ? 'bg-success' 
+                                  : 'bg-danger'
                             }`}>
                               {item.currentStock}
                             </span>
+                            {item.isLowStock && (
+                              <small className="text-warning d-block">Low Stock</small>
+                            )}
                           </td>
                           <td>{item.unit}</td>
                           <td>₹{item.unitPrice}</td>
-                          <td>₹{(item.currentStock * item.unitPrice).toLocaleString()}</td>
+                          <td>₹{item.stockValue.toLocaleString()}</td>
                           <td>
                             {item.lastUpdated 
                               ? new Date(item.lastUpdated).toLocaleDateString()
@@ -469,6 +509,8 @@ function CurrentStock({ navigate }) {
               </div>
             </div>
           )}
+        </div>
+      )}
     </>
     
   );

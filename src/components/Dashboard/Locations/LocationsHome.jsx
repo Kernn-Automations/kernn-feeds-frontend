@@ -17,6 +17,7 @@ function LocationsHome() {
   const [locations, setLocations] = useState([]);
   const [activeMarker, setActiveMarker] = useState(null); // For InfoWindow popup
   const [loading, setLoading] = useState(false);
+  const [latestLocations, setLatestLocations] = useState([]); // For all employees' latest locations
   const { axiosAPI } = useAuth();
 
   // Google Maps API key
@@ -28,14 +29,93 @@ function LocationsHome() {
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const res = await axiosAPI.get("/employees");
-        setEmployees(res.data.employees || []);
+        setLoading(true);
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // Use the new dedicated endpoint for location dropdown
+        let endpoint = "/employees/for-location-dropdown";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('LocationsHome - Fetching employees with endpoint:', endpoint);
+        console.log('LocationsHome - Division ID:', currentDivisionId);
+        console.log('LocationsHome - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
+        console.log('LocationsHome - Employee response:', res.data);
+        
+        // Handle the new backend response structure
+        if (res.data && res.data.success && res.data.data && Array.isArray(res.data.data)) {
+          console.log('Setting employees from res.data.data:', res.data.data);
+          setEmployees(res.data.data);
+        } else if (res.data && res.data.employees && Array.isArray(res.data.employees)) {
+          console.log('Setting employees from res.data.employees:', res.data.employees);
+          setEmployees(res.data.employees);
+        } else if (res.data && Array.isArray(res.data)) {
+          console.log('Setting employees from res.data array:', res.data);
+          setEmployees(res.data);
+        } else {
+          console.log('No valid employee data found, setting empty array');
+          setEmployees([]);
+        }
       } catch (e) {
-        // handle error
+        console.error('LocationsHome - Failed to fetch employees:', e);
+        setEmployees([]);
+      } finally {
+        setLoading(false);
       }
     }
     fetchEmployees();
-  }, []);
+  }, [axiosAPI]);
+
+  // Fetch latest locations for all employees in current division
+  useEffect(() => {
+    async function fetchLatestLocations() {
+      try {
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        
+        if (!currentDivisionId || currentDivisionId === '1') {
+          // If "All Divisions" is selected, use the all-employees-latest endpoint
+          const res = await axiosAPI.get('/location/all-employees-latest');
+          if (res.data && res.data.success && res.data.divisions) {
+            // Flatten all divisions' data
+            const allLocations = [];
+            res.data.divisions.forEach(division => {
+              if (division.employees) {
+                division.employees.forEach(emp => {
+                  if (emp.location) {
+                    allLocations.push({
+                      ...emp.location,
+                      employee: emp.employee,
+                      division: division.division
+                    });
+                  }
+                });
+              }
+            });
+            setLatestLocations(allLocations);
+          }
+        } else {
+          // Use division-specific endpoint
+          const res = await axiosAPI.get(`/location/latest/division/${currentDivisionId}`);
+          if (res.data && res.data.success && res.data.data) {
+            setLatestLocations(res.data.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch latest locations:', err);
+        setLatestLocations([]);
+      }
+    }
+    
+    fetchLatestLocations();
+  }, [axiosAPI]);
 
   // Fetch locations
   useEffect(() => {
@@ -44,18 +124,54 @@ function LocationsHome() {
 
     // Fetch previous locations for selected employee and date
     setLoading(true);
+    
+    // Get division ID for location filtering
+    const currentDivisionId = localStorage.getItem('currentDivisionId');
+    
+    // Use the correct endpoint structure: /location/history?divisionId=X
+    let endpoint = `/location/history`;
+    if (currentDivisionId && currentDivisionId !== '1') {
+      endpoint += `?divisionId=${currentDivisionId}`;
+    } else if (currentDivisionId === '1') {
+      endpoint += `?showAllDivisions=true`;
+    }
+    
+    // Add employee filter if specific employee is selected
+    if (selectedEmployee) {
+      endpoint += `${endpoint.includes('?') ? '&' : '?'}employeeId=${selectedEmployee}`;
+    }
+    
+    // Add date filter
+    if (selectedDate) {
+      endpoint += `${endpoint.includes('?') ? '&' : '?'}date=${selectedDate}`;
+    }
+    
+    console.log('LocationsHome - Fetching locations with endpoint:', endpoint);
+    
     axiosAPI
-      .get(`/location/history?employeeId=${selectedEmployee}&date=${selectedDate}`)
+      .get(endpoint)
       .then(res => {
-        setLocations(res.data.locations || []);
+        console.log('LocationsHome - Location response:', res.data);
+        
+        // Handle the backend response structure
+        if (res.data && res.data.success && res.data.locations && Array.isArray(res.data.locations)) {
+          setLocations(res.data.locations);
+        } else if (res.data && res.data.locations && Array.isArray(res.data.locations)) {
+          setLocations(res.data.locations);
+        } else if (res.data && Array.isArray(res.data)) {
+          setLocations(res.data);
+        } else {
+          setLocations([]);
+        }
       })
       .catch(err => {
         console.error("Error fetching locations:", err);
+        setLocations([]);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [selectedEmployee, selectedDate]);
+  }, [selectedEmployee, selectedDate, axiosAPI]);
 
   // Center map on latest location or default
   const latest = locations.length > 0 ? locations[locations.length - 1] : null;
@@ -82,14 +198,26 @@ function LocationsHome() {
                 id="employee-select"
                 value={selectedEmployee}
                 onChange={e => setSelectedEmployee(e.target.value)}
+                disabled={loading}
               >
                 <option value="">-- Select Employee --</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name || emp.fullName || emp.employeeId || emp.id}
-                  </option>
-                ))}
+                {loading ? (
+                  <option value="" disabled>Loading employees...</option>
+                ) : employees.length === 0 ? (
+                  <option value="" disabled>No employees found</option>
+                ) : (
+                  employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name || emp.fullName || emp.employeeId || emp.id}
+                    </option>
+                  ))
+                )}
               </select>
+              {employees.length > 0 && (
+                <small className="text-muted">
+                  {employees.length} employee(s) found
+                </small>
+              )}
             </div>
             <div className="col-3 formcontent">
               <label htmlFor="date-select">Select Date: </label>
@@ -116,8 +244,98 @@ function LocationsHome() {
       {/* Loading Animation */}
       {loading && <LoadingAnimation gif={locationAni} msg="Fetching location data..." />}
 
+      {/* Summary Info */}
+      {!loading && employees.length > 0 && (
+        <div className="row m-0 p-3 justify-content-center">
+          <div className="col-md-10">
+            <div className="alert alert-success">
+              <strong>Current Division:</strong> {localStorage.getItem('currentDivisionName') || 'N/A'} 
+              <br />
+              <strong>Available Employees:</strong> {employees.length}
+              {selectedEmployee && (
+                <>
+                  <br />
+                  <strong>Selected Employee:</strong> {employees.find(emp => emp.id == selectedEmployee)?.name || 'N/A'}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Latest Locations Overview */}
+      {!loading && latestLocations.length > 0 && (
+        <div className="row m-0 p-3 justify-content-center">
+          <div className="col-md-10">
+            <div className="alert alert-info">
+              <h6><strong>Latest Locations Overview</strong></h6>
+              <div className="row">
+                <div className="col-md-6">
+                  <strong>Employees with Location:</strong> {latestLocations.filter(loc => loc.latitude && loc.longitude).length}
+                </div>
+                <div className="col-md-6">
+                  <strong>Employees without Location:</strong> {latestLocations.filter(loc => !loc.latitude || !loc.longitude).length}
+                </div>
+              </div>
+              <small className="text-muted">
+                Showing latest known location for each employee in current division
+              </small>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Data Message */}
+      {!loading && type === "employee" && selectedEmployee && locations.length === 0 && (
+        <div className="row m-0 p-3 justify-content-center">
+          <div className="col-md-10">
+            <div className="alert alert-info text-center">
+              <h5>No Location Data Found</h5>
+              <p>No location data available for the selected employee and date.</p>
+              <button 
+                className="btn btn-primary me-2" 
+                onClick={() => window.location.reload()}
+              >
+                Refresh Page
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setSelectedEmployee("");
+                  setLocations([]);
+                }}
+              >
+                Select Different Employee
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View All Latest Locations Button */}
+      {!loading && type === "employee" && !selectedEmployee && latestLocations.length > 0 && (
+        <div className="row m-0 p-3 justify-content-center">
+          <div className="col-md-10">
+            <div className="text-center">
+              <button 
+                className="btn btn-outline-primary btn-lg"
+                onClick={() => {
+                  // Show all latest locations on map
+                  setLocations(latestLocations.filter(loc => loc.latitude && loc.longitude));
+                }}
+              >
+                📍 View All Latest Locations on Map
+              </button>
+              <p className="text-muted mt-2">
+                Click to see the latest known location of all employees in the current division
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Map Section */}
-      {type === "employee" && selectedEmployee && isLoaded && !loading && (
+      {type === "employee" && isLoaded && !loading && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-md-10">
             <GoogleMap
@@ -125,8 +343,8 @@ function LocationsHome() {
               center={center}
               zoom={15}
             >
-              {/* Polyline for flow/route */}
-              {locations.length > 1 && (
+              {/* Polyline for flow/route - only show for individual employee */}
+              {selectedEmployee && locations.length > 1 && (
                 <Polyline
                   path={locations.map(loc => ({
                     lat: Number(loc.latitude),
@@ -140,102 +358,78 @@ function LocationsHome() {
                   }}
                 />
               )}
-              {/* Stylish dot markers and InfoWindow with IST + battery */}
-              {(() => {
-                // Find the latest location by comparing timestamps
-                let latestLocation = null;
-                let latestTime = 0;
+              {/* Markers for locations */}
+              {locations.map((loc, idx) => {
+                // Handle both individual employee locations and latest locations
+                const employee = loc.employee || employees.find(emp => emp.id == selectedEmployee);
+                const isLatest = !selectedEmployee; // If no employee selected, all are "latest"
                 
-                locations.forEach(loc => {
+                // Format date/time to IST
+                let dateObj = null;
+                let timeLabel = "";
+                if (loc.recordedAt || loc.timestamp || loc.time || loc.createdAt) {
                   const rawTime = loc.recordedAt || loc.timestamp || loc.time || loc.createdAt;
-                  if (rawTime) {
-                    const time = new Date(rawTime).getTime();
-                    if (time > latestTime) {
-                      latestTime = time;
-                      latestLocation = loc;
-                    }
+                  dateObj = new Date(rawTime);
+                  if (!isNaN(dateObj)) {
+                    const pad = n => n.toString().padStart(2, '0');
+                    const day = pad(dateObj.getDate());
+                    const month = pad(dateObj.getMonth() + 1);
+                    const year = dateObj.getFullYear();
+                    const hours = pad(dateObj.getHours());
+                    const mins = pad(dateObj.getMinutes());
+                    const secs = pad(dateObj.getSeconds());
+                    timeLabel = `${day}/${month}/${year}, ${hours}:${mins}:${secs}`;
+                  } else {
+                    timeLabel = rawTime;
                   }
-                });
-
-                console.log('Latest location found:', latestLocation);
-                console.log('Latest time:', latestTime);
-
-                return locations.map((loc, idx) => {
-                  // --- Format date/time to IST ---
-                  let dateObj = null;
-                  let timeLabel = "";
-                  if (loc.recordedAt || loc.timestamp || loc.time || loc.createdAt) {
-                    const rawTime = loc.recordedAt || loc.timestamp || loc.time || loc.createdAt;
-                    dateObj = new Date(rawTime);
-                    if (!isNaN(dateObj)) {
-                      // DD/MM/YYYY, HH:mm:ss
-                      const pad = n => n.toString().padStart(2, '0');
-                      const day = pad(dateObj.getDate());
-                      const month = pad(dateObj.getMonth() + 1);
-                      const year = dateObj.getFullYear();
-                      const hours = pad(dateObj.getHours());
-                      const mins = pad(dateObj.getMinutes());
-                      const secs = pad(dateObj.getSeconds());
-                      timeLabel = `${day}/${month}/${year}, ${hours}:${mins}:${secs}`;
-                    } else {
-                      timeLabel = rawTime;
-                    }
-                  }
-                  
-                  // --- Get battery percent (all possible keys) ---
-                  const battery =
-                    loc.batteryLevel ??
-                    loc.batteryPercent ??
-                    loc.battery_percentage ??
-                    loc.battery ??
-                    null;
-
-                  // Check if this is the latest location
-                  const isLatest = latestLocation && 
-                    (loc.id === latestLocation.id || 
-                     (loc.recordedAt === latestLocation.recordedAt && 
-                      loc.latitude === latestLocation.latitude && 
-                      loc.longitude === latestLocation.longitude));
-                  
-                  console.log(`Location ${idx} - isLatest: ${isLatest}, id: ${loc.id}, time: ${loc.recordedAt}`);
-
-                  return (
-                    <MarkerF
-                      key={idx}
-                      position={{
-                        lat: Number(loc.latitude),
-                        lng: Number(loc.longitude)
-                      }}
-                      icon={{
-                        url: isLatest 
-                          ? "data:image/svg+xml;utf-8,<svg height='28' width='28' xmlns='http://www.w3.org/2000/svg'><circle cx='14' cy='14' r='10' fill='%23FF0000' stroke='white' stroke-width='3'/><circle cx='14' cy='14' r='4' fill='white'/></svg>"
-                          : "data:image/svg+xml;utf-8,<svg height='24' width='24' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='8' fill='%2366BB6A' stroke='white' stroke-width='2'/></svg>",
-                        scaledSize: isLatest ? { width: 28, height: 28 } : { width: 24, height: 24 }
-                      }}
-                      title={`${isLatest ? 'LATEST - ' : ''}Date & Time (IST): ${timeLabel}${battery !== null ? `, Battery: ${battery}%` : ''}`}
-                      onClick={() => setActiveMarker(idx)}
-                    >
-                      {activeMarker === idx && (
-                        <InfoWindow
-                          position={{
-                            lat: Number(loc.latitude),
-                            lng: Number(loc.longitude)
-                          }}
-                          onCloseClick={() => setActiveMarker(null)}
-                        >
-                          <div>
-                            {isLatest && <div style={{ color: '#FF4444', fontWeight: 'bold', marginBottom: '5px' }}>📍 LATEST LOCATION</div>}
-                            <div><b>Date & Time (IST):</b> {timeLabel}</div>
-                            {battery !== null && (
-                              <div><b>Battery:</b> {battery}%</div>
-                            )}
-                          </div>
-                        </InfoWindow>
-                      )}
-                    </MarkerF>
-                  );
-                });
-              })()}
+                }
+                
+                // Get battery percent
+                const battery =
+                  loc.batteryLevel ??
+                  loc.batteryPercent ??
+                  loc.battery_percentage ??
+                  loc.battery ??
+                  null;
+                
+                return (
+                  <MarkerF
+                    key={idx}
+                    position={{
+                      lat: Number(loc.latitude),
+                      lng: Number(loc.longitude)
+                    }}
+                    icon={{
+                      url: isLatest 
+                        ? "data:image/svg+xml;utf-8,<svg height='28' width='28' xmlns='http://www.w3.org/2000/svg'><circle cx='14' cy='14' r='10' fill='%23FF0000' stroke='white' stroke-width='3'/><circle cx='14' cy='14' r='4' fill='white'/></svg>"
+                        : "data:image/svg+xml;utf-8,<svg height='24' width='24' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='8' fill='%2366BB6A' stroke='white' stroke-width='2'/></svg>",
+                      scaledSize: isLatest ? { width: 28, height: 28 } : { width: 24, height: 24 }
+                    }}
+                    title={`${isLatest ? 'LATEST - ' : ''}${employee?.name || 'Employee'}: ${timeLabel}${battery !== null ? `, Battery: ${battery}%` : ''}`}
+                    onClick={() => setActiveMarker(idx)}
+                  >
+                    {activeMarker === idx && (
+                      <InfoWindow
+                        position={{
+                          lat: Number(loc.latitude),
+                          lng: Number(loc.longitude)
+                        }}
+                        onCloseClick={() => setActiveMarker(null)}
+                      >
+                        <div>
+                          {isLatest && <div style={{ color: '#FF4444', fontWeight: 'bold', marginBottom: '5px' }}>📍 LATEST LOCATION</div>}
+                          <div><b>Employee:</b> {employee?.name || 'Unknown'}</div>
+                          <div><b>Division:</b> {employee?.division?.name || loc.division?.name || 'N/A'}</div>
+                          <div><b>Date & Time (IST):</b> {timeLabel}</div>
+                          {battery !== null && (
+                            <div><b>Battery:</b> {battery}%</div>
+                          )}
+                        </div>
+                      </InfoWindow>
+                    )}
+                  </MarkerF>
+                );
+              })}
             </GoogleMap>
           </div>
         </div>

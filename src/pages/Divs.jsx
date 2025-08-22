@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./Divs.module.css";
 import tokenManager from "../utils/tokenManager";
 import feedsLogo from "../images/feeds-croped.png";
+import { useDivision } from "../components/context/DivisionContext";
 
 const Divs = () => {
   const [divisions, setDivisions] = useState([]);
@@ -11,7 +12,11 @@ const Divs = () => {
   const [divisionSelected, setDivisionSelected] = useState(false);
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  
+  // Get the division context functions
+  const { setSelectedDivision, setShowAllDivisions } = useDivision();
 
   useEffect(() => {
     if (!tokenManager.isAuthenticated()) {
@@ -20,27 +25,35 @@ const Divs = () => {
       return;
     }
 
-    // Get username from localStorage - try multiple possible field names
+    // Get username and user data from localStorage - try multiple possible field names
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (user) {
+      const userData = JSON.parse(localStorage.getItem("user"));
+      if (userData) {
         const userName =
-          user.name ||
-          user.employee_name ||
-          user.username ||
-          user.fullName ||
+          userData.name ||
+          userData.employee_name ||
+          userData.username ||
+          userData.fullName ||
           "User";
         setUsername(userName);
+        setUser(userData);
       } else {
         setUsername("User");
+        setUser(null);
       }
     } catch (error) {
       console.error("Error parsing user data:", error);
       setUsername("User");
+      setUser(null);
     }
-
-    fetchDivisions();
   }, [navigate]);
+
+  // Separate useEffect for fetching divisions after user state is set
+  useEffect(() => {
+    if (user) {
+      fetchDivisions();
+    }
+  }, [user]);
 
   const fetchDivisions = async () => {
     try {
@@ -50,6 +63,8 @@ const Divs = () => {
 
       console.log("Divs.jsx - Fetching divisions...");
       console.log("Divs.jsx - Auth header exists:", !!authHeader);
+      console.log("Divs.jsx - Current user:", user);
+      console.log("Divs.jsx - User roles:", user?.roles);
 
       const response = await fetch(`${VITE_API}/divisions/user-divisions`, {
         headers: {
@@ -62,7 +77,37 @@ const Divs = () => {
       console.log("Divs.jsx - Response:", data);
 
       if (data.success) {
-        setDivisions(data.data);
+        const divisionsList = data.data;
+        
+        // Add "All Divisions" option if user is Admin and has access to multiple divisions
+        let divisionsWithAll = [...divisionsList];
+        
+        // Check if user is Admin or Super Admin and has multiple divisions
+        if (user && user.roles && Array.isArray(user.roles)) {
+          const isAdminOrSuperAdmin = user.roles.some(role => {
+            const roleName = role.name && role.name.toLowerCase();
+            return roleName === "admin" || roleName === "super admin" || roleName === "superadmin";
+          });
+          
+          console.log("Divs.jsx - Is Admin or Super Admin:", isAdminOrSuperAdmin);
+          console.log("Divs.jsx - Divisions count:", divisionsList.length);
+          
+          if (isAdminOrSuperAdmin && divisionsList.length > 1) {
+            console.log("Divs.jsx - Adding All Divisions option");
+            divisionsWithAll = [
+              { 
+                id: "all", 
+                name: "All Divisions", 
+                state: "All", 
+                isAllDivisions: true 
+              },
+              ...divisionsList
+            ];
+          }
+        }
+        
+        console.log("Divs.jsx - Final divisions list:", divisionsWithAll);
+        setDivisions(divisionsWithAll);
       } else {
         setError(data.message || "Failed to fetch divisions");
       }
@@ -76,7 +121,7 @@ const Divs = () => {
   const handleDivisionSelect = async (division) => {
     if (selectingDivision) return; // Prevent multiple calls
 
-    console.log("Handel select called")
+    console.log("Handle select called for division:", division);
 
     try {
       setSelectingDivision(true);
@@ -88,6 +133,60 @@ const Divs = () => {
       console.log("Divs.jsx - Selecting division:", division);
       console.log("Divs.jsx - Auth header exists:", !!authHeader);
 
+      // Handle "All Divisions" selection differently
+      if (division.isAllDivisions) {
+        console.log("Divs.jsx - All Divisions selected, setting global access");
+        
+        // Store "All Divisions" selection
+        const divisionData = {
+          id: "all",
+          name: "All Divisions",
+          state: "All",
+          isActive: true,
+          isAllDivisions: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Update the DivisionContext first
+        console.log('Divs.jsx - Updating DivisionContext with All Divisions');
+        setSelectedDivision(divisionData);
+        setShowAllDivisions(true);
+        console.log('Divs.jsx - DivisionContext updated');
+        
+        // Store in localStorage
+        localStorage.setItem("selectedDivision", JSON.stringify(divisionData));
+        localStorage.setItem("currentDivisionId", "all");
+        localStorage.setItem("currentDivisionName", "All Divisions");
+        
+        // Update user data to hide division selector
+        try {
+          const userData = JSON.parse(localStorage.getItem("user"));
+          if (userData) {
+            console.log('Divs.jsx - Updating user data for All Divisions, before:', userData.showDivisions);
+            userData.showDivisions = false;
+            localStorage.setItem("user", JSON.stringify(userData));
+            console.log('Divs.jsx - User data updated for All Divisions, showDivisions set to:', userData.showDivisions);
+          }
+        } catch (error) {
+          console.error("Error updating user data:", error);
+        }
+        
+        console.log("Divs.jsx - All Divisions stored in localStorage:", divisionData);
+        
+        // Set success state and navigate
+        setDivisionSelected(true);
+        
+        // Add a small delay to ensure context state is updated
+        setTimeout(() => {
+          console.log("Divs.jsx - Navigating to dashboard with All Divisions access...");
+          navigate("/", { replace: true });
+        }, 1500);
+        
+        return;
+      }
+
+      // Regular division selection
       const response = await fetch(`${VITE_API}/divisions/select`, {
         method: "POST",
         headers: {
@@ -124,17 +223,41 @@ const Divs = () => {
           isActive: division.isActive,
           createdAt: division.createdAt,
           updatedAt: division.updatedAt,
+          isAllDivisions: division.isAllDivisions || false
         };
+        
+        // Update the DivisionContext first
+        console.log('Divs.jsx - Updating DivisionContext with regular division:', divisionData);
+        setSelectedDivision(divisionData);
+        console.log('Divs.jsx - DivisionContext updated');
+        
         localStorage.setItem("selectedDivision", JSON.stringify(divisionData));
-        console.log(
-          "Divs.jsx - Division stored in localStorage:",
-          divisionData
-        );
+        
+        // ✅ ALSO update currentDivisionId and currentDivisionName for consistency
+        localStorage.setItem("currentDivisionId", division.id.toString());
+        localStorage.setItem("currentDivisionName", division.name);
+        
+        // Update user data to hide division selector
+        try {
+          const userData = JSON.parse(localStorage.getItem("user"));
+          if (userData) {
+            console.log('Divs.jsx - Updating user data for regular division, before:', userData.showDivisions);
+            userData.showDivisions = false;
+            localStorage.setItem("user", JSON.stringify(userData));
+            console.log('Divs.jsx - User data updated for regular division, showDivisions set to:', userData.showDivisions);
+          }
+        } catch (error) {
+          console.error("Error updating user data:", error);
+        }
+        
+        console.log("Divs.jsx - Division stored in localStorage:", divisionData);
+        console.log("Divs.jsx - currentDivisionId stored:", localStorage.getItem("currentDivisionId"));
+        console.log("Divs.jsx - currentDivisionName stored:", localStorage.getItem("currentDivisionName"));
 
         // Set success state to prevent any further actions
         setDivisionSelected(true);
 
-        // Navigate to dashboard
+        // Navigate to dashboard with a delay to ensure context state is updated
         setTimeout(() => {
           console.log("Divs.jsx - Navigating to dashboard...");
           console.log("Divs.jsx - Current tokens before navigation:", {
@@ -143,7 +266,7 @@ const Divs = () => {
           });
           console.log("navigate to /");
           navigate("/", { replace: true });
-        }, 1000);
+        }, 1500); // Increased delay to ensure context state is updated
       } else {
         const errorData = await response.json();
         console.error("Divs.jsx - Select division failed:", errorData);
@@ -158,6 +281,34 @@ const Divs = () => {
       setSelectingDivision(false);
     }
   };
+
+  // Check if user is Admin or Super Admin
+  const isAdminOrSuperAdmin = user && user.roles && Array.isArray(user.roles) && 
+    user.roles.some(role => {
+      const roleName = role.name && role.name.toLowerCase();
+      return roleName === "admin" || roleName === "super admin" || roleName === "superadmin";
+    });
+
+  // Debug information - remove this in production
+  useEffect(() => {
+    if (user) {
+      console.log("=== DEBUG INFO ===");
+      console.log("User object:", user);
+      console.log("User roles:", user.roles);
+      console.log("Roles type:", typeof user.roles);
+      console.log("Is array:", Array.isArray(user.roles));
+      if (user.roles && Array.isArray(user.roles)) {
+        user.roles.forEach((role, index) => {
+          console.log(`Role ${index}:`, role);
+          console.log(`Role name:`, role.name);
+          console.log(`Role name type:`, typeof role.name);
+          console.log(`Is admin (case-insensitive):`, role.name && role.name.toLowerCase() === "admin");
+        });
+      }
+      console.log("Final isAdmin result:", isAdminOrSuperAdmin);
+      console.log("==================");
+    }
+  }, [user, isAdminOrSuperAdmin]);
 
   if (loading) {
     return (
@@ -216,6 +367,9 @@ const Divs = () => {
             >
               <div className={styles.divisionInfo}>
                 <span className={styles.divisionName}>{division.name}</span>
+                {division.isAllDivisions && (
+                  <span className={styles.adminBadge}>Admin Access</span>
+                )}
                 {/* <span className={styles.accessText}>access : allowed</span> */}
               </div>
               {/* {selectingDivision && <div className={styles.selecting}>Selecting...</div>} */}

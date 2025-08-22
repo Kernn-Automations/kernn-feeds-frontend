@@ -130,7 +130,11 @@ function PurchaseReport({ navigate }) {
         setPurchases(null);
         setLoading(true);
 
-        // Build query with optional date filters
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+
+        // Build query with optional date filters and division parameters
         let query = `/purchases`;
         const params = [];
         
@@ -142,13 +146,22 @@ function PurchaseReport({ navigate }) {
           params.push(`warehouseId=${warehouse}`);
         }
         
+        // ✅ Add division parameters
+        if (currentDivisionId && currentDivisionId !== '1') {
+          params.push(`divisionId=${currentDivisionId}`);
+        } else if (currentDivisionId === '1') {
+          params.push(`showAllDivisions=true`);
+        }
+        
         if (params.length > 0) {
           query += `?${params.join('&')}`;
         }
 
-        console.log("API Query:", query);
-        console.log("Limit value:", limit, "Type:", typeof limit);
-        console.log("Page number:", pageNo);
+        console.log("PurchaseReport - API Query:", query);
+        console.log("PurchaseReport - Division ID:", currentDivisionId);
+        console.log("PurchaseReport - Division Name:", currentDivisionName);
+        console.log("PurchaseReport - Limit value:", limit, "Type:", typeof limit);
+        console.log("PurchaseReport - Page number:", pageNo);
 
         const res = await axiosAPI.get(query);
         console.log("Full API Response:", res);

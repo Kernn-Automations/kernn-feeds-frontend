@@ -12,7 +12,23 @@ function Locations() {
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const res = await axiosAPI.get("/employees");
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoint
+        let endpoint = "/employees";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('Locations - Fetching employees with endpoint:', endpoint);
+        console.log('Locations - Division ID:', currentDivisionId);
+        console.log('Locations - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
         setEmployees(res.data.employees || []);
       } catch (e) {
         // handle error

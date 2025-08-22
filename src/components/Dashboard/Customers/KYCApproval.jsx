@@ -11,6 +11,8 @@ function KYCApproval({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
 
   const [customers, setCustomers] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouse, setWarehouse] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [customerId, setCustomerId] = useState(null);
   const [trigger, setTrigger] = useState(false);
@@ -24,17 +26,81 @@ function KYCApproval({ navigate, isAdmin }) {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
 
+  // Fetch warehouses for filter
+  useEffect(() => {
+    async function fetchWarehouses() {
+      try {
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to warehouses endpoint
+        let warehousesEndpoint = "/warehouses";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          warehousesEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('KYCApproval - Fetching warehouses with endpoint:', warehousesEndpoint);
+        console.log('KYCApproval - Division ID:', currentDivisionId);
+        console.log('KYCApproval - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(warehousesEndpoint);
+        setWarehouses(res.data.warehouses || []);
+      } catch (e) {
+        console.error('Failed to fetch warehouses:', e);
+      }
+    }
+    fetchWarehouses();
+  }, []);
+
   // Fetch customers based on search term or default KYC Pending
   useEffect(() => {
     async function fetchCustomers() {
       try {
         setLoading(true);
         setCustomers([]);
-        const query =
-          searchTerm.trim().length >= 3
-            ? `/customers/search?customerName=${searchTerm.trim()}&kycStatus=Pending`
-            : `/customers?kycStatus=Pending&page=${pageNo}&limit=${limit}`;
-
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoint
+        let query = "";
+        if (searchTerm.trim().length >= 3) {
+          query = `/customers/search?customerName=${searchTerm.trim()}&kycStatus=Pending`;
+        } else {
+          query = `/customers?kycStatus=Pending&page=${pageNo}&limit=${limit}`;
+        }
+        
+        // ✅ Add warehouse filter if selected
+        if (warehouse && warehouse !== "all") {
+          query += `&warehouseId=${warehouse}`;
+        }
+        
+        // ✅ Add division parameters to query
+        if (currentDivisionId && currentDivisionId !== '1') {
+          query += `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          query += `&showAllDivisions=true`;
+        }
+        
+        // ✅ Add division parameters to search query as well
+        if (searchTerm.trim().length >= 3) {
+          if (currentDivisionId && currentDivisionId !== '1') {
+            query += `&divisionId=${currentDivisionId}`;
+          } else if (currentDivisionId === '1') {
+            query += `&showAllDivisions=true`;
+          }
+        }
+        
+        console.log('KYCApproval - Fetching customers with query:', query);
+        console.log('KYCApproval - Selected warehouse:', warehouse);
+        console.log('KYCApproval - Warehouse filter applied:', warehouse && warehouse !== "all");
+        console.log('KYCApproval - Division ID:', currentDivisionId);
+        console.log('KYCApproval - Division Name:', currentDivisionName);
+        
         const res = await axiosAPI.get(query);
         console.log(res)
         setCustomers(res.data.customers);
@@ -48,7 +114,7 @@ function KYCApproval({ navigate, isAdmin }) {
     }
 
     fetchCustomers();
-  }, [trigger, pageNo, limit, searchTerm]);
+  }, [trigger, pageNo, limit, searchTerm, warehouse]);
 
   let count = 1;
 
@@ -61,6 +127,24 @@ function KYCApproval({ navigate, isAdmin }) {
 
       {!customerId && (
         <>
+          <div className="row m-0 p-3">
+            <div className="col-3 formcontent">
+              <label>WareHouse:</label>
+              <select
+                value={warehouse || ""}
+                onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
+              >
+                <option value="null">--select--</option>
+                <option value="all">All Warehouses</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
           <div className="row m-0 p-3 pt-5 justify-content-end">
             <div className={`col-4 ${styles.search}`}>
               <input

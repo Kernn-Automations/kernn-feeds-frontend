@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
-import LoadingAnimation from "@/components/LoadingAnimation";
-import paymentAni from "../../../images/animations/fetchingAnimation.gif";
+import Loading from "@/components/Loading";
 
 function PaymentHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -63,75 +62,94 @@ function PaymentHome({ navigate }) {
 
   return (
     <>
-      {/* Loading Animation */}
-      {loading && <LoadingAnimation gif={paymentAni} msg="Loading payment dashboard..." />}
-
-      {!loading && (
-        <>
-          {/* Buttons */}
+      {/* Error Display */}
+      {error && (
+        <div className="container-fluid">
           <div className="row m-0 p-3">
-            <div className="col">
-              <button
-                className="homebtn"
-                onClick={() => navigate("/payments/payment-reports")}
-              >
-                Payment Reports
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/payments/payment-approvals")}
-              >
-                Payment Approvals
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/payments/credit-notes")}
-              >
-                Credit Notes
-              </button>
+            <div className="col text-center">
+              <div className="alert alert-danger">
+                <strong>Error loading payment dashboard</strong>
+                <br />
+                <small>{error}</small>
+              </div>
             </div>
           </div>
-
-          {/* Cards */}
-          <Flex wrap="wrap" justify="space-between" px={4}>
-            <ReusableCard 
-              title="Total Payments This Month" 
-              value={`₹${Number(paymentData?.totalPaymentsThisMonth ?? 0).toLocaleString("en-IN")}`} 
-            />
-            <ReusableCard 
-              title="Pending Approvals" 
-              value={paymentData?.pendingApprovals ?? 0} 
-              color="yellow.500" 
-            />
-            <ReusableCard 
-              title="Credit Notes Issued" 
-              value={paymentData?.creditNotesIssued ?? 0} 
-              color="green.500" 
-            />
-          </Flex>
-
-          {/* Charts */}
-          <Flex wrap="wrap" px={4}>
-            {trendData.labels && trendData.labels.length > 0 && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
-              <ChartComponent
-                type="bar"
-                title="Payments Trend"
-                data={trendData}
-                options={{ responsive: true }}
-              />
-            )}
-            {typeData.labels && typeData.labels.length > 0 && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
-              <ChartComponent
-                type="doughnut"
-                title="Payment Type Distribution"
-                data={typeData}
-                options={{ responsive: true }}
-                legendPosition="left"
-              />
-            )}
-          </Flex>
-        </>
+        </div>
       )}
+
+      {/* Buttons - Always visible */}
+      <div className="row m-0 p-3">
+        <div className="col">
+          <button
+            className="homebtn"
+            onClick={() => navigate("/payments/payment-reports")}
+          >
+            Payment Reports
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/payments/payment-approvals")}
+          >
+            Payment Approvals
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/payments/credit-notes")}
+          >
+            Credit Notes
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/payments/generate-monthly")}
+          >
+            Generate Monthly
+          </button>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <Flex wrap="wrap" justify="space-between" px={4}>
+        <ReusableCard 
+          title="Total Payments" 
+          value={loading ? <Loading /> : `₹${Number(paymentData?.totalPayments ?? 0).toLocaleString("en-IN")}`} 
+        />
+        <ReusableCard 
+          title="Pending Approvals" 
+          value={paymentData?.pendingApprovals ?? (loading ? <Loading /> : "0")} 
+          color="yellow.500" 
+        />
+        <ReusableCard 
+          title="This Month" 
+          value={loading ? <Loading /> : `₹${Number(paymentData?.thisMonthPayments ?? 0).toLocaleString("en-IN")}`} 
+          color="green.500" 
+        />
+        <ReusableCard 
+          title="Credit Notes" 
+          value={paymentData?.creditNotes ?? (loading ? <Loading /> : "0")} 
+          color="red.500" 
+        />
+      </Flex>
+
+      {/* Charts */}
+      <Flex wrap="wrap" px={4}>
+        {trendData.labels.length > 0 && trendData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="line"
+            title="Payments Trend"
+            data={trendData}
+            options={{ responsive: true }}
+          />
+        )}
+        {typeData.labels.length > 0 && typeData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="doughnut"
+            title="Payment Types"
+            data={typeData}
+            options={{ responsive: true }}
+            legendPosition="left"
+          />
+        )}
+      </Flex>
     </>
   );
 }

@@ -89,15 +89,35 @@ function Deliveries({ navigate, warehouses, customers }) {
       try {
         setOrders(null);
         setLoading(true);
-        // console.log(
-        //   `/sales-orders?status=Delivered&fromDate=${from}&toDate=${to}${
-        //     warehouse ? `&warehouseId=${warehouse}` : ""
-        //   }${customer ? `&customerId=${customer}` : ""}`
-        // );
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let divisionParam = "";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          divisionParam = `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          divisionParam = `&showAllDivisions=true`;
+        }
+        
+        console.log('Deliveries - Fetching orders with warehouse filter:', warehouse);
+        console.log('Deliveries - Warehouse parameter:', warehouseParam);
+        console.log('Deliveries - Division ID:', currentDivisionId);
+        console.log('Deliveries - Division Name:', currentDivisionName);
+        console.log('Deliveries - Division parameters added:', divisionParam);
+        
         const res = await axiosAPI.get(
-          `/sales-orders?status=Delivered&fromDate=${from}&toDate=${to}${
-            warehouse ? `&warehouseId=${warehouse}` : ""
-          }${customer ? `&customerId=${customer}` : ""}`
+          `/sales-orders?status=Delivered&fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
+            customer ? `&customerId=${customer}` : ""
+          }`
         );
         // console.log(res);
         setOrders(res.data.salesOrders);
@@ -149,6 +169,7 @@ function Deliveries({ navigate, warehouses, customers }) {
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>

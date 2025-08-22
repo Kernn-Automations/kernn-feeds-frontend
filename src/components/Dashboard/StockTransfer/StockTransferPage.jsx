@@ -31,8 +31,25 @@ function StockTransferPage({ navigate }) {
 
   useEffect(() => {
     setLoadingWarehouses(true);
+    
+    // ✅ Get division ID from localStorage for division filtering
+    const currentDivisionId = localStorage.getItem('currentDivisionId');
+    const currentDivisionName = localStorage.getItem('currentDivisionName');
+    
+    // ✅ Add division parameters to endpoint
+    let endpoint = "/warehouse";
+    if (currentDivisionId && currentDivisionId !== '1') {
+      endpoint += `?divisionId=${currentDivisionId}`;
+    } else if (currentDivisionId === '1') {
+      endpoint += `?showAllDivisions=true`;
+    }
+    
+    console.log('StockTransferPage - Fetching warehouses with endpoint:', endpoint);
+    console.log('StockTransferPage - Division ID:', currentDivisionId);
+    console.log('StockTransferPage - Division Name:', currentDivisionName);
+    
     axiosAPI
-      .get("/warehouse")
+      .get(endpoint)
       .then((res) => {
         setWarehouses(res.data.warehouses || []);
       })

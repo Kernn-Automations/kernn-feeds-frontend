@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
-import LoadingAnimation from "@/components/LoadingAnimation";
-import employeeAni from "../../../images/animations/fetchingAnimation.gif";
+import Loading from "@/components/Loading";
 
 function EmployeeHome({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -16,7 +15,24 @@ function EmployeeHome({ navigate, isAdmin }) {
     async function fetchEmployeeDashboard() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get("/dashboard/employees");
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoint
+        let endpoint = "/dashboard/employees";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('EmployeeHome - Fetching employee dashboard with endpoint:', endpoint);
+        console.log('EmployeeHome - Division ID:', currentDivisionId);
+        console.log('EmployeeHome - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
         console.log("Employee Dashboard Response:", res.data);
         setEmployeeData(res.data);
       } catch (err) {
@@ -122,12 +138,7 @@ function EmployeeHome({ navigate, isAdmin }) {
 
   return (
     <>
-      {/* Loading Animation */}
-      {loading && <LoadingAnimation gif={employeeAni} msg="Loading employee dashboard..." />}
-
-      {!loading && (
-    <>
-      {/* Buttons */}
+      {/* Buttons - Always visible */}
       <div className="row m-0 p-3">
         <div className="col">
           {isAdmin && (
@@ -149,25 +160,25 @@ function EmployeeHome({ navigate, isAdmin }) {
 
       {/* Cards */}
       <Flex wrap="wrap" justify="space-between" px={4}>
-            <ReusableCard 
-              title="Total Employees" 
-              value={employeeData?.totalEmployees || "52"} 
-            />
-            <ReusableCard 
-              title="Active Employees" 
-              value={employeeData?.activeEmployees || "48"} 
-              color="green.500" 
-            />
-            <ReusableCard 
-              title="Inactive Employees" 
-              value={employeeData?.inactiveEmployees || "4"} 
-              color="red.500" 
-            />
-            <ReusableCard 
-              title="Roles Covered" 
-              value={employeeData?.rolesCovered || "6"} 
-              color="purple.500" 
-            />
+        <ReusableCard 
+          title="Total Employees" 
+          value={employeeData?.totalEmployees || (loading ? <Loading /> : "52")} 
+        />
+        <ReusableCard 
+          title="Active Employees" 
+          value={employeeData?.activeEmployees || (loading ? <Loading /> : "48")} 
+          color="green.500" 
+        />
+        <ReusableCard 
+          title="Inactive Employees" 
+          value={employeeData?.inactiveEmployees || (loading ? <Loading /> : "4")} 
+          color="red.500" 
+        />
+        <ReusableCard 
+          title="Roles Covered" 
+          value={employeeData?.rolesCovered || (loading ? <Loading /> : "6")} 
+          color="purple.500" 
+        />
       </Flex>
 
       {/* Charts */}
@@ -181,17 +192,15 @@ function EmployeeHome({ navigate, isAdmin }) {
         />
         )}
         {roleData && roleData.datasets && roleData.datasets[0] && roleData.datasets[0].data && roleData.datasets[0].data.length > 0 && (
-                    <ChartComponent
-              type="doughnut"
-              title="Employees by Role"
-              data={roleData}
-              options={{ responsive: true }}
-              legendPosition="left"
-            />
+        <ChartComponent
+          type="doughnut"
+          title="Employees by Role"
+          data={roleData}
+          options={{ responsive: true }}
+          legendPosition="left"
+        />
         )}
       </Flex>
-        </>
-      )}
     </>
   );
 }

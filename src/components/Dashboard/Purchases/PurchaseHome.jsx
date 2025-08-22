@@ -3,8 +3,7 @@ import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
-import LoadingAnimation from "@/components/LoadingAnimation";
-import purchaseAni from "../../../images/animations/fetchingAnimation.gif";
+import Loading from "@/components/Loading";
 
 function PurchaseHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -107,80 +106,73 @@ function PurchaseHome({ navigate }) {
 
   return (
     <>
-      {/* Loading Animation */}
-      {loading && <LoadingAnimation gif={purchaseAni} msg="Loading purchase dashboard..." />}
+      {/* Buttons - Always visible */}
+      <div className="row m-0 p-3">
+        <div className="col">
+          <button
+            className="homebtn"
+            onClick={() => navigate("/purchases/new-purchase")}
+          >
+            + New Purchase Order
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/purchases/purchase-report")}
+          >
+            Purchase Order Report
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/purchases/vendors")}
+          >
+            Vendors
+          </button>
+        </div>
+      </div>
 
-      {!loading && (
-        <>
-          {/* Buttons */}
-          <div className="row m-0 p-3">
-            <div className="col">
-              <button
-                className="homebtn"
-                onClick={() => navigate("/purchases/new-purchase")}
-              >
-                + New Purchase Order
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/purchases/purchase-report")}
-              >
-                Purchase Order Report
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/purchases/vendors")}
-              >
-                Vendors
-              </button>
-            </div>
-          </div>
+      {/* Cards */}
+      <Flex wrap="wrap" justify="space-between" px={4}>
+        <ReusableCard 
+          title="Total Purchase Orders" 
+          value={purchaseData?.totalPurchaseOrders ?? (loading ? <Loading /> : "0")} 
+        />
+        <ReusableCard 
+          title="Pending Deliveries" 
+          value={purchaseData?.pendingDeliveries ?? (loading ? <Loading /> : "0")} 
+          color="yellow.500" 
+        />
+        <ReusableCard 
+          title="Vendors" 
+          value={purchaseData?.vendors ?? (loading ? <Loading /> : "0")} 
+          color="blue.500" 
+        />
+        <ReusableCard 
+          title="This Month Spend" 
+          value={loading ? <Loading /> : `₹${Number(purchaseData?.thisMonthSpend ?? 0).toLocaleString("en-IN")}`} 
+          color="green.500" 
+        />
+      </Flex>
 
-          {/* Cards */}
-          <Flex wrap="wrap" justify="space-between" px={4}>
-            <ReusableCard 
-              title="Total Purchase Orders" 
-              value={purchaseData?.totalPurchaseOrders ?? "0"} 
-            />
-            <ReusableCard 
-              title="Pending Deliveries" 
-              value={purchaseData?.pendingDeliveries ?? "0"} 
-              color="yellow.500" 
-            />
-            <ReusableCard 
-              title="Vendors" 
-              value={purchaseData?.vendors ?? "0"} 
-              color="blue.500" 
-            />
-            <ReusableCard 
-              title="This Month Spend" 
-              value={`₹${Number(purchaseData?.thisMonthSpend ?? 0).toLocaleString("en-IN")}`} 
-              color="green.500" 
-            />
-          </Flex>
-
-          {/* Charts */}
-          <Flex wrap="wrap" px={4}>
-            {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
-              <ChartComponent
-                type="line"
-                title="Purchases Trend"
-                data={trendData}
-                options={{ responsive: true }}
-              />
-            )}
-            {vendorData && vendorData.datasets && vendorData.datasets[0] && vendorData.datasets[0].data && vendorData.datasets[0].data.length > 0 && (
-                          <ChartComponent
-              type="doughnut"
-              title="Purchases by Vendor"
-              data={vendorData}
-              options={{ responsive: true }}
-              legendPosition="left"
-            />
-            )}
-          </Flex>
-        </>
-      )}
+      {/* Charts */}
+      <Flex wrap="wrap" px={4}>
+        {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="line"
+            title="Purchases Trend"
+            data={trendData}
+            options={{ responsive: true }}
+          />
+        )}
+        {vendorData && vendorData.datasets && vendorData.datasets[0] && vendorData.datasets[0].data && vendorData.datasets[0].data.length > 0 && (
+                      <ChartComponent
+            type="doughnut"
+            title="Purchases by Vendor"
+            data={vendorData}
+            options={{ responsive: true }}
+            legendPosition="left"
+          />
+        )}
+      </Flex>
     </>
   );
 }

@@ -62,7 +62,24 @@ function DamagedGoods({ navigate }) {
   const refreshDamagedGoods = async () => {
     try {
       setLoading(true);
-      const res = await axiosAPI.get(`/damaged-goods?page=${pageNo}&limit=${limit}`);
+      
+      // ✅ Get division ID from localStorage for division filtering
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      const currentDivisionName = localStorage.getItem('currentDivisionName');
+      
+      // ✅ Add division parameters to prevent wrong division data
+      let endpoint = `/damaged-goods?page=${pageNo}&limit=${limit}`;
+      if (currentDivisionId && currentDivisionId !== '1') {
+        endpoint += `&divisionId=${currentDivisionId}`;
+      } else if (currentDivisionId === '1') {
+        endpoint += `&showAllDivisions=true`;
+      }
+      
+      console.log('🔄 Refreshing damaged goods with endpoint:', endpoint);
+      console.log('DamagedGoods - Division ID:', currentDivisionId);
+      console.log('DamagedGoods - Division Name:', currentDivisionName);
+      
+      const res = await axiosAPI.get(endpoint);
       console.log('🔄 Refreshing damaged goods...');
       console.log('Damaged goods API response:', res.data);
       console.log('Damaged goods items:', Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
@@ -91,7 +108,24 @@ function DamagedGoods({ navigate }) {
     async function fetchAllDamagedGoods() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get(`/damaged-goods?page=${pageNo}&limit=${limit}`);
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to prevent wrong division data
+        let endpoint = `/damaged-goods?page=${pageNo}&limit=${limit}`;
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `&divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `&showAllDivisions=true`;
+        }
+        
+        console.log('🔄 Fetching damaged goods with endpoint:', endpoint);
+        console.log('DamagedGoods - Division ID:', currentDivisionId);
+        console.log('DamagedGoods - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(endpoint);
         console.log('🔄 Fetching damaged goods...');
         console.log('Damaged goods API response:', res.data);
         console.log('Damaged goods items:', Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
@@ -135,9 +169,36 @@ function DamagedGoods({ navigate }) {
     async function fetchDropdowns() {
       try {
         setLoading(true);
+        
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to warehouses endpoint
+        let warehousesEndpoint = "/warehouses";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          warehousesEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('DamagedGoods - Fetching warehouses with endpoint:', warehousesEndpoint);
+        console.log('DamagedGoods - Division ID:', currentDivisionId);
+        console.log('DamagedGoods - Division Name:', currentDivisionName);
+        
+        // ✅ Add division parameters to products endpoint as well
+        let productsEndpoint = "/products/list";
+        if (currentDivisionId && currentDivisionId !== '1') {
+          productsEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          productsEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('DamagedGoods - Fetching products with endpoint:', productsEndpoint);
+        
         const [w, p, o] = await Promise.all([
-          axiosAPI.get("/warehouses"),
-          axiosAPI.get("/products/list"),
+          axiosAPI.get(warehousesEndpoint),
+          axiosAPI.get(productsEndpoint),
           axiosAPI.get("/purchases?limit=100")
         ]);
         setWarehouses(w.data.warehouses);
@@ -173,6 +234,7 @@ function DamagedGoods({ navigate }) {
             onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>

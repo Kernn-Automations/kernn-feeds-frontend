@@ -37,9 +37,32 @@ function WarehouseRoutes() {
   useEffect(() => {
     async function fetch() {
       try {
-        const res = await axiosAPI.get("/employees/role/Warehouse Manager");
-        const res1 = await axiosAPI.get("/products/list");
+        // ✅ Get division ID from localStorage for division filtering
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        
+        // ✅ Add division parameters to endpoints
+        let employeesEndpoint = "/employees/role/Warehouse Manager";
+        let productsEndpoint = "/products/list";
+        
+        if (currentDivisionId && currentDivisionId !== '1') {
+          employeesEndpoint += `?divisionId=${currentDivisionId}`;
+          productsEndpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          employeesEndpoint += `?showAllDivisions=true`;
+          productsEndpoint += `?showAllDivisions=true`;
+        }
+        
+        console.log('WarehouseRoutes - Fetching data with endpoints:');
+        console.log('WarehouseRoutes - Employees:', employeesEndpoint);
+        console.log('WarehouseRoutes - Products:', productsEndpoint);
+        console.log('WarehouseRoutes - Division ID:', currentDivisionId);
+        console.log('WarehouseRoutes - Division Name:', currentDivisionName);
+        
+        const res = await axiosAPI.get(employeesEndpoint);
+        const res1 = await axiosAPI.get(productsEndpoint);
         // console.log(res);
+        // console.log(res1);
         setManagers(res.data.employees);
         setProducts(res1.data.products);
         console.log(res1.data.products)

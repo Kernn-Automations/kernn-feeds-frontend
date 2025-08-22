@@ -80,13 +80,21 @@ function OutgoingStock({ navigate }) {
         setStock(null);
         setLoading(true);
 
-        const query = `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${
-          warehouse ? `&warehouseId=${warehouse}` : ""
-        }${customer ? `&customerId=${customer}` : ""}${
+        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+        let warehouseParam = "";
+        if (warehouse && warehouse !== "all") {
+          warehouseParam = `&warehouseId=${warehouse}`;
+        }
+
+        const query = `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${warehouseParam}${
+          customer ? `&customerId=${customer}` : ""
+        }${
           product ? `&productId=${product}` : ""
         }&page=${pageNo}&limit=${limit}`;
 
-        console.log(query);
+        console.log('OutgoingStock - Fetching stock with warehouse filter:', warehouse);
+        console.log('OutgoingStock - Warehouse parameter:', warehouseParam);
+        console.log('OutgoingStock - Final query:', query);
 
         const res = await axiosAPI.get(query);
         console.log(res);
@@ -181,6 +189,7 @@ function OutgoingStock({ navigate }) {
             }
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses &&
               warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>

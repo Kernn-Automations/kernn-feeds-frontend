@@ -50,8 +50,22 @@ useEffect(() => {
 
       if (isManager && !isAdmin) {
         endpoint = "/warehouses/manager";
-
       }
+
+      // ✅ Get division ID from localStorage for division filtering
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      const currentDivisionName = localStorage.getItem('currentDivisionName');
+      
+      // ✅ Add division parameters to endpoint
+      if (currentDivisionId && currentDivisionId !== '1') {
+        endpoint += `?divisionId=${currentDivisionId}`;
+      } else if (currentDivisionId === '1') {
+        endpoint += `?showAllDivisions=true`;
+      }
+      
+      console.log('OngoingWarehouse - Fetching warehouses with endpoint:', endpoint);
+      console.log('OngoingWarehouse - Division ID:', currentDivisionId);
+      console.log('OngoingWarehouse - Division Name:', currentDivisionName);
 
       const res = await axiosAPI.get(endpoint);
       setWarehouses(res.data.warehouses);

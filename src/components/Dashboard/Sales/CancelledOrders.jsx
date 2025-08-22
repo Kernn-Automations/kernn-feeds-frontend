@@ -52,10 +52,35 @@ function CancelledOrders() {
     // API call logic for cancelled orders
       setLoading(true);
         try {
+            // ✅ Get division ID from localStorage for division filtering
+            const currentDivisionId = localStorage.getItem('currentDivisionId');
+            const currentDivisionName = localStorage.getItem('currentDivisionName');
+            
+            // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+            let warehouseParam = {};
+            if (warehouse && warehouse !== "all") {
+              warehouseParam = { warehouse };
+            }
+            
+            // ✅ Add division parameters to prevent wrong division data
+            let divisionParam = {};
+            if (currentDivisionId && currentDivisionId !== '1') {
+              divisionParam = { divisionId: currentDivisionId };
+            } else if (currentDivisionId === '1') {
+              divisionParam = { showAllDivisions: true };
+            }
+            
+            console.log('CancelledOrders - Fetching orders with warehouse filter:', warehouse);
+            console.log('CancelledOrders - Warehouse parameter:', warehouseParam);
+            console.log('CancelledOrders - Division ID:', currentDivisionId);
+            console.log('CancelledOrders - Division Name:', currentDivisionName);
+            console.log('CancelledOrders - Division parameters added:', divisionParam);
+            
             const queryParams = new URLSearchParams({
             ...(from && { from }),
             ...(to && { to }),
-            ...(warehouse && { warehouse }),
+            ...warehouseParam,
+            ...divisionParam,
             ...(customer && { customer }),
             limit,
             page: pageNo,
@@ -141,13 +166,14 @@ function CancelledOrders() {
           <label>To :</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
-        <div className="col-3 formcontent">
+        <div className={`col-3 formcontent`}>
           <label>Warehouse :</label>
           <select
             value={warehouse || ""}
             onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
           >
             <option value="null">--select--</option>
+            <option value="all">All Warehouses</option>
             {warehouses.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}

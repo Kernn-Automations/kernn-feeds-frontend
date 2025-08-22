@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
-import LoadingAnimation from "@/components/LoadingAnimation";
-import discountAni from "../../../images/animations/fetchingAnimation.gif";
+import Loading from "@/components/Loading";
 
 function DiscountHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -30,7 +29,7 @@ function DiscountHome({ navigate }) {
   }, []);
 
   // Transform backend data for Chart.js format
-  const trendData = React.useMemo(() => {
+  const trendData = useMemo(() => {
     if (!discountData?.discountsTrend || !Array.isArray(discountData.discountsTrend)) {
       return {
         labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
@@ -65,7 +64,7 @@ function DiscountHome({ navigate }) {
     };
   }, [discountData?.discountsTrend]);
 
-  const typeData = React.useMemo(() => {
+  const typeData = useMemo(() => {
     if (!discountData?.discountProductTypeShare || !Array.isArray(discountData.discountProductTypeShare)) {
       return {
         labels: ["Packed", "Loose"],
@@ -96,74 +95,82 @@ function DiscountHome({ navigate }) {
 
   return (
     <>
-      {/* Loading Animation */}
-      {loading && <LoadingAnimation gif={discountAni} msg="Loading discount dashboard..." />}
-
-      {!loading && (
-        <>
-          {/* Buttons */}
+      {/* Error Display */}
+      {error && (
+        <div className="container-fluid">
           <div className="row m-0 p-3">
-            <div className="col">
-              <button
-                className="homebtn"
-                onClick={() => navigate("/discounts/bill-to-bill")}
-              >
-                Bill-to-Bill
-              </button>
-              <button
-                className="homebtn"
-                onClick={() => navigate("/discounts/monthly")}
-              >
-                Monthly Discount
-              </button>
+            <div className="col text-center">
+              <div className="alert alert-danger">
+                <strong>Error loading discount dashboard</strong>
+                <br />
+                <small>{error}</small>
+              </div>
             </div>
           </div>
-
-          {/* Cards */}
-          <Flex wrap="wrap" justify="space-between" px={4}>
-            <ReusableCard 
-              title="Total Discounts" 
-              value={`₹${Number(discountData?.totalDiscounts ?? 0).toLocaleString("en-IN")}`} 
-            />
-            <ReusableCard 
-              title="Avg Discount Per Unit" 
-              value={`₹${discountData?.avgDiscountPerUnit ?? "0"}`} 
-              color="blue.500" 
-            />
-            <ReusableCard 
-              title="Product Types" 
-              value={discountData?.discountProductTypeShare?.length ?? "0"} 
-              color="green.500" 
-            />
-            <ReusableCard 
-              title="Trend Months" 
-              value={discountData?.discountsTrend?.length ?? "0"} 
-              color="yellow.500" 
-            />
-          </Flex>
-
-          {/* Charts */}
-          <Flex wrap="wrap" px={4}>
-            {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
-              <ChartComponent
-                type="line"
-                title="Discounts Trend"
-                data={trendData}
-                options={{ responsive: true }}
-              />
-            )}
-            {typeData && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
-              <ChartComponent
-                type="doughnut"
-                title="Discount by Product Type"
-                data={typeData}
-                options={{ responsive: true }}
-                legendPosition="left"
-              />
-            )}
-          </Flex>
-        </>
+        </div>
       )}
+
+      {/* Buttons - Always visible */}
+      <div className="row m-0 p-3">
+        <div className="col">
+          <button
+            className="homebtn"
+            onClick={() => navigate("/discounts/bill-to-bill")}
+          >
+            Bill-to-Bill
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/discounts/monthly")}
+          >
+            Monthly Discount
+          </button>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <Flex wrap="wrap" justify="space-between" px={4}>
+        <ReusableCard 
+          title="Total Discounts" 
+          value={loading ? <Loading /> : `₹${Number(discountData?.totalDiscounts ?? 0).toLocaleString("en-IN")}`} 
+        />
+        <ReusableCard 
+          title="Avg Discount Per Unit" 
+          value={discountData?.avgDiscountPerUnit ?? (loading ? <Loading /> : "0")} 
+          color="blue.500" 
+        />
+        <ReusableCard 
+          title="Product Types" 
+          value={discountData?.discountProductTypeShare?.length ?? (loading ? <Loading /> : "0")} 
+          color="green.500" 
+        />
+        <ReusableCard 
+          title="Trend Months" 
+          value={discountData?.discountsTrend?.length ?? (loading ? <Loading /> : "0")} 
+          color="yellow.500" 
+        />
+      </Flex>
+
+      {/* Charts */}
+      <Flex wrap="wrap" px={4}>
+        {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="line"
+            title="Discounts Trend"
+            data={trendData}
+            options={{ responsive: true }}
+          />
+        )}
+        {typeData && typeData.datasets && typeData.datasets[0] && typeData.datasets[0].data && typeData.datasets[0].data.length > 0 && (
+          <ChartComponent
+            type="doughnut"
+            title="Discount by Product Type"
+            data={typeData}
+            options={{ responsive: true }}
+            legendPosition="left"
+          />
+        )}
+      </Flex>
     </>
   );
 }
