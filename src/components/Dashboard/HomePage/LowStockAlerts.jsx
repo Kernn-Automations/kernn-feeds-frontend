@@ -6,6 +6,15 @@ function LowStockAlerts({ lowStockNotifications }) {
   const [currentPage, setCurrentPage] = useState(0);
   const stocksPerPage = 6;
 
+  // Calculate severity based on stock vs threshold ratio
+  const calculateSeverity = (stock, threshold) => {
+    if (stock <= 0) return "severe"; // Out of stock
+    const ratio = stock / threshold;
+    if (ratio <= 0.2) return "severe"; // Less than 20% of threshold
+    if (ratio <= 0.5) return "warning"; // Less than 50% of threshold
+    return "info"; // Above 50% but still below threshold
+  };
+
   const getSeverityIcon = (severity) => {
     return severity === "severe" ? (
       <FaExclamationTriangle className={styles.severeIcon} />
@@ -15,7 +24,29 @@ function LowStockAlerts({ lowStockNotifications }) {
   };
 
   const getSeverityColor = (severity) => {
-    return severity === "severe" ? "#ef4444" : "#f59e0b";
+    switch (severity) {
+      case "severe":
+        return "#ef4444";
+      case "warning":
+        return "#f59e0b";
+      case "info":
+        return "#3b82f6";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  const getSeverityLabel = (severity) => {
+    switch (severity) {
+      case "severe":
+        return "Critical";
+      case "warning":
+        return "Warning";
+      case "info":
+        return "Low Stock";
+      default:
+        return "Info";
+    }
   };
 
   if (!lowStockNotifications || lowStockNotifications.length === 0) {
@@ -58,47 +89,54 @@ function LowStockAlerts({ lowStockNotifications }) {
       
       <div className={styles.alertContainer}>
         <div className={styles.stocksGrid}>
-          {currentStocks.map((item, index) => (
-            <div 
-              key={startIndex + index} 
-              className={styles.stockAlertItem}
-              style={{ borderLeft: `3px solid ${getSeverityColor(item.severity)}` }}
-            >
+          {currentStocks.map((item, index) => {
+            const severity = calculateSeverity(item.stock, item.threshold);
+            const severityColor = getSeverityColor(severity);
+            
+            return (
               <div 
-                className={styles.stockIndicator}
-                style={{ 
-                  backgroundColor: item.severity === "severe" 
-                    ? "rgba(239, 68, 68, 0.1)" 
-                    : "rgba(245, 158, 11, 0.1)" 
-                }}
+                key={startIndex + index} 
+                className={styles.stockAlertItem}
+                style={{ borderLeft: `3px solid ${severityColor}` }}
               >
-                {getSeverityIcon(item.severity)}
-              </div>
-              
-              <div className={styles.stockContent}>
-                <div className={styles.stockTitle}>
-                  <strong>{item.product}</strong>
-                  <span 
-                    className={styles.stockSeverityTag}
-                    style={{ backgroundColor: getSeverityColor(item.severity) }}
-                  >
-                    {item.severity === "severe" ? "Critical" : "Warning"}
-                  </span>
+                <div 
+                  className={styles.stockIndicator}
+                  style={{ 
+                    backgroundColor: severity === "severe" 
+                      ? "rgba(239, 68, 68, 0.1)" 
+                      : severity === "warning"
+                      ? "rgba(245, 158, 11, 0.1)"
+                      : "rgba(59, 130, 246, 0.1)"
+                  }}
+                >
+                  {getSeverityIcon(severity)}
                 </div>
                 
-                <div className={styles.stockDetails}>
-                  <div className={styles.stockDetail}>
-                    <FaWarehouse className={styles.stockDetailIcon} />
-                    <span>{item.warehouse}</span>
+                <div className={styles.stockContent}>
+                  <div className={styles.stockTitle}>
+                    <strong>{item.product}</strong>
+                    <span 
+                      className={styles.stockSeverityTag}
+                      style={{ backgroundColor: severityColor }}
+                    >
+                      {getSeverityLabel(severity)}
+                    </span>
                   </div>
-                  <div className={styles.stockDetail}>
-                    <FaBoxes className={styles.stockDetailIcon} />
-                    <span>{item.stock} / {item.threshold}</span>
+                  
+                  <div className={styles.stockDetails}>
+                    <div className={styles.stockDetail}>
+                      <FaWarehouse className={styles.stockDetailIcon} />
+                      <span>{item.warehouse}</span>
+                    </div>
+                    <div className={styles.stockDetail}>
+                      <FaBoxes className={styles.stockDetailIcon} />
+                      <span>{item.stock} / {item.threshold}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         
         {/* Pagination Controls */}

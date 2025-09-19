@@ -51,6 +51,13 @@
   padding-right: 15px;
   color: var(--primary-color);
 }
+/* Ensure multiline inputs like textarea align labels at top-left */
+.textform label {
+  display: inline-block;
+  vertical-align: top;
+  font-size: 15px; /* match Customer ID label size */
+  font-weight: 600;
+}
 .longformmdl input,
 .longformmdl select,
 .longformmdl2 input {
@@ -81,6 +88,7 @@
   /* background-color: #d9d9d9; */
   border: 1px solid #d9d9d9;
   box-shadow: 1px 1px 3px #333;
+  vertical-align: top;
 }
 
 .headmdl {
@@ -305,4 +313,169 @@
   border: 1px solid gray;
   border-radius: 6px;
   margin-left: 10px;
+}
+
+.activation-column {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.activation-column .form-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.activation-column .form-check-input {
+  margin: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activation-column .form-check-input:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.activation-column .form-check-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.activation-column .form-check-input:checked + .form-check-label {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.activation-column .form-check-input:not(:checked) + .form-check-label {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.activation-column .badge {
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.activation-column .bg-success {
+  background-color: #28a745 !important;
+  color: white !important;
+}
+
+.activation-column .bg-danger {
+  background-color: #dc3545 !important;
+  color: white !important;
+}
+
+.activation-column .bg-secondary {
+  background-color: #6c757d !important;
+  color: white !important;
+}
+
+.activation-column .badge i {
+  font-size: 9px;
+  vertical-align: middle;
+}
+
+/* Activation Summary Styles */
+.activation-summary .badge {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-weight: 500;
+}
+
+.activation-summary .badge i {
+  font-size: 11px;
+}
+
+.activation-summary .btn-outline-primary {
+  border-color: #007bff;
+  color: #007bff;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 15px;
+  transition: all 0.2s ease;
+}
+
+.activation-summary .btn-outline-primary:hover {
+  background-color: #007bff;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.activation-summary .btn-outline-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.activation-summary .btn-outline-primary:disabled:hover {
+  background-color: transparent;
+  color: #007bff;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Warning indicator styles */
+.text-muted .bi-exclamation-triangle {
+  color: #ffc107;
+}
+
+/* Confirmation Modal Styles */
+.confirmation-modal {
+  z-index: 1050;
+}
+
+.confirmation-modal .modal-content {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.confirmation-modal .modal-header {
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.confirmation-modal .modal-title {
+  color: #495057;
+  font-weight: 600;
+}
+
+.confirmation-modal .modal-body {
+  padding: 20px;
+  color: #6c757d;
+}
+
+.confirmation-modal .modal-footer {
+  border-top: 1px solid #dee2e6;
+  padding: 15px 20px;
+}
+
+/* Sticky header table utility for bulk transfer */
+.sticky-table {
+  overflow-y: auto; /* Let parent/container control height; header stays sticky */
+}
+.sticky-table table {
+  margin-bottom: 0;
+}
+.sticky-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Preserve the header background style from table theme */
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }

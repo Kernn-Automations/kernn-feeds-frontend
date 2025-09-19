@@ -225,7 +225,7 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
   }, []);
 
   const VITE_API = import.meta.env.VITE_API_URL;
-  const token = localStorage.getItem("access_token");
+  const token = localStorage.getItem("accessToken");
 
   // update
   const onUpdate = async () => {

@@ -89,7 +89,7 @@ function TicketingService() {
       setLoading(true);
       const res = await axios.post(`${VITE_API}/tickets`, formData, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           "Content-Type": "multipart/form-data",
         },
       });

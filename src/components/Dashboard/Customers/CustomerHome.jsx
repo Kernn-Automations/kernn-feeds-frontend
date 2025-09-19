@@ -5,6 +5,7 @@ import ReusableCard from "../../ReusableCard";
 import ChartComponent from "../../ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import dashboardStyles from "../Dashboard.module.css";
 
 function CustomerHome({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -149,6 +150,12 @@ function CustomerHome({ navigate, isAdmin }) {
           >
             Customer Reports
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/transfer")}
+          >
+            Customer Transfer
+          </button>
         </div>
       </div>
 
@@ -171,7 +178,7 @@ function CustomerHome({ navigate, isAdmin }) {
       </Flex>
 
       {/* Charts */}
-      <Flex wrap="wrap" px={4}>
+      <div className={dashboardStyles["charts-grid"]}>
         {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
           <ChartComponent
             type="line"
@@ -189,7 +196,7 @@ function CustomerHome({ navigate, isAdmin }) {
             legendPosition="left"
           />
         )}
-      </Flex>
+      </div>
     </>
   );
 }

@@ -32,6 +32,9 @@ const options = [
   { name: "Products", path: "/products" },
   { name: "Products - Add", path: "/products/add" },
   { name: "Products - Modify", path: "/products/modify" },
+  { name: "Targets", path: "/targets" },
+  { name: "Targets - Sales", path: "/targets/sales-target" },
+  { name: "Targets - Customers", path: "/targets/customer-target" },
 ];
 
 const SearchBar = () => {
