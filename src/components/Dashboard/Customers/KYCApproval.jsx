@@ -11,6 +11,7 @@ function KYCApproval({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
 
   const [customers, setCustomers] = useState([]);
+  const [allCustomers, setAllCustomers] = useState([]); // Store all customers for frontend pagination
   const [warehouses, setWarehouses] = useState([]);
   const [warehouse, setWarehouse] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -71,7 +72,8 @@ function KYCApproval({ navigate, isAdmin }) {
         if (searchTerm.trim().length >= 3) {
           query = `/customers/search?customerName=${searchTerm.trim()}&kycStatus=Pending`;
         } else {
-          query = `/customers?kycStatus=Pending&page=${pageNo}&limit=${limit}`;
+          // Remove pagination parameters to get all customers for frontend pagination
+          query = `/customers?kycStatus=Pending`;
         }
         
         // ✅ Add warehouse filter if selected
@@ -103,8 +105,17 @@ function KYCApproval({ navigate, isAdmin }) {
         
         const res = await axiosAPI.get(query);
         console.log(res)
-        setCustomers(res.data.customers);
-        setTotalPages(res.data?.totalPages || 1);
+        
+        // Get all customers from response
+        const allItems = res.data.customers;
+        console.log('All customers:', allItems);
+        console.log('Total customers:', allItems.length);
+        
+        // Store all customers for frontend pagination
+        setAllCustomers(allItems);
+        
+        // Apply frontend pagination
+        updatePagination(allItems, pageNo, limit);
       } catch (e) {
         setError(e.response?.data?.message || "Failed to fetch data.");
         setIsModalOpen(true);
@@ -114,9 +125,46 @@ function KYCApproval({ navigate, isAdmin }) {
     }
 
     fetchCustomers();
-  }, [trigger, pageNo, limit, searchTerm, warehouse]);
+  }, [trigger, searchTerm, warehouse]);
 
-  let count = 1;
+  // Reset page number when limit changes
+  useEffect(() => {
+    setPageNo(1);
+  }, [limit]);
+
+  // Handle frontend pagination
+  const updatePagination = (allItems, currentPage, itemsPerPage) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedItems = allItems.slice(startIndex, endIndex);
+    
+    console.log('🔄 Frontend pagination:', {
+      totalItems: allItems.length,
+      currentPage,
+      itemsPerPage,
+      startIndex,
+      endIndex,
+      paginatedItemsCount: paginatedItems.length,
+      totalPages: Math.ceil(allItems.length / itemsPerPage)
+    });
+    
+    setCustomers(paginatedItems);
+    setTotalPages(Math.ceil(allItems.length / itemsPerPage));
+  };
+
+  // Update pagination when page number changes
+  useEffect(() => {
+    if (allCustomers.length > 0) {
+      updatePagination(allCustomers, pageNo, limit);
+    }
+  }, [pageNo, allCustomers, limit]);
+
+  // Update pagination when limit changes
+  useEffect(() => {
+    if (allCustomers.length > 0) {
+      updatePagination(allCustomers, pageNo, limit);
+    }
+  }, [limit, allCustomers, pageNo]);
 
   return (
     <>
@@ -165,7 +213,10 @@ function KYCApproval({ navigate, isAdmin }) {
               <select
                 value={limit}
                 onChange={(e) => {
-                  setLimit(Number(e.target.value));
+                  const newLimit = Number(e.target.value);
+                  console.log('🔄 Entity selection changed:', { oldLimit: limit, newLimit });
+                  console.log('🔄 Current allCustomers length:', allCustomers.length);
+                  setLimit(newLimit);
                   setPageNo(1); // reset to page 1 on limit change
                 }}
               >
@@ -178,6 +229,16 @@ function KYCApproval({ navigate, isAdmin }) {
             </div>
 
             <div className="col-lg-10">
+              {/* Pagination Info */}
+              <div className="row m-0 p-0 mb-3 justify-content-between">
+                <div className="col-lg-6">
+                  <p className="text-muted mb-0">
+                    Showing {customers && customers.length > 0 ? ((pageNo - 1) * limit) + 1 : 0} to {customers && customers.length > 0 ? Math.min(pageNo * limit, ((pageNo - 1) * limit) + customers.length) : 0} of {allCustomers ? allCustomers.length : 0} entries
+                    {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
+                  </p>
+                </div>
+              </div>
+
               <table className="table table-bordered borderedtable">
                 <thead>
                   <tr className="animated-row">
@@ -196,13 +257,13 @@ function KYCApproval({ navigate, isAdmin }) {
                       <td colSpan={7}>NO DATA FOUND</td>
                     </tr>
                   )}
-                  {customers.map((customer) => (
+                  {customers.map((customer, index) => (
                     <tr
                       key={customer.id}
                       className="animated-row"
-                      style={{ animationDelay: `${count * 0.1}s` }}
+                      style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <td>{count++}</td>
+                      <td>{((pageNo - 1) * limit) + index + 1}</td>
                       <td>{customer.customer_id}</td>
                       <td>{customer.name}</td>
                       <td>{customer.salesExecutive?.id}</td>
@@ -228,6 +289,11 @@ function KYCApproval({ navigate, isAdmin }) {
                       Previous
                     </button>
                   )}
+                </div>
+                <div className="col-4 text-center">
+                  <span className="text-muted">
+                    Page {pageNo} of {totalPages || 1}
+                  </span>
                 </div>
                 <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
                   {pageNo < totalPages && (

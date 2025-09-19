@@ -47,6 +47,20 @@ function Orders({
   const [pageNo, setPageNo] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
+
+  // Add search state variables for searchable fields
+  const [dateSearchTerm, setDateSearchTerm] = useState("");
+  const [showDateSearch, setShowDateSearch] = useState(false);
+  const [orderIdSearchTerm, setOrderIdSearchTerm] = useState("");
+  const [showOrderIdSearch, setShowOrderIdSearch] = useState(false);
+  const [warehouseSearchTerm, setWarehouseSearchTerm] = useState("");
+  const [showWarehouseSearch, setShowWarehouseSearch] = useState(false);
+  const [customerIdSearchTerm, setCustomerIdSearchTerm] = useState("");
+  const [showCustomerIdSearch, setShowCustomerIdSearch] = useState(false);
+  const [customerNameSearchTerm, setCustomerNameSearchTerm] = useState("");
+  const [showCustomerNameSearch, setShowCustomerNameSearch] = useState(false);
+  const [paymentModeSearchTerm, setPaymentModeSearchTerm] = useState("");
+  const [showPaymentModeSearch, setShowPaymentModeSearch] = useState(false);
   useEffect(() => {
     async function fetch() {
       try {
@@ -100,6 +114,97 @@ function Orders({
     }
     fetch();
   }, [trigger, pageNo, limit]);
+
+  // Add ESC key functionality to exit search mode
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showDateSearch) {
+          setShowDateSearch(false);
+          setDateSearchTerm("");
+        }
+        if (showOrderIdSearch) {
+          setShowOrderIdSearch(false);
+          setOrderIdSearchTerm("");
+        }
+        if (showWarehouseSearch) {
+          setShowWarehouseSearch(false);
+          setWarehouseSearchTerm("");
+        }
+        if (showCustomerIdSearch) {
+          setShowCustomerIdSearch(false);
+          setCustomerIdSearchTerm("");
+        }
+        if (showCustomerNameSearch) {
+          setShowCustomerNameSearch(false);
+          setCustomerNameSearchTerm("");
+        }
+        if (showPaymentModeSearch) {
+          setShowPaymentModeSearch(false);
+          setPaymentModeSearchTerm("");
+        }
+      }
+    };
+
+    if (showDateSearch || showOrderIdSearch || showWarehouseSearch || showCustomerIdSearch || showCustomerNameSearch || showPaymentModeSearch) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showDateSearch, showOrderIdSearch, showWarehouseSearch, showCustomerIdSearch, showCustomerNameSearch, showPaymentModeSearch]);
+
+  // Add click outside functionality to exit search mode
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside any of the search headers
+      const dateHeader = document.querySelector('[data-date-header]');
+      const orderIdHeader = document.querySelector('[data-orderid-header]');
+      const warehouseHeader = document.querySelector('[data-warehouse-header]');
+      const customerIdHeader = document.querySelector('[data-customerid-header]');
+      const customerNameHeader = document.querySelector('[data-customername-header]');
+      const paymentModeHeader = document.querySelector('[data-paymentmode-header]');
+      
+      if (showDateSearch && dateHeader && !dateHeader.contains(event.target)) {
+        setShowDateSearch(false);
+        setDateSearchTerm("");
+      }
+      
+      if (showOrderIdSearch && orderIdHeader && !orderIdHeader.contains(event.target)) {
+        setShowOrderIdSearch(false);
+        setOrderIdSearchTerm("");
+      }
+      
+      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+        setShowWarehouseSearch(false);
+        setWarehouseSearchTerm("");
+      }
+      
+      if (showCustomerIdSearch && customerIdHeader && !customerIdHeader.contains(event.target)) {
+        setShowCustomerIdSearch(false);
+        setCustomerIdSearchTerm("");
+      }
+      
+      if (showCustomerNameSearch && customerNameHeader && !customerNameHeader.contains(event.target)) {
+        setShowCustomerNameSearch(false);
+        setCustomerNameSearchTerm("");
+      }
+      
+      if (showPaymentModeSearch && paymentModeHeader && !paymentModeHeader.contains(event.target)) {
+        setShowPaymentModeSearch(false);
+        setPaymentModeSearchTerm("");
+      }
+    };
+
+    if (showDateSearch || showOrderIdSearch || showWarehouseSearch || showCustomerIdSearch || showCustomerNameSearch || showPaymentModeSearch) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDateSearch, showOrderIdSearch, showWarehouseSearch, showCustomerIdSearch, showCustomerNameSearch, showPaymentModeSearch]);
 
   const onSubmit = () => {
     // console.log(from, to, warehouse, customer);
@@ -280,6 +385,7 @@ function Orders({
             }
           >
             <option value="null">--select--</option>
+            <option value="Pending">Pending</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Dispatched">Dispatched</option>
             <option value="Delivered">Delivered</option>
@@ -288,13 +394,94 @@ function Orders({
         </div>
       </div>
       <div className="row m-0 p-3 justify-content-center">
-        <div className={`col-3 formcontent`}>
-          <button className="submitbtn" onClick={onSubmit}>
-            Submit
-          </button>
-          <button className="cancelbtn" onClick={() => navigate("/sales")}>
-            Cancel
-          </button>
+        {/* Submit/Cancel buttons centered */}
+        <div className="col-12 d-flex justify-content-center">
+          <div className="d-flex gap-3">
+            <button className="submitbtn" onClick={onSubmit}>
+              Submit
+            </button>
+            <button className="cancelbtn" onClick={() => navigate("/sales")}>
+              Cancel
+            </button>
+          </div>
+        </div>
+        
+        {/* Status Legend - Single row with 6 icons */}
+        <div className="col-12 d-flex justify-content-center mt-3">
+          <div className="d-flex gap-4">
+            <div className="d-flex align-items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="20px"
+                viewBox="0 -960 960 960"
+                width="20px"
+                fill="#F3C623"
+              >
+                <path d="m619.05-287.55 53.21-52.73-153.98-154.68v-192.67h-72.56v221.97l173.33 178.11ZM480.02-73.3q-83.95 0-158.12-32.01-74.18-32-129.38-87.2-55.2-55.19-87.21-129.36Q73.3-396.04 73.3-479.98q0-83.95 32.04-158.14 32.04-74.19 87.19-129.35 55.16-55.15 129.33-87.27 74.18-32.12 158.14-32.12 83.96 0 158.14 32.12 74.17 32.12 129.33 87.27 55.15 55.16 87.27 129.33 32.12 74.18 32.12 158.14 0 83.96-32.12 158.14-32.12 74.17-87.27 129.33-55.16 55.15-129.33 87.19Q563.97-73.3 480.02-73.3Z" />
+              </svg>
+              <span>Awaiting Payment</span>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="20px"
+                viewBox="0 -960 960 960"
+                width="20px"
+                fill="#0065F8"
+              >
+                <path d="M189.06-73.3q-31.5 0-53.63-22.13-22.13-22.13-22.13-53.63v-470.98q-17.57-8.91-28.78-26.25-11.22-17.34-11.22-39.29v-125.36q0-31.56 22.13-53.74 22.13-22.18 53.63-22.18h661.88q31.56 0 53.74 22.18 22.18 22.18 22.18 53.74v125.36q0 21.95-11.3 39.27-11.29 17.33-28.7 26.27v470.98q0 31.5-22.18 53.63Q802.5-73.3 770.94-73.3H189.06Zm-40-612.28h662.12v-125.36H149.06v125.36Zm207.51 277.03h247.1v-71.93h-247.1v71.93Z" />
+              </svg>
+              <span>Confirmed</span>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="20px"
+                viewBox="0 -960 960 960"
+                width="20px"
+                fill="#F3C623"
+              >
+                <path d="M231.01-154.53q-49.89 0-85.36-34.37-35.46-34.37-36.1-84.3H33.86v-457.18q0-31 22.38-53.38 22.38-22.38 53.38-22.38h572.66v161.56h108.09l135.77 181.02v190.36h-77.27q-.8 49.93-36.18 84.3-35.39 34.37-85.28 34.37t-85.35-34.37q-35.47-34.37-36.1-84.3H352.22q-.79 49.58-36.06 84.12-35.26 34.55-85.15 34.55Zm-.08-69.85q21.66 0 36.83-15.17 15.17-15.17 15.17-36.83 0-21.67-15.17-36.84-15.17-15.16-36.83-15.16-21.67 0-36.84 15.16-15.16 15.17-15.16 36.84 0 21.66 15.16 36.83 15.17 15.17 36.84 15.17Zm496.4 0q21.67 0 36.84-15.17 15.16-15.17 15.16-36.83 0-21.67-15.16-36.84-15.17-15.16-36.84-15.16-21.66 0-36.83 15.16-15.17 15.17-15.17 36.84 0 21.66 15.17 36.83 15.17 15.17 36.83 15.17ZM682.28-430h174.21l-104-138.67h-70.21V-430Z" />
+              </svg>
+              <span>Dispatched</span>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="20px"
+                viewBox="0 -960 960 960"
+                width="20px"
+                fill="#5CB338"
+              >
+                <path d="m342.62-51.47-77.51-132.04-151.86-32.06 16.48-150.28L31.23-480l98.5-113.49-16.48-150.44 151.86-31.89 77.51-132.71L480-846.75l137.54-61.78 78.02 132.71 151.19 31.89-16.48 150.44L928.77-480l-98.5 114.15 16.48 150.28-151.19 32.06-78.02 132.04L480-113.25 342.62-51.47Zm94.71-290.38 228.82-227.48-51.06-48.74-177.76 176.58-91.76-94.23-51.72 51.05 143.48 142.82Z" />
+              </svg>
+              <span>Delivered</span>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="20px"
+                viewBox="0 -960 960 960"
+                width="20px"
+                fill="#EA3323"
+              >
+                <path d="M586.96-484.33 666.63-564l-58.87-60.39-80.43 80.43 59.63 59.63Zm256.37 256.37L742.89-328.39l-5.76-68.81 72.8-82.8-72.8-84.8 9.52-111.05-108.56-23.52-57.29-95.04L480-750.65l-102.8-43.76-36.29 63.04-66.89-66.89 66.63-112.02L480-850.85l139.35-59.43 77.67 131.35 147.83 32.71-14.48 151.59L930.52-480 830.37-365.37l12.96 137.41ZM379.2-165.59 480-209.35l102.8 43.76 34.9-58.98-145.13-145.36L438-335.37 293.37-480l58.87-58.87L438-454.63l-25.3 25.06-194.87-194.86 5.04 59.63-72.8 84.8 72.8 82.8-9.52 113.05 108.56 23.52 57.29 95.04ZM340.65-49.72l-77.67-131.35-147.83-32.71 14.48-151.59L29.48-480l100.15-114.63-12.24-130.24-68.32-68.33 58.63-58.39L853.98-105.3l-58.63 58.39-111.76-111.76-64.24 108.95L480-109.15 340.65-49.72Zm186.68-494.24ZM383.76-458.5Z" />
+              </svg>
+              <span>Cancelled</span>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="20px"
+                viewBox="0 -960 960 960"
+                width="20px"
+                fill="#EA7300"
+              >
+                <path d="M314.39-149.06h331.22v-122.27q0-69.05-48.28-117-48.29-47.95-117.33-47.95-69.04 0-117.33 47.95-48.28 47.95-48.28 117v122.27ZM153.3-73.3v-75.76h85.34v-122.22q0-66.92 35.01-123.18 35.01-56.26 94.34-85.54-59.33-29.94-94.34-86.2-35.01-56.26-35.01-123.19v-121.55H153.3v-75.92h653.56v75.92h-85.34v121.55q0 66.93-34.97 123.19-34.97 56.26-94.38 86.2 59.41 29.28 94.38 85.54 34.97 56.26 34.97 123.18v122.22h85.34v75.76H153.3Z" />
+              </svg>
+              <span>Pending</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -330,25 +517,407 @@ function Orders({
               <thead>
                 <tr>
                   <th>S.No</th>
-                  <th>Date</th>
-                  <th>Order ID</th>
-                  <th>Warehouse Name</th>
-                  <th>Customer ID</th>
-                  <th>Customer Name</th>
+                  <th 
+                    data-date-header
+                    onClick={() => setShowDateSearch(!showDateSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    {showDateSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search Date..."
+                          value={dateSearchTerm}
+                          onChange={(e) => setDateSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '2px 5px',
+                            fontSize: '12px',
+                            border: '1px solid #ccc',
+                            borderRadius: '3px',
+                            width: '120px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDateSearchTerm("");
+                            setShowDateSearch(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#666'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      'Date'
+                    )}
+                  </th>
+                  <th 
+                    data-orderid-header
+                    onClick={() => setShowOrderIdSearch(!showOrderIdSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    {showOrderIdSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search Order ID..."
+                          value={orderIdSearchTerm}
+                          onChange={(e) => setOrderIdSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '2px 5px',
+                            fontSize: '12px',
+                            border: '1px solid #ccc',
+                            borderRadius: '3px',
+                            width: '120px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOrderIdSearchTerm("");
+                            setShowOrderIdSearch(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#666'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      'Order ID'
+                    )}
+                  </th>
+                  <th 
+                    data-warehouse-header
+                    onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    {showWarehouseSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search Warehouse..."
+                          value={warehouseSearchTerm}
+                          onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '2px 5px',
+                            fontSize: '12px',
+                            border: '1px solid #ccc',
+                            borderRadius: '3px',
+                            width: '120px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setWarehouseSearchTerm("");
+                            setShowWarehouseSearch(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#666'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      'Warehouse Name'
+                    )}
+                  </th>
+                  <th 
+                    data-customerid-header
+                    onClick={() => setShowCustomerIdSearch(!showCustomerIdSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    {showCustomerIdSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search Customer ID..."
+                          value={customerIdSearchTerm}
+                          onChange={(e) => setCustomerIdSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '2px 5px',
+                            fontSize: '12px',
+                            border: '1px solid #ccc',
+                            borderRadius: '3px',
+                            width: '120px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCustomerIdSearchTerm("");
+                            setShowCustomerIdSearch(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#666'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      'Customer ID'
+                    )}
+                  </th>
+                  <th 
+                    data-customername-header
+                    onClick={() => setShowCustomerNameSearch(!showCustomerNameSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    {showCustomerNameSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search Customer Name..."
+                          value={customerNameSearchTerm}
+                          onChange={(e) => setCustomerNameSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '2px 5px',
+                            fontSize: '12px',
+                            border: '1px solid #ccc',
+                            borderRadius: '3px',
+                            width: '120px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCustomerNameSearchTerm("");
+                            setShowCustomerNameSearch(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#666'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      'Customer Name'
+                    )}
+                  </th>
                   <th>Qunatity</th>
                   <th>TNX Amount</th>
-                  <th>Payment Mode</th>
+                  <th 
+                    data-paymentmode-header
+                    onClick={() => setShowPaymentModeSearch(!showPaymentModeSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    {showPaymentModeSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search Payment Mode..."
+                          value={paymentModeSearchTerm}
+                          onChange={(e) => setPaymentModeSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '2px 5px',
+                            fontSize: '12px',
+                            border: '1px solid #ccc',
+                            borderRadius: '3px',
+                            width: '120px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPaymentModeSearchTerm("");
+                            setShowPaymentModeSearch(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            color: '#666'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      'Payment Mode'
+                    )}
+                  </th>
                   <th>Status</th>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 && (
+                {/* Search results counter row */}
+                {(dateSearchTerm || orderIdSearchTerm || warehouseSearchTerm || customerIdSearchTerm || customerNameSearchTerm || paymentModeSearchTerm) && (
                   <tr>
-                    <td colSpan={10}>NO DATA FOUND</td>
+                    <td colSpan={10} style={{ textAlign: 'center', fontStyle: 'italic', color: '#666', padding: '8px' }}>
+                      {(() => {
+                        let filteredOrders = orders || [];
+                        
+                        if (dateSearchTerm || orderIdSearchTerm || warehouseSearchTerm || customerIdSearchTerm || customerNameSearchTerm || paymentModeSearchTerm) {
+                          filteredOrders = orders.filter(order => {
+                            let pass = true;
+                            
+                            if (dateSearchTerm) {
+                              const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
+                              if (!orderDate.includes(dateSearchTerm)) {
+                                pass = false;
+                              }
+                            }
+                            
+                            if (orderIdSearchTerm) {
+                              const orderId = order.orderNumber || '';
+                              if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase())) {
+                                pass = false;
+                              }
+                            }
+                            
+                            if (warehouseSearchTerm) {
+                              const warehouseName = order.warehouse?.name || '';
+                              if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                                pass = false;
+                              }
+                            }
+                            
+                            if (customerIdSearchTerm) {
+                              const customerId = order.customer?.customer_id || '';
+                              if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase())) {
+                                pass = false;
+                              }
+                            }
+                            
+                            if (customerNameSearchTerm) {
+                              const customerName = order.customer?.name || '';
+                              if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase())) {
+                                pass = false;
+                              }
+                            }
+                            
+                            if (paymentModeSearchTerm) {
+                              const paymentMode = 'UPI';
+                              if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase())) {
+                                pass = false;
+                              }
+                            }
+                            
+                            return pass;
+                          });
+                        }
+                        
+                        return `Showing ${filteredOrders.length} result(s)`;
+                      })()}
+                    </td>
                   </tr>
                 )}
-                {orders.length > 0 &&
-                  orders.map((order) => (
+              </thead>
+              <tbody>
+                {(() => {
+                  // Apply search filters to the orders data
+                  let filteredOrders = orders || [];
+                  
+                  if (dateSearchTerm || orderIdSearchTerm || warehouseSearchTerm || customerIdSearchTerm || customerNameSearchTerm || paymentModeSearchTerm) {
+                    filteredOrders = orders.filter(order => {
+                      let pass = true;
+                      
+                      // Apply date search filter
+                      if (dateSearchTerm) {
+                        const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
+                        if (!orderDate.includes(dateSearchTerm)) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply order ID search filter
+                      if (orderIdSearchTerm) {
+                        const orderId = order.orderNumber || '';
+                        if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply warehouse search filter
+                      if (warehouseSearchTerm) {
+                        const warehouseName = order.warehouse?.name || '';
+                        if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply customer ID search filter
+                      if (customerIdSearchTerm) {
+                        const customerId = order.customer?.customer_id || '';
+                        if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply customer name search filter
+                      if (customerNameSearchTerm) {
+                        const customerName = order.customer?.name || '';
+                        if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply payment mode search filter
+                      if (paymentModeSearchTerm) {
+                        const paymentMode = 'UPI'; // Since it's hardcoded as UPI in the table
+                        if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      return pass;
+                    });
+                  }
+                  
+                  if (filteredOrders.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={10}>NO DATA FOUND</td>
+                      </tr>
+                    );
+                  }
+                  
+                  return filteredOrders.map((order) => (
                     <tr
                       key={order.id}
                       className="animated-row"
@@ -445,7 +1014,8 @@ function Orders({
                         )}
                       </td>
                     </tr>
-                  ))}
+                  ));
+                })()}
               </tbody>
             </table>
             {orders.length > 0 && (

@@ -5,6 +5,7 @@ import ChartComponent from "@/components/ChartComponent";
 import DeleteProductViewModal from "./DeleteProductViewModal";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import styles from "../Dashboard.module.css";
 
 function ProductHome({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -183,7 +184,7 @@ function ProductHome({ navigate, isAdmin }) {
       </Flex>
 
       {/* Charts */}
-      <Flex wrap="wrap" px={4}>
+      <div className={styles["charts-grid"]}>
         {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
           <ChartComponent
             type="line"
@@ -201,7 +202,7 @@ function ProductHome({ navigate, isAdmin }) {
             legendPosition="left"
           />
         )}
-      </Flex>
+      </div>
     </>
   );
 }

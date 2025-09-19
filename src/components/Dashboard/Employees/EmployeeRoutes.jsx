@@ -8,6 +8,7 @@ const CreateEmployee = lazy(() => import("./CreateEmployee"));
 const EmployeeHome = lazy(() => import("./EmployeeHome"));
 const AssignRole = lazy(() => import("./AssignRole"));
 const ManageEmployees = lazy(() => import("./ManageEmployees"));
+const TeamTransfer = lazy(() => import("./TeamTransfer"));
 
 function EmployeeRoutes() {
   const navigate = useNavigate();
@@ -49,6 +50,14 @@ function EmployeeRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <ManageEmployees navigate={navigate} isAdmin={isAdmin} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/team-transfer"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <TeamTransfer navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />

@@ -25,8 +25,10 @@ function InvoicesPage({ navigate, setInvoiceId }) {
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
   const [invoices, setInvoices] = useState();
+  const [allInvoices, setAllInvoices] = useState([]); // Store all invoices for frontend pagination
   const [loading, setLoading] = useState(false);
   const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10); // Add entity limit state
   const [totalPages, setTotalPages] = useState(0);
 
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
@@ -95,8 +97,15 @@ function InvoicesPage({ navigate, setInvoiceId }) {
           }${customer ? `&customerId=${customer}` : ""}${divisionParam}&page=${pageNo}`
         );
         console.log(res);
-        setInvoices(res.data.invoices);
-        setTotalPages(res.data.totalPages || 1);
+        const allItems = res.data.invoices;
+        console.log('All invoices:', allItems);
+        console.log('Total invoices:', allItems.length);
+        
+        // Store all invoices for frontend pagination
+        setAllInvoices(allItems);
+        
+        // Apply frontend pagination
+        updatePagination(allItems, pageNo, limit);
       } catch (e) {
         setError(e.response?.data?.message || "Failed to load invoices");
         setIsModalOpen(true);
@@ -106,6 +115,45 @@ function InvoicesPage({ navigate, setInvoiceId }) {
     }
     fetchInvoices();
   }, [trigger, pageNo]);
+
+  // Reset page number when limit changes
+  useEffect(() => {
+    setPageNo(1);
+  }, [limit]);
+
+  // Handle frontend pagination
+  const updatePagination = (allItems, currentPage, itemsPerPage) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedItems = allItems.slice(startIndex, endIndex);
+    
+    console.log('🔄 Frontend pagination:', {
+      totalItems: allItems.length,
+      currentPage,
+      itemsPerPage,
+      startIndex,
+      endIndex,
+      paginatedItemsCount: paginatedItems.length,
+      totalPages: Math.ceil(allItems.length / itemsPerPage)
+    });
+    
+    setInvoices(paginatedItems);
+    setTotalPages(Math.ceil(allItems.length / itemsPerPage));
+  };
+
+  // Update pagination when page number changes
+  useEffect(() => {
+    if (allInvoices.length > 0) {
+      updatePagination(allInvoices, pageNo, limit);
+    }
+  }, [pageNo, allInvoices, limit]);
+
+  // Update pagination when limit changes
+  useEffect(() => {
+    if (allInvoices.length > 0) {
+      updatePagination(allInvoices, pageNo, limit);
+    }
+  }, [limit, allInvoices, pageNo]);
 
   const onSubmit = () => setTrigger(!trigger);
 
@@ -148,7 +196,7 @@ function InvoicesPage({ navigate, setInvoiceId }) {
   const handleDownloadDC = async (inv) => {
     try {
       setDownloadingInvoiceId(inv.id);
-      const token = localStorage.getItem("access_token");
+      const token = localStorage.getItem("accessToken");
       const VITE_API = import.meta.env.VITE_API_URL;
       const response = await axios.get(`${VITE_API}`, {
         responseType: "blob",
@@ -234,6 +282,35 @@ function InvoicesPage({ navigate, setInvoiceId }) {
             </button>
           </div>
           <div className="col-lg-10">
+            {/* Entity Limit */}
+            <div className="row m-0 p-0 mb-3 justify-content-end">
+              <div className="col-lg-2">
+                <label htmlFor="">Entity :</label>
+                <select
+                  name=""
+                  id=""
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={30}>30</option>
+                  <option value={40}>40</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Pagination Info */}
+            <div className="row m-0 p-0 mb-3 justify-content-between">
+              <div className="col-lg-6">
+                <p className="text-muted mb-0">
+                  Showing {invoices && invoices.length > 0 ? ((pageNo - 1) * limit) + 1 : 0} to {invoices && invoices.length > 0 ? Math.min(pageNo * limit, ((pageNo - 1) * limit) + invoices.length) : 0} of {allInvoices ? allInvoices.length : 0} entries
+                  {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
+                </p>
+              </div>
+            </div>
+
             <table className="table table-hover table-bordered borderedtable">
               <thead>
                 <tr>
@@ -256,7 +333,7 @@ function InvoicesPage({ navigate, setInvoiceId }) {
                 ) : (
                   invoices.map((inv, i) => (
                     <tr key={inv.id}>
-                      <td>{i + 1}</td>
+                      <td>{((pageNo - 1) * limit) + i + 1}</td>
                       <td>{inv.invoiceDate?.slice(0, 10)}</td>
                       <td>{inv.invoiceNumber}</td>
                       <td>
@@ -297,6 +374,11 @@ function InvoicesPage({ navigate, setInvoiceId }) {
                     <FaArrowLeftLong /> Previous
                   </button>
                 )}
+              </div>
+              <div className="col-4 text-center">
+                <span className="text-muted">
+                  Page {pageNo} of {totalPages || 1}
+                </span>
               </div>
               <div className={`col-2 p-0 ${styles.buttonbox}`}>
                 {pageNo < totalPages && (

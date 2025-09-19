@@ -32,6 +32,18 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  
+  // Return form states for dispatched orders
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnFormData, setReturnFormData] = useState({
+    productId: '',
+    returnType: '',
+    returnReason: '',
+    returnQuantity: '',
+    paymentMode: '',
+    description: ''
+  });
+  const [returnFormErrors, setReturnFormErrors] = useState({});
 
   const openDialog = () => setIsDialogOpen(true);
   const closeDialog = () => setIsDialogOpen(false);
@@ -53,13 +65,38 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     // eslint-disable-next-line
   }, []);
 
+  // ESC key and click outside functionality for return modal
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape' && showReturnModal) {
+        handleReturnModalClose();
+      }
+    };
+
+    const handleClickOutside = (event) => {
+      if (showReturnModal && event.target.classList.contains(styles.cancelModalOverlay)) {
+        handleReturnModalClose();
+      }
+    };
+
+    if (showReturnModal) {
+      document.addEventListener('keydown', handleEscKey);
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showReturnModal]);
+
   const handleDownload = async () => {
     if (!orderId) return;
 
     try {
       setDownloadLoading(true);
 
-      const token = localStorage.getItem("access_token");
+      const token = localStorage.getItem("accessToken");
       const VITE_API = import.meta.env.VITE_API_URL;
 
       const response = await axios.get(
@@ -190,6 +227,94 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     setCancelReason("");
   };
 
+  // Return form handlers for dispatched orders
+  const handleReturnFormChange = (e) => {
+    const { name, value } = e.target;
+    setReturnFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (returnFormErrors[name]) {
+      setReturnFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateReturnForm = () => {
+    const newErrors = {};
+    
+    if (!returnFormData.productId) newErrors.productId = 'Product selection is required';
+    if (!returnFormData.returnType) newErrors.returnType = 'Return type is required';
+    if (!returnFormData.returnReason) newErrors.returnReason = 'Return reason is required';
+    if (!returnFormData.returnQuantity || returnFormData.returnQuantity <= 0) {
+      newErrors.returnQuantity = 'Valid return quantity is required';
+    }
+    if (!returnFormData.paymentMode) newErrors.paymentMode = 'Payment mode is required';
+    
+    setReturnFormErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleReturnFormSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateReturnForm()) {
+      return;
+    }
+    
+    setCancelLoading(true);
+    try {
+      const res = await axiosAPI.post(`/sales-orders/cancel/${orderId}`, {
+        productId: returnFormData.productId,
+        reason: returnFormData.returnReason,
+        returnType: returnFormData.returnType,
+        returnQuantity: returnFormData.returnQuantity,
+        paymentMode: returnFormData.paymentMode,
+        description: returnFormData.description,
+        isDispatchedReturn: true
+      });
+      
+      setOrder({
+        ...order,
+        orderStatus: "Cancelled",
+        cancelledReason: returnFormData.returnReason,
+        cancelledAt: new Date().toISOString(),
+      });
+      
+      setShowReturnModal(false);
+      setReturnFormData({
+        productId: '',
+        returnType: '',
+        returnReason: '',
+        returnQuantity: '',
+        paymentMode: '',
+        description: ''
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to cancel order");
+      setIsModalOpen(true);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleReturnModalClose = () => {
+    setShowReturnModal(false);
+    setReturnFormData({
+      productId: '',
+      returnType: '',
+      returnReason: '',
+      returnQuantity: '',
+      paymentMode: '',
+      description: ''
+    });
+    setReturnFormErrors({});
+  };
+
   const findTracking = (status, paymentStatus) => {
     if (status === "Cancelled") return 100; // Special marker
     if (paymentStatus === "pending") return 2;
@@ -201,6 +326,8 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   };
 
   function formatToIST(dateString) {
+    if (!dateString) return "";
+    
     const date = new Date(dateString);
 
     const options = {
@@ -221,6 +348,8 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     <>
       <p className="path">
         <span onClick={() => navigate("/sales")}>Sales</span>{" "}
+        <i className="bi bi-chevron-right"></i>
+        <span onClick={() => navigate("/sales/orders")}> Orders</span>{" "}
         <i className="bi bi-chevron-right"></i> Tracking-Details
       </p>
 
@@ -337,13 +466,21 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
               )}
 
               {order?.orderStatus === "Dispatched" && (
-                <>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <button
                     className={styles.otpBtn}
                     onClick={handleSendOtp}
                     disabled={actionLoading}
+                    style={{ marginTop: "10px" }}
                   >
                     {actionLoading ? "Sending OTP..." : "Send Delivery OTP"}
+                  </button>
+                  <button
+                    className={styles.cancelOrderBtn}
+                    onClick={() => setShowReturnModal(true)}
+                    disabled={cancelLoading}
+                  >
+                    {cancelLoading ? "Processing..." : "Cancel Order"}
                   </button>
                   <VerifyOTP
                     actionLoading={actionLoading}
@@ -357,7 +494,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     setIsDialogOpen={setIsDialogOpen}
                     closeDialog={closeDialog}
                   />
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -376,16 +513,10 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   <p className={styles.cancelledText}>
     Order Cancelled
   </p>
-                        {order.cancelledReason && (
-                          <p className={styles.date}>
-                            Reason: {order.cancelledReason}
-                          </p>
-                        )}
-                        {order.cancelledAt && (
-                          <p className={styles.date}>
-                            Cancelled At: {formatToIST(order.cancelledAt)}
-                          </p>
-                        )}
+                        
+                        <p className={styles.date}>
+                          Cancelled At: {order.cancelledAt ? formatToIST(order.cancelledAt) : formatToIST(order.updatedAt || new Date())}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -635,6 +766,152 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
             </div>
           </div>
 
+          {/* Delivery History Section */}
+          {(order.orderStatus === "Dispatched" || order.orderStatus === "Delivered") && (
+            <div className={styles.infoCard}>
+              <div className="w-100">
+                <h6 className={styles.title}>Delivery History</h6>
+                <div className={styles.deliveryHistoryContainer}>
+                  
+                  {/* Combined Delivery History */}
+                  {(order.dispatchDate || order.truckNumber || order.orderStatus === "Dispatched" || order.orderStatus === "Delivered") && (
+                    <div className={styles.deliveryHistoryItem}>
+                      <div className={styles.deliveryHistoryHeader}>
+                        <div className={styles.deliveryHistoryIcon}>
+                          <i className="bi bi-truck"></i>
+                        </div>
+                        <div className={styles.deliveryHistoryContent}>
+                          <h6 className={styles.deliveryHistoryTitle}>
+                            {order.dispatchDetails?.isPartialDispatch ? "First Dispatch" : "Dispatch"}
+                          </h6>
+                          <p className={styles.deliveryHistoryDate}>
+                            {order.dispatchDate 
+                              ? `Dispatched on: ${formatToIST(order.dispatchDate)}`
+                              : order.orderStatus === "Dispatched" || order.orderStatus === "Delivered"
+                                ? `Dispatched on: ${formatToIST(order.updatedAt)}`
+                                : "Dispatch information not available"
+                            }
+                          </p>
+                          <div className={styles.dispatchDetails}>
+                            {order.truckNumber && (
+                              <p className={styles.dispatchInfo}>
+                                <strong>Truck Number:</strong> {order.truckNumber}
+                              </p>
+                            )}
+                            {order.driverName && (
+                              <p className={styles.dispatchInfo}>
+                                <strong>Driver:</strong> {order.driverName} {order.driverMobile && `(${order.driverMobile})`}
+                              </p>
+                            )}
+                            {order.dispatchDetails && (
+                              <>
+                                {order.dispatchDetails.truckNumber && (
+                                  <p className={styles.dispatchInfo}>
+                                    <strong>Truck Number:</strong> {order.dispatchDetails.truckNumber}
+                                  </p>
+                                )}
+                                {order.dispatchDetails.driverName && (
+                                  <p className={styles.dispatchInfo}>
+                                    <strong>Driver:</strong> {order.dispatchDetails.driverName} ({order.dispatchDetails.driverMobile})
+                                  </p>
+                                )}
+                                {order.dispatchDetails.isPartialDispatch && order.dispatchDetails.destinations && (
+                                  <div className={styles.partialDispatchDetails}>
+                                    <p className={styles.partialDispatchTitle}>
+                                      <strong>Partial Dispatch Details:</strong>
+                                    </p>
+                                    {order.dispatchDetails.destinations.map((dest, index) => (
+                                      <div key={index} className={styles.destinationItem}>
+                                        <p className={styles.destinationInfo}>
+                                          <strong>Product:</strong> {dest.dealerName} | 
+                                          <strong> Quantity:</strong> {dest.quantity}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {!order.truckNumber && !order.driverName && !order.dispatchDetails && (
+                              <div className={styles.dispatchInfo}>
+                                <p><strong>Products Dispatched:</strong></p>
+                                {order.items && order.items.length > 0 ? (
+                                  <div className={styles.dispatchProductsList}>
+                                    {order.items.map((item, index) => (
+                                      <div key={index} className={styles.dispatchProductItem}>
+                                        <p className={styles.dispatchProductInfo}>
+                                          <strong>Product:</strong> {item.productName || item.name} | 
+                                          <strong> Quantity:</strong> {item.quantity} {item.unit && `(${item.unit})`}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p><em>Product details not available</em></p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Delivery Information - Outside dispatch details */}
+                          {(order.deliveredDate || order.orderStatus === "Delivered") && (
+                            <div className={styles.deliveryInfoSection}>
+                              <div className={styles.deliveryInfoHeader}>
+                                <div className={styles.deliveryInfoIcon}>
+                                  <i className="bi bi-check-circle"></i>
+                                </div>
+                                <div className={styles.deliveryInfoContent}>
+                                  <h6 className={styles.deliveryInfoTitle}>
+                                    {order.dispatchDetails?.isPartialDispatch ? "First Delivery" : "Delivery"}
+                                  </h6>
+                                  <p className={styles.deliveryInfoDate}>
+                                    {order.deliveredDate 
+                                      ? `Delivered on: ${formatToIST(order.deliveredDate)}`
+                                      : order.orderStatus === "Delivered"
+                                        ? `Delivered on: ${formatToIST(order.updatedAt)}`
+                                        : "Delivery information not available"
+                                    }
+                                  </p>
+                                  {order.deliveryDetails && (
+                                    <div className={styles.deliveryDetails}>
+                                      <p className={styles.deliveryInfo}>
+                                        <strong>Delivery Status:</strong> {order.deliveryDetails.status || 'Completed'}
+                                      </p>
+                                      {order.deliveryDetails.notes && (
+                                        <p className={styles.deliveryInfo}>
+                                          <strong>Notes:</strong> {order.deliveryDetails.notes}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!order.deliveryDetails && (
+                                    <div className={styles.deliveryDetails}>
+                                      <p className={styles.deliveryInfo}>
+                                        <strong>Delivery Status:</strong> Completed
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+
+                  {/* Show message if no delivery history yet */}
+                  {order.orderStatus !== "Dispatched" && order.orderStatus !== "Delivered" && (
+                    <div className={styles.noHistoryMessage}>
+                      <p>No delivery history available yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className={styles.infoCard}>
             <div className={styles.wseDetails}>
               <h6>Sales Executive</h6>
@@ -687,6 +964,171 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       )}
       {loading && <Loading />}
       {showDispatchModal && <></>}
+      
+      {/* Return Modal for Dispatched Orders */}
+      {showReturnModal && (
+        <div className={styles.cancelModalOverlay}>
+          <div className={styles.cancelModalBox} style={{ minWidth: "500px", maxWidth: "600px" }}>
+            <div className={styles.cancelModalTitle}>
+              Cancel Order - Return Form
+            </div>
+            
+            <form onSubmit={handleReturnFormSubmit}>
+              <div style={{ marginBottom: "20px" }}>
+                <label className={styles.formLabel} style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                  Select Product *
+                </label>
+                <select
+                  name="productId"
+                  value={returnFormData.productId}
+                  onChange={handleReturnFormChange}
+                  className={styles.formSelect}
+                  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+                  required
+                >
+                  <option value="">Select Product to Return</option>
+                  {order?.items?.map((item, index) => (
+                    <option key={index} value={item.productId || item.id}>
+                      {item.productName || item.name} - Qty: {item.quantity} - ₹{item.price}
+                    </option>
+                  ))}
+                </select>
+                {returnFormErrors.productId && (
+                  <span style={{ color: "#e53935", fontSize: "12px" }}>{returnFormErrors.productId}</span>
+                )}
+              </div>
+              
+              <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
+                <div style={{ flex: 1 }}>
+                  <label className={styles.formLabel} style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                    Return Type *
+                  </label>
+                  <select
+                    name="returnType"
+                    value={returnFormData.returnType}
+                    onChange={handleReturnFormChange}
+                    className={styles.formSelect}
+                    style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+                    required
+                  >
+                    <option value="">Select Return Type</option>
+                    <option value="damage_delivery">Damage during delivery</option>
+                    <option value="quality_issue">Quality issue</option>
+                    <option value="expired_goods">Expired goods</option>
+                    <option value="customer_preference">Customer preference</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {returnFormErrors.returnType && (
+                    <span style={{ color: "#e53935", fontSize: "12px" }}>{returnFormErrors.returnType}</span>
+                  )}
+                </div>
+                
+                <div style={{ flex: 1 }}>
+                  <label className={styles.formLabel} style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                    Payment Mode *
+                  </label>
+                  <select
+                    name="paymentMode"
+                    value={returnFormData.paymentMode}
+                    onChange={handleReturnFormChange}
+                    className={styles.formSelect}
+                    style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+                    required
+                  >
+                    <option value="">Select Payment Mode</option>
+                    <option value="credit_note">Credit Note</option>
+                    <option value="replacement">Replacement</option>
+                    <option value="refund">Refund</option>
+                  </select>
+                  {returnFormErrors.paymentMode && (
+                    <span style={{ color: "#e53935", fontSize: "12px" }}>{returnFormErrors.paymentMode}</span>
+                  )}
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: "20px" }}>
+                <label className={styles.formLabel} style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                  Return Quantity *
+                </label>
+                <input
+                  type="number"
+                  name="returnQuantity"
+                  value={returnFormData.returnQuantity}
+                  onChange={handleReturnFormChange}
+                  className={styles.formInput}
+                  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+                  min="1"
+                  max={returnFormData.productId ? 
+                    order?.items?.find(item => (item.productId || item.id) === returnFormData.productId)?.quantity || 1 
+                    : order?.items?.reduce((total, item) => total + item.quantity, 0) || 1}
+                  placeholder="Enter quantity to return"
+                  required
+                />
+                {returnFormErrors.returnQuantity && (
+                  <span style={{ color: "#e53935", fontSize: "12px" }}>{returnFormErrors.returnQuantity}</span>
+                )}
+                {returnFormData.productId && (
+                  <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
+                    Max quantity: {order?.items?.find(item => (item.productId || item.id) === returnFormData.productId)?.quantity || 0}
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ marginBottom: "20px" }}>
+                <label className={styles.formLabel} style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                  Reason for Return *
+                </label>
+                <input
+                  type="text"
+                  name="returnReason"
+                  value={returnFormData.returnReason}
+                  onChange={handleReturnFormChange}
+                  className={styles.formInput}
+                  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+                  placeholder="Brief reason for return"
+                  required
+                />
+                {returnFormErrors.returnReason && (
+                  <span style={{ color: "#e53935", fontSize: "12px" }}>{returnFormErrors.returnReason}</span>
+                )}
+              </div>
+              
+              <div style={{ marginBottom: "20px" }}>
+                <label className={styles.formLabel} style={{ display: "block", marginBottom: "5px", fontWeight: "600" }}>
+                  Additional Description
+                </label>
+                <textarea
+                  name="description"
+                  value={returnFormData.description}
+                  onChange={handleReturnFormChange}
+                  className={styles.formTextarea}
+                  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc", minHeight: "80px" }}
+                  placeholder="Additional details about the return"
+                  rows="3"
+                />
+              </div>
+              
+              <div className={styles.cancelModalBtns}>
+                <button 
+                  type="button" 
+                  className={styles.cancelBtn} 
+                  onClick={handleReturnModalClose}
+                  disabled={cancelLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.confirmBtn} 
+                  disabled={cancelLoading}
+                >
+                  {cancelLoading ? "Processing..." : "Submit Return"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 };

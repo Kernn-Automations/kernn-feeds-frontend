@@ -295,7 +295,7 @@ function AddProduct({ navigate }) {
         setLoading(true);
         const res = await axios.post(`${VITE_API}/products/add`, formData, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             "Content-Type": "multipart/form-data",
           },
         });

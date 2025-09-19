@@ -4,6 +4,7 @@ import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import styles from "../Dashboard.module.css";
 
 function EmployeeHome({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -155,6 +156,18 @@ function EmployeeHome({ navigate, isAdmin }) {
           >
             Manage Employees
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/employees/team-transfer")}
+          >
+            Team Transfer
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/teams")}
+          >
+            Teams
+          </button>
         </div>
       </div>
 
@@ -182,25 +195,25 @@ function EmployeeHome({ navigate, isAdmin }) {
       </Flex>
 
       {/* Charts */}
-      <Flex wrap="wrap" px={4}>
+      <div className={styles["charts-grid"]}>
         {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
-        <ChartComponent
-          type="line"
-          title="Employees Trend"
-              data={trendData}
-          options={{ responsive: true }}
-        />
+          <ChartComponent
+            type="line"
+            title="Employees Trend"
+            data={trendData}
+            options={{ responsive: true }}
+          />
         )}
         {roleData && roleData.datasets && roleData.datasets[0] && roleData.datasets[0].data && roleData.datasets[0].data.length > 0 && (
-        <ChartComponent
-          type="doughnut"
-          title="Employees by Role"
-          data={roleData}
-          options={{ responsive: true }}
-          legendPosition="left"
-        />
+          <ChartComponent
+            type="doughnut"
+            title="Employees by Role"
+            data={roleData}
+            options={{ responsive: true }}
+            legendPosition="left"
+          />
         )}
-      </Flex>
+      </div>
     </>
   );
 }

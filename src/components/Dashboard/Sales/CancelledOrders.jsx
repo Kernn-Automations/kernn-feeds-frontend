@@ -87,9 +87,10 @@ function CancelledOrders() {
             }).toString();
 
             const response = await axiosAPI.get(`/sales-orders/cancelled?${queryParams}`);
+            console.log('Cancelled orders API response:', response.data);
             const ordersData = response.data.cancelledOrders || response.data.orders || response.data;
+            console.log('Processed orders data:', ordersData);
             setOrders(Array.isArray(ordersData) ? ordersData : []); // Always set as array
-            console.log(response)
         } catch (err) {
             setError("Failed to fetch cancelled orders.");
             setIsModalOpen(true);
@@ -184,7 +185,7 @@ function CancelledOrders() {
         <div className="col-3 formcontent">
           <label>Customer :</label>
           <select
-            value={customer}
+            value={customer || ""}
             onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}
           >
             <option value="null">--select--</option>
@@ -246,12 +247,36 @@ function CancelledOrders() {
                   </tr>
                 )}
                 {orders.map((order, index) => {
-                  // Find warehouse name from warehouses list
-                  let warehouseName = '-';
-                  const warehouseId = order.salesOrder?.warehouseId;
-                  if (warehouseId && Array.isArray(warehouses)) {
-                    const wh = warehouses.find(w => String(w.id) === String(warehouseId));
-                    if (wh) warehouseName = wh.name;
+                  // Try to get warehouse name directly from the order data first
+                  let warehouseName = order.salesOrder?.warehouse?.name || 
+                                    order.warehouse?.name || 
+                                    '-';
+                  
+                  // If warehouse name is not available directly, try to find it from warehouses list
+                  if (warehouseName === '-') {
+                    const warehouseId = order.salesOrder?.warehouseId || 
+                                      order.salesOrder?.warehouse?.id || 
+                                      order.warehouseId || 
+                                      order.warehouse?.id;
+                    
+                    // Debug logging
+                    console.log('Order warehouse data:', {
+                      orderId: order.id,
+                      orderData: order,
+                      salesOrderData: order.salesOrder,
+                      warehouseId: warehouseId,
+                      warehouseIdType: typeof warehouseId,
+                      warehousesCount: warehouses?.length,
+                      warehouses: warehouses
+                    });
+                    
+                    if (warehouseId && Array.isArray(warehouses)) {
+                      const wh = warehouses.find(w => String(w.id) === String(warehouseId));
+                      console.log('Found warehouse:', wh);
+                      if (wh) warehouseName = wh.name;
+                    } else {
+                      console.log('No warehouse found for warehouseId:', warehouseId);
+                    }
                   }
                   return (
                     <tr key={order.id} className="animated-row">

@@ -4,6 +4,7 @@ import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import styles from "../Dashboard.module.css";
 
 function InventoryHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -140,7 +141,7 @@ function InventoryHome({ navigate }) {
       </Flex>
 
       {/* Charts */}
-      <Flex wrap="wrap" px={4}>
+      <div className={styles["charts-grid"]}>
         <ChartComponent
           type="line"
           title="Stock Level Trend"
@@ -154,7 +155,7 @@ function InventoryHome({ navigate }) {
           options={{ responsive: true }}
           legendPosition="left"
         />
-      </Flex>
+      </div>
     </>
   );
 }

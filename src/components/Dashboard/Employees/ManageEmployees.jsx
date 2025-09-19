@@ -16,6 +16,8 @@ function ManageEmployees({ navigate, isAdmin }) {
   const [error, setError] = useState();
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [teamMemberIds, setTeamMemberIds] = useState(new Set());
+  const [standaloneIds, setStandaloneIds] = useState(new Set());
   
   const closeModal = () => {
     setIsModalOpen(false);
@@ -53,14 +55,55 @@ function ManageEmployees({ navigate, isAdmin }) {
         const res = await axiosAPI.get(endpoint);
         
         // Handle the actual backend response structure
+        let employeesData = [];
         if (res.data && res.data.success && res.data.data && Array.isArray(res.data.data)) {
-          setEmployees(res.data.data);
+          employeesData = res.data.data;
         } else if (res.data && res.data.employees && Array.isArray(res.data.employees)) {
-          setEmployees(res.data.employees);
+          employeesData = res.data.employees;
         } else if (res.data && Array.isArray(res.data)) {
-          setEmployees(res.data);
-        } else {
-          setEmployees([]);
+          employeesData = res.data;
+        }
+        
+        console.log('Employees API Response:', res.data);
+        console.log('Parsed employees data:', employeesData);
+        
+        setEmployees(employeesData);
+
+        // Fetch team status lists (team members and standalone) with same division filters
+        try {
+          let teamMembersEndpoint = "/employees/by-team-status/team-members";
+          let standaloneEndpoint = "/employees/by-team-status/standalone";
+          if (currentDivisionId && currentDivisionId !== '1') {
+            teamMembersEndpoint += `?divisionId=${currentDivisionId}`;
+            standaloneEndpoint += `?divisionId=${currentDivisionId}`;
+          } else if (currentDivisionId === '1') {
+            teamMembersEndpoint += `?showAllDivisions=true`;
+            standaloneEndpoint += `?showAllDivisions=true`;
+          }
+
+          const [teamMembersRes, standaloneRes] = await Promise.all([
+            axiosAPI.get(teamMembersEndpoint),
+            axiosAPI.get(standaloneEndpoint)
+          ]);
+
+          const extractIds = (data) => {
+            if (!data) return [];
+            if (Array.isArray(data)) return data;
+            if (Array.isArray(data.data)) return data.data;
+            if (Array.isArray(data.employees)) return data.employees;
+            return [];
+          };
+
+          const teamMembers = extractIds(teamMembersRes.data).map((e) => e.id || e.employeeId || e);
+          const standalone = extractIds(standaloneRes.data).map((e) => e.id || e.employeeId || e);
+
+          setTeamMemberIds(new Set(teamMembers));
+          setStandaloneIds(new Set(standalone));
+        } catch (statusErr) {
+          // Non-blocking: log but don't surface modal
+          console.warn("Failed to fetch team status lists:", statusErr);
+          setTeamMemberIds(new Set());
+          setStandaloneIds(new Set());
         }
       } catch (err) {
         console.error("Failed to load employees:", err);
@@ -96,6 +139,24 @@ function ManageEmployees({ navigate, isAdmin }) {
     if (statusFilter === 'all') return true;
     return emp.status === statusFilter;
   });
+
+  const getTeamStatus = (emp) => {
+    // First check if team status is already in the employee data
+    if (emp.teamStatus !== undefined) {
+      return emp.teamStatus === 'IN' || emp.teamStatus === true ? "IN" : "NOT IN";
+    }
+    if (emp.isInTeam !== undefined) {
+      return emp.isInTeam ? "IN" : "NOT IN";
+    }
+    if (emp.team !== undefined && emp.team !== null) {
+      return "IN";
+    }
+    
+    // Fallback to the separate API call data
+    const identifier = emp.id || emp.employeeId;
+    if (identifier == null) return "NOT IN";
+    return teamMemberIds.has(identifier) ? "IN" : "NOT IN";
+  };
   
   // Show loading state
   if (loading) {
@@ -218,6 +279,7 @@ function ManageEmployees({ navigate, isAdmin }) {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Status</th>
+                  <th>Team Status</th>
                   <th>Warehouse</th>
                   {isAdmin && <th>Action</th>}
                 </tr>
@@ -225,7 +287,7 @@ function ManageEmployees({ navigate, isAdmin }) {
               <tbody>
                                                   {(!filteredEmployees || filteredEmployees.length === 0) && (
                    <tr>
-                     <td colSpan={isAdmin ? 9 : 8}>
+                    <td colSpan={isAdmin ? 10 : 9}>
                        {loading ? 'Loading...' : 'NO DATA FOUND'}
                      </td>
                    </tr>
@@ -251,6 +313,11 @@ function ManageEmployees({ navigate, isAdmin }) {
                            {emp.status || "-"}
                          </span>
                        </td>
+                      <td>
+                        <span className={`badge ${getTeamStatus(emp) === 'IN' ? 'bg-success' : 'bg-secondary'}`}>
+                          {getTeamStatus(emp)}
+                        </span>
+                      </td>
                        <td>{emp.warehouse?.name || "-"}</td>
                        {isAdmin && (
                          <td className={styles.delcol}>

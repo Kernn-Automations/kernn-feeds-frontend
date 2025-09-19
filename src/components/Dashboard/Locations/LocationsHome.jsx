@@ -25,6 +25,8 @@ function LocationsHome() {
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
   });
 
+
+
   // Fetch employees on mount
   useEffect(() => {
     async function fetchEmployees() {
@@ -43,25 +45,16 @@ function LocationsHome() {
           endpoint += `?showAllDivisions=true`;
         }
         
-        console.log('LocationsHome - Fetching employees with endpoint:', endpoint);
-        console.log('LocationsHome - Division ID:', currentDivisionId);
-        console.log('LocationsHome - Division Name:', currentDivisionName);
-        
         const res = await axiosAPI.get(endpoint);
-        console.log('LocationsHome - Employee response:', res.data);
         
         // Handle the new backend response structure
         if (res.data && res.data.success && res.data.data && Array.isArray(res.data.data)) {
-          console.log('Setting employees from res.data.data:', res.data.data);
           setEmployees(res.data.data);
         } else if (res.data && res.data.employees && Array.isArray(res.data.employees)) {
-          console.log('Setting employees from res.data.employees:', res.data.employees);
           setEmployees(res.data.employees);
         } else if (res.data && Array.isArray(res.data)) {
-          console.log('Setting employees from res.data array:', res.data);
           setEmployees(res.data);
         } else {
-          console.log('No valid employee data found, setting empty array');
           setEmployees([]);
         }
       } catch (e) {
@@ -146,12 +139,9 @@ function LocationsHome() {
       endpoint += `${endpoint.includes('?') ? '&' : '?'}date=${selectedDate}`;
     }
     
-    console.log('LocationsHome - Fetching locations with endpoint:', endpoint);
-    
     axiosAPI
       .get(endpoint)
       .then(res => {
-        console.log('LocationsHome - Location response:', res.data);
         
         // Handle the backend response structure
         if (res.data && res.data.success && res.data.locations && Array.isArray(res.data.locations)) {
@@ -334,8 +324,8 @@ function LocationsHome() {
         </div>
       )}
 
-      {/* Map Section */}
-      {type === "employee" && isLoaded && !loading && (
+              {/* Map Section */}
+        {type === "employee" && isLoaded && !loading && (
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-md-10">
             <GoogleMap
@@ -434,6 +424,8 @@ function LocationsHome() {
           </div>
         </div>
       )}
+
+      
       {/* Table fallback for truck or if you want to keep it */}
       <div className="row m-0 p-3 justify-content-center">
         <div className="col-md-10">
