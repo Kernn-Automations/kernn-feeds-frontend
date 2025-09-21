@@ -94,11 +94,9 @@ export function DivisionProvider({ children }) {
             return roleName === "admin" || roleName === "super admin" || roleName === "superadmin";
           });
           
-          console.log('DivisionContext - Is Admin or Super Admin:', isAdminOrSuperAdmin);
-          console.log('DivisionContext - Divisions count:', list.length);
-          
+          // Reduced logging - only log when adding All Divisions option
           if (isAdminOrSuperAdmin && list.length > 1) {
-            console.log('DivisionContext - Adding All Divisions option');
+            console.log('DivisionContext - Adding All Divisions option for admin user');
             divisionsWithAll = [
               { 
                 id: "all", 
@@ -157,36 +155,36 @@ export function DivisionProvider({ children }) {
     }
   }, [islogin, reset]);
 
-  // Update localStorage when selectedDivision changes
-  useEffect(() => {
-    if (selectedDivision) {
-      console.log('DivisionContext - selectedDivision changed:', selectedDivision);
-      console.log('DivisionContext - selectedDivision type check:', {
-        id: selectedDivision?.id,
-        idType: typeof selectedDivision?.id,
-        isAllDivisions: selectedDivision?.isAllDivisions,
-        isAllDivisionsType: typeof selectedDivision?.isAllDivisions,
-        isIdAll: selectedDivision?.id === "all",
-        isIdAllStrict: selectedDivision?.id === "all",
-        isIdAllLoose: selectedDivision?.id == "all"
-      });
+              // Update localStorage when selectedDivision changes
+      useEffect(() => {
+        if (selectedDivision) {
+          console.log('DivisionContext - selectedDivision changed:', selectedDivision);
+          console.log('DivisionContext - selectedDivision type check:', {
+            id: selectedDivision?.id,
+            idType: typeof selectedDivision?.id,
+            isAllDivisions: selectedDivision?.isAllDivisions,
+            isAllDivisionsType: typeof selectedDivision?.isAllDivisions,
+            isIdAll: selectedDivision?.id === "all",
+            isIdAllStrict: selectedDivision?.id === "all",
+            isIdAllLoose: selectedDivision?.id == "all"
+          });
       
       localStorage.setItem("selectedDivision", JSON.stringify(selectedDivision));
       
-      // Update showAllDivisions based on the selected division
-      // Only set showAllDivisions to true if "All Divisions" is actually selected
-      const isAllDivs = selectedDivision?.isAllDivisions === true || selectedDivision?.id === "all";
-      console.log('DivisionContext - Updating showAllDivisions:', {
-        selectedDivisionId: selectedDivision?.id,
-        isAllDivisions: selectedDivision?.isAllDivisions,
-        calculatedShowAll: isAllDivs,
-        isExplicitlyAllDivisions: selectedDivision?.isAllDivisions === true,
-        isIdAll: selectedDivision?.id === "all",
-        isIdAllStrict: selectedDivision?.id === "all",
-        isIdAllLoose: selectedDivision?.id == "all",
-        finalShowAllValue: isAllDivs
-      });
-      setShowAllDivisions(isAllDivs);
+                // Update showAllDivisions based on the selected division
+          // Only set showAllDivisions to true if "All Divisions" is actually selected
+          const isAllDivs = selectedDivision?.isAllDivisions === true || selectedDivision?.id === "all";
+          console.log('DivisionContext - Updating showAllDivisions:', {
+            selectedDivisionId: selectedDivision?.id,
+            isAllDivisions: selectedDivision?.isAllDivisions,
+            calculatedShowAll: isAllDivs,
+            isExplicitlyAllDivisions: selectedDivision?.isAllDivisions === true,
+            isIdAll: selectedDivision?.id === "all",
+            isIdAllStrict: selectedDivision?.id === "all",
+            isIdAllLoose: selectedDivision?.id == "all",
+            finalShowAllValue: isAllDivs
+          });
+          setShowAllDivisions(isAllDivs);
       
       // Trigger a custom event to notify components that division has changed
       window.dispatchEvent(new CustomEvent('divisionChanged', { 

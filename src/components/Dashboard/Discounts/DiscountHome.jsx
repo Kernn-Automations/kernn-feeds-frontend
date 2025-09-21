@@ -4,6 +4,8 @@ import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import styles from "../Dashboard.module.css";
+import discountStyles from "./Discount.module.css";
 
 function DiscountHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -125,6 +127,15 @@ function DiscountHome({ navigate }) {
           >
             Monthly Discount
           </button>
+          
+          {/* Enable/Disable Switch for Monthly Discount */}
+          <div className="d-inline-block ms-3">
+            <label className={discountStyles["switch-label"]}>Enable/Disable:</label>
+            <label className={discountStyles.switch}>
+              <input type="checkbox" defaultChecked />
+              <span className={discountStyles.slider}></span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -152,7 +163,7 @@ function DiscountHome({ navigate }) {
       </Flex>
 
       {/* Charts */}
-      <Flex wrap="wrap" px={4}>
+      <div className={styles["charts-grid"]}>
         {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
           <ChartComponent
             type="line"
@@ -170,7 +181,7 @@ function DiscountHome({ navigate }) {
             legendPosition="left"
           />
         )}
-      </Flex>
+      </div>
     </>
   );
 }

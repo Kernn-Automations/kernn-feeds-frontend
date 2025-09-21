@@ -9,7 +9,7 @@ import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
 import { useDivision } from "@/components/context/DivisionContext";
 import axios from "axios";
-import PageSkeleton from "@/components/SkeletonLoaders/PageSkeleton";
+import HomePageSkeleton from "@/components/SkeletonLoaders/HomePageSkeleton";
 import LowStockAlerts from "./LowStockAlerts";
 import { 
   FaChartLine, 
@@ -23,7 +23,8 @@ import {
   FaWarehouse,
   FaUserCheck,
   FaUserClock,
-  FaUserTimes
+  FaUserTimes,
+  FaRupeeSign
 } from "react-icons/fa";
 
 function HomePage() {
@@ -76,23 +77,30 @@ function HomePage() {
 
   const formData = new FormData();
 
-  const [products, setProducts] = useState();
-  const [paymentsApprovals, setPaymentsApprovals] = useState();
-  const [topPerformingBOs, setTopPerformingBOs] = useState();
-  const [kycApprovals, setKycApprovals] = useState();
-  const [lowStock, setLowStock] = useState();
-  const [orderStatuses, setOrderStatuses] = useState();
-  
-  // New state for enhanced dashboard
-  const [dashboardStats, setDashboardStats] = useState({
-    totalRevenue: 1250000,
-    totalOrders: 1250,
-    totalCustomers: 450,
-    totalProducts: 89,
-    monthlyGrowth: 12.5,
-    pendingDeliveries: 45,
-    lowStockCount: 8,
-    qualityIssues: 3
+  // Updated state to match backend response structure
+  const [dashboardData, setDashboardData] = useState({
+    totalOrders: 0,
+    totalSales: 0,
+    totalProducts: 0,
+    lowStockProducts: 0,
+    customers: {
+      total: 0,
+      active: 0,
+      kycPending: 0,
+      inactive: 0,
+      rejected: 0
+    },
+    orderStatuses: {
+      pendingPaymentApprovals: 0,
+      waitingForDelivery: 0,
+      waitingForDispatch: 0,
+      confirmed: 0,
+      dispatched: 0,
+      delivered: 0
+    },
+    topSellingProducts: [],
+    topPerformingBOs: [],
+    lowStockAlerts: []
   });
 
   const VITE_API = import.meta.env.VITE_API_URL;
@@ -133,19 +141,28 @@ function HomePage() {
         console.log('HomePage - Final URL built:', url);
         
         const res = await axiosAPI.get(url);
+        console.log('HomePage - Backend response:', res.data);
+        console.log('HomePage - Division context:', {
+          selectedDivisionId: selectedDivision?.id,
+          showAllDivisions,
+          isAllDivisions: showAllDivisions || selectedDivision?.id === "all"
+        });
 
         // Map the new backend response structure
-        setKycApprovals(res.data.kycApprovals);
-        setPaymentsApprovals(res.data.orderStatuses?.pendingPaymentApprovals);
-        setTopPerformingBOs(res.data.topPerformingBOs);
-        setProducts(res.data.topSellingProducts);
-        setLowStock(res.data.lowStockAlerts);
-        setOrderStatuses(res.data.orderStatuses);
+        setDashboardData(res.data);
         
-        // Set dashboard statistics
-        if (res.data.dashboardStats) {
-          setDashboardStats(res.data.dashboardStats);
-        }
+        // Log the mapped data for verification
+        console.log('HomePage - Mapped dashboard data:', {
+          totalOrders: res.data.totalOrders,
+          totalSales: res.data.totalSales,
+          totalProducts: res.data.totalProducts,
+          lowStockProducts: res.data.lowStockProducts,
+          customers: res.data.customers,
+          orderStatuses: res.data.orderStatuses,
+          topSellingProductsCount: res.data.topSellingProducts?.length,
+          topPerformingBOsCount: res.data.topPerformingBOs?.length,
+          lowStockAlertsCount: res.data.lowStockAlerts?.length
+        });
       } catch (err) {
         console.error("Dashboard fetch error:", err);
         setError(err?.response?.data?.message || "Failed to load Dashboard.");
@@ -158,10 +175,8 @@ function HomePage() {
     // ✅ Only fetch if division is selected
     if (selectedDivision?.id) {
       fetchInitial();
-    } else {
-      // ✅ Show loading state while waiting for division
-      setLoading(true);
     }
+    // ✅ Don't set loading to true when waiting for division - just wait
   }, [selectedDivision, showAllDivisions]); // ✅ Add dependencies
 
   // ✅ Monitor division changes and fetch data when division is selected
@@ -185,18 +200,28 @@ function HomePage() {
           console.log('HomePage - Refetch final URL built:', url);
           
           const res = await axiosAPI.get(url);
+          console.log('HomePage - Refetch backend response:', res.data);
+          console.log('HomePage - Refetch division context:', {
+            selectedDivisionId: selectedDivision?.id,
+            showAllDivisions,
+            isAllDivisions: showAllDivisions || selectedDivision?.id === "all"
+          });
 
-          setKycApprovals(res.data.kycApprovals);
-          setPaymentsApprovals(res.data.orderStatuses?.pendingPaymentApprovals);
-          setTopPerformingBOs(res.data.topPerformingBOs);
-          setProducts(res.data.topSellingProducts);
-          setLowStock(res.data.lowStockAlerts);
-          setOrderStatuses(res.data.orderStatuses);
+          // Map the new backend response structure
+          setDashboardData(res.data);
           
-          // Set dashboard statistics
-          if (res.data.dashboardStats) {
-            setDashboardStats(res.data.dashboardStats);
-          }
+          // Log the mapped data for verification
+          console.log('HomePage - Refetch mapped dashboard data:', {
+            totalOrders: res.data.totalOrders,
+            totalSales: res.data.totalSales,
+            totalProducts: res.data.totalProducts,
+            lowStockProducts: res.data.lowStockProducts,
+            customers: res.data.customers,
+            orderStatuses: res.data.orderStatuses,
+            topSellingProductsCount: res.data.topSellingProducts?.length,
+            topPerformingBOsCount: res.data.topPerformingBOs?.length,
+            lowStockAlertsCount: res.data.lowStockAlerts?.length
+          });
         } catch (err) {
           console.error("Dashboard refetch error:", err);
           setError(err?.response?.data?.message || "Failed to reload Dashboard.");
@@ -256,6 +281,7 @@ function HomePage() {
               day: 'numeric' 
             })}
           </div>
+
         </div>
       </div>
       
@@ -270,30 +296,47 @@ function HomePage() {
         </div>
       )}
       
-      {/* Statistics Cards Row */}
-      <div className={styles.statsRow}>
+      {/* Show message for divisions with no activity - only after data is loaded */}
+      {selectedDivision?.id && !loading && dashboardData.totalOrders === 0 && dashboardData.totalSales === 0 && (
+        <div className={styles.divisionAlert}>
+          <div className="alert alert-warning">
+            <strong>No Activity Data Available</strong>
+            <br />
+            <small>
+              This division currently has no orders or sales data. 
+              {dashboardData.totalProducts > 0 && ` However, ${dashboardData.totalProducts} products are available for sale.`}
+            </small>
+          </div>
+        </div>
+      )}
+      
+      {/* Show actual content only when we have data and not loading */}
+      {!loading && (dashboardData.totalOrders > 0 || dashboardData.totalSales > 0 || dashboardData.totalProducts > 0 || dashboardData.customers?.total > 0) && (
+        <>
+          {/* Statistics Cards Row */}
+          <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <div className={styles.statIcon}>
             <FaShoppingCart />
           </div>
           <div className={styles.statContent}>
-            <h3>{dashboardStats.totalOrders}</h3>
+            <h3>{dashboardData.totalOrders?.toLocaleString() || 0}</h3>
             <p>Total Orders</p>
             <span className={styles.statusIndicator}>
-              {orderStatuses?.pending || 0} confirmed
+              {dashboardData.orderStatuses?.confirmed || 0} confirmed
             </span>
           </div>
         </div>
         
         <div className={styles.statCard}>
           <div className={styles.statIcon}>
-            <FaUsers />
+            <FaRupeeSign />
           </div>
           <div className={styles.statContent}>
-            <h3>{dashboardStats.totalCustomers}</h3>
-            <p>Total Customers</p>
+            <h3>₹{dashboardData.totalSales?.toLocaleString() || 0}</h3>
+            <p>Total Sales</p>
             <span className={styles.statusIndicator}>
-              {kycApprovals?.length || 0} KYC pending
+              {dashboardData.orderStatuses?.delivered || 0} delivered
             </span>
           </div>
         </div>
@@ -303,23 +346,28 @@ function HomePage() {
             <FaBoxes />
           </div>
           <div className={styles.statContent}>
-            <h3>{dashboardStats.totalProducts}</h3>
+            <h3>{dashboardData.totalProducts?.toLocaleString() || 0}</h3>
             <p>Total Products</p>
             <span className={styles.alertIndicator}>
-              {dashboardStats.lowStockCount} low stock
+              {dashboardData.lowStockProducts || 0} low stock
             </span>
+            {dashboardData.totalProducts > 0 && dashboardData.totalOrders === 0 && (
+              <span className={styles.infoIndicator} style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                Products available for sale
+              </span>
+            )}
           </div>
         </div>
         
         <div className={styles.statCard}>
           <div className={styles.statIcon}>
-            <FaCheckCircle />
+            <FaUsers />
           </div>
           <div className={styles.statContent}>
-            <h3>{orderStatuses?.delivered || 0}</h3>
-            <p>Total Delivered</p>
+            <h3>{dashboardData.customers?.total?.toLocaleString() || 0}</h3>
+            <p>Total Customers</p>
             <span className={styles.statusIndicator}>
-              {orderStatuses?.delivered || 0} orders completed
+              {dashboardData.customers?.active || 0} active
             </span>
           </div>
         </div>
@@ -330,86 +378,125 @@ function HomePage() {
         <div className={styles.dashboardGrid}>
           {/* Row 1: Product Card + Order Status Overview with Customers */}
           <div className={styles.firstRow}>
-            <Productbox products={products} />
+            <Productbox products={dashboardData.topSellingProducts} />
             <div className={styles.orderStatusCard}>
               <h4>Order Status Overview</h4>
-              <div className={styles.orderStatusGrid}>
-                <div className={styles.statusItem}>
-                  <div className={styles.statusIcon} style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" }}>
-                    <FaClock />
-                  </div>
-                  <div className={styles.statusInfo}>
-                    <h5>{orderStatuses?.pending || 0}</h5>
-                    <p>Confirmed</p>
-                  </div>
-                </div>
-                <div className={styles.statusItem}>
-                  <div className={styles.statusIcon} style={{ backgroundColor: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
-                    <FaTruck />
-                  </div>
-                  <div className={styles.statusInfo}>
-                    <h5>{orderStatuses?.dispatched || 0}</h5>
-                    <p>Dispatched</p>
+              {dashboardData.totalOrders === 0 ? (
+                <div className={styles.noDataMessage}>
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: '#6b7280',
+                    fontSize: '14px'
+                  }}>
+                    <FaShoppingCart style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }} />
+                    <p>No orders found for this division</p>
+                    <small>Start creating orders to see activity here</small>
                   </div>
                 </div>
-                <div className={styles.statusItem}>
-                  <div className={styles.statusIcon} style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
-                    <FaCheckCircle />
+              ) : (
+                <div className={styles.orderStatusGrid}>
+                  <div className={styles.statusItem}>
+                    <div className={styles.statusIcon} style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" }}>
+                      <FaClock />
+                    </div>
+                    <div className={styles.statusInfo}>
+                      <h5>{dashboardData.orderStatuses?.confirmed || 0}</h5>
+                      <p>Confirmed</p>
+                    </div>
                   </div>
-                  <div className={styles.statusInfo}>
-                    <h5>{orderStatuses?.delivered || 0}</h5>
-                    <p>Delivered</p>
+                  <div className={styles.statusItem}>
+                    <div className={styles.statusIcon} style={{ backgroundColor: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
+                      <FaTruck />
+                    </div>
+                    <div className={styles.statusInfo}>
+                      <h5>{dashboardData.orderStatuses?.dispatched || 0}</h5>
+                      <p>Dispatched</p>
+                    </div>
+                  </div>
+                  <div className={styles.statusItem}>
+                    <div className={styles.statusIcon} style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
+                      <FaCheckCircle />
+                    </div>
+                    <div className={styles.statusInfo}>
+                      <h5>{dashboardData.orderStatuses?.delivered || 0}</h5>
+                      <p>Delivered</p>
+                    </div>
+                  </div>
+                  <div className={styles.statusItem}>
+                    <div className={styles.statusIcon} style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444" }}>
+                      <FaExclamationTriangle />
+                    </div>
+                    <div className={styles.statusInfo}>
+                      <h5>{dashboardData.orderStatuses?.pendingPaymentApprovals || 0}</h5>
+                      <p>Payment Pending</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               
               <div className={styles.customersSection}>
                 <h4>Customers</h4>
-                <div className={styles.customersGrid}>
-                  <div className={styles.customerMetric}>
-                    <div className={styles.metricIcon} style={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}>
-                      <FaUsers style={{ color: "#3b82f6" }} />
-                    </div>
-                    <div className={styles.metricContent}>
-                      <h6>{dashboardStats?.totalCustomers || 0}</h6>
-                      <p>Total Customers</p>
-                    </div>
-                  </div>
-                  <div className={styles.customerMetric}>
-                    <div className={styles.metricIcon} style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}>
-                      <FaUserCheck style={{ color: "#22c55e" }} />
-                    </div>
-                    <div className={styles.metricContent}>
-                      <h6>{dashboardStats?.activeCustomers || 0}</h6>
-                      <p>Active Customers</p>
+                {dashboardData.customers?.total === 0 ? (
+                  <div className={styles.noDataMessage}>
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '15px', 
+                      color: '#6b7280',
+                      fontSize: '13px'
+                    }}>
+                      <FaUsers style={{ fontSize: '20px', marginBottom: '6px', opacity: 0.5 }} />
+                      <p>No customers registered</p>
+                      <small>Start adding customers to see data here</small>
                     </div>
                   </div>
-                  <div className={styles.customerMetric}>
-                    <div className={styles.metricIcon} style={{ backgroundColor: "rgba(245, 158, 11, 0.1)" }}>
-                      <FaUserClock style={{ color: "#f59e0b" }} />
+                ) : (
+                  <div className={styles.customersGrid}>
+                    <div className={styles.customerMetric}>
+                      <div className={styles.metricIcon} style={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}>
+                        <FaUsers style={{ color: "#3b82f6" }} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <h6>{dashboardData.customers?.total || 0}</h6>
+                        <p>Total Customers</p>
+                      </div>
                     </div>
-                    <div className={styles.metricContent}>
-                      <h6>{kycApprovals?.length || 0}</h6>
-                      <p>KYC Pending</p>
+                    <div className={styles.customerMetric}>
+                      <div className={styles.metricIcon} style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}>
+                        <FaUserCheck style={{ color: "#22c55e" }} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <h6>{dashboardData.customers?.active || 0}</h6>
+                        <p>Active Customers</p>
+                      </div>
+                    </div>
+                    <div className={styles.customerMetric}>
+                      <div className={styles.metricIcon} style={{ backgroundColor: "rgba(245, 158, 11, 0.1)" }}>
+                        <FaUserClock style={{ color: "#f59e0b" }} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <h6>{dashboardData.customers?.kycPending || 0}</h6>
+                        <p>KYC Pending</p>
+                      </div>
+                    </div>
+                    <div className={styles.customerMetric}>
+                      <div className={styles.metricIcon} style={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}>
+                        <FaUserTimes style={{ color: "#ef4444" }} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <h6>{dashboardData.customers?.rejected || 0}</h6>
+                        <p>KYC Rejected</p>
+                      </div>
                     </div>
                   </div>
-                  <div className={styles.customerMetric}>
-                    <div className={styles.metricIcon} style={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}>
-                      <FaUserTimes style={{ color: "#ef4444" }} />
-                    </div>
-                    <div className={styles.metricContent}>
-                      <h6>{dashboardStats?.kycRejected || 0}</h6>
-                      <p>KYC Rejected</p>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Row 2: Low Stock Alerts + Top Performers */}
           <div className={styles.secondRow}>
-            <LowStockAlerts lowStockNotifications={lowStock} />
+            <LowStockAlerts lowStockNotifications={dashboardData.lowStockAlerts} />
             <div className={styles.performanceCard}>
               <div className={styles.performanceHeader}>
                 <h4>Top Performers</h4>
@@ -426,26 +513,41 @@ function HomePage() {
                   fontWeight: '600', 
                   fontFamily: 'Poppins' 
                 }}>
-                  {topPerformingBOs?.length || 0}
+                  {dashboardData.topPerformingBOs?.length || 0}
                 </div>
               </div>
-              <div className={styles.performerList}>
-                {topPerformingBOs?.slice(0, 5).map((bo, index) => (
-                  <div key={index} className={styles.performerItem}>
-                    <div className={styles.rankBadge}>{index + 1}</div>
-                    <div className={styles.performerInfo}>
-                      <h6>{bo.name}</h6>
-                      <p>₹{bo.sales?.toLocaleString()}</p>
-                    </div>
-                    <div className={styles.performanceBar}>
-                      <div 
-                        className={styles.barFill} 
-                        style={{ width: `${(bo.sales / (topPerformingBOs[0]?.sales || 1)) * 100}%` }}
-                      ></div>
-                    </div>
+              {dashboardData.topPerformingBOs?.length === 0 ? (
+                <div className={styles.noDataMessage}>
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '20px', 
+                    color: '#6b7280',
+                    fontSize: '14px'
+                  }}>
+                    <FaUsers style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }} />
+                    <p>No sales activity yet</p>
+                    <small>Start generating sales to see top performers here</small>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className={styles.performerList}>
+                  {dashboardData.topPerformingBOs?.slice(0, 5).map((bo, index) => (
+                    <div key={index} className={styles.performerItem}>
+                      <div className={styles.rankBadge}>{index + 1}</div>
+                      <div className={styles.performerInfo}>
+                        <h6>{bo.name}</h6>
+                        <p>₹{bo.sales?.toLocaleString()}</p>
+                      </div>
+                      <div className={styles.performanceBar}>
+                        <div 
+                          className={styles.barFill} 
+                          style={{ width: `${(bo.sales / (dashboardData.topPerformingBOs[0]?.sales || 1)) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -455,6 +557,8 @@ function HomePage() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Bottom Row */}
       
@@ -482,9 +586,13 @@ function HomePage() {
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
 
-      {loading && <PageSkeleton />}
+      {/* Show skeleton when loading OR when no data is available yet */}
+      {(loading || (!dashboardData.totalOrders && !dashboardData.totalSales && !dashboardData.totalProducts && !dashboardData.customers?.total)) && (
+        <HomePageSkeleton />
+      )}
     </>
   );
 }
 
 export default HomePage;
+

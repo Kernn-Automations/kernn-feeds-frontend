@@ -23,8 +23,30 @@ function DispatchForm({
   const [truckNumber, setTruckNumber] = useState("");
   const [driverName, setDriverName] = useState("");
   const [driverMobile, setDriverMobile] = useState("");
+  const [isPartialDispatch, setIsPartialDispatch] = useState(false);
+  const [destinations, setDestinations] = useState([
+    { productId: "", quantity: "" }
+  ]);
 
   const { axiosAPI } = useAuth();
+
+  // Helper functions for managing destinations
+  const addDestination = () => {
+    setDestinations([...destinations, { productId: "", quantity: "" }]);
+  };
+
+  const removeDestination = (index) => {
+    if (destinations.length > 1) {
+      setDestinations(destinations.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateDestination = (index, field, value) => {
+    const updated = destinations.map((dest, i) => 
+      i === index ? { ...dest, [field]: value } : dest
+    );
+    setDestinations(updated);
+  };
 
   const onSubmitBtn = async () => {
     if (!truckNumber || !driverName || !driverMobile) {
@@ -32,6 +54,19 @@ function DispatchForm({
       setIsModalOpen(true);
       return;
     }
+
+    // Validate partial dispatch destinations if enabled
+    if (isPartialDispatch) {
+      const hasEmptyDestinations = destinations.some(dest => 
+        !dest.productId.trim() || !dest.quantity.trim()
+      );
+      if (hasEmptyDestinations) {
+        setError("All product and quantity fields are required for partial dispatch");
+        setIsModalOpen(true);
+        return;
+      }
+    }
+
     try {
       setActionLoading(true);
       const eligibility = await axiosAPI.get(
@@ -42,11 +77,16 @@ function DispatchForm({
         setIsModalOpen(true);
         return;
       }
-      const res = await axiosAPI.put(`/sales-orders/${orderId}/dispatch`, {
+
+      const dispatchData = {
         truckNumber,
         driverName,
         driverMobile,
-      });
+        isPartialDispatch,
+        ...(isPartialDispatch && { destinations })
+      };
+
+      const res = await axiosAPI.put(`/sales-orders/${orderId}/dispatch`, dispatchData);
       setOrder({
         ...order,
         orderStatus: res.data.orderStatus,
@@ -83,7 +123,6 @@ function DispatchForm({
               <label>Truck Number</label>
               <input
                 type="text"
-                // className="form-control"
                 value={truckNumber}
                 onChange={(e) => setTruckNumber(e.target.value)}
                 placeholder="Enter truck number"
@@ -93,22 +132,90 @@ function DispatchForm({
               <label>Driver Name</label>
               <input
                 type="text"
-                // className="form-control"
                 value={driverName}
                 onChange={(e) => setDriverName(e.target.value)}
                 placeholder="Enter driver name"
               />
             </div>
-            <div className={`mb-3 ${styles.dispatchForm}`}>
+            <div className={`mb-2 ${styles.dispatchForm}`}>
               <label>Driver Mobile</label>
               <input
                 type="text"
-                // className="form-control"
                 value={driverMobile}
                 onChange={(e) => setDriverMobile(e.target.value)}
                 placeholder="Enter driver mobile"
               />
             </div>
+            
+            {/* Partial Dispatch Checkbox */}
+            <div className={`mb-3 ${styles.dispatchForm}`}>
+              <div className="d-flex align-items-center">
+                <input
+                  type="checkbox"
+                  id="partialDispatch"
+                  checked={isPartialDispatch}
+                  onChange={(e) => setIsPartialDispatch(e.target.checked)}
+                  className="me-2"
+                />
+                <label htmlFor="partialDispatch" className="mb-0">
+                  Partial Dispatch
+                </label>
+              </div>
+            </div>
+
+            {/* Partial Dispatch Destinations */}
+            {isPartialDispatch && (
+              <div className={`mb-3 ${styles.partialDispatchSection}`}>
+                <h6 className="mb-3">Dispatch Details</h6>
+                {destinations.map((destination, index) => (
+                  <div key={index} className={`mb-3 ${styles.destinationCard}`}>
+                    {destinations.length > 1 && (
+                      <div className="d-flex justify-content-end mb-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => removeDestination(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                    <div className={`mb-2 ${styles.dispatchForm}`}>
+                      <label>Product</label>
+                      <select
+                        value={destination.productId}
+                        onChange={(e) => updateDestination(index, 'productId', e.target.value)}
+                        className={styles.dispatchFormSelect}
+                      >
+                        <option value="">Select Product</option>
+                        {order?.items?.map((item, itemIndex) => (
+                          <option key={itemIndex} value={item.productId || item.id}>
+                            {item.productName || item.name} - Qty: {item.quantity} {item.unit && `(${item.unit})`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={`mb-2 ${styles.dispatchForm}`}>
+                      <label>Quantity</label>
+                      <input
+                        type="number"
+                        value={destination.quantity}
+                        onChange={(e) => updateDestination(index, 'quantity', e.target.value)}
+                        placeholder="Enter quantity"
+                        min="1"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={addDestination}
+                >
+                  + Add More Product
+                </button>
+              </div>
+            )}
             <div className="d-flex justify-content-end gap-2 py-3">
               <button
                 className="cancelbtn"

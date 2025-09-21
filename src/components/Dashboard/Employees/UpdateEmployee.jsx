@@ -82,7 +82,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   useEffect(() => {
     async function fetchSupervisors() {
       const lastRoleId = selectedRoles[selectedRoles.length - 1];
-      const lastRole = roles.find((r) => r.id === lastRoleId);
+      const lastRole = roles.find((r) => r.name === lastRoleId);
 
       if (!lastRole || lastRole.name.toLowerCase() === "admin") {
         setSupervisors([]);
@@ -146,7 +146,8 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   };
 
   const availableRoles = roles.filter((r) => !selectedRoles.includes(r.id));
-
+  console.log(selectedRoles);
+  console.log(availableRoles);
   const handleSubmit = async () => {
     if (
       !form.name ||

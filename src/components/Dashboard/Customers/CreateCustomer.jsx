@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Customer.module.css";
 import { useAuth } from "@/Auth";
+import { useDivision } from "@/components/context/DivisionContext";
 import { FaMapMarkerAlt, FaPen } from "react-icons/fa";
 import ImageUploadBox from "./ImageUploadBox";
 import MapViewModal from "./MapViewModal";
@@ -45,6 +46,14 @@ function CreateCustomer({ navigate }) {
   const [panBack, setPanBack] = useState();
 
   const [businessOfficers, setBusinessOfficers] = useState([]);
+  // New: employee association and warehouse
+  const [isAssociatedWithEmployee, setIsAssociatedWithEmployee] = useState(false);
+  const [associatedEmployeeId, setAssociatedEmployeeId] = useState("");
+  const [employees, setEmployees] = useState([]);
+  const [employeeHierarchy, setEmployeeHierarchy] = useState(null);
+  const [divisionId, setDivisionId] = useState(null);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseId, setWarehouseId] = useState("");
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -69,25 +78,95 @@ function CreateCustomer({ navigate }) {
   };
 
   const { axiosAPI } = useAuth();
-  const token = localStorage.getItem("access_token");
+  const { selectedDivision } = useDivision();
+  const token = localStorage.getItem("accessToken");
   const VITE_API = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchBusinessOfficers = async () => {
       try {
-        setLoading(true);
         const res = await axiosAPI.get("/employees/role/Business Officer");
         setBusinessOfficers(res.data.employees);
       } catch (err) {
         setError(err.response?.data?.message || "Error fetching executives");
         setIsModalOpen(true);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchBusinessOfficers();
   }, []);
+
+  // Load employees for association
+  useEffect(() => {
+    async function loadEmployees() {
+      try {
+        const res = await axiosAPI.get("/customers/employees/for-association");
+        setEmployees(res.data?.data?.employees || []);
+      } catch (err) {
+        console.error("Failed to load employees for association", err);
+      }
+    }
+    loadEmployees();
+  }, []);
+
+  // Load employee hierarchy and determine division when employee changes
+  useEffect(() => {
+    async function loadHierarchy(employeeId) {
+      if (!employeeId) return;
+      try {
+        const res = await axiosAPI.get(`/customers/employees/${employeeId}/hierarchy`);
+        const data = res.data?.data;
+        setEmployeeHierarchy(data || null);
+        const divId = data?.employee?.division?.id || data?.employee?.divisionId || null;
+        setDivisionId(divId);
+        // Auto-select warehouse from team assignment if present
+        try {
+          const firstTeam = data?.teamAssignments?.[0];
+          const inferredWarehouseId = firstTeam?.warehouseId || firstTeam?.warehouseID || firstTeam?.warehouse_id;
+          if (inferredWarehouseId) {
+            setWarehouseId(String(inferredWarehouseId));
+          }
+        } catch (_) {
+          // ignore
+        }
+      } catch (err) {
+        setEmployeeHierarchy(null);
+        setDivisionId(null);
+        setError(err.response?.data?.message || "Failed to load employee hierarchy");
+        setIsModalOpen(true);
+      }
+    }
+    if (isAssociatedWithEmployee && associatedEmployeeId) {
+      loadHierarchy(associatedEmployeeId);
+    }
+  }, [isAssociatedWithEmployee, associatedEmployeeId]);
+
+  // Load warehouses whenever effective division changes
+  useEffect(() => {
+    async function loadWarehouses(divId) {
+      if (!divId) {
+        setWarehouses([]);
+        return;
+      }
+      try {
+        const res = await axiosAPI.get(`/customers/warehouses/division/${divId}`);
+        setWarehouses(res.data?.data?.warehouses || []);
+      } catch (err) {
+        setWarehouses([]);
+        setError(err.response?.data?.message || "Failed to load warehouses");
+        setIsModalOpen(true);
+      }
+    }
+
+    const effectiveDivisionId = isAssociatedWithEmployee
+      ? divisionId
+      : (selectedDivision && selectedDivision.id !== "all" ? selectedDivision.id : null);
+    // keep local state in sync for submission
+    if (effectiveDivisionId !== divisionId) {
+      setDivisionId(effectiveDivisionId);
+    }
+    loadWarehouses(effectiveDivisionId);
+  }, [isAssociatedWithEmployee, divisionId, selectedDivision]);
 
 
   const handleCreate = async () => {
@@ -111,8 +190,21 @@ function CreateCustomer({ navigate }) {
 
     try {
       setLoading(true);
+      // validations
+      if (!isAssociatedWithEmployee && !warehouseId) throw new Error("Please select a warehouse");
+      if (isAssociatedWithEmployee && !associatedEmployeeId) throw new Error("Please select an employee to associate");
+
+      // Append new association fields
+      formData.append("isAssociatedWithEmployee", isAssociatedWithEmployee ? "true" : "false");
+      if (isAssociatedWithEmployee && associatedEmployeeId) {
+        formData.append("associatedEmployeeId", String(associatedEmployeeId));
+      }
+      if (warehouseId) {
+        formData.append("warehouseId", String(warehouseId));
+      }
+
       const res = await axios.post(
-        `${VITE_API}/customers/admin/add-customer`,
+        `${VITE_API}/customers/add`,
         formData,
         {
           headers: {
@@ -124,7 +216,7 @@ function CreateCustomer({ navigate }) {
       alert(res.data.message);
       navigate("/customers");
     } catch (err) {
-      setError(err.response?.data?.message || "Customer creation failed");
+      setError(err.response?.data?.message || err.message || "Customer creation failed");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -238,6 +330,84 @@ function CreateCustomer({ navigate }) {
           </select>
         </div>
 
+        {/* Employee Association - inline next to Sales Executive */}
+        <div className="col-3 d-flex align-items-center">
+          <input
+            id="associateEmployee"
+            className="form-check-input me-2"
+            type="checkbox"
+            checked={isAssociatedWithEmployee}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setIsAssociatedWithEmployee(checked);
+              setAssociatedEmployeeId("");
+              setEmployeeHierarchy(null);
+              if (!checked) {
+                const sd = selectedDivision && selectedDivision.id !== "all" ? selectedDivision.id : null;
+                setDivisionId(sd);
+              }
+            }}
+          />
+          <label htmlFor="associateEmployee" className="form-check-label mb-0">associated with employee</label>
+        </div>
+
+        {isAssociatedWithEmployee && (
+          <div className={`col-3 ${styles.longform}`}>
+            <label>Employee :</label>
+            <select
+              value={associatedEmployeeId}
+              onChange={(e) => setAssociatedEmployeeId(e.target.value)}
+            >
+              <option value="">Select Employee</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name} ({emp.employeeId}) - {emp.division?.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Team details after selecting employee */}
+        {isAssociatedWithEmployee && associatedEmployeeId && (
+          <div className="col-6">
+            <div className="p-2 border rounded">
+              <div className="fw-semibold mb-1">Team Details</div>
+              {employeeHierarchy?.teamAssignments?.length ? (
+                (() => {
+                  const t = employeeHierarchy.teamAssignments[0];
+                  return (
+                    <div className="small">
+                      <div>Team ID: {t.teamId}</div>
+                      <div>Team: {t.teamName} ({t.teamCode})</div>
+                      <div>Team Head: {t.teamHeadName || t.teamHead || "-"}</div>
+                      <div>Warehouse: {t.warehouseName || t.warehouse?.name || "-"}</div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="small">No team assignment</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Warehouse - show only when not associated OR when employee chosen */}
+        {/* Warehouse - hide entirely when associating with employee */}
+        {!isAssociatedWithEmployee && (
+          <div className={`col-3 ${styles.longform}`}>
+            <label>Warehouse :</label>
+            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+              <option value="">Select Warehouse</option>
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>
+                  {wh.name} - {wh.address}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className={`col-4 ${styles.location}`}>
           <label>Location :</label>
           <div className={styles.mapLink}>
@@ -259,6 +429,7 @@ function CreateCustomer({ navigate }) {
             )}
           </div>
         </div>
+
       </div>
 
       {/* Address Fields */}

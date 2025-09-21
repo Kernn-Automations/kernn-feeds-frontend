@@ -16,6 +16,7 @@ import { fetchWithDivision } from "../../utils/fetchWithDivision";
 // Local skeletons
 import PageSkeleton from "../SkeletonLoaders/PageSkeleton";
 import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
+import HomePageSkeleton from "../SkeletonLoaders/HomePageSkeleton";
 import TicketingService from "./TicketService/TicketingService";
 import SettingRoutes from "./SettingsTab/SettingRoutes";
 
@@ -26,14 +27,19 @@ const InventoryRoutes = lazy(() => import("./Inventory/InventoryRoutes"));
 const PurchaseRoutes  = lazy(() => import("./Purchases/PurchaseRoutes"));
 const SalesRoutes     = lazy(() => import("./Sales/SalesRoutes"));
 const CustomerRoutes  = lazy(() => import("./Customers/CustomerRoutes"));
+const FarmerRoutes    = lazy(() => import("./Farmers/FarmerRoutes"));
 const PaymentRoutes   = lazy(() => import("./Payments/PaymentRoutes"));
 const EmployeeRoutes  = lazy(() => import("./Employees/EmployeeRoutes"));
 const WarehouseRoutes = lazy(() => import("./Warehouses/WarehouseRoutes"));
 const ProductRoutes   = lazy(() => import("./Products/ProductRoutes"));
+const SampleRoutes    = lazy(() => import("./Samples/SampleRoutes"));
 const LocationsHome   = lazy(() => import("./Locations/LocationsHome"));
 const InvoiceRoutes   = lazy(() => import("./Invoice/InvoiceRoutes"));
 const StockRoutes     = lazy(() => import("./StockTransfer/StockRoutes"));
 const DiscountRoutes  = lazy(() => import("./Discounts/DiscountRoutes"));
+const TargetRoutes    = lazy(() => import("./Targets/TargetRoutes"));
+const ReturnRoutes    = lazy(() => import("./Returns/ReturnRoutes"));
+const TeamsRoutes     = lazy(() => import("./Teams/TeamsRoutes"));
 const DivisionManager = lazy(() => import("./DivisionManager"));
 
 export default function Dashboard({
@@ -215,7 +221,7 @@ export default function Dashboard({
                 <Route
                   index
                   element={
-                    <Suspense fallback={<PageSkeleton />}>
+                    <Suspense fallback={<HomePageSkeleton />}>
                       <HomePage />
                     </Suspense>
                   }
@@ -257,6 +263,14 @@ export default function Dashboard({
                   element={
                     <Suspense fallback={<RouteSkeleton />}>
                       <CustomerRoutes />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/farmers/*"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <FarmerRoutes />
                     </Suspense>
                   }
                 />
@@ -313,6 +327,38 @@ export default function Dashboard({
                   element={
                     <Suspense fallback={<RouteSkeleton />}>
                       <ProductRoutes />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/samples/*"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <SampleRoutes />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/targets/*"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <TargetRoutes />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/returns/*"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <ReturnRoutes />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/teams/*"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <TeamsRoutes />
                     </Suspense>
                   }
                 />

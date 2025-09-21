@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import OtpInput from "react-otp-input";
 import axios from "axios";
 import Loading from "./Loading";
@@ -14,6 +14,37 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
   const [error, setError]           = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const VITE_API = import.meta.env.VITE_API_URL;
+  
+  // Add ref for auto-focus functionality
+  const otpInputRef = useRef(null);
+
+  // Auto-focus on the first OTP input when component mounts
+  useEffect(() => {
+    // Small delay to ensure the OTP input is fully rendered
+    const timer = setTimeout(() => {
+      // Try to find the first OTP input using the ref
+      if (otpInputRef.current) {
+        const firstInput = otpInputRef.current.querySelector('input');
+        if (firstInput) {
+          firstInput.focus();
+          firstInput.select();
+        }
+      }
+      
+      // Fallback: try multiple selectors to find the first OTP input
+      if (!otpInputRef.current) {
+        const firstInput = document.querySelector('.otp-input input') || 
+                          document.querySelector('[data-testid="otp-input"]') ||
+                          document.querySelector('input[type="text"]');
+        if (firstInput) {
+          firstInput.focus();
+          firstInput.select();
+        }
+      }
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -67,15 +98,21 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
     <>
       <form onSubmit={onSubmit}>
         <label className={styles.otplabel}>OTP</label>
-        <div className={styles.otps}>
+        <div className={styles.otps} ref={otpInputRef}>
           <OtpInput
             value={otp}
             onChange={setOtp}
             numInputs={6}
             renderSeparator={<span></span>}
             renderInput={(props) => (
-              <input className={styles.otps} {...props} required />
+              <input 
+                className={styles.otps} 
+                {...props} 
+                required 
+                autoFocus={props.index === 0}
+              />
             )}
+            shouldAutoFocus={true}
           />
         </div>
         <p className={styles.resend}>

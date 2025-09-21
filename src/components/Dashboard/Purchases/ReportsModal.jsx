@@ -21,7 +21,7 @@ function getDamageColor(damagePercent) {
 
 function ReportsModal({ pdetails, warehouses, setWarehouses }) {
   const { axiosAPI } = useAuth();
-  const token = localStorage.getItem("access_token");
+  const token = localStorage.getItem("accessToken");
 
   // State for controlling modal, error, loading, etc.
   const [isModalOpen, setIsModalOpen] = useState(false);

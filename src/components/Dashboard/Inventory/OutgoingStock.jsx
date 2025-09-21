@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
+import { useDivision } from "@/components/context/DivisionContext";
 import Loading from "@/components/Loading";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
@@ -20,6 +21,7 @@ function OutgoingStock({ navigate }) {
   const [customers, setCustomers] = useState();
 
   const { axiosAPI } = useAuth();
+  const { selectedDivision, showAllDivisions } = useDivision();
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -31,6 +33,7 @@ function OutgoingStock({ navigate }) {
   useEffect(() => {
     async function fetch() {
       try {
+        console.log('OutgoingStock - Component mounted, fetching initial data');
         const res1 = await axiosAPI.get("/warehouses");
         const res2 = await axiosAPI.get("/customers");
         const res3 = await axiosAPI.get("/products/list");
@@ -52,15 +55,20 @@ function OutgoingStock({ navigate }) {
   // Backend
 
   const [stock, setStock] = useState();
+  const [filteredStock, setFilteredStock] = useState();
 
-  const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  // Add search state variables for all searchable fields
+  const [orderIdSearchTerm, setOrderIdSearchTerm] = useState("");
+  const [showOrderIdSearch, setShowOrderIdSearch] = useState(false);
+  const [warehouseSearchTerm, setWarehouseSearchTerm] = useState("");
+  const [showWarehouseSearch, setShowWarehouseSearch] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [skuSearchTerm, setSkuSearchTerm] = useState("");
+  const [showSkuSearch, setShowSkuSearch] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
 
-  const today = new Date(Date.now()).toISOString().slice(0, 10);
-
-  const [from, setFrom] = useState(date);
-  const [to, setTo] = useState(today);
   const [warehouse, setWarehouse] = useState();
   const [customer, setCustomer] = useState();
   const [product, setProduct] = useState();
@@ -74,9 +82,16 @@ function OutgoingStock({ navigate }) {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
 
+  // Reset page number when limit changes
+  useEffect(() => {
+    setPageNo(1);
+    setTrigger(prev => !prev); // Trigger a refresh
+  }, [limit]);
+
   useEffect(() => {
     async function fetch() {
       try {
+        console.log('OutgoingStock - Starting fetch with params:', { pageNo, limit, warehouse, customer, product, selectedDivision: selectedDivision?.id, showAllDivisions });
         setStock(null);
         setLoading(true);
 
@@ -86,20 +101,58 @@ function OutgoingStock({ navigate }) {
           warehouseParam = `&warehouseId=${warehouse}`;
         }
 
-        const query = `/warehouse/inventory/outgoing?fromDate=${from}&toDate=${to}${warehouseParam}${
-          customer ? `&customerId=${customer}` : ""
-        }${
-          product ? `&productId=${product}` : ""
-        }&page=${pageNo}&limit=${limit}`;
+        // ✅ Use correct endpoint and add division parameters
+        let query = `/warehouses/inventory/outgoing?page=${pageNo}&limit=${limit}`;
+
+        // Add showAllDivisions parameter
+        if (selectedDivision?.id === "all" || showAllDivisions) {
+          query += `&showAllDivisions=true`;
+        } else if (selectedDivision?.id) {
+          query += `&divisionId=${selectedDivision.id}`;
+        }
+
+        // Add optional filters
+        if (warehouse && warehouse !== "all") {
+          query += `&warehouseId=${warehouse}`;
+        }
+        if (customer) {
+          query += `&customerId=${customer}`;
+        }
+        if (product) {
+          query += `&productId=${product}`;
+        }
 
         console.log('OutgoingStock - Fetching stock with warehouse filter:', warehouse);
-        console.log('OutgoingStock - Warehouse parameter:', warehouseParam);
+        console.log('OutgoingStock - Division ID:', selectedDivision?.id);
+        console.log('OutgoingStock - Show All Divisions:', showAllDivisions);
         console.log('OutgoingStock - Final query:', query);
 
         const res = await axiosAPI.get(query);
-        console.log(res);
-        setStock(res.data.outgoingStock);
+        console.log('OutgoingStock - API Response:', res);
+        console.log('OutgoingStock - Outgoing Stock Data:', res.data.outgoingStock);
+        console.log('OutgoingStock - Total Pages:', res.data.totalPages);
+        console.log('OutgoingStock - Expected Items:', limit, 'Actual Items:', res.data.outgoingStock ? res.data.outgoingStock.length : 0);
+        console.log('OutgoingStock - Full API Response Data:', res.data);
+        
+        // Validate that the API is respecting the limit parameter
+        const actualItems = res.data.outgoingStock ? res.data.outgoingStock.length : 0;
+        if (actualItems > limit) {
+          console.warn(`OutgoingStock - Warning: API returned ${actualItems} items but limit was set to ${limit}`);
+          console.warn(`OutgoingStock - This suggests the backend pagination might not be working correctly`);
+          console.warn(`OutgoingStock - Backend response shows limit: ${res.data.limit}, total: ${res.data.total}, totalPages: ${res.data.totalPages}`);
+        }
+        
+        // Frontend workaround: Limit the data to the requested limit
+        let limitedStock = res.data.outgoingStock;
+        if (actualItems > limit) {
+          limitedStock = res.data.outgoingStock.slice(0, limit);
+          console.log(`OutgoingStock - Frontend limiting data from ${actualItems} to ${limitedStock.length} items`);
+        }
+        
+        setStock(limitedStock);
         setTotalPages(res.data.totalPages);
+        console.log('OutgoingStock - Stock state set:', limitedStock);
+        console.log('OutgoingStock - Total pages set:', res.data.totalPages);
       } catch (e) {
         // console.log(e);
         setError(e.response.data.message);
@@ -109,7 +162,142 @@ function OutgoingStock({ navigate }) {
       }
     }
     fetch();
-  }, [trigger, pageNo, limit]);
+  }, [trigger, pageNo, limit, warehouse, customer, product, selectedDivision?.id, showAllDivisions]);
+
+  // Add search filtering effect
+  useEffect(() => {
+    console.log('OutgoingStock - Search effect triggered:', { 
+      stock, 
+      orderIdSearchTerm, 
+      warehouseSearchTerm, 
+      productSearchTerm, 
+      skuSearchTerm, 
+      customerSearchTerm, 
+      filteredStock 
+    });
+    
+    if (stock) {
+      let filtered = stock;
+      
+      // Filter by Order ID
+      if (orderIdSearchTerm) {
+        filtered = filtered.filter(item => 
+          item.orderNumber.toLowerCase().includes(orderIdSearchTerm.toLowerCase())
+        );
+      }
+      
+      // Filter by Warehouse Name
+      if (warehouseSearchTerm) {
+        filtered = filtered.filter(item => 
+          item.warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())
+        );
+      }
+      
+      // Filter by Product Name
+      if (productSearchTerm) {
+        filtered = filtered.filter(item => 
+          item.productName.toLowerCase().includes(productSearchTerm.toLowerCase())
+        );
+      }
+      
+      // Filter by SKU
+      if (skuSearchTerm) {
+        filtered = filtered.filter(item => 
+          item.sku.toLowerCase().includes(skuSearchTerm.toLowerCase())
+        );
+      }
+      
+      // Filter by Customer Name
+      if (customerSearchTerm) {
+        filtered = filtered.filter(item => 
+          item.customerName.toLowerCase().includes(customerSearchTerm.toLowerCase())
+        );
+      }
+      
+      setFilteredStock(filtered);
+    }
+  }, [stock, orderIdSearchTerm, warehouseSearchTerm, productSearchTerm, skuSearchTerm, customerSearchTerm]);
+
+  // Add ESC key functionality to exit search mode
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showOrderIdSearch) {
+          setShowOrderIdSearch(false);
+          setOrderIdSearchTerm("");
+        }
+        if (showWarehouseSearch) {
+          setShowWarehouseSearch(false);
+          setWarehouseSearchTerm("");
+        }
+        if (showProductSearch) {
+          setShowProductSearch(false);
+          setProductSearchTerm("");
+        }
+        if (showSkuSearch) {
+          setShowSkuSearch(false);
+          setSkuSearchTerm("");
+        }
+        if (showCustomerSearch) {
+          setShowCustomerSearch(false);
+          setCustomerSearchTerm("");
+        }
+      }
+    };
+
+    if (showOrderIdSearch || showWarehouseSearch || showProductSearch || showSkuSearch || showCustomerSearch) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showOrderIdSearch, showWarehouseSearch, showProductSearch, showSkuSearch, showCustomerSearch]);
+
+  // Add click outside functionality to exit search mode
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside any of the search headers
+      const orderIdHeader = document.querySelector('[data-orderid-header]');
+      const warehouseHeader = document.querySelector('[data-warehouse-header]');
+      const productHeader = document.querySelector('[data-product-header]');
+      const skuHeader = document.querySelector('[data-sku-header]');
+      const customerHeader = document.querySelector('[data-customer-header]');
+      
+      if (showOrderIdSearch && orderIdHeader && !orderIdHeader.contains(event.target)) {
+        setShowOrderIdSearch(false);
+        setOrderIdSearchTerm("");
+      }
+      
+      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+        setShowWarehouseSearch(false);
+        setWarehouseSearchTerm("");
+      }
+      
+      if (showProductSearch && productHeader && !productHeader.contains(event.target)) {
+        setShowProductSearch(false);
+        setProductSearchTerm("");
+      }
+      
+      if (showSkuSearch && skuHeader && !skuHeader.contains(event.target)) {
+        setShowSkuSearch(false);
+        setSkuSearchTerm("");
+      }
+      
+      if (showCustomerSearch && customerHeader && !customerHeader.contains(event.target)) {
+        setShowCustomerSearch(false);
+        setCustomerSearchTerm("");
+      }
+    };
+
+    if (showOrderIdSearch || showWarehouseSearch || showProductSearch || showSkuSearch || showCustomerSearch) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOrderIdSearch, showWarehouseSearch, showProductSearch, showSkuSearch, showCustomerSearch]);
 
   // Function to export as Excel
 
@@ -129,8 +317,9 @@ function OutgoingStock({ navigate }) {
       "Quantity",
       "Amount",
     ];
-    if (stock && stock.length > 0) {
-      stock.map((st) =>
+    const dataToExport = filteredStock && filteredStock.length > 0 ? filteredStock : stock;
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.map((st) =>
         arr.push({
           "S.No": x++,
           Date: st.date.slice(0, 10),
@@ -155,6 +344,7 @@ function OutgoingStock({ navigate }) {
   };
 
   let index = 1;
+
   return (
     <>
       <p className="path">
@@ -163,23 +353,7 @@ function OutgoingStock({ navigate }) {
       </p>
 
       <div className="row m-0 p-3">
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">From :</label>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-        </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">To :</label>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </div>
-        <div className={`col-3 formcontent`}>
+        <div className={`col-4 formcontent`}>
           <label htmlFor="">WareHouse :</label>
           <select
             name=""
@@ -198,7 +372,7 @@ function OutgoingStock({ navigate }) {
               ))}
           </select>
         </div>
-        <div className={`col-3 formcontent`}>
+        <div className={`col-4 formcontent`}>
           <label htmlFor="">Product :</label>
           <select
             name=""
@@ -216,7 +390,7 @@ function OutgoingStock({ navigate }) {
               ))}
           </select>
         </div>
-        <div className={`col-3 formcontent`}>
+        <div className={`col-4 formcontent`}>
           <label htmlFor="">Customers :</label>
           <select
             name=""
@@ -246,6 +420,7 @@ function OutgoingStock({ navigate }) {
         </div>
       </div>
 
+      {console.log('OutgoingStock - Rendering stock section, stock value:', stock)}
       {stock && (
         <div className="row m-0 p-3 justify-content-around">
           <div className="col-lg-7">
@@ -264,7 +439,7 @@ function OutgoingStock({ navigate }) {
               name=""
               id=""
               value={limit}
-              onChange={(e) => setLimit(e.target.value)}
+              onChange={(e) => setLimit(parseInt(e.target.value))}
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -274,6 +449,16 @@ function OutgoingStock({ navigate }) {
             </select>
           </div>
           <div className="col-lg-10">
+            {/* Warning when backend doesn't respect limit */}
+            {stock && stock.length > limit && (
+              <div className="alert alert-warning mb-2" role="alert">
+                <strong>⚠️ Backend Pagination Issue:</strong> You requested {limit} items per page, but the backend returned {stock.length} items. 
+                The frontend is limiting the display to {limit} items as a workaround. Please contact your backend team to fix the pagination.
+              </div>
+            )}
+            
+            
+            
             <table className={`table table-bordered borderedtable`}>
               <thead>
                 <tr
@@ -282,30 +467,318 @@ function OutgoingStock({ navigate }) {
                 >
                   <th>S.No</th>
                   <th>Date</th>
-                  <th>Order ID</th>
-                  <th>Warehouse Name</th>
-                  <th>Product Name</th>
-                  <th>SKU</th>
-                  <th>Customer Name</th>
+                  <th 
+                    onClick={() => setShowOrderIdSearch(!showOrderIdSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-orderid-header
+                  >
+                    {showOrderIdSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by Order ID..."
+                          value={orderIdSearchTerm}
+                          onChange={(e) => setOrderIdSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {orderIdSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOrderIdSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Order ID
+                      </>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-warehouse-header
+                  >
+                    {showWarehouseSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by warehouse name..."
+                          value={warehouseSearchTerm}
+                          onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {warehouseSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setWarehouseSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Warehouse Name
+                      </>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => setShowProductSearch(!showProductSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-product-header
+                  >
+                    {showProductSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by product name..."
+                          value={productSearchTerm}
+                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {productSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Product Name
+                      </>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => setShowSkuSearch(!showSkuSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-sku-header
+                  >
+                    {showSkuSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by SKU..."
+                          value={skuSearchTerm}
+                          onChange={(e) => setSkuSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {skuSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSkuSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        SKU
+                      </>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => setShowCustomerSearch(!showCustomerSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-customer-header
+                  >
+                    {showCustomerSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by customer name..."
+                          value={customerSearchTerm}
+                          onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {customerSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCustomerSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Customer Name
+                      </>
+                    )}
+                  </th>
                   <th>Quantity</th>
                   <th>Amount</th>
                 </tr>
+                {(showOrderIdSearch && orderIdSearchTerm) || (showWarehouseSearch && warehouseSearchTerm) || (showProductSearch && productSearchTerm) || (showSkuSearch && skuSearchTerm) || (showCustomerSearch && customerSearchTerm) ? (
+                  <tr>
+                    <td colSpan={9} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                      {filteredStock ? `${filteredStock.length} item(s) found` : 'Searching...'}
+                    </td>
+                  </tr>
+                ) : null}
               </thead>
               <tbody>
-                {stock.length === 0 && (
+                {console.log('OutgoingStock - Rendering table body, stock:', stock, 'stock.length:', stock?.length)}
+                {(!stock || stock.length === 0) && (
                   <tr>
                     <td colSpan={9}>NO DATA FOUND</td>
                   </tr>
                 )}
-                {stock.length > 1 &&
-                  stock.map((st) => (
+                {filteredStock && filteredStock.length > 0 &&
+                  filteredStock.map((st) => (
                     <tr
                       key={st.id}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <td>{index++}</td>
-                      <td>{st.date.slice(0, 10)}</td>
+                      <td>{st.date.slice(0, 10).split('-').reverse().join('-')}</td>
                       <td>{st.orderNumber}</td>
                       <td>{st.warehouseName}</td>
                       <td>{st.productName}</td>

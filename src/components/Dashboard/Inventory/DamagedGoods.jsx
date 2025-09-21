@@ -25,6 +25,13 @@ function DamagedGoods({ navigate }) {
   const [filterError, setFilterError] = useState("");
 
   const [goods, setGoods] = useState();
+  const [allGoods, setAllGoods] = useState([]); // Store all items for frontend pagination
+
+  // Add search state variables for searchable fields
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [warehouseSearchTerm, setWarehouseSearchTerm] = useState("");
+  const [showWarehouseSearch, setShowWarehouseSearch] = useState(false);
 
   // Pagination state
   const [pageNo, setPageNo] = useState(1);
@@ -58,6 +65,78 @@ function DamagedGoods({ navigate }) {
     setPageNo(1);
   }, [limit]);
 
+  // Refresh data when limit changes
+  useEffect(() => {
+    if (pageNo === 1) {
+      refreshDamagedGoods();
+    }
+  }, [limit]);
+
+  // Update pagination when page number changes
+  useEffect(() => {
+    if (allGoods.length > 0) {
+      updatePagination(allGoods, pageNo, limit);
+    }
+  }, [pageNo, allGoods, limit]);
+
+  // Update pagination when limit changes
+  useEffect(() => {
+    if (allGoods.length > 0) {
+      updatePagination(allGoods, pageNo, limit);
+    }
+  }, [limit, allGoods, pageNo]);
+
+  // Add ESC key functionality to exit search mode
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showProductSearch) {
+          setShowProductSearch(false);
+          setProductSearchTerm("");
+        }
+        if (showWarehouseSearch) {
+          setShowWarehouseSearch(false);
+          setWarehouseSearchTerm("");
+        }
+      }
+    };
+
+    if (showProductSearch || showWarehouseSearch) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showProductSearch, showWarehouseSearch]);
+
+  // Add click outside functionality to exit search mode
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside any of the search headers
+      const productHeader = document.querySelector('[data-product-header]');
+      const warehouseHeader = document.querySelector('[data-warehouse-header]');
+      
+      if (showProductSearch && productHeader && !productHeader.contains(event.target)) {
+        setShowProductSearch(false);
+        setProductSearchTerm("");
+      }
+      
+      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+        setShowWarehouseSearch(false);
+        setWarehouseSearchTerm("");
+      }
+    };
+
+    if (showProductSearch || showWarehouseSearch) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProductSearch, showWarehouseSearch]);
+
   // Global refresh function for damaged goods
   const refreshDamagedGoods = async () => {
     try {
@@ -82,9 +161,18 @@ function DamagedGoods({ navigate }) {
       const res = await axiosAPI.get(endpoint);
       console.log('🔄 Refreshing damaged goods...');
       console.log('Damaged goods API response:', res.data);
-      console.log('Damaged goods items:', Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
-      setGoods(Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
-      setTotalPages(res.data.totalPages || 1);
+      
+      // Get all items from response
+      const allItems = Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data;
+      console.log('All damaged goods items:', allItems);
+      console.log('Total items received:', allItems.length);
+      
+      // Store all items for frontend pagination
+      setAllGoods(allItems);
+      
+      // Apply frontend pagination
+      updatePagination(allItems, pageNo, limit);
+      
       console.log('✅ Damaged goods refreshed successfully');
     } catch (e) {
       console.error('❌ Error refreshing damaged goods:', e);
@@ -128,9 +216,18 @@ function DamagedGoods({ navigate }) {
         const res = await axiosAPI.get(endpoint);
         console.log('🔄 Fetching damaged goods...');
         console.log('Damaged goods API response:', res.data);
-        console.log('Damaged goods items:', Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
-        setGoods(Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
-        setTotalPages(res.data.totalPages || 1);
+        
+        // Get all items from response
+        const allItems = Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data;
+        console.log('All damaged goods items:', allItems);
+        console.log('Total items received:', allItems.length);
+        
+        // Store all items for frontend pagination
+        setAllGoods(allItems);
+        
+        // Apply frontend pagination
+        updatePagination(allItems, pageNo, limit);
+        
       } catch (e) {
         console.error('❌ Error fetching damaged goods:', e);
         setError(e.response?.data?.message);
@@ -214,6 +311,43 @@ function DamagedGoods({ navigate }) {
     fetchDropdowns();
   }, []);
 
+  // Format date to DD-MM-YYYY
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "-";
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${day}-${month}-${year}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return "-";
+    }
+  };
+
+  // Handle frontend pagination
+  const updatePagination = (allItems, currentPage, itemsPerPage) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedItems = allItems.slice(startIndex, endIndex);
+    
+    console.log('🔄 Frontend pagination:', {
+      totalItems: allItems.length,
+      currentPage,
+      itemsPerPage,
+      startIndex,
+      endIndex,
+      paginatedItemsCount: paginatedItems.length,
+      totalPages: Math.ceil(allItems.length / itemsPerPage)
+    });
+    
+    setGoods(paginatedItems);
+    setTotalPages(Math.ceil(allItems.length / itemsPerPage));
+  };
 
 
   return (
@@ -308,7 +442,19 @@ function DamagedGoods({ navigate }) {
                   }
                 }
                 const res = await axiosAPI.get(query);
-                setGoods(Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data);
+                
+                // Get filtered items
+                const filteredItems = Array.isArray(res.data.damagedGoods) ? res.data.damagedGoods : res.data;
+                console.log('Filtered items:', filteredItems);
+                console.log('Total filtered items:', filteredItems.length);
+                
+                // Store filtered items and reset to page 1
+                setAllGoods(filteredItems);
+                setPageNo(1);
+                
+                // Apply frontend pagination
+                updatePagination(filteredItems, 1, limit);
+                
               } catch (e) {
                 setError(e.response?.data?.message || "Failed to fetch damaged goods");
                 setIsModalOpen(true);
@@ -344,7 +490,11 @@ function DamagedGoods({ navigate }) {
                 name=""
                 id=""
                 value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
+                onChange={(e) => {
+                  const newLimit = Number(e.target.value);
+                  console.log('🔄 Entity selection changed:', { oldLimit: limit, newLimit });
+                  setLimit(newLimit);
+                }}
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -355,40 +505,209 @@ function DamagedGoods({ navigate }) {
             </div>
           </div>
 
+          {/* Pagination Info */}
+          <div className="row m-0 p-0 mb-3 justify-content-between">
+            <div className="col-lg-6">
+              <p className="text-muted mb-0">
+                Showing {goods && goods.length > 0 ? ((pageNo - 1) * limit) + 1 : 0} to {goods && goods.length > 0 ? Math.min(pageNo * limit, ((pageNo - 1) * limit) + goods.length) : 0} of {allGoods ? allGoods.length : 0} entries
+                {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
+              </p>
+            </div>
+          </div>
+
                     <table className="table table-bordered borderedtable">
             <thead>
               <tr>
+                <th>S.No</th>
                 <th>Date</th>
-                <th>Product</th>
+                <th 
+                  onClick={() => setShowProductSearch(!showProductSearch)}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                  data-product-header
+                >
+                  {showProductSearch ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Search by product..."
+                        value={productSearchTerm}
+                        onChange={(e) => setProductSearchTerm(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '2px 6px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          minWidth: '120px',
+                          height: '28px',
+                          color: '#000',
+                          backgroundColor: '#fff'
+                        }}
+                        autoFocus
+                      />
+                      {productSearchTerm && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProductSearchTerm("");
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            border: '1px solid #dc3545',
+                            borderRadius: '4px',
+                            background: '#dc3545',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            minWidth: '24px',
+                            height: '28px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      Product
+                    </>
+                  )}
+                </th>
                 <th>Damage Quantity</th>
-                <th>Warehouse</th>
+                <th 
+                  onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                  data-warehouse-header
+                >
+                  {showWarehouseSearch ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Search by warehouse..."
+                        value={warehouseSearchTerm}
+                        onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '2px 6px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          minWidth: '120px',
+                          height: '28px',
+                          color: '#000',
+                          backgroundColor: '#fff'
+                        }}
+                        autoFocus
+                      />
+                      {warehouseSearchTerm && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setWarehouseSearchTerm("");
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            border: '1px solid #dc3545',
+                            borderRadius: '4px',
+                            background: '#dc3545',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            minWidth: '24px',
+                            height: '28px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      Warehouse
+                    </>
+                  )}
+                </th>
                 <th>Action</th>
               </tr>
+              {(showProductSearch && productSearchTerm) || (showWarehouseSearch && warehouseSearchTerm) ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                    {(() => {
+                      const filteredItems = allGoods.filter(item => {
+                        let pass = true;
+                        if (productSearchTerm) {
+                          const productName = item.productName || item.product?.name || "";
+                          if (!productName.toLowerCase().includes(productSearchTerm.toLowerCase())) {
+                            pass = false;
+                          }
+                        }
+                        if (warehouseSearchTerm) {
+                          const warehouseName = item.warehouseName || item.warehouse?.name || "";
+                          if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                            pass = false;
+                          }
+                        }
+                        return pass;
+                      });
+                      return `${filteredItems.length} item(s) found`;
+                    })()}
+                  </td>
+                </tr>
+              ) : null}
             </thead>
             <tbody>
-              {goods && goods.length > 0 ? (
-                goods
-                  .filter(item => {
-                    // Enable filters: warehouse, product, order
+              {(() => {
+                // Apply search filters to the current page data
+                let filteredGoods = goods || [];
+                
+                if (productSearchTerm || warehouseSearchTerm) {
+                  filteredGoods = filteredGoods.filter(item => {
                     let pass = true;
+                    
+                    // Apply existing filters: warehouse, product, order
                     if (warehouse) {
-                      // Try both warehouseId and item.warehouse?.id
                       const itemWarehouseId = item.warehouseId || (item.warehouse && item.warehouse.id);
                       if (String(itemWarehouseId) !== String(warehouse)) pass = false;
                     }
                     if (product) {
-                      // Try both productId and item.product?.id
                       const itemProductId = item.productId || (item.product && item.product.id);
                       if (String(itemProductId) !== String(product)) pass = false;
                     }
                     if (order) {
                       if (String(item.purchaseOrderId) !== String(order)) pass = false;
                     }
+                    
+                    // Apply new search filters
+                    if (productSearchTerm) {
+                      const productName = item.productName || item.product?.name || "";
+                      if (!productName.toLowerCase().includes(productSearchTerm.toLowerCase())) {
+                        pass = false;
+                      }
+                    }
+                    if (warehouseSearchTerm) {
+                      const warehouseName = item.warehouseName || item.warehouse?.name || "";
+                      if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                        pass = false;
+                      }
+                    }
+                    
                     return pass;
-                  })
-                  .map((item, idx) => (
+                  });
+                }
+                
+                return filteredGoods.length > 0 ? (
+                  filteredGoods.map((item, idx) => (
                     <tr key={idx}>
-                      <td>{item.date ? item.date.slice(0, 10) : (item.createdAt ? item.createdAt.slice(0, 10) :"-") }</td>
+                      <td>{((pageNo - 1) * limit) + idx + 1}</td>
+                      <td>{formatDate(item.date || item.createdAt)}</td>
                       <td>{item.productName || item.product?.name || ""}</td>
                       <td>{item.damagedQuantity || item.damageQuantity || item.quantity || ""}</td>
                       <td>{item.warehouseName || item.warehouse?.name || ""}</td>
@@ -402,11 +721,12 @@ function DamagedGoods({ navigate }) {
                       </td>
                     </tr>
                   ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="text-center">No Damaged Goods Found</td>
-                </tr>
-              )}
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="text-center">No Damaged Goods Found</td>
+                  </tr>
+                );
+              })()}
             </tbody>
           </table>
 
@@ -421,6 +741,11 @@ function DamagedGoods({ navigate }) {
                   Previous
                 </button>
               )}
+            </div>
+            <div className="col-4 text-center">
+              <span className="text-muted">
+                Page {pageNo} of {totalPages || 1}
+              </span>
             </div>
             <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
               {pageNo < totalPages && (
@@ -448,7 +773,7 @@ function DamagedGoods({ navigate }) {
               <div className="modal-body">
                 <div className="row">
                   <div className="col-md-6">
-                    <p><strong>Date:</strong> {selectedItem.date ? selectedItem.date.slice(0, 10) : (selectedItem.createdAt ? selectedItem.createdAt.slice(0, 10) : "-")}</p>
+                    <p><strong>Date:</strong> {formatDate(selectedItem.date || selectedItem.createdAt)}</p>
                     <p><strong>Product ID:</strong> {selectedItem.productId || selectedItem.product?.id || "-"}</p>
                     <p><strong>Product Name:</strong> {selectedItem.productName || selectedItem.product?.name || "-"}</p>
                     <p><strong>Damaged Quantity:</strong> {selectedItem.damagedQuantity || selectedItem.damageQuantity || selectedItem.quantity || "-"}</p>
@@ -535,11 +860,7 @@ function DamagedGoods({ navigate }) {
                   })()}
                 </div>
 
-                {/* Debug Information */}
-                <div className="mt-3">
-                  <p className="text-muted small">Debug Info:</p>
-                  <p className="text-muted small">proofFileSignedUrl: {selectedItem.proofFileSignedUrl || 'null'}</p>
-                </div>
+
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeViewModal}>

@@ -1,6 +1,7 @@
 class AuthService {
   constructor() {
-    this.baseURL = 'https://fb-backend-chandra.kernn.xyz';
+    // Use proxy in development, direct URL in production
+    this.baseURL = import.meta.env.DEV ? '/api' : 'https://fb-backend-chandra.kernn.xyz';
     this.isRefreshing = false;
     this.failedQueue = [];
   }

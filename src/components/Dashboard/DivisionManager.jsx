@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../Auth";
 import Loading from "../Loading";
 import ErrorModal from "../ErrorModal";
+import zonesService from "../../services/zonesService";
+import subZonesService from "../../services/subZonesService";
 import styles from "./DivisionManager.module.css";
 
 function DivisionManager() {
@@ -11,11 +13,71 @@ function DivisionManager() {
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newDivision, setNewDivision] = useState({ name: "", state: "" });
+  const [newDivision, setNewDivision] = useState({
+    name: "",
+    state: "",
+    stateCode: "",
+    plot: "",
+    street1: "",
+    street2: "",
+    areaLocality: "",
+    cityVillage: "",
+    pincode: "",
+    district: "",
+    gstinNumber: "",
+    cinNumber: ""
+  });
   const [creating, setCreating] = useState(false);
+  
+  // Zones state
+  const [activeTab, setActiveTab] = useState("divisions");
+  const [zones, setZones] = useState([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
+  const [showZoneForm, setShowZoneForm] = useState(false);
+  const [editingZone, setEditingZone] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [newZone, setNewZone] = useState({
+    name: "",
+    divisionId: "",
+    zoneHeadId: "",
+    plot: "",
+    street1: "",
+    street2: "",
+    areaLocality: "",
+    cityVillage: "",
+    pincode: "",
+    district: "",
+    state: "",
+    country: "India",
+    stateCode: "",
+    countryCode: "IN"
+  });
+
+  // Sub Zones state
+  const [subZones, setSubZones] = useState([]);
+  const [subZonesLoading, setSubZonesLoading] = useState(false);
+  const [showSubZoneForm, setShowSubZoneForm] = useState(false);
+  const [editingSubZone, setEditingSubZone] = useState(null);
+  const [selectedZoneForSubZone, setSelectedZoneForSubZone] = useState("");
+  const [newSubZone, setNewSubZone] = useState({
+    name: "",
+    subZoneHeadId: "",
+    plot: "",
+    street1: "",
+    street2: "",
+    areaLocality: "",
+    cityVillage: "",
+    pincode: "",
+    district: "",
+    state: "",
+    country: "India",
+    stateCode: "",
+    countryCode: "IN",
+  });
 
   useEffect(() => {
     fetchDivisions();
+    fetchEmployees();
   }, []);
 
   const fetchDivisions = async () => {
@@ -210,8 +272,13 @@ function DivisionManager() {
 
   const handleCreateDivision = async (e) => {
     e.preventDefault();
-    if (!newDivision.name || !newDivision.state) {
-      setError("Please fill in all fields");
+    
+    // Validate required fields
+    const requiredFields = ['name', 'state', 'plot', 'street1', 'areaLocality', 'cityVillage', 'pincode', 'district'];
+    const missingFields = requiredFields.filter(field => !newDivision[field] || newDivision[field].trim() === '');
+    
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
       setIsModalOpen(true);
       return;
     }
@@ -220,24 +287,47 @@ function DivisionManager() {
       setCreating(true);
       console.log("Creating division:", newDivision);
       
-      // Try different endpoints as per the backend routes
-      let response;
-      try {
-        // First try the main create endpoint
-        response = await axiosAPI.post("/divisions", newDivision);
-        console.log("Create division response (main):", response);
-      } catch (mainError) {
-        console.log("Main create endpoint failed, trying /divisions/create");
-        // If main endpoint fails, try the alternative
-        response = await axiosAPI.post("/divisions/create", newDivision);
-        console.log("Create division response (create):", response);
-      }
+      // Prepare the request body according to the new API format
+      const divisionData = {
+        name: newDivision.name,
+        state: newDivision.state,
+        stateCode: newDivision.stateCode || "",
+        plot: newDivision.plot,
+        street1: newDivision.street1,
+        street2: newDivision.street2 || "",
+        areaLocality: newDivision.areaLocality,
+        cityVillage: newDivision.cityVillage,
+        pincode: newDivision.pincode,
+        district: newDivision.district,
+        gstinNumber: newDivision.gstinNumber || "",
+        cinNumber: newDivision.cinNumber || ""
+      };
+      
+      console.log("Sending division data:", divisionData);
+      
+      // Use the new create-division endpoint
+      const response = await axiosAPI.post("/create-division", divisionData);
+      console.log("Create division response:", response);
       
       if (response.status === 201 || response.status === 200) {
-        setNewDivision({ name: "", state: "" });
+        // Reset form to initial state
+        setNewDivision({
+          name: "",
+          state: "",
+          stateCode: "",
+          plot: "",
+          street1: "",
+          street2: "",
+          areaLocality: "",
+          cityVillage: "",
+          pincode: "",
+          district: "",
+          gstinNumber: "",
+          cinNumber: ""
+        });
         setShowCreateForm(false);
         // Show success message
-        setError("Division created successfully!");
+        setError("Division created successfully with detailed address information!");
         setIsModalOpen(true);
         fetchDivisions(); // Refresh the list
       }
@@ -276,6 +366,384 @@ function DivisionManager() {
     setError(""); // Clear error when modal is closed
   };
 
+  // Zones functions
+  const fetchEmployees = async () => {
+    try {
+      const response = await axiosAPI.get("/employees");
+      const employeesData = response.data.employees || response.data.data || response.data || [];
+      setEmployees(Array.isArray(employeesData) ? employeesData : []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      setEmployees([]);
+    }
+  };
+
+  const fetchZones = async () => {
+    try {
+      setZonesLoading(true);
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      const showAllDivisions = currentDivisionId === '1';
+      
+      const response = await zonesService.getZones({
+        divisionId: currentDivisionId,
+        isActive: true
+      }, currentDivisionId, showAllDivisions);
+
+      const data = response?.data || response || {};
+      const zonesList = data.zones || data.data || data || [];
+      setZones(Array.isArray(zonesList) ? zonesList : []);
+    } catch (error) {
+      console.error("Error fetching zones:", error);
+      setZones([]);
+    } finally {
+      setZonesLoading(false);
+    }
+  };
+
+  const handleCreateZone = async (e) => {
+    e.preventDefault();
+    
+    if (!newZone.name || !newZone.divisionId) {
+      setError("Please fill in zone name and division");
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+      console.log("Creating zone:", newZone);
+      
+      const response = await zonesService.createZone(newZone);
+      console.log("Create zone response:", response);
+      
+      if (response.success || response.zone || response.id) {
+        // Reset form
+        setNewZone({
+          name: "",
+          divisionId: "",
+          zoneHeadId: "",
+          plot: "",
+          street1: "",
+          street2: "",
+          areaLocality: "",
+          cityVillage: "",
+          pincode: "",
+          district: "",
+          state: "",
+          country: "India",
+          stateCode: "",
+          countryCode: "IN"
+        });
+        setShowZoneForm(false);
+        setEditingZone(null);
+        setError("Zone created successfully!");
+        setIsModalOpen(true);
+        fetchZones(); // Refresh the list
+      }
+    } catch (error) {
+      console.error("Error creating zone:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to create zone";
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleUpdateZone = async (e) => {
+    e.preventDefault();
+    
+    if (!newZone.name || !newZone.divisionId) {
+      setError("Please fill in zone name and division");
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+      console.log("Updating zone:", editingZone.id, newZone);
+      
+      const response = await zonesService.updateZone(editingZone.id, newZone);
+      console.log("Update zone response:", response);
+      
+      if (response.success || response.zone || response.id) {
+        setShowZoneForm(false);
+        setEditingZone(null);
+        setError("Zone updated successfully!");
+        setIsModalOpen(true);
+        fetchZones(); // Refresh the list
+      }
+    } catch (error) {
+      console.error("Error updating zone:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to update zone";
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteZone = async (zoneId) => {
+    if (!window.confirm("Are you sure you want to delete this zone?")) {
+      return;
+    }
+
+    try {
+      const response = await zonesService.deleteZone(zoneId);
+      if (response.success || response.status === 200) {
+        setError("Zone deleted successfully!");
+        setIsModalOpen(true);
+        fetchZones(); // Refresh the list
+      }
+    } catch (error) {
+      console.error("Error deleting zone:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to delete zone";
+      setError(errorMessage);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleEditZone = (zone) => {
+    setEditingZone(zone);
+    setNewZone({
+      name: zone.name || "",
+      divisionId: zone.divisionId || "",
+      zoneHeadId: zone.zoneHeadId || "",
+      plot: zone.plot || "",
+      street1: zone.street1 || "",
+      street2: zone.street2 || "",
+      areaLocality: zone.areaLocality || "",
+      cityVillage: zone.cityVillage || "",
+      pincode: zone.pincode || "",
+      district: zone.district || "",
+      state: zone.state || "",
+      country: zone.country || "India",
+      stateCode: zone.stateCode || "",
+      countryCode: zone.countryCode || "IN"
+    });
+    setShowZoneForm(true);
+  };
+
+  const handleCancelZoneForm = () => {
+    setShowZoneForm(false);
+    setEditingZone(null);
+    setNewZone({
+      name: "",
+      divisionId: "",
+      zoneHeadId: "",
+      plot: "",
+      street1: "",
+      street2: "",
+      areaLocality: "",
+      cityVillage: "",
+      pincode: "",
+      district: "",
+      state: "",
+      country: "India",
+      stateCode: "",
+      countryCode: "IN"
+    });
+  };
+
+  // Sub Zones functions
+  const fetchSubZones = async (zoneId) => {
+    try {
+      setSubZonesLoading(true);
+      const response = await subZonesService.getSubZonesByZone(zoneId, true);
+      const data = response?.data || response || {};
+      const subZonesList = data.subZones || data.data || data || [];
+      setSubZones(Array.isArray(subZonesList) ? subZonesList : []);
+    } catch (error) {
+      console.error("Error fetching sub zones:", error);
+      setSubZones([]);
+    } finally {
+      setSubZonesLoading(false);
+    }
+  };
+
+  const handleCreateSubZone = async (e) => {
+    e.preventDefault();
+    
+    if (!newSubZone.name || !selectedZoneForSubZone) {
+      setError("Please fill in sub zone name and select a zone");
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+      console.log("Creating sub zone:", newSubZone);
+      
+      const response = await subZonesService.createSubZone(selectedZoneForSubZone, newSubZone);
+      console.log("Create sub zone response:", response);
+      
+      if (response.success || response.subZone || response.id) {
+        // Reset form
+        setNewSubZone({
+          name: "",
+          subZoneHeadId: "",
+          plot: "",
+          street1: "",
+          street2: "",
+          areaLocality: "",
+          cityVillage: "",
+          pincode: "",
+          district: "",
+          state: "",
+          country: "India",
+          stateCode: "",
+          countryCode: "IN",
+        });
+        setSelectedZoneForSubZone("");
+        setShowSubZoneForm(false);
+        
+        // Refresh sub zones list
+        if (selectedZoneForSubZone) {
+          await fetchSubZones(selectedZoneForSubZone);
+        }
+        
+        setError("Sub zone created successfully!");
+        setIsModalOpen(true);
+      } else {
+        setError(response.message || "Failed to create sub zone");
+        setIsModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error creating sub zone:", error);
+      setError(error.message || "Failed to create sub zone");
+      setIsModalOpen(true);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleUpdateSubZone = async (e) => {
+    e.preventDefault();
+    
+    if (!newSubZone.name) {
+      setError("Please fill in sub zone name");
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+      console.log("Updating sub zone:", editingSubZone.id, newSubZone);
+      
+      const response = await subZonesService.updateSubZone(editingSubZone.id, newSubZone);
+      console.log("Update sub zone response:", response);
+      
+      if (response.success || response.subZone || response.id) {
+        // Reset form
+        setNewSubZone({
+          name: "",
+          subZoneHeadId: "",
+          plot: "",
+          street1: "",
+          street2: "",
+          areaLocality: "",
+          cityVillage: "",
+          pincode: "",
+          district: "",
+          state: "",
+          country: "India",
+          stateCode: "",
+          countryCode: "IN",
+        });
+        setSelectedZoneForSubZone("");
+        setShowSubZoneForm(false);
+        setEditingSubZone(null);
+        
+        // Refresh sub zones list
+        if (selectedZoneForSubZone) {
+          await fetchSubZones(selectedZoneForSubZone);
+        }
+        
+        setError("Sub zone updated successfully!");
+        setIsModalOpen(true);
+      } else {
+        setError(response.message || "Failed to update sub zone");
+        setIsModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error updating sub zone:", error);
+      setError(error.message || "Failed to update sub zone");
+      setIsModalOpen(true);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteSubZone = async (subZoneId) => {
+    if (!window.confirm("Are you sure you want to delete this sub zone?")) {
+      return;
+    }
+
+    try {
+      const response = await subZonesService.deleteSubZone(subZoneId);
+      console.log("Delete sub zone response:", response);
+      
+      if (response.success || response.message) {
+        // Refresh sub zones list
+        if (selectedZoneForSubZone) {
+          await fetchSubZones(selectedZoneForSubZone);
+        }
+        
+        setError("Sub zone deleted successfully!");
+        setIsModalOpen(true);
+      } else {
+        setError(response.message || "Failed to delete sub zone");
+        setIsModalOpen(true);
+      }
+    } catch (error) {
+      console.error("Error deleting sub zone:", error);
+      setError(error.message || "Failed to delete sub zone");
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleEditSubZone = (subZone) => {
+    setEditingSubZone(subZone);
+    setSelectedZoneForSubZone(subZone.zoneId);
+    setNewSubZone({
+      name: subZone.name || "",
+      subZoneHeadId: subZone.subZoneHeadId || "",
+      plot: subZone.plot || "",
+      street1: subZone.street1 || "",
+      street2: subZone.street2 || "",
+      areaLocality: subZone.areaLocality || "",
+      cityVillage: subZone.cityVillage || "",
+      pincode: subZone.pincode || "",
+      district: subZone.district || "",
+      state: subZone.state || "",
+      country: subZone.country || "India",
+      stateCode: subZone.stateCode || "",
+      countryCode: subZone.countryCode || "IN",
+    });
+    setShowSubZoneForm(true);
+  };
+
+  const handleCancelSubZoneForm = () => {
+    setShowSubZoneForm(false);
+    setEditingSubZone(null);
+    setSelectedZoneForSubZone("");
+    setNewSubZone({
+      name: "",
+      subZoneHeadId: "",
+      plot: "",
+      street1: "",
+      street2: "",
+      areaLocality: "",
+      cityVillage: "",
+      pincode: "",
+      district: "",
+      state: "",
+      country: "India",
+      stateCode: "",
+      countryCode: "IN",
+    });
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -288,30 +756,88 @@ function DivisionManager() {
     <>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1>Division Management</h1>
+          <h1>Division & Zone Management</h1>
           <div className={styles.headerActions}>
             <button
-              className={styles.refreshButton}
-              onClick={refreshStatistics}
-              disabled={loading}
+              className="homebtn"
+              onClick={activeTab === "divisions" ? refreshStatistics : activeTab === "zones" ? fetchZones : () => selectedZoneForSubZone && fetchSubZones(selectedZoneForSubZone)}
+              disabled={loading || zonesLoading || subZonesLoading}
             >
-              {loading ? "Refreshing..." : "Refresh Statistics"}
+              {loading || zonesLoading || subZonesLoading ? "Refreshing..." : "Refresh"}
             </button>
+            {activeTab === "divisions" && (
           <button
-            className={styles.createButton}
+                className="homebtn"
             onClick={() => setShowCreateForm(!showCreateForm)}
           >
             {showCreateForm ? "Cancel" : "Create New Division"}
           </button>
+            )}
+            {activeTab === "zones" && (
+              <button
+                className="homebtn"
+                onClick={() => setShowZoneForm(!showZoneForm)}
+              >
+                {showZoneForm ? "Cancel" : "Create New Zone"}
+              </button>
+            )}
+            {activeTab === "subzones" && (
+              <button
+                className="homebtn"
+                onClick={() => setShowSubZoneForm(!showSubZoneForm)}
+              >
+                {showSubZoneForm ? "Cancel" : "Create New Sub Zone"}
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className={styles.tabs}>
+          <button
+            className={`${styles.tabButton} ${activeTab === "divisions" ? styles.activeTab : ""}`}
+            onClick={() => setActiveTab("divisions")}
+          >
+            Divisions
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "zones" ? styles.activeTab : ""}`}
+            onClick={() => {
+              setActiveTab("zones");
+              if (zones.length === 0) {
+                fetchZones();
+              }
+            }}
+          >
+            Zones
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === "subzones" ? styles.activeTab : ""}`}
+            onClick={() => {
+              setActiveTab("subzones");
+              if (zones.length === 0) {
+                fetchZones();
+              }
+            }}
+          >
+            Sub Zones
+          </button>
+        </div>
+
+        {/* Divisions Tab Content */}
+        {activeTab === "divisions" && (
+          <>
         {showCreateForm && (
           <div className={styles.createForm}>
             <h3>Create New Division</h3>
             <form onSubmit={handleCreateDivision}>
+              
+              {/* Basic Information Section */}
+              <div className={styles.formSection}>
+                <h4 className={styles.sectionTitle}>Basic Information</h4>
+                <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label htmlFor="name">Division Name:</label>
+                    <label htmlFor="name">Division Name *</label>
                 <input
                   type="text"
                   id="name"
@@ -324,7 +850,7 @@ function DivisionManager() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label htmlFor="state">State:</label>
+                    <label htmlFor="state">State *</label>
                 <input
                   type="text"
                   id="state"
@@ -332,21 +858,198 @@ function DivisionManager() {
                   onChange={(e) =>
                     setNewDivision({ ...newDivision, state: e.target.value })
                   }
-                  placeholder="Enter state"
+                      placeholder="Enter state name"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="stateCode">State Code</label>
+                    <input
+                      type="text"
+                      id="stateCode"
+                      value={newDivision.stateCode}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, stateCode: e.target.value })
+                      }
+                      placeholder="e.g., MH, KA, TN"
+                      maxLength="2"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="country">Country</label>
+                    <input
+                      type="text"
+                      id="country"
+                      value="India"
+                      readOnly
+                      className={styles.readOnlyField}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Details Section */}
+              <div className={styles.formSection}>
+                <h4 className={styles.sectionTitle}>Address Details</h4>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="plot">Plot Number *</label>
+                    <input
+                      type="text"
+                      id="plot"
+                      value={newDivision.plot}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, plot: e.target.value })
+                      }
+                      placeholder="Plot No. 123"
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="street1">Street 1 *</label>
+                    <input
+                      type="text"
+                      id="street1"
+                      value={newDivision.street1}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, street1: e.target.value })
+                      }
+                      placeholder="Main Street"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="street2">Street 2</label>
+                    <input
+                      type="text"
+                      id="street2"
+                      value={newDivision.street2}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, street2: e.target.value })
+                      }
+                      placeholder="Near Market (optional)"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="areaLocality">Area/Locality *</label>
+                    <input
+                      type="text"
+                      id="areaLocality"
+                      value={newDivision.areaLocality}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, areaLocality: e.target.value })
+                      }
+                      placeholder="Commercial Area"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="cityVillage">City/Village *</label>
+                    <input
+                      type="text"
+                      id="cityVillage"
+                      value={newDivision.cityVillage}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, cityVillage: e.target.value })
+                      }
+                      placeholder="City Name"
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="district">District *</label>
+                    <input
+                      type="text"
+                      id="district"
+                      value={newDivision.district}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, district: e.target.value })
+                      }
+                      placeholder="District Name"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="pincode">Pincode *</label>
+                    <input
+                      type="text"
+                      id="pincode"
+                      value={newDivision.pincode}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, pincode: e.target.value })
+                      }
+                      placeholder="560001"
+                      pattern="[0-9]{6}"
+                      maxLength="6"
                   required
                 />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="countryCode">Country Code</label>
+                    <input
+                      type="text"
+                      id="countryCode"
+                      value="IN"
+                      readOnly
+                      className={styles.readOnlyField}
+                    />
+                  </div>
+                </div>
               </div>
+
+              {/* Company Details Section */}
+              <div className={styles.formSection}>
+                <h4 className={styles.sectionTitle}>Company Details</h4>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="gstinNumber">GSTIN Number</label>
+                    <input
+                      type="text"
+                      id="gstinNumber"
+                      value={newDivision.gstinNumber}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, gstinNumber: e.target.value })
+                      }
+                      placeholder="eg: 29ABCDE1234F1Z5"
+                      pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}"
+                      maxLength="15"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="cinNumber">CIN Number</label>
+                    <input
+                      type="text"
+                      id="cinNumber"
+                      value={newDivision.cinNumber}
+                      onChange={(e) =>
+                        setNewDivision({ ...newDivision, cinNumber: e.target.value })
+                      }
+                      placeholder="eg: U12345KA2020PTC123456"
+                      maxLength="21"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className={styles.formActions}>
                 <button
                   type="submit"
-                  className={styles.submitButton}
+                  className="homebtn"
                   disabled={creating}
                 >
                   {creating ? "Creating..." : "Create Division"}
                 </button>
                 <button
                   type="button"
-                  className={styles.cancelButton}
+                  className="homebtn"
                   onClick={() => setShowCreateForm(false)}
                 >
                   Cancel
@@ -378,7 +1081,7 @@ function DivisionManager() {
                   </div>
                   <div className={styles.divisionActions}>
                     <button
-                      className={styles.deleteButton}
+                          className="homebtn"
                       onClick={() => handleDeleteDivision(division.id)}
                     >
                       Delete
@@ -389,6 +1092,537 @@ function DivisionManager() {
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {/* Zones Tab Content */}
+        {activeTab === "zones" && (
+          <>
+            {showZoneForm && (
+              <div className={styles.createForm}>
+                <h3>{editingZone ? "Edit Zone" : "Create New Zone"}</h3>
+                <form onSubmit={editingZone ? handleUpdateZone : handleCreateZone}>
+                  
+                  {/* Basic Information Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Basic Information</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneName">Zone Name *</label>
+                        <input
+                          type="text"
+                          id="zoneName"
+                          value={newZone.name}
+                          onChange={(e) => setNewZone({ ...newZone, name: e.target.value })}
+                          placeholder="Enter zone name"
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneDivision">Division *</label>
+                        <select
+                          id="zoneDivision"
+                          value={newZone.divisionId}
+                          onChange={(e) => setNewZone({ ...newZone, divisionId: e.target.value })}
+                          required
+                        >
+                          <option value="">Select division</option>
+                          {divisions.map(division => (
+                            <option key={division.id} value={division.id}>{division.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneHead">Zone Head</label>
+                        <select
+                          id="zoneHead"
+                          value={newZone.zoneHeadId}
+                          onChange={(e) => setNewZone({ ...newZone, zoneHeadId: e.target.value })}
+                        >
+                          <option value="">Select head (optional)</option>
+                          {employees.map(employee => (
+                            <option key={employee.id} value={employee.id}>
+                              {employee.name || employee.employeeName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Address Details</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zonePlot">Plot Number</label>
+                        <input
+                          type="text"
+                          id="zonePlot"
+                          value={newZone.plot}
+                          onChange={(e) => setNewZone({ ...newZone, plot: e.target.value })}
+                          placeholder="Plot No. 45"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneStreet1">Street 1</label>
+                        <input
+                          type="text"
+                          id="zoneStreet1"
+                          value={newZone.street1}
+                          onChange={(e) => setNewZone({ ...newZone, street1: e.target.value })}
+                          placeholder="Zone Main Road"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneStreet2">Street 2</label>
+                        <input
+                          type="text"
+                          id="zoneStreet2"
+                          value={newZone.street2}
+                          onChange={(e) => setNewZone({ ...newZone, street2: e.target.value })}
+                          placeholder="Near Zone Center"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneArea">Area/Locality</label>
+                        <input
+                          type="text"
+                          id="zoneArea"
+                          value={newZone.areaLocality}
+                          onChange={(e) => setNewZone({ ...newZone, areaLocality: e.target.value })}
+                          placeholder="Zone Area"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneCity">City/Village</label>
+                        <input
+                          type="text"
+                          id="zoneCity"
+                          value={newZone.cityVillage}
+                          onChange={(e) => setNewZone({ ...newZone, cityVillage: e.target.value })}
+                          placeholder="Mumbai"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneDistrict">District</label>
+                        <input
+                          type="text"
+                          id="zoneDistrict"
+                          value={newZone.district}
+                          onChange={(e) => setNewZone({ ...newZone, district: e.target.value })}
+                          placeholder="Mumbai"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zonePincode">Pincode</label>
+                        <input
+                          type="text"
+                          id="zonePincode"
+                          value={newZone.pincode}
+                          onChange={(e) => setNewZone({ ...newZone, pincode: e.target.value })}
+                          placeholder="400001"
+                          maxLength="6"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneState">State</label>
+                        <input
+                          type="text"
+                          id="zoneState"
+                          value={newZone.state}
+                          onChange={(e) => setNewZone({ ...newZone, state: e.target.value })}
+                          placeholder="Maharashtra"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneCountry">Country</label>
+                        <input
+                          type="text"
+                          id="zoneCountry"
+                          value={newZone.country}
+                          onChange={(e) => setNewZone({ ...newZone, country: e.target.value })}
+                          placeholder="India"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneStateCode">State Code</label>
+                        <input
+                          type="text"
+                          id="zoneStateCode"
+                          value={newZone.stateCode}
+                          onChange={(e) => setNewZone({ ...newZone, stateCode: e.target.value })}
+                          placeholder="MH"
+                          maxLength="2"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="zoneCountryCode">Country Code</label>
+                        <input
+                          type="text"
+                          id="zoneCountryCode"
+                          value={newZone.countryCode}
+                          onChange={(e) => setNewZone({ ...newZone, countryCode: e.target.value })}
+                          placeholder="IN"
+                          maxLength="2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.formActions}>
+                    <button
+                      type="submit"
+                      className="homebtn"
+                      disabled={creating}
+                    >
+                      {creating ? "Saving..." : (editingZone ? "Update Zone" : "Create Zone")}
+                    </button>
+                    <button
+                      type="button"
+                      className="homebtn"
+                      onClick={handleCancelZoneForm}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className={styles.divisionsList}>
+              <h3>Existing Zones</h3>
+              {zonesLoading ? (
+                <p>Loading zones...</p>
+              ) : zones.length === 0 ? (
+                <p className={styles.noDivisions}>No zones found.</p>
+              ) : (
+                <div className={styles.divisionsGrid}>
+                  {zones.map((zone) => (
+                    <div key={zone.id} className={styles.divisionCard}>
+                      <div className={styles.divisionInfo}>
+                        <h4>{zone.name}</h4>
+                        <p><strong>Division:</strong> {zone.division?.name || zone.divisionId}</p>
+                        <p><strong>Head:</strong> {zone.zoneHead?.name || zone.zoneHeadId || 'Not assigned'}</p>
+                        <p><strong>City:</strong> {zone.cityVillage || 'Not specified'}</p>
+                        <p><strong>Pincode:</strong> {zone.pincode || 'Not specified'}</p>
+                        {zone.plot && <p><strong>Address:</strong> {zone.plot}, {zone.street1}</p>}
+                      </div>
+                      <div className={styles.divisionActions}>
+                        <button
+                          className="homebtn"
+                          onClick={() => handleEditZone(zone)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="homebtn"
+                          onClick={() => handleDeleteZone(zone.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Sub Zones Tab Content */}
+        {activeTab === "subzones" && (
+          <>
+            {showSubZoneForm && (
+              <div className={styles.createForm}>
+                <h3>{editingSubZone ? "Edit Sub Zone" : "Create New Sub Zone"}</h3>
+                <form onSubmit={editingSubZone ? handleUpdateSubZone : handleCreateSubZone}>
+                  
+                  {/* Basic Information Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Basic Information</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneName">Sub Zone Name *</label>
+                        <input
+                          type="text"
+                          id="subZoneName"
+                          value={newSubZone.name}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, name: e.target.value })}
+                          required
+                          placeholder="Enter sub zone name"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneZone">Zone *</label>
+                        <select
+                          id="subZoneZone"
+                          value={selectedZoneForSubZone}
+                          onChange={(e) => setSelectedZoneForSubZone(e.target.value)}
+                          required
+                        >
+                          <option value="">Select Zone</option>
+                          {zones.map((zone) => (
+                            <option key={zone.id} value={zone.id}>
+                              {zone.name} ({zone.division?.name || zone.divisionName})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneHead">Sub Zone Head</label>
+                        <select
+                          id="subZoneHead"
+                          value={newSubZone.subZoneHeadId}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, subZoneHeadId: e.target.value })}
+                        >
+                          <option value="">Select Sub Zone Head</option>
+                          {employees.map((employee) => (
+                            <option key={employee.id} value={employee.id}>
+                              {employee.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Address Details</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZonePlot">Plot</label>
+                        <input
+                          type="text"
+                          id="subZonePlot"
+                          value={newSubZone.plot}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, plot: e.target.value })}
+                          placeholder="Enter plot number"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneStreet1">Street 1</label>
+                        <input
+                          type="text"
+                          id="subZoneStreet1"
+                          value={newSubZone.street1}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, street1: e.target.value })}
+                          placeholder="Enter street address"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneStreet2">Street 2</label>
+                        <input
+                          type="text"
+                          id="subZoneStreet2"
+                          value={newSubZone.street2}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, street2: e.target.value })}
+                          placeholder="Enter additional address"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneArea">Area/Locality</label>
+                        <input
+                          type="text"
+                          id="subZoneArea"
+                          value={newSubZone.areaLocality}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, areaLocality: e.target.value })}
+                          placeholder="Enter area or locality"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneCity">City/Village</label>
+                        <input
+                          type="text"
+                          id="subZoneCity"
+                          value={newSubZone.cityVillage}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, cityVillage: e.target.value })}
+                          placeholder="Enter city or village"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZonePincode">Pincode</label>
+                        <input
+                          type="text"
+                          id="subZonePincode"
+                          value={newSubZone.pincode}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, pincode: e.target.value })}
+                          placeholder="Enter pincode"
+                          pattern="[0-9]{6}"
+                          title="Pincode must be 6 digits"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneDistrict">District</label>
+                        <input
+                          type="text"
+                          id="subZoneDistrict"
+                          value={newSubZone.district}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, district: e.target.value })}
+                          placeholder="Enter district"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneState">State</label>
+                        <input
+                          type="text"
+                          id="subZoneState"
+                          value={newSubZone.state}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, state: e.target.value })}
+                          placeholder="Enter state"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneCountry">Country</label>
+                        <input
+                          type="text"
+                          id="subZoneCountry"
+                          value={newSubZone.country}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, country: e.target.value })}
+                          placeholder="Enter country"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneStateCode">State Code</label>
+                        <input
+                          type="text"
+                          id="subZoneStateCode"
+                          value={newSubZone.stateCode}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, stateCode: e.target.value })}
+                          placeholder="Enter state code"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="subZoneCountryCode">Country Code</label>
+                        <input
+                          type="text"
+                          id="subZoneCountryCode"
+                          value={newSubZone.countryCode}
+                          onChange={(e) => setNewSubZone({ ...newSubZone, countryCode: e.target.value })}
+                          placeholder="Enter country code"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.formActions}>
+                    <button
+                      type="submit"
+                      className="homebtn"
+                      disabled={creating}
+                    >
+                      {creating ? "Saving..." : (editingSubZone ? "Update Sub Zone" : "Create Sub Zone")}
+                    </button>
+                    <button
+                      type="button"
+                      className="homebtn"
+                      onClick={handleCancelSubZoneForm}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Zone Selector for Sub Zones */}
+            <div className={styles.zoneSelector}>
+              <label htmlFor="subZoneZoneSelector">Select Zone to View Sub Zones:</label>
+              <select
+                id="subZoneZoneSelector"
+                value={selectedZoneForSubZone}
+                onChange={(e) => {
+                  setSelectedZoneForSubZone(e.target.value);
+                  if (e.target.value) {
+                    fetchSubZones(e.target.value);
+                  } else {
+                    setSubZones([]);
+                  }
+                }}
+              >
+                <option value="">Select a Zone</option>
+                {zones.map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name} ({zone.division?.name || zone.divisionName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.divisionsList}>
+              {subZonesLoading ? (
+                <div className={styles.loadingContainer}>
+                  <Loading />
+                </div>
+              ) : !selectedZoneForSubZone ? (
+                <div className={styles.noData}>
+                  <p>Please select a zone to view its sub zones.</p>
+                </div>
+              ) : subZones.length === 0 ? (
+                <div className={styles.noData}>
+                  <p>No sub zones found for the selected zone. Create a new sub zone to get started.</p>
+                </div>
+              ) : (
+                <div className={styles.divisionsGrid}>
+                  {subZones.map((subZone) => (
+                    <div key={subZone.id} className={styles.divisionCard}>
+                      <div className={styles.divisionInfo}>
+                        <h3>{subZone.name}</h3>
+                        <div className={styles.divisionDetails}>
+                          <p><strong>Zone:</strong> {subZone.zone?.name || 'Unknown'}</p>
+                          <p><strong>Division:</strong> {subZone.divisionName || subZone.zone?.division?.name || 'Unknown'}</p>
+                          <p><strong>Head:</strong> {subZone.subZoneHead?.name || subZone.subZoneHeadId || 'Not assigned'}</p>
+                          <p><strong>City:</strong> {subZone.cityVillage || 'Not specified'}</p>
+                          <p><strong>Pincode:</strong> {subZone.pincode || 'Not specified'}</p>
+                          {subZone.plot && <p><strong>Address:</strong> {subZone.plot}, {subZone.street1}</p>}
+                        </div>
+                      </div>
+                      <div className={styles.divisionActions}>
+                        <button
+                          className="homebtn"
+                          onClick={() => handleEditSubZone(subZone)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="homebtn"
+                          onClick={() => handleDeleteSubZone(subZone.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {isModalOpen && (

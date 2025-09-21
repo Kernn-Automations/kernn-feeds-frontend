@@ -24,9 +24,7 @@ function Locations() {
           endpoint += `?showAllDivisions=true`;
         }
         
-        console.log('Locations - Fetching employees with endpoint:', endpoint);
-        console.log('Locations - Division ID:', currentDivisionId);
-        console.log('Locations - Division Name:', currentDivisionName);
+
         
         const res = await axiosAPI.get(endpoint);
         setEmployees(res.data.employees || []);

@@ -5,6 +5,7 @@ import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import styles from "../Dashboard.module.css";
 
 function PurchaseHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -187,7 +188,7 @@ function PurchaseHome({ navigate }) {
       </Flex>
 
       {/* Charts */}
-      <Flex wrap="wrap" px={4}>
+      <div className={styles["charts-grid"]}>
         {trendData?.datasets?.[0]?.data?.length > 0 && (
           <ChartComponent
             type="line"
@@ -196,7 +197,7 @@ function PurchaseHome({ navigate }) {
             options={{ responsive: true }}
           />
         )}
-        {vendorData?.datasets?.[0]?.data?.length > 0 && (
+        {vendorData && vendorData.datasets && vendorData.datasets[0] && vendorData.datasets[0].data && vendorData.datasets[0].data.length > 0 && (
           <ChartComponent
             type="doughnut"
             title="Purchases by Vendor"
@@ -205,7 +206,7 @@ function PurchaseHome({ navigate }) {
             legendPosition="left"
           />
         )}
-      </Flex>
+      </div>
     </>
   );
 }

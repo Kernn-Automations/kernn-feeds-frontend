@@ -209,6 +209,43 @@ function NavBg({ hover, setTab, tab }) {
         </div>
         <div
           className={`${
+            location.pathname.includes("farmers") ? styles.active : ""
+          } `}
+          onClick={() => setTab("farmers")}
+        >
+          <Link to="/farmers">
+            <svg
+              width="38"
+              height="37"
+              viewBox="0 0 38 37"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g>
+                <path
+                  d="M19 18.5C22.866 18.5 26 15.366 26 11.5C26 7.63401 22.866 4.5 19 4.5C15.134 4.5 12 7.63401 12 11.5C12 15.366 15.134 18.5 19 18.5Z"
+                  fill="black"
+                />
+                <path
+                  d="M19 20.5C13.477 20.5 9 24.977 9 30.5V32.5H29V30.5C29 24.977 24.523 20.5 19 20.5Z"
+                  fill="black"
+                />
+                <path
+                  d="M32 14.5C32 16.433 30.433 18 28.5 18C26.567 18 25 16.433 25 14.5C25 12.567 26.567 11 28.5 11C30.433 11 32 12.567 32 14.5Z"
+                  fill="black"
+                />
+                <path
+                  d="M35 25.5C35 27.433 33.433 29 31.5 29C29.567 29 28 27.433 28 25.5C28 23.567 29.567 22 31.5 22C33.433 22 35 23.567 35 25.5Z"
+                  fill="black"
+                />
+              </g>
+            </svg>
+
+            {hover && <p>Farmers</p>}
+          </Link>
+        </div>
+        <div
+          className={`${
             location.pathname.includes("payments") ? styles.active : ""
           } `}
           onClick={() => setTab("payments")}
@@ -407,6 +444,186 @@ function NavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
+        <div
+          className={`${
+            location.pathname.includes("samples") ? styles.active : ""
+          } `}
+          onClick={() => setTab("samples")}
+        >
+          <Link to="/samples">
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 38 38"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g>
+                <path
+                  d="M19 2C9.626 2 2 9.626 2 19C2 28.374 9.626 36 19 36C28.374 36 36 28.374 36 19C36 9.626 28.374 2 19 2ZM19 33C11.268 33 5 26.732 5 19C5 11.268 11.268 5 19 5C26.732 5 33 11.268 33 19C33 26.732 26.732 33 19 33Z"
+                  fill="black"
+                />
+                <path
+                  d="M19 8C13.477 8 9 12.477 9 18C9 23.523 13.477 28 19 28C24.523 28 29 23.523 29 18C29 12.477 24.523 8 19 8ZM19 25C15.134 25 12 21.866 12 18C12 14.134 15.134 11 19 11C23.866 11 27 14.134 27 18C27 21.866 23.866 25 19 25Z"
+                  fill="black"
+                />
+                <path
+                  d="M19 14C16.243 14 14 16.243 14 19C14 21.757 16.243 24 19 24C21.757 24 24 21.757 24 19C24 16.243 21.757 14 19 14ZM19 21C17.346 21 16 19.654 16 18C16 16.346 17.346 15 19 15C20.654 15 22 16.346 22 18C22 19.654 20.654 21 19 21Z"
+                  fill="black"
+                />
+                <path
+                  d="M28 12L26 14L28 16"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M10 12L12 14L10 16"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M14 26L16 28L18 26"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20 10L18 12L20 14"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
+            </svg>
+
+            {hover && <p>Samples</p>}
+          </Link>
+        </div>
+
+        <div
+          className={`${
+            location.pathname.includes("targets") ? styles.active : ""
+          } `}
+          onClick={() => setTab("targets")}
+        >
+          <Link to="/targets">
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 38 38"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g>
+                <path
+                  d="M19 2C9.626 2 2 9.626 2 19C2 28.374 9.626 36 19 36C28.374 36 36 28.374 36 19C36 9.626 28.374 2 19 2ZM19 33C11.268 33 5 26.732 5 19C5 11.268 11.268 5 19 5C26.732 5 33 11.268 33 19C33 26.732 26.732 33 19 33Z"
+                  fill="black"
+                />
+                <path
+                  d="M19 8C13.477 8 9 12.477 9 18C9 23.523 13.477 28 19 28C24.523 28 29 23.523 29 18C29 12.477 24.523 8 19 8ZM19 25C15.134 25 12 21.866 12 18C12 14.134 15.134 11 19 11C23.866 11 27 14.134 27 18C27 21.866 23.866 25 19 25Z"
+                  fill="black"
+                />
+                <path
+                  d="M19 14C16.243 14 14 16.243 14 19C14 21.757 16.243 24 19 24C21.757 24 24 21.757 24 19C24 16.243 21.757 14 19 14ZM19 21C17.346 21 16 19.654 16 18C16 16.346 17.346 15 19 15C20.654 15 22 16.346 22 18C22 19.654 20.654 21 19 21Z"
+                  fill="black"
+                />
+                <path
+                  d="M28 12L26 14L28 16"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M10 12L12 14L10 16"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M14 26L16 28L18 26"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20 10L18 12L20 14"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
+            </svg>
+
+            {hover && <p>Targets</p>}
+          </Link>
+        </div>
+
+        <div
+          className={`${
+            location.pathname.includes("returns") ? styles.active : ""
+          } `}
+          onClick={() => setTab("returns")}
+        >
+          <Link to="/returns">
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 38 38"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g>
+                <path
+                  d="M30.8333 7.91667H7.16667C5.6975 7.91667 4.5 9.11417 4.5 10.5833V27.4167C4.5 28.8858 5.6975 30.0833 7.16667 30.0833H30.8333C32.3025 30.0833 33.5 28.8858 33.5 27.4167V10.5833C33.5 9.11417 32.3025 7.91667 30.8333 7.91667ZM30.8333 27.4167H7.16667V10.5833H30.8333V27.4167Z"
+                  fill="black"
+                />
+                <path
+                  d="M12.6667 15.8333H25.3333V18.5H12.6667V15.8333Z"
+                  fill="black"
+                />
+                <path
+                  d="M12.6667 21.1667H20.6667V23.8333H12.6667V21.1667Z"
+                  fill="black"
+                />
+                <path
+                  d="M26.5 2.375H11.5C10.0308 2.375 8.83333 3.5725 8.83333 5.04167V7.91667H11.5V5.04167H26.5V7.91667H29.1667V5.04167C29.1667 3.5725 27.9692 2.375 26.5 2.375Z"
+                  fill="black"
+                />
+                <path
+                  d="M26.5 30.625H11.5C10.0308 30.625 8.83333 29.4275 8.83333 27.9583V25.0833H11.5V27.9583H26.5V25.0833H29.1667V27.9583C29.1667 29.4275 27.9692 30.625 26.5 30.625Z"
+                  fill="black"
+                />
+                <path
+                  d="M15.8333 12.6667L18.5 15.3333L21.1667 12.6667"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15.8333 25.3333L18.5 22.6667L21.1667 25.3333"
+                  stroke="black"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
+            </svg>
+
+            {hover && <p>Returns</p>}
+          </Link>
+        </div>
+
         {/* <div
           className={`${
             location.pathname.includes("announcement") ? styles.active : ""
@@ -495,7 +712,7 @@ function NavBg({ hover, setTab, tab }) {
                 </g>
               </svg>
 
-              {hover && <p>Divisions</p>}
+              {hover && <p>Divisions </p>}
             </Link>
           </div>
         )}

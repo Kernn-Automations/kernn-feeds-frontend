@@ -27,6 +27,14 @@ function PurchaseReport({ navigate }) {
     setIsModalOpen(false);
   };
 
+  // Add search state variables for searchable fields
+  const [dateSearchTerm, setDateSearchTerm] = useState("");
+  const [showDateSearch, setShowDateSearch] = useState(false);
+  const [purchaseIdSearchTerm, setPurchaseIdSearchTerm] = useState("");
+  const [showPurchaseIdSearch, setShowPurchaseIdSearch] = useState(false);
+  const [warehouseSearchTerm, setWarehouseSearchTerm] = useState("");
+  const [showWarehouseSearch, setShowWarehouseSearch] = useState(false);
+
   useEffect(() => {
     async function fetch() {
       try {
@@ -41,6 +49,67 @@ function PurchaseReport({ navigate }) {
     }
     fetch();
   }, []);
+
+  // Add ESC key functionality to exit search mode
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showDateSearch) {
+          setShowDateSearch(false);
+          setDateSearchTerm("");
+        }
+        if (showPurchaseIdSearch) {
+          setShowPurchaseIdSearch(false);
+          setPurchaseIdSearchTerm("");
+        }
+        if (showWarehouseSearch) {
+          setShowWarehouseSearch(false);
+          setWarehouseSearchTerm("");
+        }
+      }
+    };
+
+    if (showDateSearch || showPurchaseIdSearch || showWarehouseSearch) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showDateSearch, showPurchaseIdSearch, showWarehouseSearch]);
+
+  // Add click outside functionality to exit search mode
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside any of the search headers
+      const dateHeader = document.querySelector('[data-date-header]');
+      const purchaseIdHeader = document.querySelector('[data-purchaseid-header]');
+      const warehouseHeader = document.querySelector('[data-warehouse-header]');
+      
+      if (showDateSearch && dateHeader && !dateHeader.contains(event.target)) {
+        setShowDateSearch(false);
+        setDateSearchTerm("");
+      }
+      
+      if (showPurchaseIdSearch && purchaseIdHeader && !purchaseIdHeader.contains(event.target)) {
+        setShowPurchaseIdSearch(false);
+        setPurchaseIdSearchTerm("");
+      }
+      
+      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+        setShowWarehouseSearch(false);
+        setWarehouseSearchTerm("");
+      }
+    };
+
+    if (showDateSearch || showPurchaseIdSearch || showWarehouseSearch) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDateSearch, showPurchaseIdSearch, showWarehouseSearch]);
 
   // Backend
 
@@ -266,9 +335,6 @@ function PurchaseReport({ navigate }) {
           <button className="cancelbtn" onClick={() => navigate("/purchases")}>
             Cancel
           </button>
-          <button className="btn btn-info ms-2" onClick={refreshPurchaseOrders}>
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -304,22 +370,259 @@ function PurchaseReport({ navigate }) {
               <thead>
                 <tr>
                   <th>S.No</th>
-                  <th>Date</th>
-                  <th>Purchase ID</th>
-                  <th>Warehouse</th>
+                  <th 
+                    onClick={() => setShowDateSearch(!showDateSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-date-header
+                  >
+                    {showDateSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by date..."
+                          value={dateSearchTerm}
+                          onChange={(e) => setDateSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {dateSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDateSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Date
+                      </>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => setShowPurchaseIdSearch(!showPurchaseIdSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-purchaseid-header
+                  >
+                    {showPurchaseIdSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by purchase ID..."
+                          value={purchaseIdSearchTerm}
+                          onChange={(e) => setPurchaseIdSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {purchaseIdSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPurchaseIdSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Purchase ID
+                      </>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                    data-warehouse-header
+                  >
+                    {showWarehouseSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search by warehouse..."
+                          value={warehouseSearchTerm}
+                          onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '2px 6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            minWidth: '120px',
+                            height: '28px',
+                            color: '#000',
+                            backgroundColor: '#fff'
+                          }}
+                          autoFocus
+                        />
+                        {warehouseSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setWarehouseSearchTerm("");
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #dc3545',
+                              borderRadius: '4px',
+                              background: '#dc3545',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              minWidth: '24px',
+                              height: '28px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        Warehouse
+                      </>
+                    )}
+                  </th>
                   <th>Status</th>
                   {/* <th>Net Amount</th> */}
                   <th>Action</th>
                 </tr>
+                {(showDateSearch && dateSearchTerm) || (showPurchaseIdSearch && purchaseIdSearchTerm) || (showWarehouseSearch && warehouseSearchTerm) ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                      {(() => {
+                        const filteredItems = purchases.filter(order => {
+                          let pass = true;
+                          if (dateSearchTerm) {
+                            const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
+                            if (!orderDate.includes(dateSearchTerm)) {
+                              pass = false;
+                            }
+                          }
+                          if (purchaseIdSearchTerm) {
+                            const orderId = order.orderNumber || order.ordernumber || '';
+                            if (!orderId.toLowerCase().includes(purchaseIdSearchTerm.toLowerCase())) {
+                              pass = false;
+                            }
+                          }
+                          if (warehouseSearchTerm) {
+                            const warehouseName = order.warehouse || warehouses?.find(w => w.id === order.warehouseId)?.name || order.warehouseId || '';
+                            if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                              pass = false;
+                            }
+                          }
+                          return pass;
+                        });
+                        return `${filteredItems.length} item(s) found`;
+                      })()}
+                    </td>
+                  </tr>
+                ) : null}
               </thead>
               <tbody>
-                {purchases.length === 0 && (
-                  <tr>
-      <td colSpan={7}>NO DATA FOUND</td>
+                {(() => {
+                  // Apply search filters to the purchases data
+                  let filteredPurchases = purchases || [];
+                  
+                  if (dateSearchTerm || purchaseIdSearchTerm || warehouseSearchTerm) {
+                    filteredPurchases = filteredPurchases.filter(order => {
+                      let pass = true;
+                      
+                      // Apply date search filter
+                      if (dateSearchTerm) {
+                        const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
+                        if (!orderDate.includes(dateSearchTerm)) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply purchase ID search filter
+                      if (purchaseIdSearchTerm) {
+                        const orderId = order.orderNumber || order.ordernumber || '';
+                        if (!orderId.toLowerCase().includes(purchaseIdSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      // Apply warehouse search filter
+                      if (warehouseSearchTerm) {
+                        const warehouseName = order.warehouse || warehouses?.find(w => w.id === order.warehouseId)?.name || order.warehouseId || '';
+                        if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                          pass = false;
+                        }
+                      }
+                      
+                      return pass;
+                    });
+                  }
+                  
+                  if (filteredPurchases.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={6}>NO DATA FOUND</td>
                   </tr>
-                )}
-                {purchases.length > 0 &&
-                  purchases.map((order, index) => (
+                    );
+                  }
+                  
+                  return filteredPurchases.map((order, index) => (
                     <tr
                       key={order.id}
                       className="animated-row"
@@ -340,7 +643,8 @@ function PurchaseReport({ navigate }) {
           <ReportViewModal order={order} warehouses={warehouses} setWarehouses={setWarehouses} />
                       </td>
                     </tr>
-                  ))}
+                  ));
+                })()}
               </tbody>
             </table>
             <div className="row m-0 p-0 pt-3 justify-content-between">

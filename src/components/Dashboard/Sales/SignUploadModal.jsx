@@ -38,7 +38,7 @@ function SignUploadModal({ orderId, closeDialog }) {
       return;
     }
 
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("accessToken");
     const VITE_API = import.meta.env.VITE_API_URL;
 
     const formData = new FormData();
