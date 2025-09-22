@@ -128,6 +128,12 @@ function SalesHome({ navigate }) {
         <div className="col">
           <button
             className="homebtn"
+            onClick={() => navigate("/sales/orders/new")}
+          >
+            + New Sales Order
+          </button>
+          <button
+            className="homebtn"
             onClick={() => navigate("/sales/orders")}
           >
             Sales Orders
