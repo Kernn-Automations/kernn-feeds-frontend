@@ -1,37 +1,18 @@
 // src/App.jsx
 import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./Auth";              // <-- just the hook
+import { useAuth } from "./Auth"; // <-- just the hook
 import "./App.css";
 import { lazy, Suspense } from "react";
 import DashboardSkeleton from "./components/SkeletonLoaders/DashboardSkeleton";
-import LoginSkeleton     from "./components/SkeletonLoaders/LoginSkeleton";
-
+import LoginSkeleton from "./components/SkeletonLoaders/LoginSkeleton";
+import ReportsPage from "./components/UnauthReports/ReportsPage";
 
 // lazy imports
-const Dashboard      = lazy(() => import("./components/Dashboard/Dashboard"));
-const Login          = lazy(() => import("./components/Login"));
+const Dashboard = lazy(() => import("./components/Dashboard/Dashboard"));
+const Login = lazy(() => import("./components/Login"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
-const Divs           = lazy(() => import("./pages/Divs"));
-
-// Import all the route components
-const InventoryRoutes = lazy(() => import("./components/Dashboard/Inventory/InventoryRoutes"));
-const PurchaseRoutes  = lazy(() => import("./components/Dashboard/Purchases/PurchaseRoutes"));
-const SalesRoutes     = lazy(() => import("./components/Dashboard/Sales/SalesRoutes"));
-const CustomerRoutes  = lazy(() => import("./components/Dashboard/Customers/CustomerRoutes"));
-const PaymentRoutes   = lazy(() => import("./components/Dashboard/Payments/PaymentRoutes"));
-const EmployeeRoutes  = lazy(() => import("./components/Dashboard/Employees/EmployeeRoutes"));
-const WarehouseRoutes = lazy(() => import("./components/Dashboard/Warehouses/WarehouseRoutes"));
-const ProductRoutes   = lazy(() => import("./components/Dashboard/Products/ProductRoutes"));
-const LocationsHome   = lazy(() => import("./components/Dashboard/Locations/LocationsHome"));
-const InvoiceRoutes   = lazy(() => import("./components/Dashboard/Invoice/InvoiceRoutes"));
-const StockRoutes     = lazy(() => import("./components/Dashboard/StockTransfer/StockRoutes"));
-const DiscountRoutes  = lazy(() => import("./components/Dashboard/Discounts/DiscountRoutes"));
-const DivisionManager = lazy(() => import("./components/Dashboard/DivisionManager"));
-const HomePage        = lazy(() => import("./components/Dashboard/HomePage/HomePage"));
-const SettingRoutes   = lazy(() => import("./components/Dashboard/SettingsTab/SettingRoutes"));
-
-
+const Divs = lazy(() => import("./pages/Divs"));
 
 export default function App() {
   const { islogin, setIslogin } = useAuth();
@@ -39,11 +20,11 @@ export default function App() {
 
   // restore your old islogin logic
   useEffect(() => {
-    console.log('App.jsx - Token changed:', token ? 'EXISTS' : 'MISSING');
-    console.log('App.jsx - Current pathname:', window.location.pathname);
-    
+    console.log("App.jsx - Token changed:", token ? "EXISTS" : "MISSING");
+    console.log("App.jsx - Current pathname:", window.location.pathname);
+
     // Only set login state if we're not already on a protected route
-    if (window.location.pathname === '/login') {
+    if (window.location.pathname === "/login") {
       setIslogin(!!token);
     } else if (token) {
       setIslogin(true);
@@ -61,8 +42,17 @@ export default function App() {
         }
       />
 
+      <Route
+        path="/daily-reports"
+        element={
+          <Suspense fallback={<LoginSkeleton />}>
+            <ReportsPage />
+          </Suspense>
+        }
+      />
+
       <Route path="/divs" element={<Divs />} />
-      
+
       {/* Protected Routes */}
       <Route element={<ProtectedRoute token={token} />}>
         {/* Dashboard with nested routes */}
@@ -74,21 +64,19 @@ export default function App() {
             </Suspense>
           }
         />
-        
+
         {/* Direct routes to different sections */}
         {/* <Route path="/home" element={
           <Suspense fallback={<DashboardSkeleton />}>
             <HomePage />
           </Suspense>
         } /> */}
-        
-        
+
         {/* <Route path="/divisions" element={
           <Suspense fallback={<DashboardSkeleton />}>
             <DivisionManager />
           </Suspense>
         } /> */}
-        
       </Route>
     </Routes>
   );
