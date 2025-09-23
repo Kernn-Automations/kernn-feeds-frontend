@@ -19,27 +19,28 @@ import RouteSkeleton from "../SkeletonLoaders/RouteSkeleton";
 import HomePageSkeleton from "../SkeletonLoaders/HomePageSkeleton";
 import TicketingService from "./TicketService/TicketingService";
 import SettingRoutes from "./SettingsTab/SettingRoutes";
+import ReportsRoutes from "./Reports/ReportsRoutes";
 
 // Lazy-loaded Routes
-const WelcomePage     = lazy(() => import("../WelcomePage.jsx"));
-const HomePage        = lazy(() => import("./HomePage/HomePage"));
+const WelcomePage = lazy(() => import("../WelcomePage.jsx"));
+const HomePage = lazy(() => import("./HomePage/HomePage"));
 const InventoryRoutes = lazy(() => import("./Inventory/InventoryRoutes"));
-const PurchaseRoutes  = lazy(() => import("./Purchases/PurchaseRoutes"));
-const SalesRoutes     = lazy(() => import("./Sales/SalesRoutes"));
-const CustomerRoutes  = lazy(() => import("./Customers/CustomerRoutes"));
-const FarmerRoutes    = lazy(() => import("./Farmers/FarmerRoutes"));
-const PaymentRoutes   = lazy(() => import("./Payments/PaymentRoutes"));
-const EmployeeRoutes  = lazy(() => import("./Employees/EmployeeRoutes"));
+const PurchaseRoutes = lazy(() => import("./Purchases/PurchaseRoutes"));
+const SalesRoutes = lazy(() => import("./Sales/SalesRoutes"));
+const CustomerRoutes = lazy(() => import("./Customers/CustomerRoutes"));
+const FarmerRoutes = lazy(() => import("./Farmers/FarmerRoutes"));
+const PaymentRoutes = lazy(() => import("./Payments/PaymentRoutes"));
+const EmployeeRoutes = lazy(() => import("./Employees/EmployeeRoutes"));
 const WarehouseRoutes = lazy(() => import("./Warehouses/WarehouseRoutes"));
-const ProductRoutes   = lazy(() => import("./Products/ProductRoutes"));
-const SampleRoutes    = lazy(() => import("./Samples/SampleRoutes"));
-const LocationsHome   = lazy(() => import("./Locations/LocationsHome"));
-const InvoiceRoutes   = lazy(() => import("./Invoice/InvoiceRoutes"));
-const StockRoutes     = lazy(() => import("./StockTransfer/StockRoutes"));
-const DiscountRoutes  = lazy(() => import("./Discounts/DiscountRoutes"));
-const TargetRoutes    = lazy(() => import("./Targets/TargetRoutes"));
-const ReturnRoutes    = lazy(() => import("./Returns/ReturnRoutes"));
-const TeamsRoutes     = lazy(() => import("./Teams/TeamsRoutes"));
+const ProductRoutes = lazy(() => import("./Products/ProductRoutes"));
+const SampleRoutes = lazy(() => import("./Samples/SampleRoutes"));
+const LocationsHome = lazy(() => import("./Locations/LocationsHome"));
+const InvoiceRoutes = lazy(() => import("./Invoice/InvoiceRoutes"));
+const StockRoutes = lazy(() => import("./StockTransfer/StockRoutes"));
+const DiscountRoutes = lazy(() => import("./Discounts/DiscountRoutes"));
+const TargetRoutes = lazy(() => import("./Targets/TargetRoutes"));
+const ReturnRoutes = lazy(() => import("./Returns/ReturnRoutes"));
+const TeamsRoutes = lazy(() => import("./Teams/TeamsRoutes"));
 const DivisionManager = lazy(() => import("./DivisionManager"));
 
 export default function Dashboard({
@@ -59,7 +60,7 @@ export default function Dashboard({
       return null;
     }
   });
-  
+
   // Listen for user data changes in localStorage
   useEffect(() => {
     const handleStorageChange = () => {
@@ -67,22 +68,25 @@ export default function Dashboard({
         const userData = localStorage.getItem("user");
         if (userData) {
           const parsed = JSON.parse(userData);
-          console.log('Dashboard - User data updated from localStorage:', parsed);
+          console.log(
+            "Dashboard - User data updated from localStorage:",
+            parsed
+          );
           setStoredUser(parsed);
         }
       } catch (error) {
         console.error("Error updating stored user:", error);
       }
     };
-    
+
     // Listen for storage events
-    window.addEventListener('storage', handleStorageChange);
-    
+    window.addEventListener("storage", handleStorageChange);
+
     // Also check localStorage on mount
     handleStorageChange();
-    
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
@@ -94,49 +98,52 @@ export default function Dashboard({
   } = useDivision();
 
   const [employees, setEmployees] = useState([]);
-  
+
   // Add logging for context changes
   useEffect(() => {
-    console.log('Dashboard - Context changed:', {
+    console.log("Dashboard - Context changed:", {
       selectedDivision,
       selectedDivisionName: selectedDivision?.name,
       selectedDivisionId: selectedDivision?.id,
       showAllDivisions,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }, [selectedDivision, showAllDivisions]);
-  
+
   // Listen for division change events to refresh data
   useEffect(() => {
     const handleRefreshData = (event) => {
-      console.log('Dashboard - Received refreshData event:', event.detail);
+      console.log("Dashboard - Received refreshData event:", event.detail);
       // The existing useEffect will automatically refetch data when selectedDivision changes
     };
 
-    window.addEventListener('refreshData', handleRefreshData);
+    window.addEventListener("refreshData", handleRefreshData);
     return () => {
-      window.removeEventListener('refreshData', handleRefreshData);
+      window.removeEventListener("refreshData", handleRefreshData);
     };
   }, []);
-  
+
   useEffect(() => {
     const loadEmployees = async () => {
       try {
         // Extract division ID from the selectedDivision object
         const divisionId = selectedDivision?.id || null;
-        
-        console.log('Dashboard - selectedDivision object:', selectedDivision);
-        console.log('Dashboard - extracted divisionId:', divisionId);
-        console.log('Dashboard - showAllDivisions:', showAllDivisions);
-        console.log('Dashboard - final showAll flag:', showAllDivisions || divisionId === "all");
-        console.log('Dashboard - Division ID type check:', {
+
+        console.log("Dashboard - selectedDivision object:", selectedDivision);
+        console.log("Dashboard - extracted divisionId:", divisionId);
+        console.log("Dashboard - showAllDivisions:", showAllDivisions);
+        console.log(
+          "Dashboard - final showAll flag:",
+          showAllDivisions || divisionId === "all"
+        );
+        console.log("Dashboard - Division ID type check:", {
           divisionId,
           divisionIdType: typeof divisionId,
           isDivisionIdAll: divisionId === "all",
           isDivisionIdAllStrict: divisionId === "all",
-          isDivisionIdAllLoose: divisionId == "all"
+          isDivisionIdAllLoose: divisionId == "all",
         });
-        
+
         const data = await fetchWithDivision(
           "/employees",
           localStorage.getItem("accessToken"),
@@ -173,13 +180,19 @@ export default function Dashboard({
       {/* Only show DivisionSelector when no division is selected */}
       {!selectedDivision && (
         <>
-          {console.log('Dashboard - Showing DivisionSelector because selectedDivision is:', selectedDivision)}
+          {console.log(
+            "Dashboard - Showing DivisionSelector because selectedDivision is:",
+            selectedDivision
+          )}
           <DivisionSelector userData={storedUser} />
         </>
       )}
       {selectedDivision && (
         <>
-          {console.log('Dashboard - Hiding DivisionSelector because selectedDivision is:', selectedDivision)}
+          {console.log(
+            "Dashboard - Hiding DivisionSelector because selectedDivision is:",
+            selectedDivision
+          )}
         </>
       )}
 
@@ -343,6 +356,15 @@ export default function Dashboard({
                   element={
                     <Suspense fallback={<RouteSkeleton />}>
                       <TargetRoutes />
+                    </Suspense>
+                  }
+                />
+
+                <Route
+                  path="/reports/*"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <ReportsRoutes />
                     </Suspense>
                   }
                 />

@@ -12,6 +12,7 @@ const Orders = lazy(() => import("./Orders"));
 const Dispaches = lazy(() => import("./Dispaches"));
 const Deliveries = lazy(() => import("./Deliveries"));
 const CancelledOrders = lazy(() => import("./CancelledOrders")); 
+const NewSalesOrder = lazy(() => import("./NewSalesOrder"));
 
 function SalesRoutes() {
   const navigate = useNavigate();
@@ -86,8 +87,10 @@ function SalesRoutes() {
           </Suspense>
         }
       />
-     
-      
+     <Route
+        path="/orders/new"
+        element={<Suspense fallback={<PageSkeleton />}><NewSalesOrder navigate={navigate} warehouses={warehouses} customers={customers} /></Suspense>}
+      />
       <Route
         path="/tracking"
         element={

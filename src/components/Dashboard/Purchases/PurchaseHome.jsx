@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { Flex } from "@chakra-ui/react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Flex, IconButton, Tooltip } from "@chakra-ui/react";
+import { FaSyncAlt } from "react-icons/fa";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
@@ -12,24 +13,31 @@ function PurchaseHome({ navigate }) {
   const [purchaseData, setPurchaseData] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function fetchPurchaseDashboard() {
-      try {
-        setLoading(true);
-        const res = await axiosAPI.get("/dashboard/purchases");
-        console.log("Purchase Dashboard Response:", res.data);
-        setPurchaseData(res.data);
-      } catch (err) {
-        console.error("Purchase dashboard fetch error:", err);
-        setError(err?.response?.data?.message || "Failed to load purchase dashboard");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPurchaseDashboard();
-  }, []);
+  // Use 'Repeat' icon from Phosphor which is suitable refresh icon and not deprecated
 
-  // Transform backend data for Chart.js format
+
+  // Fetch dashboard data function, useCallback to avoid redefinitions
+  const fetchPurchaseDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await axiosAPI.get("/dashboard/purchases");
+      console.log("Purchase Dashboard Response:", res.data);
+      setPurchaseData(res.data);
+      setError(null);
+    } catch (err) {
+      console.error("Purchase dashboard fetch error:", err);
+      setError(err?.response?.data?.message || "Failed to load purchase dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, [axiosAPI]);
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchPurchaseDashboard();
+  }, [fetchPurchaseDashboard]);
+
+  // Transform data for Purchases Trend chart
   const trendData = React.useMemo(() => {
     if (!purchaseData?.purchasesTrend || !Array.isArray(purchaseData.purchasesTrend)) {
       return {
@@ -65,6 +73,7 @@ function PurchaseHome({ navigate }) {
     };
   }, [purchaseData?.purchasesTrend]);
 
+  // Transform data for Purchases By Vendor chart
   const vendorData = React.useMemo(() => {
     if (!purchaseData?.purchasesByVendor || !Array.isArray(purchaseData.purchasesByVendor)) {
       return {
@@ -98,7 +107,7 @@ function PurchaseHome({ navigate }) {
             "#ff6384",
             "#36a2eb",
             "#cc65fe",
-            "#ffce56"
+            "#ffce56",
           ],
         },
       ],
@@ -109,7 +118,7 @@ function PurchaseHome({ navigate }) {
     <>
       {/* Buttons - Always visible */}
       <div className="row m-0 p-3">
-        <div className="col">
+        <div className="col d-flex align-items-center gap-2">
           <button
             className="homebtn"
             onClick={() => navigate("/purchases/new-purchase")}
@@ -128,8 +137,32 @@ function PurchaseHome({ navigate }) {
           >
             Vendors
           </button>
+          
+          {/* Refresh Button */}
+          <button
+            onClick={fetchPurchaseDashboard}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              padding: "6px",
+            }}
+            title="Refresh Dashboard" // shows tooltip on hover
+          >
+            <FaSyncAlt size={24} color="#2a4d9b" />
+          </button>
         </div>
       </div>
+
+      {/* Show error if any */}
+      {error && (
+        <div style={{ color: "red", margin: "10px 20px" }}>
+          {error}
+        </div>
+      )}
 
       {/* Cards */}
       <Flex wrap="wrap" justify="space-between" px={4}>
@@ -156,7 +189,7 @@ function PurchaseHome({ navigate }) {
 
       {/* Charts */}
       <div className={styles["charts-grid"]}>
-        {trendData && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
+        {trendData?.datasets?.[0]?.data?.length > 0 && (
           <ChartComponent
             type="line"
             title="Purchases Trend"
