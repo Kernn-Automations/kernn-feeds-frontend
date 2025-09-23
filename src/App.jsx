@@ -13,6 +13,7 @@ const Dashboard      = lazy(() => import("./components/Dashboard/Dashboard"));
 const Login          = lazy(() => import("./components/Login"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
 const Divs           = lazy(() => import("./pages/Divs"));
+const StoreDashboard = lazy(() => import("./components/Store/StoreDashboard"));
 
 // Import all the route components
 const InventoryRoutes = lazy(() => import("./components/Dashboard/Inventory/InventoryRoutes"));
@@ -62,6 +63,16 @@ export default function App() {
       />
 
       <Route path="/divs" element={<Divs />} />
+      <Route element={<ProtectedRoute token={token} />}>
+        <Route
+          path="/store/*"
+          element={
+            <Suspense fallback={<DashboardSkeleton />}>
+              <StoreDashboard />
+            </Suspense>
+          }
+        />
+      </Route>
       
       {/* Protected Routes */}
       <Route element={<ProtectedRoute token={token} />}>

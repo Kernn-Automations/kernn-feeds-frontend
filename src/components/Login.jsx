@@ -5,10 +5,12 @@ import Header from "./Header";
 import Input from "./Input";
 import WelcomePage from "./WelComePage";
 import styles from "./Login.module.css";
+import { isAdmin, isStaffManager, hasBothAdminAndStaff } from "../utils/roleUtils";
 
 function Login() {
   const [login, setLogin] = useState(false);
   const [user, setUser] = useState({});
+  const [showRoleChoice, setShowRoleChoice] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,20 +20,43 @@ function Login() {
       showDivisions: user.user?.showDivisions,
     });
 
-    if (
-      login &&
-      (user.user?.showDivisions ||
-        user.user?.roles?.includes("admin") ||
-        user.user?.roles?.includes("super_admin"))
-    ) {
+    const currentUser = user.user;
+    const wantsDivision = currentUser?.showDivisions || isAdmin(currentUser);
+    const onlyStaff = isStaffManager(currentUser) && !isAdmin(currentUser);
+    const bothRoles = hasBothAdminAndStaff(currentUser);
+
+    if (login && bothRoles) {
+      // Show chooser popup
+      setShowRoleChoice(true);
+      return;
+    }
+
+    if (login && onlyStaff) {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        localStorage.setItem("activeView", "staff");
+        navigate("/store");
+      } else {
+        const timer = setTimeout(() => {
+          const tokenCheck = localStorage.getItem("accessToken");
+          if (tokenCheck) {
+            localStorage.setItem("activeView", "staff");
+            navigate("/store");
+          }
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+
+    if (login && wantsDivision) {
       console.log(
         "Login.jsx - User needs division selection, redirecting to /divs"
       );
       console.log(
         "Login.jsx - Reason: showDivisions=",
-        user.user?.showDivisions,
+        currentUser?.showDivisions,
         "roles=",
-        user.user?.roles
+        currentUser?.roles
       );
       // Wait for token to be available before redirecting
       const token = localStorage.getItem("accessToken");
@@ -52,7 +77,7 @@ function Login() {
         }, 100);
         return () => clearTimeout(timer);
       }
-    } else if (login && !user.user?.showDivisions) {
+    } else if (login && !currentUser?.showDivisions) {
       console.log(
         "Login.jsx - User does not need division selection, redirecting to /dashboard"
       );
@@ -65,8 +90,8 @@ function Login() {
     } else {
       console.log("Login.jsx - No action taken:", {
         login,
-        hasUser: !!user.user,
-        showDivisions: user.user?.showDivisions,
+        hasUser: !!currentUser,
+        showDivisions: currentUser?.showDivisions,
       });
     }
   }, [login, user, navigate]);
@@ -87,6 +112,39 @@ function Login() {
         )}
 
         {login && !user.user?.showDivisions && <WelcomePage data={user} />}
+
+        {showRoleChoice && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+            <div style={{ background: "#fff", borderRadius: 8, padding: 24, width: "90%", maxWidth: 420, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+              <h4 style={{ marginBottom: 12 }}>Choose a view</h4>
+              <p style={{ marginBottom: 20 }}>You have Admin and Staff Manager roles. Continue as:</p>
+              <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    localStorage.setItem("activeView", "staff");
+                    setShowRoleChoice(false);
+                    navigate("/store");
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  Staff Manager View
+                </button>
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    localStorage.setItem("activeView", "admin");
+                    setShowRoleChoice(false);
+                    navigate("/divs");
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  Admin View
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
