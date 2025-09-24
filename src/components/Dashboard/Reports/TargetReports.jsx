@@ -1,17 +1,16 @@
 import React from "react";
 
-function CustomerReports({ navigate }) {
+function TargetReports({ navigate }) {
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/reports")}>Reports</span>{" "}
-        <i class="bi bi-chevron-right"></i> Customer-Reports
+        <i class="bi bi-chevron-right"></i> Target-Reports
       </p>
-
 
       {/* content From Here */}
     </>
   );
 }
 
-export default CustomerReports;
+export default TargetReports;
