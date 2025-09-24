@@ -10,14 +10,15 @@ import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 function PaymentApprovals({ navigate }) {
   const { axiosAPI } = useAuth();
 
-  const [reports, setReports] = useState();
-  const [filteredReports, setFilteredReports] = useState();
+  const [salesOrders, setSalesOrders] = useState([]);
+  const [filteredSalesOrders, setFilteredSalesOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [trigger, setTrigger] = useState(false);
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
 
   const closeModal = () => setIsModalOpen(false);
   const changeTrigger = () => setTrigger(!trigger);
@@ -30,16 +31,14 @@ function PaymentApprovals({ navigate }) {
     async function fetch() {
       try {
         setLoading(true);
-        setReports(null);
-        setFilteredReports(null);
+        setSalesOrders([]);
+        setFilteredSalesOrders([]);
 
         const query = `/payment-requests?status=Pending&page=${pageNo}&limit=${limit}`;
 
-        console.log(query);
-
         const res = await axiosAPI.get(query);
-        console.log(res)
-        setReports(res.data.paymentRequests);
+        console.log(res.data);
+        setSalesOrders(res.data.salesOrders || []);
         setTotalPages(res.data.totalPages);
       } catch (e) {
         setError(e.response?.data?.message || "Something went wrong.");
@@ -51,17 +50,24 @@ function PaymentApprovals({ navigate }) {
     fetch();
   }, [trigger, pageNo, limit]);
 
-  // Filter by search term (customer name)
+  // Filter by customer name
   useEffect(() => {
-    const filtered = reports?.filter((r) =>
-      r.order?.customer?.name
-        ?.toLowerCase()
-        .includes(searchTerm.trim().toLowerCase())
+    const filtered = salesOrders.filter((order) =>
+      order.customer?.name?.toLowerCase().includes(searchTerm.trim().toLowerCase())
     );
-    setFilteredReports(filtered);
-  }, [searchTerm, reports]);
+    setFilteredSalesOrders(filtered);
+  }, [searchTerm, salesOrders]);
 
   let index = 1;
+
+  function calculateTotalAmount(paymentRequests) {
+    return paymentRequests.reduce((sum, pr) => sum + (pr.netAmount || 0), 0).toFixed(2);
+  }
+
+  function openModal(salesOrder) {
+    setSelectedSalesOrder(salesOrder);
+    setIsModalOpen(true);
+  }
 
   return (
     <>
@@ -70,7 +76,7 @@ function PaymentApprovals({ navigate }) {
         <i className="bi bi-chevron-right"></i> Payment-approvals
       </p>
 
-      {reports && filteredReports && (
+      {salesOrders && filteredSalesOrders && (
         <>
           <div className="row m-0 p-3 pt-5 justify-content-end">
             <div className={`col-4 ${styles.search}`}>
@@ -94,13 +100,13 @@ function PaymentApprovals({ navigate }) {
                   name=""
                   id=""
                   value={limit}
-                  onChange={(e) => setLimit(e.target.value)}
+                  onChange={(e) => setLimit(parseInt(e.target.value))}
                 >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={30}>30</option>
-                  <option value={40}>40</option>
-                  <option value={50}>50</option>
+                  {[10, 20, 30, 40, 50].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -109,37 +115,35 @@ function PaymentApprovals({ navigate }) {
                 <thead>
                   <tr>
                     <th>S.No</th>
-                    <th>Date</th>
-                    <th>Order ID</th>
+                    <th>Order Number</th>
                     <th>Customer Name</th>
                     <th>SE Name</th>
                     <th>Warehouse</th>
-                    <th>Net Amount</th>
+                    <th>Total Amount</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredReports.length === 0 && (
+                  {filteredSalesOrders.length === 0 && (
                     <tr>
-                      <td colSpan={8}>NO DATA FOUND</td>
+                      <td colSpan={7}>NO DATA FOUND</td>
                     </tr>
                   )}
-                  {filteredReports.map((report) => (
+                  {filteredSalesOrders.map((order) => (
                     <tr
-                      key={report.id}
+                      key={order.salesOrderId}
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <td>{index++}</td>
-                      <td>{report.transactionDate}</td>
-                      <td>{report.order?.orderNumber}</td>
-                      <td>{report.order?.customer?.name}</td>
-                      <td>{report.order?.salesExecutive?.name}</td>
-                      <td>{report.order?.warehouse?.name}</td>
-                      <td>{report.netAmount}</td>
+                      <td>{order.orderNumber}</td>
+                      <td>{order.customer?.name}</td>
+                      <td>{order.salesExecutive?.name}</td>
+                      <td>{order.warehouse?.name}</td>
+                      <td>{calculateTotalAmount(order.paymentRequests)}</td>
                       <td>
                         <ApprovalsViewModal
-                          report={report}
+                          report={order}
                           changeTrigger={changeTrigger}
                         />
                       </td>
@@ -148,33 +152,36 @@ function PaymentApprovals({ navigate }) {
                 </tbody>
               </table>
               <div className="row m-0 p-0 pt-3 justify-content-between">
-                <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
-                  {pageNo > 1 && (
-                    <button onClick={() => setPageNo(pageNo - 1)}>
-                      <span>
-                        <FaArrowLeftLong />
-                      </span>{" "}
-                      Previous
-                    </button>
-                  )}
-                </div>
-                <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
-                  {pageNo < totalPages && (
-                    <button onClick={() => setPageNo(pageNo + 1)}>
-                      Next{" "}
-                      <span>
-                        <FaArrowRightLong />
-                      </span>
-                    </button>
-                  )}
-                </div>
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo > 1 && (
+                  <button onClick={() => setPageNo(pageNo - 1)}>
+                    <span><FaArrowLeftLong /></span> Previous
+                  </button>
+                )}
               </div>
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {totalPages > 1 && pageNo < totalPages && (
+                  <button onClick={() => setPageNo(pageNo + 1)}>
+                    Next <span><FaArrowRightLong /></span>
+                  </button>
+                )}
+              </div>
+            </div>
             </div>
           </div>
         </>
       )}
 
-      {isModalOpen && (
+      {selectedSalesOrder && (
+        <ApprovalsViewModal
+          salesOrder={selectedSalesOrder}
+          changeTrigger={changeTrigger}
+          onClose={closeModal}
+          isOpen={isModalOpen}
+        />
+      )}
+
+      {isModalOpen && error && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
 

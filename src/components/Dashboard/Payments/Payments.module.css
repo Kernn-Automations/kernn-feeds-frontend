@@ -13,6 +13,79 @@
   padding-right: 15px;
   color: var(--primary-color);
 }
+.paymentProofThumbnail {
+  width: 100px; /* Adjust as needed for your desired thumbnail size */
+  height: 100px;
+  object-fit: cover; /* Ensures image covers the area without distortion */
+  cursor: zoom-in; /* Indicates it's clickable for zoom */
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.paymentProofThumbnail:hover {
+  transform: scale(1.05);
+}
+
+
+/* New styles for the ImageZoomModal */
+.imageZoomBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7); /* Darker backdrop */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000; /* Ensure this is higher than your DialogRoot's backdrop */
+}
+
+.imageZoomContent {
+  position: relative;
+  background: white; /* Or transparent if you just want the image */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.imageZoomCloseButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #333;
+  cursor: pointer;
+  z-index: 10002; /* Ensure close button is above everything */
+}
+
+.imageZoomCloseButton:hover {
+  color: #f00;
+}
+
+.zoomableImage {
+  max-width: 100%;
+  max-height: 70vh; /* Adjust as needed to prevent overflow */
+  display: block; /* Important for react-medium-image-zoom */
+}
+
+/* Ensure react-medium-image-zoom's overlay is styled correctly */
+/* You might need to inspect the generated HTML to target the exact classes */
+.rmiz-modal-content {
+  background-color: transparent !important; /* To prevent double backdrop */
+}
+.rmiz-overlay {
+  background-color: transparent !important; /* To prevent double backdrop */
+  z-index: 10000; /* Match the .imageZoomBackdrop if needed, but react-medium-image-zoom uses its own */
+}
 .longformmdl input,
 .longformmdl select {
   width: 130px;

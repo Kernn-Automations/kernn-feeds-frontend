@@ -25,7 +25,7 @@ import {
 } from "@chakra-ui/react";
 import { FaPlus as AddIcon, FaTrash as DeleteIcon } from "react-icons/fa6";
 import axios from "axios";
-import { apiService as axiosAPI } from "@/services/apiService";
+import {ApiService as axiosAPI} from "../../../services/apiService";
 
 import Divider from "@/components/ui/Divider";
 
