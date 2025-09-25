@@ -1,59 +1,301 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Box,
-  Button,
-  Flex,
-  Heading,
-  Select,
-  Spinner,
-  Text,
-  VStack,
-  HStack,
-  RadioGroup,
-  Radio,
-  Stack,
-  Input,
-  Textarea,
-  useToast,
-  IconButton,
-  Image,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-} from "@chakra-ui/react";
-import { FaPlus as AddIcon, FaTrash as DeleteIcon } from "react-icons/fa6";
-import axios from "axios";
-import {ApiService as axiosAPI} from "../../../services/apiService";
+import React, { useState, useEffect } from "react";
+//import axios from "axios";
+import ApiService from "../../../services/apiService";
+import { useAuth } from "@/Auth";
+import MapPicker from "./MapPicker";
 
-import Divider from "@/components/ui/Divider";
 
-// Your ApiUrls constant (simplified, replace with your import)
+
+// API URLs
 const ApiUrls = {
   createCart: "/cart",
   updateCart: "/cart/update",
   removeFromCart: "/cart/remove",
   getCart: "/cart",
   validate_drops: "/drops/validate",
-  getProducts: "/warehouse/products",
+  getProducts: "/warehouse/:id/inventory",
   finalizeOrder: "/sales-orders/",
   get_review_details: "/cart/review",
   submitPayment: "/sales-orders/:id/payment",
+  get_customers_sales_executive: "/customers",
+  get_customer_details: "/customers",
 };
 
-// Axios instance example with token, adapt to your auth logic
-
-// Utils to replace :id in endpoints
+// Utils
 const fillUrl = (url, replacements) =>
-  Object.entries(replacements).reduce(
+  Object.entries(replacements || {}).reduce(
     (acc, [key, val]) => acc.replace(`:${key}`, val),
     url
   );
 
-// === Main Component ===
+// Styles
+const styles = {
+  container: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '24px',
+    fontFamily: 'Arial, sans-serif'
+  },
+  title: {
+    fontSize: '2rem',
+    fontWeight: 'bold',
+    marginBottom: '24px',
+    color: '#333'
+  },
+  section: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    alignItems: 'flex-start',
+    width: '100%'
+  },
+  sectionTitle: {
+    fontSize: '1.25rem',
+    fontWeight: '600',
+    color: '#333'
+  },
+  card: {
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    padding: '16px',
+    width: '100%',
+    backgroundColor: '#fff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+  validCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderColor: '#10b981'
+  },
+  invalidCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.04)',
+    borderColor: '#ef4444'
+  },
+  input: {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'border-color 0.2s'
+  },
+  inputFocus: {
+    borderColor: '#2563eb'
+  },
+  select: {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    fontSize: '14px',
+    outline: 'none',
+    backgroundColor: '#fff',
+    cursor: 'pointer'
+  },
+  button: {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    outline: 'none'
+  },
+  buttonPrimary: {
+    backgroundColor: '#2563eb',
+    color: 'white'
+  },
+  buttonPrimaryHover: {
+    backgroundColor: '#1d4ed8'
+  },
+  buttonSecondary: {
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db'
+  },
+  buttonSuccess: {
+    backgroundColor: '#10b981',
+    color: 'white'
+  },
+  buttonDanger: {
+    backgroundColor: '#ef4444',
+    color: 'white'
+  },
+  buttonDisabled: {
+    backgroundColor: '#e5e7eb',
+    color: '#9ca3af',
+    cursor: 'not-allowed'
+  },
+  flexRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '12px',
+    alignItems: 'center'
+  },
+  flexColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  divider: {
+    height: '1px',
+    backgroundColor: '#e5e7eb',
+    margin: '16px 0',
+    border: 'none'
+  },
+  loader: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f4f6',
+    borderTop: '4px solid #2563eb',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  toast: {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    padding: '12px 20px',
+    borderRadius: '6px',
+    color: 'white',
+    fontWeight: '500',
+    zIndex: 1000,
+    minWidth: '250px'
+  },
+  toastSuccess: {
+    backgroundColor: '#10b981'
+  },
+  toastError: {
+    backgroundColor: '#ef4444'
+  },
+  toastWarning: {
+    backgroundColor: '#f59e0b'
+  },
+  toastInfo: {
+    backgroundColor: '#3b82f6'
+  },
+  radioGroup: {
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  radioItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  radio: {
+    width: '16px',
+    height: '16px'
+  },
+  productCard: {
+    border: '1px solid #e0e0e0',
+    borderRadius: '8px',
+    padding: '16px',
+    width: '100%',
+    backgroundColor: '#fff'
+  },
+  productTitle: {
+    fontWeight: 'bold',
+    fontSize: '16px',
+    marginBottom: '8px'
+  },
+  productInfo: {
+    fontSize: '14px',
+    color: '#666',
+    marginBottom: '4px'
+  },
+  productActions: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    marginTop: '12px'
+  },
+  tabs: {
+    display: 'flex',
+    borderBottom: '2px solid #e5e7eb',
+    marginBottom: '16px'
+  },
+  tab: {
+    padding: '12px 24px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    borderBottom: '2px solid transparent'
+  },
+  tabActive: {
+    borderBottom: '2px solid #2563eb',
+    color: '#2563eb'
+  },
+  fileInput: {
+    display: 'none'
+  },
+  fileButton: {
+    display: 'inline-block',
+    padding: '8px 16px',
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px'
+  },
+  previewImage: {
+    width: '90px',
+    height: '90px',
+    objectFit: 'contain',
+    border: '1px solid #e0e0e0',
+    borderRadius: '4px'
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: '14px',
+    marginTop: '8px'
+  },
+  successText: {
+    color: '#10b981',
+    fontSize: '14px'
+  },
+  iconButton: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '8px',
+    borderRadius: '4px',
+    color: '#6b7280'
+  },
+  totalsRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 0'
+  }
+};
+
+// CSS keyframes for loader
+const keyframes = `
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+`;
+
 export default function SalesOrderWizard() {
-  const toast = useToast();
+
+  const { axiosAPI } = useAuth();
+
+  // Mock API service - replace with your actual implementation
+
+
+  // Toast state
+  const [toast, setToast] = useState(null);
+
+  function showToast({ title, status = "info", duration = 4000 }) {
+    setToast({ message: title, severity: status });
+    setTimeout(() => setToast(null), duration);
+  }
 
   // Step state
   const [step, setStep] = useState(0);
@@ -73,6 +315,9 @@ export default function SalesOrderWizard() {
   const [dropOffLimit, setDropOffLimit] = useState(1);
   const [cartTotal, setCartTotal] = useState(0);
   const [cartLoading, setCartLoading] = useState(false);
+  const [selectedProductForQty, setSelectedProductForQty] = useState(null);
+  const [inputQuantity, setInputQuantity] = useState(1);
+
 
   // Step 3: Logistics
   const [selectedWarehouseType, setSelectedWarehouseType] = useState("");
@@ -103,21 +348,22 @@ export default function SalesOrderWizard() {
     },
   ]);
   const [paymentUploading, setPaymentUploading] = useState(false);
+  const [activePaymentTab, setActivePaymentTab] = useState(0);
 
   // === Step 1: Customer Load & Select ===
   useEffect(() => {
-    // load customers (example API call)
     async function loadCustomers() {
       try {
         setCustomerLoading(true);
         const res = await axiosAPI.get(ApiUrls.get_customers_sales_executive);
-        setCustomers(res.data || []);
+        console.log("Customers:", res);
+        setCustomers(res.data.customers || []);
       } catch (e) {
-        toast({
+        console.log(e);
+        showToast({
           title: "Failed to load customers",
           status: "error",
           duration: 4000,
-          isClosable: true,
         });
       } finally {
         setCustomerLoading(false);
@@ -129,20 +375,26 @@ export default function SalesOrderWizard() {
   // When selectedCustomer changes, fetch full details and products
   useEffect(() => {
     if (!selectedCustomer) return;
+    console.log("Selected customer:", selectedCustomer);
     async function fetchCustomerDetails() {
       try {
         setCustomerLoading(true);
         const res = await axiosAPI.get(
           `${ApiUrls.get_customer_details}/${selectedCustomer}`
         );
-        setCustomerDetails(res.data);
-        setSelectedWarehouseType(""); // reset logistics selection
+        console.log("Customer details:", res);
+        // Data is nested under res.data.data.customer and products under res.data.data.productsAndDiscounting.products
+        const customerData = res.data?.customer || null;
+        const productList = res.data?.productsAndDiscounting?.products || [];
+        console.log(customerData, productList);
+        setCustomerDetails(customerData);
+        setProducts(productList); // Set products here from customer details API response
+        setSelectedWarehouseType("");
       } catch (e) {
-        toast({
+        showToast({
           title: "Failed to load customer details",
           status: "error",
           duration: 4000,
-          isClosable: true,
         });
       } finally {
         setCustomerLoading(false);
@@ -158,18 +410,16 @@ export default function SalesOrderWizard() {
       try {
         setProductsLoading(true);
         const warehouseId = customerDetails.warehouseId;
-        const res = await axiosAPI.get(
-          `${ApiUrls.getProducts}?warehouseId=${warehouseId}`
-        );
+        const url = ApiUrls.getProducts.replace(':id', warehouseId);
+        const res = await axiosAPI.get(url);
+        console.log(res);
         setProducts(res.data.products || []);
-        // Set available products for logistics step reference
         setAvailableProducts(res.data.products || []);
       } catch (e) {
-        toast({
+        showToast({
           title: "Failed to load products",
           status: "error",
           duration: 4000,
-          isClosable: true,
         });
       } finally {
         setProductsLoading(false);
@@ -184,15 +434,16 @@ export default function SalesOrderWizard() {
     const isNewCart = !cartId;
     const apiUrl = isNewCart ? ApiUrls.createCart : ApiUrls.updateCart;
     try {
+      console.log(customerDetails)
       setCartLoading(true);
       const payload = {
         cartId: cartId || null,
-        customerId: customerDetails.customerId,
+        customerId: customerDetails.customer_id,
         cartItems: [{ productId: product.id, quantity, unit: product.unit }],
       };
       const res = await axiosAPI.post(apiUrl, payload);
       if (isNewCart) setCartId(res.data.cart.id);
-      // Update cart items map and metadata
+      
       const itemsMap = {};
       res.data.cart.items.forEach((it) => {
         itemsMap[it.productId] = {
@@ -205,11 +456,10 @@ export default function SalesOrderWizard() {
       setWarehouseOptions(res.data.logistics?.warehouseOptions || []);
       setCartTotal(res.data.totals?.cartTotalAmount || 0);
     } catch (e) {
-      toast({
+      showToast({
         title: "Failed to update cart",
         status: "error",
         duration: 4000,
-        isClosable: true,
       });
     } finally {
       setCartLoading(false);
@@ -225,7 +475,7 @@ export default function SalesOrderWizard() {
         cartId,
         productId,
       });
-      // refresh cartItems from response
+      
       const itemsMap = {};
       res.data.cart.items.forEach((it) => {
         itemsMap[it.productId] = {
@@ -236,11 +486,10 @@ export default function SalesOrderWizard() {
       setCartItems(itemsMap);
       setCartTotal(res.data.totals?.cartTotalAmount || 0);
     } catch (e) {
-      toast({
+      showToast({
         title: "Failed to remove item",
         status: "error",
         duration: 4000,
-        isClosable: true,
       });
     } finally {
       setCartLoading(false);
@@ -250,15 +499,14 @@ export default function SalesOrderWizard() {
   // Confirm step 2 to go to step 3 (logistics)
   function confirmProductsStep() {
     if (Object.keys(cartItems).length === 0) {
-      toast({
+      showToast({
         title: "Add at least one product",
         status: "warning",
         duration: 3000,
-        isClosable: true,
       });
       return;
     }
-    // Initialize dropoffs for step 3 with 1 dropoff by default
+    
     setDropCount(1);
     setDropOffs([
       {
@@ -288,15 +536,12 @@ export default function SalesOrderWizard() {
   }
 
   // === Step 3: Logistics Step ===
-
-  // Update dropoff details inline function
   function updateDropOff(index, newData) {
     setDropOffs((old) =>
       old.map((d, i) => (i === index ? { ...d, ...newData } : d))
     );
   }
 
-  // Update product quantity in dropoff
   function updateDropItemQuantity(dropIndex, productId, quantity) {
     setDropOffs((old) => {
       const newDrops = [...old];
@@ -310,7 +555,6 @@ export default function SalesOrderWizard() {
     });
   }
 
-  // Validate a dropoff via API
   async function validateDropOff(index) {
     const drop = dropOffs[index];
     const filteredCoords = dropOffs
@@ -323,9 +567,10 @@ export default function SalesOrderWizard() {
       )
       .map(({ order, latitude, longitude }) => ({ order, latitude, longitude }));
     try {
+      console.log(customerDetails);
       setLogisticsLoading(true);
       const res = await axiosAPI.post(ApiUrls.validate_drops, {
-        customerId: customerDetails.customerId,
+        customerId: customerDetails.customer_id,
         dropOffs: filteredCoords,
         warehouseType: selectedWarehouseType,
       });
@@ -340,6 +585,7 @@ export default function SalesOrderWizard() {
           newArr[index] = null;
           return newArr;
         });
+        console.log(res);
         setDropDistances(res.data.distances || []);
         setDistanceSummary(res.data.distanceSummary);
       } else {
@@ -357,34 +603,31 @@ export default function SalesOrderWizard() {
         setDistanceSummary(null);
       }
     } catch (e) {
-      toast({
+      console.log(e);
+      showToast({
         title: "Failed to validate drop-off",
         status: "error",
         duration: 4000,
-        isClosable: true,
       });
     } finally {
       setLogisticsLoading(false);
     }
   }
 
-  // Confirm logistics step go forward
   function confirmLogisticsStep() {
     if (!selectedWarehouseType) {
-      toast({
+      showToast({
         title: "Select warehouse type",
         status: "warning",
         duration: 3000,
-        isClosable: true,
       });
       return;
     }
     if (!isDropValid.every(Boolean)) {
-      toast({
+      showToast({
         title: "Validate all dropoffs",
         status: "warning",
         duration: 3000,
-        isClosable: true,
       });
       return;
     }
@@ -396,16 +639,14 @@ export default function SalesOrderWizard() {
           d.items.some((item) => Number(item.quantity) <= 0)
       )
     ) {
-      toast({
+      showToast({
         title: "Assign products to dropoffs with quantities",
         status: "warning",
         duration: 3000,
-        isClosable: true,
       });
       return;
     }
     setStep(3);
-    // Fetch review details next step
     fetchReviewData();
   }
 
@@ -418,17 +659,15 @@ export default function SalesOrderWizard() {
       );
       setReviewData(res.data);
     } catch (e) {
-      toast({
+      showToast({
         title: "Failed to fetch review data",
         status: "error",
         duration: 4000,
-        isClosable: true,
       });
     } finally {
       setReviewLoading(false);
     }
   }
-  //const [reviewLoading, setReviewLoading] = useState(false);
 
   // === Step 4: Review ===
   async function finalizeOrder() {
@@ -436,7 +675,7 @@ export default function SalesOrderWizard() {
     try {
       setReviewLoading(true);
       const payload = {
-        customerId: selectedCustomer,
+        customerId: customerDetails.customer_id,
         cartItems: Object.values(cartItems).map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -447,28 +686,27 @@ export default function SalesOrderWizard() {
         paymentMethod: payments.length > 0 ? payments[0].paymentMode : "UPI",
       };
       const res = await axiosAPI.post(ApiUrls.finalizeOrder, payload);
+      console.log(res);
       if (res.status === 201) {
-        toast({
+        showToast({
           title: "Order finalized. Proceed to payment.",
           status: "success",
           duration: 3000,
-          isClosable: true,
         });
         setStep(4);
       } else {
-        toast({
+        showToast({
           title: "Failed to finalize order",
           status: "error",
           duration: 4000,
-          isClosable: true,
         });
       }
     } catch (e) {
-      toast({
+      console.log(e);
+      showToast({
         title: "Error finalizing order",
         status: "error",
         duration: 4000,
-        isClosable: true,
       });
     } finally {
       setReviewLoading(false);
@@ -476,8 +714,6 @@ export default function SalesOrderWizard() {
   }
 
   // === Step 5: Payment ===
-
-  // Payment handlers
   function addPayment() {
     setPayments((old) => [
       ...old,
@@ -493,10 +729,12 @@ export default function SalesOrderWizard() {
       },
     ]);
   }
+
   function removePayment(index) {
     if (payments.length === 1) return;
     setPayments((old) => old.filter((_, i) => i !== index));
   }
+
   function updatePaymentField(index, field, value) {
     setPayments((old) => {
       const arr = [...old];
@@ -504,38 +742,41 @@ export default function SalesOrderWizard() {
       return arr;
     });
   }
+
   function handleFileChange(index, file) {
     if (!file) return;
     const previewUrl = URL.createObjectURL(file);
     updatePaymentField(index, "proofFile", file);
     updatePaymentField(index, "proofPreviewUrl", previewUrl);
   }
+
   function validatePayments() {
     for (let i = 0; i < payments.length; i++) {
       const p = payments[i];
       if (!p.amount || parseFloat(p.amount) <= 0) {
-        toast({ title: `Enter valid amount for payment #${i + 1}`, status: "error", isClosable: true });
+        showToast({ title: `Enter valid amount for payment #${i + 1}`, status: "error", duration: 3000 });
         return false;
       }
       if (!p.transactionDate) {
-        toast({ title: `Select date for payment #${i + 1}`, status: "error", isClosable: true });
+        showToast({ title: `Select date for payment #${i + 1}`, status: "error", duration: 3000 });
         return false;
       }
       if (!p.reference.trim()) {
-        toast({ title: `Enter reference for payment #${i + 1}`, status: "error", isClosable: true });
+        showToast({ title: `Enter reference for payment #${i + 1}`, status: "error", duration: 3000 });
         return false;
       }
       if (!p.proofFile) {
-        toast({ title: `Upload proof for payment #${i + 1}`, status: "error", isClosable: true });
+        showToast({ title: `Upload proof for payment #${i + 1}`, status: "error", duration: 3000 });
         return false;
       }
       if ((p.transactionStatus === "Processing" || p.transactionStatus === "Failed") && !p.remark.trim()) {
-        toast({ title: `Add remark for payment #${i + 1}`, status: "error", isClosable: true });
+        showToast({ title: `Add remark for payment #${i + 1}`, status: "error", duration: 3000 });
         return false;
       }
     }
     return true;
   }
+
   async function submitPayments() {
     if (!validatePayments()) return;
     setPaymentUploading(true);
@@ -558,289 +799,373 @@ export default function SalesOrderWizard() {
         payload.append(`paymentProofs[${idx}]`, p.proofFile);
       }
     });
+
     try {
       const url = fillUrl(ApiUrls.submitPayment, { id: reviewData?.orderId || "" });
       const res = await axiosAPI.post(url, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res.status === 200) {
-        toast({
+        showToast({
           title: "Payment submitted successfully",
           status: "success",
           duration: 3000,
-          isClosable: true,
         });
-        // Redirect or reset flow as needed
         setStep(0);
       } else {
-        toast({
+        showToast({
           title: "Failed to submit payment",
           status: "error",
           duration: 4000,
-          isClosable: true,
         });
       }
     } catch (e) {
-      toast({
+      showToast({
         title: "Error submitting payment",
         status: "error",
         duration: 4000,
-        isClosable: true,
       });
     } finally {
       setPaymentUploading(false);
     }
   }
 
+  // === Render Components ===
+  
+  const Loader = () => (
+    <div style={styles.loader}></div>
+  );
 
-  // === Render Sections ===
+  const Button = ({ children, onClick, disabled, variant = 'primary', type = 'button', style = {}, ...props }) => {
+    let buttonStyle = { ...styles.button };
+    
+    if (disabled) {
+      buttonStyle = { ...buttonStyle, ...styles.buttonDisabled };
+    } else {
+      switch (variant) {
+        case 'primary':
+          buttonStyle = { ...buttonStyle, ...styles.buttonPrimary };
+          break;
+        case 'secondary':
+          buttonStyle = { ...buttonStyle, ...styles.buttonSecondary };
+          break;
+        case 'success':
+          buttonStyle = { ...buttonStyle, ...styles.buttonSuccess };
+          break;
+        case 'danger':
+          buttonStyle = { ...buttonStyle, ...styles.buttonDanger };
+          break;
+        default:
+          buttonStyle = { ...buttonStyle, ...styles.buttonPrimary };
+      }
+    }
 
-  // Step 1 Customer select UI
-  function renderCustomerStep() {
-    if (customerLoading) return <Spinner />;
     return (
-      <VStack align="flex-start" spacing={3}>
-        <Heading size="md">Select Customer</Heading>
+      <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        style={{ ...buttonStyle, ...style }}
+        onMouseEnter={(e) => {
+          if (!disabled && variant === 'primary') {
+            e.target.style.backgroundColor = styles.buttonPrimaryHover.backgroundColor;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && variant === 'primary') {
+            e.target.style.backgroundColor = styles.buttonPrimary.backgroundColor;
+          }
+        }}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  };
+
+  const Input = ({ type = 'text', value, onChange, placeholder, disabled, style = {}, ...props }) => (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      style={{ ...styles.input, ...style }}
+      onFocus={(e) => e.target.style.borderColor = styles.inputFocus.borderColor}
+      onBlur={(e) => e.target.style.borderColor = styles.input.borderColor}
+      {...props}
+    />
+  );
+
+  const Select = ({ value, onChange, children, disabled, style = {}, ...props }) => (
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      style={{ ...styles.select, ...style }}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+
+  const Card = ({ children, variant, style = {} }) => {
+    let cardStyle = { ...styles.card };
+    if (variant === 'valid') {
+      cardStyle = { ...cardStyle, ...styles.validCard };
+    } else if (variant === 'invalid') {
+      cardStyle = { ...cardStyle, ...styles.invalidCard };
+    }
+    return <div style={{ ...cardStyle, ...style }}>{children}</div>;
+  };
+
+  // Step 1: Customer Selection
+  function renderCustomerStep() {
+    if (customerLoading) return <Loader />;
+    
+    return (
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Select Customer</h2>
         <Select
-          placeholder="Select Customer"
           value={selectedCustomer || ""}
           onChange={(e) => setSelectedCustomer(e.target.value)}
+          style={{ marginBottom: '16px' }}
         >
-          {customers.map((c) => (
-            <option key={c.customerId} value={c.customerId}>
-              {c.name}
-            </option>
+          <option value="">Select Customer</option>
+            {(Array.isArray(customers) ? customers : []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
           ))}
         </Select>
+
         {customerDetails && (
-          <Box mt={4} p={4} borderWidth={1} borderRadius="md" width="100%">
-            <Text fontWeight="bold">Customer Details</Text>
-            <Text>Name: {customerDetails.name}</Text>
-            <Text>Phone: {customerDetails.phone}</Text>
-            {customerDetails.employee && (
-              <>
-                <Divider my={2} />
-                <Text fontWeight="bold">Associated Employee</Text>
-                <Text>Name: {customerDetails.employee.name}</Text>
-                <Text>Employee ID: {customerDetails.employee.employeeId}</Text>
-                <Text>Team Name: {customerDetails.employee.teamName}</Text>
-                <Text>Team ID: {customerDetails.employee.teamId}</Text>
-              </>
+          <Card>
+            <h3 style={{ margin: '0 0 12px 0', fontWeight: 'bold' }}>Customer Details</h3>
+            <p style={{ margin: '4px 0' }}>Name: {customerDetails.name}</p>
+            <p style={{ margin: '4px 0' }}>Phone: {customerDetails.mobile}</p>
+            {customerDetails.salesExecutive && (
+              <div style={{ marginTop: '16px' }}>
+                <hr style={styles.divider} />
+                <h4 style={{ margin: '8px 0', fontWeight: 'bold' }}>Associated Employee</h4>
+                <p style={{ margin: '4px 0' }}>Name: {customerDetails.salesExecutive.name}</p>
+                {/* <p style={{ margin: '4px 0' }}>Employee ID: {customerDetails.employee.employeeId}</p>
+                <p style={{ margin: '4px 0' }}>Team Name: {customerDetails.employee.teamName}</p>
+                                <p style={{ margin: '4px 0' }}>Team ID: {customerDetails.employee.teamId}</p> */}
+              </div>
             )}
-          </Box>
+          </Card>
         )}
+
         <Button
-          mt={6}
-          colorScheme="blue"
-          isDisabled={!selectedCustomer}
+          style={{ marginTop: '24px' }}
+          variant="primary"
+          disabled={!selectedCustomer}
           onClick={() => setStep(1)}
         >
           Confirm Customer
         </Button>
-      </VStack>
+      </div>
     );
   }
 
-  // Step 2 Product list UI
+  // Step 2: Products + Cart
   function renderProductStep() {
     return (
-      <VStack align="flex-start" spacing={4}>
-        <Heading size="md">Add Products</Heading>
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Add Products</h2>
         {productsLoading ? (
-          <Spinner />
+          <Loader />
         ) : (
           <>
             {products.map((product) => {
               const inCart = cartItems[product.id]?.quantity || 0;
               return (
-                <Box
-                  key={product.id}
-                  borderWidth={1}
-                  borderRadius="md"
-                  p={4}
-                  w="100%"
-                >
-                  <Text fontWeight="bold">{product.name}</Text>
-                  <Text>SKU: {product.sku || "N/A"}</Text>
-                  <Text>Current Stock: {product.stock || 0}</Text>
-                  <Text>
-                    Quantity Unit:{" "}
-                    {product.productType === "packed"
-                      ? `packs`
-                      : product.unit || "unit"}
-                  </Text>
-                  <HStack mt={2}>
+                <Card style={{ marginBottom: '12px' }} key={product.id}>
+                  <div style={styles.productTitle}>{product.name}</div>
+                  <div style={styles.productInfo}>SKU: {product.sku || "N/A"}</div>
+                  <div style={styles.productInfo}>Current Stock: {product.stock || 0}</div>
+                  <div style={styles.productInfo}>
+                    Quantity Unit: {product.productType === "packed" ? "packs" : product.unit || "unit"}
+                  </div>
+                  <div style={styles.productActions}>
                     <Button
-                      size="sm"
-                      onClick={() => {
-                        const newQty = inCart + 1;
-                        addOrUpdateCart(product, newQty);
-                      }}
-                      isLoading={cartLoading}
+                      variant="secondary"
+                      disabled={cartLoading}
+                      onClick={() => addOrUpdateCart(product, inCart + 1)}
                     >
                       Add
                     </Button>
                     {inCart > 0 && (
                       <Button
-                        size="sm"
-                        colorScheme="red"
+                        variant="danger"
+                        disabled={cartLoading}
                         onClick={() => removeFromCart(product.id)}
-                        isLoading={cartLoading}
                       >
                         Remove
                       </Button>
                     )}
-                    <Text ml={2}>
+                    <span style={{ marginLeft: '16px' }}>
                       {inCart > 0 ? `In Cart: ${inCart}` : "Not Added"}
-                    </Text>
-                  </HStack>
-                </Box>
+                    </span>
+                  </div>
+                </Card>
               );
             })}
-            <Button mt={6} onClick={confirmProductsStep}>
+            <Button
+              style={{ marginTop: '16px' }}
+              variant="primary"
+              onClick={confirmProductsStep}
+            >
               Confirm Products
             </Button>
           </>
         )}
-      </VStack>
+      </div>
     );
   }
 
-  // Step 3 Logistics UI
+  // Step 3: Logistics
   function renderDropOffCard(index, drop) {
     return (
-      <Box
+      <Card
         key={index}
-        borderWidth={1}
-        borderRadius="md"
-        p={4}
-        mb={4}
-        w="100%"
-        backgroundColor={isDropValid[index] ? "green.50" : "red.50"}
+        variant={
+          isDropValid[index]
+            ? "valid"
+            : dropValidationErrors[index]
+            ? "invalid"
+            : undefined
+        }
+        style={{ marginBottom: '16px' }}
       >
-        <Heading size="sm" mb={2}>
+        <div style={{ fontWeight: '600', marginBottom: '8px' }}>
           Drop-off #{index + 1}
-        </Heading>
-        <Stack spacing={2}>
+        </div>
+        <div style={styles.flexColumn}>
           <Input
-            placeholder="Receiver Name"
+            type="text"
             value={drop.receiverName}
-            onChange={(e) =>
-              updateDropOff(index, { receiverName: e.target.value })
-            }
+            placeholder="Receiver Name"
+            onChange={e => updateDropOff(index, { receiverName: e.target.value })}
           />
           <Input
-            placeholder="Receiver Mobile"
+            type="text"
             value={drop.receiverMobile}
-            onChange={(e) =>
-              updateDropOff(index, { receiverMobile: e.target.value })
-            }
+            placeholder="Receiver Mobile"
+            onChange={e => updateDropOff(index, { receiverMobile: e.target.value })}
           />
           <Input
-            placeholder="Plot"
+            type="text"
             value={drop.plot}
-            onChange={(e) => updateDropOff(index, { plot: e.target.value })}
+            placeholder="Plot"
+            onChange={e => updateDropOff(index, { plot: e.target.value })}
           />
           <Input
-            placeholder="Street"
+            type="text"
             value={drop.street}
-            onChange={(e) => updateDropOff(index, { street: e.target.value })}
+            placeholder="Street"
+            onChange={e => updateDropOff(index, { street: e.target.value })}
           />
           <Input
-            placeholder="Area"
+            type="text"
             value={drop.area}
-            onChange={(e) => updateDropOff(index, { area: e.target.value })}
+            placeholder="Area"
+            onChange={e => updateDropOff(index, { area: e.target.value })}
           />
           <Input
-            placeholder="City"
+            type="text"
             value={drop.city}
-            onChange={(e) => updateDropOff(index, { city: e.target.value })}
+            placeholder="City"
+            onChange={e => updateDropOff(index, { city: e.target.value })}
           />
           <Input
-            placeholder="Pincode"
+            type="text"
             value={drop.pincode}
-            onChange={(e) => updateDropOff(index, { pincode: e.target.value })}
+            placeholder="Pincode"
+            onChange={e => updateDropOff(index, { pincode: e.target.value })}
           />
-        </Stack>
-
-        <Divider my={4} />
-
-        <Heading size="sm" mb={2}>
+          <MapPicker
+            lat={drop.latitude}
+            lng={drop.longitude}
+            onChange={({ lat, lng }) => updateDropOff(index, { latitude: lat, longitude: lng })}
+          />
+        </div>
+        <hr style={styles.divider} />
+        <div style={{ fontWeight: '600', marginBottom: '8px' }}>
           Product Assignment
-        </Heading>
-        {drop.items?.map((item, i) => (
-          <HStack key={item.productId} mb={2}>
-            <Text flex="1">
+        </div>
+        {(drop.items || []).map(item => (
+          <div style={styles.flexRow} key={item.productId}>
+            <div style={{ flex: 1 }}>
               {item.productName} ({item.quantity} {item.unit})
-            </Text>
+            </div>
             <Input
               type="number"
               min={0}
               max={cartItems[item.productId]?.quantity}
               value={item.quantity}
-              onChange={(e) => {
+              style={{ width: '100px' }}
+              onChange={e => {
                 let val = Number(e.target.value);
                 if (val > cartItems[item.productId]?.quantity) val = cartItems[item.productId]?.quantity;
                 if (val < 0) val = 0;
                 updateDropItemQuantity(index, item.productId, val);
               }}
-              width={24}
             />
-          </HStack>
+          </div>
         ))}
-
         <Button
-          mt={3}
-          colorScheme="teal"
-          size="sm"
+          style={{ marginTop: '8px' }}
+          variant="primary"
+          disabled={logisticsLoading}
           onClick={() => validateDropOff(index)}
-          isLoading={logisticsLoading}
         >
           Validate Dropoff
         </Button>
         {dropValidationErrors[index] && (
-          <Text color="red.500" mt={1}>
-            {dropValidationErrors[index]}
-          </Text>
+          <div style={styles.errorText}>{dropValidationErrors[index]}</div>
         )}
-      </Box>
+      </Card>
     );
   }
 
   function renderLogisticsStep() {
-    if (!warehouseOptions?.length) return <Text>No warehouse options available</Text>;
+    if (!warehouseOptions.length)
+      return <div>No warehouse options available</div>;
     return (
-      <VStack align="flex-start" spacing={4}>
-        <Heading size="md">Logistics</Heading>
-        <Text>Select Warehouse</Text>
-        <RadioGroup
-          value={selectedWarehouseType}
-          onChange={setSelectedWarehouseType}
-          mb={4}
-        >
-          <Stack direction="row" spacing={4}>
-            {warehouseOptions.map((opt) => (
-              <Radio key={opt} value={opt}>
-                {opt.toUpperCase()}
-              </Radio>
-            ))}
-          </Stack>
-        </RadioGroup>
-
-        <Text>Select Number of Drop-offs (Max {dropOffLimit})</Text>
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Logistics</h2>
+        <div>Select Warehouse</div>
+        <div style={styles.radioGroup}>
+          {warehouseOptions.map(opt => (
+            <label key={opt} style={styles.radioItem}>
+              <input
+                type="radio"
+                name="warehouseType"
+                style={styles.radio}
+                value={opt}
+                checked={selectedWarehouseType === opt}
+                onChange={e => setSelectedWarehouseType(e.target.value)}
+              />
+              {opt.toUpperCase()}
+            </label>
+          ))}
+        </div>
+        <div>
+          Select Number of Drop-offs (Max {dropOffLimit})
+        </div>
         <Select
-          w={32}
           value={dropCount}
-          onChange={(e) => {
+          onChange={e => {
             const val = Number(e.target.value);
             setDropCount(val);
-            // adjust dropOffs array length accordingly
-            setDropOffs((oldDrops) => {
+            setDropOffs(oldDrops => {
               if (val > oldDrops.length) {
-                // add empty dropoffs
-                const additions = Array(val - oldDrops.length)
-                  .fill(0)
-                  .map((_, i) => ({
+                // add defaults
+                return [
+                  ...oldDrops,
+                  ...Array(val - oldDrops.length).fill(0).map((_, i) => ({
                     order: oldDrops.length + i + 1,
                     receiverName: "",
                     receiverMobile: "",
@@ -850,8 +1175,8 @@ export default function SalesOrderWizard() {
                     city: "",
                     pincode: "",
                     items: [],
-                  }));
-                return [...oldDrops, ...additions];
+                  }))
+                ];
               } else {
                 return oldDrops.slice(0, val);
               }
@@ -859,34 +1184,35 @@ export default function SalesOrderWizard() {
             setIsDropValid(Array(val).fill(false));
             setDropValidationErrors(Array(val).fill(null));
           }}
-          mb={6}
+          style={{ width: '120px' }}
         >
-          {[...Array(dropOffLimit).keys()].map((i) => (
+          {Array.from({ length: dropOffLimit }).map((_, i) => (
             <option key={i + 1} value={i + 1}>
               {i + 1}
             </option>
           ))}
         </Select>
-
-        <Divider />
-
-        {dropOffs.length > 0 ? (
-          dropOffs.map((drop, i) => renderDropOffCard(i, drop))
-        ) : (
-          <Text>No dropoff configured</Text>
+        <hr style={styles.divider} />
+        {(dropOffs.length > 0
+          ? dropOffs.map((drop, idx) => renderDropOffCard(idx, drop))
+          : <div>No dropoff configured</div>
         )}
-
-        <Button mt={4} colorScheme="blue" onClick={confirmLogisticsStep}>
+        <Button
+          style={{ marginTop: '12px' }}
+          variant="primary"
+          onClick={confirmLogisticsStep}
+        >
           Confirm Logistics
         </Button>
-      </VStack>
+      </div>
     );
   }
 
-  // Step 4 Review UI
+  // Step 4: Review
   function renderReviewStep() {
-    if (reviewLoading) return <Spinner />;
-    if (!reviewData) return <Text>No review data available</Text>;
+    if (reviewLoading) return <Loader />;
+    if (!reviewData)
+      return <div>No review data available</div>;
 
     const c = reviewData.customer || {};
     const s = reviewData.salesExecutive || {};
@@ -896,95 +1222,84 @@ export default function SalesOrderWizard() {
     const totals = reviewData.totals || {};
 
     return (
-      <VStack align="flex-start" spacing={4}>
-        <Heading size="md">Review Order</Heading>
-
-        {/* Customer details */}
-        <Box borderWidth={1} borderRadius="md" p={4} w="100%">
-          <Text fontWeight="bold">Customer</Text>
-          <Text>{c.name}</Text>
-          <Text>{c.mobile}</Text>
-          <Text>{c.address || "Address not available"}</Text>
-        </Box>
-
-        {/* Sales Executive */}
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Review Order</h2>
+        <Card>
+          <div style={{ fontWeight: 'bold' }}>Customer</div>
+          <div>{c.name}</div>
+          <div>{c.mobile}</div>
+          <div>{c.address || "Address not available"}</div>
+        </Card>
         {s.name && (
-          <Box borderWidth={1} borderRadius="md" p={4} w="100%">
-            <Text fontWeight="bold">Sales Executive</Text>
-            <Text>{s.name}</Text>
-            <Text>{s.mobile}</Text>
-            <Text>{s.email}</Text>
-          </Box>
+          <Card>
+            <div style={{ fontWeight: 'bold' }}>Sales Executive</div>
+            <div>{s.name}</div>
+            <div>{s.mobile}</div>
+            <div>{s.email}</div>
+          </Card>
         )}
-
-        {/* Warehouse */}
-        <Box borderWidth={1} borderRadius="md" p={4} w="100%">
-          <Text fontWeight="bold">Warehouse</Text>
-          <Text>{w.name || "Warehouse"}</Text>
-          <Text>
-            {[w.street, w.area, w.city, w.pincode].filter(Boolean).join(", ")}
-          </Text>
-        </Box>
-
-        {/* Drop-offs */}
-        <Box borderWidth={1} borderRadius="md" p={4} w="100%">
-          <Text fontWeight="bold">Drop-off Points</Text>
-          {drops.length === 0 && <Text>No drop-offs configured</Text>}
-          {drops.map((d, i) => (
-            <Box key={i} my={2}>
-              <Text>{d.receiverName || "Receiver"}</Text>
-              <Text>
+        <Card>
+          <div style={{ fontWeight: 'bold' }}>Warehouse</div>
+          <div>{w.name || "Warehouse"}</div>
+          <div>{[w.street, w.area, w.city, w.pincode].filter(Boolean).join(", ")}</div>
+        </Card>
+        <Card>
+          <div style={{ fontWeight: 'bold' }}>Drop-off Points</div>
+          {drops.length === 0 && <div>No drop-offs configured</div>}
+          {drops.map((d, idx) => (
+            <div key={idx} style={{ marginBottom: '10px' }}>
+              <div>{d.receiverName || "Receiver"}</div>
+              <div>
                 {[d.plot, d.street, d.area, d.city, d.pincode]
                   .filter(Boolean)
                   .join(", ")}
-              </Text>
-            </Box>
+              </div>
+            </div>
           ))}
-        </Box>
-
-        {/* Products */}
-        <Box borderWidth={1} borderRadius="md" p={4} w="100%">
-          <Text fontWeight="bold">Products</Text>
+        </Card>
+        <Card>
+          <div style={{ fontWeight: 'bold' }}>Products</div>
           {items.map((item, i) => (
-            <Box key={i} my={2}>
-              <Text fontWeight="bold">{item.productName}</Text>
-              <Text>
+            <div key={i} style={{ marginBottom: '8px' }}>
+              <div style={{ fontWeight: 'bold' }}>{item.productName}</div>
+              <div>
                 {item.productType === "packed"
                   ? `Qty: ${item.quantity} packs (${item.packageWeight} ${item.packageWeightUnit} each)`
                   : `Qty: ${item.quantity} ${item.unit}`}
-              </Text>
-              <Text>Base Price: ₹{item.basePrice}</Text>
-              <Text>Tax: ₹{item.taxAmount}</Text>
-              <Text>Total: ₹{item.totalAmount}</Text>
-            </Box>
+              </div>
+              <div>Base Price: ₹{item.basePrice}</div>
+              <div>Tax: ₹{item.taxAmount}</div>
+              <div>Total: ₹{item.totalAmount}</div>
+            </div>
           ))}
-        </Box>
-
-        {/* Totals */}
-        <Box borderWidth={1} borderRadius="md" p={4} w="100%">
-          <HStack justify="space-between">
-            <Text>Subtotal</Text>
-            <Text>₹{totals.subtotal}</Text>
-          </HStack>
-          <HStack justify="space-between">
-            <Text>Tax</Text>
-            <Text>₹{totals.tax}</Text>
-          </HStack>
-          <Divider />
-          <HStack justify="space-between" fontWeight="bold">
-            <Text>Grand Total</Text>
-            <Text>₹{totals.grandTotal}</Text>
-          </HStack>
-        </Box>
-
-        <Button onClick={finalizeOrder} isLoading={reviewLoading} mt={4}>
+        </Card>
+        <Card>
+          <div style={styles.totalsRow}>
+            <span>Subtotal</span>
+            <span>₹{totals.subtotal}</span>
+          </div>
+          <div style={styles.totalsRow}>
+            <span>Tax</span>
+            <span>₹{totals.tax}</span>
+          </div>
+          <hr style={styles.divider} />
+          <div style={{ ...styles.totalsRow, fontWeight: 700 }}>
+            <span>Grand Total</span>
+            <span>₹{totals.grandTotal}</span>
+          </div>
+        </Card>
+        <Button
+          onClick={finalizeOrder}
+          disabled={reviewLoading}
+          variant="primary"
+        >
           Confirm and Go to Payment
         </Button>
-      </VStack>
+      </div>
     );
   }
 
-  // Step 5 Payment UI
+  // Step 5: Payment Step
   function renderPaymentStep() {
     function handleFileUpload(e, idx) {
       const file = e.target.files[0];
@@ -996,143 +1311,174 @@ export default function SalesOrderWizard() {
       setPayments(newPayments);
     }
 
-    function updatePaymentField(idx, field, value) {
+    function updatePaymentFieldLocal(idx, field, value) {
       const newPayments = [...payments];
       newPayments[idx][field] = value;
       setPayments(newPayments);
     }
 
     return (
-      <VStack align="flex-start" spacing={4}>
-        <Heading size="md">Payment Details</Heading>
-        <Text>
-          Sales Order ID: {reviewData?.orderId || ""}
-        </Text>
-        <Text>Total Amount: ₹{reviewData?.totalAmount || 0}</Text>
-
-        <Tabs>
-          <TabList>
-            <Tab>UPI</Tab>
-            <Tab>Bank</Tab>
-          </TabList>
-          <TabPanels>
-            <TabPanel>
-              {/* UPI Payment info */}
-              <Text>UPI ID: {reviewData?.upiId || "N/A"}</Text>
-              {/* Add QR code or payment link UI here if needed */}
-            </TabPanel>
-            <TabPanel>
-              {/* Bank Payment info */}
-              <Text>Bank Account: {reviewData?.bankDetails?.accountNumber || "N/A"}</Text>
-              <Text>IFSC: {reviewData?.bankDetails?.ifsc || "N/A"}</Text>
-              {/* Add more bank details here */}
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Payment Details</h2>
+        <div>Sales Order ID: {reviewData?.orderId || ""}</div>
+        <div>Total Amount: ₹{reviewData?.totalAmount || 0}</div>
+        {/* (Simplified payment tabs for native React) */}
+        <div style={styles.tabs}>
+          <button
+            style={{
+              ...styles.tab,
+              ...(activePaymentTab === 0 ? styles.tabActive : {})
+            }}
+            onClick={() => setActivePaymentTab(0)}
+            type='button'
+          >
+            UPI
+          </button>
+          <button
+            style={{
+              ...styles.tab,
+              ...(activePaymentTab === 1 ? styles.tabActive : {})
+            }}
+            onClick={() => setActivePaymentTab(1)}
+            type='button'
+          >
+            Bank
+          </button>
+        </div>
+        {activePaymentTab === 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            <div>UPI ID: {reviewData?.upiId || "N/A"}</div>
+          </div>
+        )}
+        {activePaymentTab === 1 && (
+          <div style={{ marginBottom: "16px" }}>
+            <div>Bank Account: {reviewData?.bankDetails?.accountNumber || "N/A"}</div>
+            <div>IFSC: {reviewData?.bankDetails?.ifsc || "N/A"}</div>
+          </div>
+        )}
         {payments.map((payment, i) => (
-          <Box key={i} borderWidth={1} borderRadius="md" p={4} w="100%">
-            <HStack justify="space-between">
-              <Text fontWeight="bold">Payment #{i + 1}</Text>
-              <IconButton
-                aria-label="Remove payment"
-                icon={<DeleteIcon />}
+          <Card key={i} style={{ marginBottom: "12px" }}>
+            <div style={styles.flexRow}>
+              <div style={{ fontWeight: "bold" }}>Payment #{i + 1}</div>
+              <button
+                style={{ ...styles.iconButton, marginLeft: "auto" }}
                 onClick={() => removePayment(i)}
-                isDisabled={payments.length === 1}
-              />
-            </HStack>
-            <Stack spacing={3} mt={2}>
+                disabled={payments.length === 1}
+                title="Remove payment"
+              >
+                &#10005;
+              </button>
+            </div>
+            <div style={styles.flexColumn}>
               <Input
                 type="date"
                 value={payment.transactionDate}
-                onChange={(e) =>
-                  updatePaymentField(i, "transactionDate", e.target.value)
-                }
+                onChange={e => updatePaymentFieldLocal(i, "transactionDate", e.target.value)}
               />
               <Select
                 value={payment.paymentMode}
-                onChange={(e) => updatePaymentField(i, "paymentMode", e.target.value)}
+                onChange={e => updatePaymentFieldLocal(i, "paymentMode", e.target.value)}
               >
-                <option>UPI</option>
-                <option>Bank Transfer</option>
-                <option>Other</option>
+                <option value="UPI">UPI</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Other">Other</option>
               </Select>
               <Input
                 type="number"
                 placeholder="Amount"
                 value={payment.amount}
-                onChange={(e) => updatePaymentField(i, "amount", e.target.value)}
+                onChange={e => updatePaymentFieldLocal(i, "amount", e.target.value)}
               />
               <Input
+                type="text"
                 placeholder="Reference"
                 value={payment.reference}
-                onChange={(e) => updatePaymentField(i, "reference", e.target.value)}
+                onChange={e => updatePaymentFieldLocal(i, "reference", e.target.value)}
               />
               <Select
                 value={payment.transactionStatus}
-                onChange={(e) =>
-                  updatePaymentField(i, "transactionStatus", e.target.value)
-                }
+                onChange={e => updatePaymentFieldLocal(i, "transactionStatus", e.target.value)}
               >
-                <option>Completed</option>
-                <option>Processing</option>
-                <option>Failed</option>
+                <option value="Completed">Completed</option>
+                <option value="Processing">Processing</option>
+                <option value="Failed">Failed</option>
               </Select>
-              <Textarea
+              <textarea
+                rows={2}
                 placeholder="Remarks"
                 value={payment.remark}
-                onChange={(e) => updatePaymentField(i, "remark", e.target.value)}
+                onChange={e => updatePaymentFieldLocal(i, "remark", e.target.value)}
+                style={{ ...styles.input, minHeight: "60px", resize: "vertical" }}
               />
-              <Flex align="center">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, i)}
-                />
+              <div style={styles.flexRow}>
+                <label style={styles.fileButton}>
+                  Upload Proof
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    style={styles.fileInput}
+                    onChange={e => handleFileUpload(e, i)}
+                  />
+                </label>
                 {payment.proofPreviewUrl && (
-                  <Image
+                  <img
                     src={payment.proofPreviewUrl}
-                    alt={`proof-${i}`}
-                    boxSize="90px"
-                    ml={3}
-                    objectFit="contain"
-                    border="1px"
-                    borderColor="gray.300"
+                    alt={`Payment proof #${i + 1}`}
+                    style={styles.previewImage}
                   />
                 )}
-              </Flex>
-            </Stack>
-          </Box>
+              </div>
+            </div>
+          </Card>
         ))}
         <Button
-          leftIcon={<AddIcon />}
+          style={{ marginRight: "16px" }}
           onClick={addPayment}
-          mt={3}
-          colorScheme="green"
+          variant="success"
         >
           Add Payment
         </Button>
-
         <Button
-          mt={6}
-          colorScheme="blue"
-          isLoading={paymentUploading}
+          variant="primary"
           onClick={submitPayments}
+          disabled={paymentUploading}
         >
           Submit Payments
         </Button>
-      </VStack>
+      </div>
     );
   }
 
+  // Main render function
   return (
-    <Box maxW="4xl" mx="auto" p={6}>
-      <Heading mb={6}>Create New Sales Order</Heading>
-      {step === 0 && renderCustomerStep()}
-      {step === 1 && renderProductStep()}
-      {step === 2 && renderLogisticsStep()}
-      {step === 3 && renderReviewStep()}
-      {step === 4 && renderPaymentStep()}
-    </Box>
+    <>
+      {/* Loader Keyframes */}
+      <style>{keyframes}</style>
+      <div style={styles.container}>
+        <div style={styles.title}>Create New Sales Order</div>
+        {step === 0 && renderCustomerStep()}
+        {step === 1 && renderProductStep()}
+        {step === 2 && renderLogisticsStep()}
+        {step === 3 && renderReviewStep()}
+        {step === 4 && renderPaymentStep()}
+        {/* Toast */}
+        {toast && (
+          <div
+            style={{
+              ...styles.toast,
+              ...(toast.severity === "success"
+                ? styles.toastSuccess
+                : toast.severity === "error"
+                ? styles.toastError
+                : toast.severity === "warning"
+                ? styles.toastWarning
+                : styles.toastInfo)
+            }}
+          >
+            {toast.message}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
