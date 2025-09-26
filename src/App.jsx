@@ -13,6 +13,7 @@ const Dashboard = lazy(() => import("./components/Dashboard/Dashboard"));
 const Login = lazy(() => import("./components/Login"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
 const Divs = lazy(() => import("./pages/Divs"));
+const StoreDashboard = lazy(() => import("./components/Store/StoreDashboard"));
 
 export default function App() {
   const { islogin, setIslogin } = useAuth();
@@ -52,7 +53,7 @@ export default function App() {
       />
 
       <Route path="/divs" element={<Divs />} />
-
+      
       {/* Protected Routes */}
       <Route element={<ProtectedRoute token={token} />}>
         {/* Dashboard with nested routes */}
