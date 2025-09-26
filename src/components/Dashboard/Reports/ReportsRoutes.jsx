@@ -33,7 +33,7 @@ function ReportsRoutes() {
         }
       />
       <Route
-        path="/employee-reports"
+        path="/employee-reports/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
             <EmployeeReports navigate={navigate} />

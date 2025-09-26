@@ -12,7 +12,7 @@ export const handleExportPDF = async (
   title,
   grandTotal = null
 ) => {
-  if (data.length === 0) return;
+  if (!data || data.length === 0) return;
 
   const user = JSON.parse(localStorage.getItem("user"));
   const doc = new jsPDF();
@@ -30,7 +30,7 @@ export const handleExportPDF = async (
 
   // Prepare table data
   const modifiedColumns = [...columns];
-  const modifiedData = data.map((row) => columns.map((col) => row[col]));
+  const modifiedData = data.map((row) => columns.map((col) => row[col] ?? ""));
 
   // Add grand total row if applicable
   if (grandTotal !== null) {
@@ -38,28 +38,38 @@ export const handleExportPDF = async (
     modifiedData.push([...emptyCells, "Grand Total :", grandTotal.toFixed(2)]);
   }
 
+
   const drawFooterAndHeader = () => {
     const pageNumber = doc.internal.getCurrentPageInfo().pageNumber;
     const pageCount = doc.internal.getNumberOfPages();
 
+    // HEADER
     if (imageBase64) {
-      doc.addImage(imageBase64, "PNG", 10, 10, 50, 20);
+      doc.addImage(imageBase64, "PNG", 10, 10, 40, 20); // logo left
     }
 
     if (qrBase64) {
-      doc.addImage(qrBase64, "PNG", pageWidth - 65, 10, 25, 25);
+      doc.addImage(qrBase64, "PNG", pageWidth - 45, 10, 30, 30); // QR right
     }
 
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text(title, pageWidth - 10, 25, { align: "right" });
+    doc.text(title, pageWidth / 2, 20, { align: "center" });
 
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(`Generated on: ${formattedDate}`, pageWidth / 2, 27, {
+      align: "center",
+    });
+
+    // Divider line below header
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+    doc.line(10, 40, pageWidth - 10, 40);
+
+    // FOOTER
     doc.setDrawColor(0);
     doc.setLineWidth(0.1);
-    doc.setLineDashPattern([1, 0.5]);
-    doc.line(10, 45, pageWidth - 10, 45);
-
-    // Footer line
     doc.line(10, pageHeight - 30, pageWidth - 10, pageHeight - 30);
 
     const footerLines = [
@@ -103,17 +113,15 @@ export const handleExportPDF = async (
     },
     head: [modifiedColumns],
     body: modifiedData,
-    margin: { bottom: 40 },
+    // Reserve top & bottom margins to avoid overlap
+    margin: { top: 50, bottom: 40 },
     startY: 50,
     didDrawPage: drawFooterAndHeader,
   });
 
-  // doc.save(`${title}.pdf`);
-
-  const blob = doc.output("blob");
-  return URL.createObjectURL(blob);
-
+  doc.save(`${title}.pdf`);
 };
+
 
 export const handleExportExcel = (columns, data, title) => {
   if (data.length > 0) {
