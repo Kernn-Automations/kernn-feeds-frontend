@@ -12,24 +12,25 @@ export const AuthProvider = ({ children }) => {
   let reftoken = localStorage.getItem("refreshToken") || null;
 
   const VITE_API = import.meta.env.VITE_API_URL;
+  const BASE_URL = VITE_API || "/api";
 
   // API Initialization
   const api = axios.create({
-    baseURL: VITE_API, // Change to your actual API URL
+    baseURL: BASE_URL,
     headers: {
       "Content-Type": "application/json",
     },
   });
 
   const formApi = axios.create({
-    baseURL: VITE_API, // Change to your actual API URL
+    baseURL: BASE_URL,
     headers: {
       "Content-Type": "multipart/form-data",
     },
   });
 
   const getPdf = axios.create({
-    baseURL: VITE_API, // Change to your actual API URL
+    baseURL: BASE_URL,
     headers: {
       "Content-Type": "Application/pdf",
     },

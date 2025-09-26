@@ -1,159 +1,155 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./Payments.module.css";
-import img from "./../../../images/dummy-img.jpeg";
-import { DialogActionTrigger } from "@/components/ui/dialog";
+import img from "./../../../images/dummy-img.jpeg"; // Assuming this is a local dummy image
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
+import ImageZoomModal from "./ImageZoomModal"; // New component for image zoom
 
-function ApprovalModal({ report }) {
+function ApprovalModal({ report, changeTrigger }) {
   const { axiosAPI } = useAuth();
 
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const [error, setError] = useState(null);
+  const [loadingIds, setLoadingIds] = useState(new Set());
+  const [paymentStatuses, setPaymentStatuses] = useState({});
+  const [isImageZoomModalOpen, setIsImageZoomModalOpen] = useState(false);
+  const [currentZoomImageUrl, setCurrentZoomImageUrl] = useState(null);
 
-  const [successful, setSuccessful] = useState();
-
-  const onApproveClick = () => {
-    async function fetch() {
-      try {
-        setLoading(true);
-        const res = await axiosAPI.post(
-          `/payment-requests/${report.id}/approve`
-        );
-        // console.log(res);
-        setSuccessful(res.data.message);
-        changeTrigger();
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
+  useEffect(() => {
+    if (report && report.paymentRequests) {
+      const map = report.paymentRequests.reduce((acc, pr) => {
+        acc[pr.paymentRequestId] = pr.status;
+        return acc;
+      }, {});
+      setPaymentStatuses(map);
     }
-    fetch();
+  }, [report]);
+
+  const handleAction = async (paymentRequestId, action) => {
+    setError(null);
+    setLoadingIds((prev) => new Set(prev).add(paymentRequestId));
+    try {
+      await axiosAPI.post(`/payment-requests/${paymentRequestId}`, { action });
+      setPaymentStatuses((prev) => ({
+        ...prev,
+        [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
+      }));
+      changeTrigger(); // Notify parent to refresh list as needed
+    } catch (e) {
+      setError(e.response?.data?.message || "Error updating payment status");
+    } finally {
+      setLoadingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(paymentRequestId);
+        return newSet;
+      });
+    }
   };
+
+  const openImageZoomModal = (imageUrl) => {
+    setCurrentZoomImageUrl(imageUrl);
+    setIsImageZoomModalOpen(true);
+  };
+
+  const closeImageZoomModal = () => {
+    setIsImageZoomModalOpen(false);
+    setCurrentZoomImageUrl(null);
+  };
+
+  if (!report) return null;
 
   return (
     <>
-      <h3 className={`px-3 mdl-title`}>Approvals</h3>
+      <h3 className={`px-3 mdl-title`}>
+        Approvals - Sales Order: {report.orderNumber}
+      </h3>
+
       <div className="row m-0 p-0">
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Date :</label>
-          <input type="date" value={report.transactionDate} />
+        <div className={`col-6 ${styles.longformmdl}`}>
+          <label>Customer Name:</label>
+          <input type="text" value={report.customer?.name} readOnly />
         </div>
-        {/* <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Time :</label>
-          <input type="text" />
-        </div> */}
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Order ID :</label>
-          <input type="text" value={report.order && report.order.orderNumber} />
+        <div className={`col-6 ${styles.longformmdl}`}>
+          <label>Warehouse:</label>
+          <input type="text" value={report.warehouse?.name} readOnly />
         </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Warehouse ID :</label>
-          <input
-            type="text"
-            value={report.order && report.order.warehouse?.id}
-          />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Warehouse Name :</label>
-          <input
-            type="text"
-            value={report.order && report.order.warehouse?.name}
-          />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Customer ID :</label>
-          <input
-            type="text"
-            value={report.order && report.order.customer?.id}
-          />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Customer Name :</label>
-          <input
-            type="text"
-            value={report.order && report.order.customer?.name}
-          />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">SE ID :</label>
-          <input
-            type="text"
-            value={report.order && report.order.salesExecutive?.id}
-          />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">SE Name :</label>
-          <input
-            type="text"
-            value={report.order && report.order.salesExecutive?.name}
-          />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Net Amount :</label>
-          <input type="text" value={report.netAmount} />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Txn ID :</label>
-          <input type="text" value={report.transactionReference} />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Payment ID :</label>
-          <input type="text" value={report.paymentId} />
-        </div>
-        <div className={`col-4 ${styles.longformmdl}`}>
-          <label htmlFor="">Payment mode :</label>
-          <input type="text" value={report.paymentMode} />
+        <div className={`col-6 ${styles.longformmdl}`}>
+          <label>Sales Executive:</label>
+          <input type="text" value={report.salesExecutive?.name} readOnly />
         </div>
       </div>
 
-      <div className="row m-0 p-0">
-        <h5 className={styles.headmdl}>Photo</h5>
-        <div className="col-3">
-          <img
-            src={report.paymentProof || img}
-            alt="aadhar"
-            className={styles.images}
-          />
-        </div>
+      <h4>Payment Requests</h4>
+      <div className={styles.paymentsContainer}>
+        {report.paymentRequests.map((pr) => (
+          <div key={pr.paymentRequestId} className={styles.paymentCard}>
+            <div>
+              <b>Payment Mode:</b> {pr.paymentMode}
+            </div>
+            <div>
+              <b>Transaction Ref:</b> {pr.transactionReference || "N/A"}
+            </div>
+            <div>
+              <b>Amount:</b> {pr.netAmount}
+            </div>
+            <div>
+              <img
+                src={pr.paymentProof || img}
+                alt="Payment Proof"
+                className={styles.paymentProofThumbnail} // Use a new class for styling
+                onClick={() => openImageZoomModal(pr.paymentProof || img)}
+              />
+            </div>
+            <div className={styles.statusRow}>
+              <span>Status: {paymentStatuses[pr.paymentRequestId]}</span>
+              <div className={styles.actionButtons}>
+                <button
+                  disabled={
+                    loadingIds.has(pr.paymentRequestId) ||
+                    paymentStatuses[pr.paymentRequestId] === "Approved"
+                  }
+                  onClick={() => handleAction(pr.paymentRequestId, "approve")}
+                  className={styles.approveBtn}
+                  title="Approve"
+                >
+                  ✔️
+                </button>
+                <button
+                  disabled={
+                    loadingIds.has(pr.paymentRequestId) ||
+                    paymentStatuses[pr.paymentRequestId] === "Rejected"
+                  }
+                  onClick={() => handleAction(pr.paymentRequestId, "reject")}
+                  className={styles.rejectBtn}
+                  title="Reject"
+                >
+                  ❌
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
-      {!loading && !successful && (
-        <div className="row m-0 p-3 pt-4 justify-content-center">
-          <div className={`col-6`}>
-            <button className="submitbtn" onClick={onApproveClick}>
-              Approve
-            </button>
 
-            <DialogActionTrigger asChild>
-              <button className="cancelbtn">Close</button>
-            </DialogActionTrigger>
-          </div>
-        </div>
+      {error && (
+        <ErrorModal
+          isOpen={!!error}
+          message={error}
+          onClose={() => setError(null)}
+          // Added a higher z-index if your ErrorModal also uses a portal/fixed position
+          // You might need to adjust based on your ErrorModal's internal styling.
+          style={{ zIndex: 10001 }}
+        />
       )}
 
-      {successful && (
-        <div className="row m-0 p-3 pt-4 justify-content-center">
-          <div className={`col-6`}>
-            <DialogActionTrigger asChild>
-              <button className="submitbtn">{successful}</button>
-            </DialogActionTrigger>
-          </div>
-        </div>
+      {isImageZoomModalOpen && (
+        <ImageZoomModal
+          imageUrl={currentZoomImageUrl}
+          onClose={closeImageZoomModal}
+        />
       )}
 
-      {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
-      )}
-
-      {loading && <Loading />}
+      {loadingIds.size > 0 && <Loading />}
     </>
   );
 }

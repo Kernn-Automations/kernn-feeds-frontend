@@ -258,8 +258,9 @@ function Orders({
       "Order ID",
       "Warehouse Name",
       "Customer ID",
-      "Qty",
       "Customer Name",
+      "Firm Name",
+      "Qty",
       "TNX Amount",
       "Payment Mode",
       "Status",
@@ -278,9 +279,10 @@ function Orders({
           Date: order.createdAt.slice(0, 10),
           "Order ID": order.orderNumber,
           "Warehouse Name": order.warehouse?.name,
-          Qty: `${Qty(order.items)} Tons`,
           "Customer ID": order.customer?.customer_id,
           "Customer Name": order.customer?.name,
+          "Firm Name": order.customer?.firmName || order.customer?.firm_name || 'N/A',
+          Qty: `${Qty(order.items)} Tons`,
           "TNX Amount": order.totalAmount,
           "Payment Mode": "UPI",
           Status: order.orderStatus,
@@ -737,6 +739,7 @@ function Orders({
                       'Customer Name'
                     )}
                   </th>
+                  <th>Firm Name</th>
                   <th>Qunatity</th>
                   <th>TNX Amount</th>
                   <th 
@@ -935,6 +938,7 @@ function Orders({
                       <td>{order.warehouse?.name}</td>
                       <td>{order.customer?.customer_id}</td>
                       <td>{order.customer?.name}</td>
+                      <td>{order.customer?.firmName || order.customer?.firm_name || 'N/A'}</td>
                       <td>{Qty(order.items)} Tons</td>
                       <td>{order.totalAmount}</td>
                       <td>UPI</td>

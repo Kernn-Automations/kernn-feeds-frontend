@@ -3,7 +3,7 @@ import authService from './authService';
 class ApiService {
   constructor() {
     // Use proxy in development, direct URL in production
-    this.baseURL = import.meta.env.DEV ? '/api' : 'https://fb-backend-chandra.kernn.xyz';
+    this.baseURL = import.meta.env.DEV ? '/api' : 'https://fb-backend-shanmukh.kernn.xyz';
   }
 
   // Enhanced API request handler with automatic token refresh

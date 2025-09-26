@@ -3,155 +3,176 @@ import styles from "./Payments.module.css";
 import ReportsViewModal from "./ReportsViewModal";
 import xls from "./../../../images/xls-png.png";
 import pdf from "./../../../images/pdf-png.png";
-import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { useAuth } from "@/Auth";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 
 function PaymentReports({ navigate }) {
-  const [onsubmit, setonsubmit] = useState(false);
-
   const { axiosAPI } = useAuth();
 
-  const [reports, setReports] = useState();
+  const [salesOrders, setSalesOrders] = useState([]);
+  const [filteredSalesOrders, setFilteredSalesOrders] = useState([]);
 
-  const [warehouses, setWarehouses] = useState();
-  const [customers, setCustomers] = useState();
-  const [ses, setSes] = useState();
+  const [warehouses, setWarehouses] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [ses, setSes] = useState([]);
 
-  const [error, setError] = useState();
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+  const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
+
   const closeModal = () => {
     setIsModalOpen(false);
+    setError(null);
+  };
+  
+  const closeReportsModal = () => {
+    setIsReportsModalOpen(false);
+    setSelectedSalesOrder(null);
   };
 
   const [trigger, setTrigger] = useState(false);
 
   const onSubmit = () => {
-    console.log(from, to, warehouse, customer);
-    setTrigger(trigger ? false : true);
+    setTrigger(!trigger);
   };
-
-  useEffect(() => {
-    async function fetch() {
-      try {
-        setLoading(true);
-        const res1 = await axiosAPI.get("/warehouse");
-        const res2 = await axiosAPI.get("/customers");
-        const res3 = await axiosAPI.get("/employees/role/Business Officer");
-        // console.log(res1);
-        // console.log(res2);
-        // console.log(res3);
-        setWarehouses(res1.data.warehouses);
-        setCustomers(res2.data.customers);
-        setSes(res3.data.employees);
-      } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, []);
 
   const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
-
   const today = new Date(Date.now()).toISOString().slice(0, 10);
 
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
   const [warehouse, setWarehouse] = useState("");
-  const [customer, setCustomer] = useState();
+  const [customer, setCustomer] = useState("");
   const [se, setSe] = useState("");
 
+  // Fetch initial data (warehouses, customers, SES)
   useEffect(() => {
-    setReports(null);
-    async function fetch() {
+    async function fetchInitialData() {
       try {
-        // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
-        let warehouseParam = "";
-        if (warehouse && warehouse !== "all") {
-          warehouseParam = `&warehouseId=${warehouse}`;
-        }
-        
-        console.log('PaymentReports - Fetching reports with warehouse filter:', warehouse);
-        console.log('PaymentReports - Warehouse parameter:', warehouseParam);
-        
         setLoading(true);
-        const res = await axiosAPI.get(
-          `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}${warehouseParam}${
-            customer ? `&customerTd=${customer}` : ""
-          }${
-            se ? `&salesExecutiveId=${se}` : ""
-          }`
-        );
-        console.log(res);
-        setReports(res.data.paymentRequests);
+        const res1 = await axiosAPI.get("/warehouse");
+        const res2 = await axiosAPI.get("/customers");
+        const res3 = await axiosAPI.get("/employees/role/Business Officer");
+
+        setWarehouses(res1.data.warehouses || []);
+        setCustomers(res2.data.customers || []);
+        setSes(res3.data.employees || []);
       } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+        setError(e.response?.data?.message || "Failed to fetch initial data.");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
-    fetch();
-  }, [trigger]);
+    fetchInitialData();
+  }, []);
 
+  // Fetch payment reports based on filters
+  useEffect(() => {
+    setSalesOrders([]);
+    setFilteredSalesOrders([]);
+    async function fetchReports() {
+      try {
+        setLoading(true);
+        let query = `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}`;
+        if (warehouse && warehouse !== "all") {
+          query += `&warehouseId=${warehouse}`;
+        }
+        if (customer) {
+          query += `&customerTd=${customer}`;
+        }
+        if (se) {
+          query += `&salesExecutiveId=${se}`;
+        }
+        const res = await axiosAPI.get(query);
+        setSalesOrders(res.data.salesOrders || []);
+      } catch (e) {
+        setError(e.response?.data?.message || "Failed to fetch payment reports.");
+        setIsModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchReports();
+  }, [trigger, from, to, warehouse, customer, se]);
 
-  const [tableData, setTableData] = useState([]);
+  // Apply filters to sales orders
+  useEffect(() => {
+    const filtered = salesOrders.filter((order) => {
+      let isMatch = true;
+      if (warehouse && warehouse !== "all") {
+        isMatch = isMatch && order.warehouse?.id === warehouse;
+      }
+      if (customer) {
+        isMatch = isMatch && order.customer?.id === customer;
+      }
+      if (se) {
+        isMatch = isMatch && order.salesExecutive?.id === se;
+      }
+      const orderDate = new Date(order.paymentRequests[0]?.transactionDate);
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      isMatch = isMatch && orderDate >= fromDate && orderDate <= toDate;
+      return isMatch;
+    });
+    setFilteredSalesOrders(filtered);
+  }, [salesOrders, warehouse, customer, se, from, to]);
+
+  // Helper to calculate total amount for a sales order
+  const calculateTotalAmount = (paymentRequests) => {
+    if (!paymentRequests) return "0.00";
+    return paymentRequests
+      .reduce((sum, pr) => sum + (pr.netAmount || 0), 0)
+      .toFixed(2);
+  };
+
+  // Function to open the modal and set the selected order
+  const openReportsModal = (salesOrder) => {
+    setSelectedSalesOrder(salesOrder);
+    setIsReportsModalOpen(true);
+  };
+
   const onExport = (type) => {
-    const arr = [];
-    let x = 1;
+    if (!filteredSalesOrders || filteredSalesOrders.length === 0) {
+      setError("Table is empty.");
+      setIsModalOpen(true);
+      return;
+    }
     const columns = [
       "S.No",
-      "Date",
-      "Order ID",
+      "Order Number",
       "Customer Name",
-      "SE ID",
-      "Warehouse Name",
-      "Net Amount",
+      "SE Name",
+      "Warehouse",
+      "Total Amount",
     ];
-    if (reports && reports.length > 0) {
-      reports.map((report) =>
-        arr.push({
-          "S.No": x++,
-          Date: report.transactionDate,
-          "Order ID": report.order.orderNumber,
-          "Customer Name": report.order.customer.name,
-          "SE ID": report.order.salesExecutive.id,
-          "Warehouse Name": report.order.warehouse.name,
-          "Net Amount": "na",
-        })
-      );
-      setTableData(arr);
-
-      if (type === "PDF")
-        handleExportPDF(columns, tableData, "Payment-Reports");
-      else if (type === "XLS")
-        handleExportExcel(columns, tableData, "Payment-Reports");
-    } else {
-      setError("Table is Empty");
-      setIsModalOpen(true);
+    const data = filteredSalesOrders.map((order, index) => [
+      index + 1,
+      order.orderNumber,
+      order.customer?.name,
+      order.salesExecutive?.name,
+      order.warehouse?.name,
+      calculateTotalAmount(order.paymentRequests),
+    ]);
+    if (type === "PDF") {
+      handleExportPDF(columns, data, "Payment-Reports");
+    } else if (type === "XLS") {
+      handleExportExcel(columns, data, "Payment-Reports");
     }
   };
 
-  let index = 1;
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/payments")}>Payments</span>{" "}
-        <i class="bi bi-chevron-right"></i> Payment-Reports
+        <i className="bi bi-chevron-right"></i> Payment-Reports
       </p>
-
       <div className="row m-0 p-3">
         <div className={`col-3 formcontent`}>
           <label htmlFor="">From :</label>
@@ -174,17 +195,16 @@ function PaymentReports({ navigate }) {
           <select
             name=""
             id=""
-            value={warehouse || ""}
-            onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? "" : e.target.value)
-            }
+            value={warehouse}
+            onChange={(e) => setWarehouse(e.target.value)}
           >
-            <option value="null">--select--</option>
+            <option value="">--select--</option>
             <option value="all">All Warehouses</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-              ))}
+            {warehouses.map((wh) => (
+              <option key={wh.id} value={wh.id}>
+                {wh.name}
+              </option>
+            ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
@@ -192,13 +212,15 @@ function PaymentReports({ navigate }) {
           <select
             name=""
             id=""
-            value={se || ""}
-            onChange={(e) =>
-              setSe(e.target.value === "null" ? "" : e.target.value)
-            }
+            value={se}
+            onChange={(e) => setSe(e.target.value)}
           >
-            <option value="null">--select--</option>
-            {ses && ses.map((se) => <option value={se.id}>{se.name}</option>)}
+            <option value="">--select--</option>
+            {ses.map((se) => (
+              <option key={se.id} value={se.id}>
+                {se.name}
+              </option>
+            ))}
           </select>
         </div>
         <div className={`col-3 formcontent`}>
@@ -207,27 +229,17 @@ function PaymentReports({ navigate }) {
             name=""
             id=""
             value={customer}
-            onChange={(e) =>
-              setCustomer(e.target.value === "null" ? null : e.target.value)
-            }
+            onChange={(e) => setCustomer(e.target.value)}
           >
-            <option value="null">--select--</option>
-            {customers &&
-              customers.map((customer) => (
-                <option value={customer.id}>{customer.name}</option>
-              ))}
+            <option value="">--select--</option>
+            {customers.map((cust) => (
+              <option key={cust.id} value={cust.id}>
+                {cust.name}
+              </option>
+            ))}
           </select>
         </div>
-        {/* <div className={`col-3 formcontent`}>
-          <label htmlFor="">Payment Mode :</label>
-          <select name="" id="">
-            <option value="">--select--</option>
-            <option value="">Online</option>
-            <option value="">Offline</option>
-          </select>
-        </div> */}
       </div>
-
       <div className="row m-0 p-2 justify-content-center">
         <div className={`col-3 formcontent`}>
           <button className="submitbtn" onClick={onSubmit}>
@@ -238,75 +250,74 @@ function PaymentReports({ navigate }) {
           </button>
         </div>
       </div>
-
-      {reports && (
+      {loading && <Loading />}
+      {!loading && filteredSalesOrders && (
         <div className="row m-0 p-3 justify-content-center">
-          <div className="col-lg-8">
+          <div className="col-lg-10">
             <button className={styles.xls} onClick={() => onExport("XLS")}>
               <p>Export to </p>
-              <img src={xls} alt="" />
+              <img src={xls} alt="Export to Excel" />
             </button>
             <button className={styles.xls} onClick={() => onExport("PDF")}>
               <p>Export to </p>
-              <img src={pdf} alt="" />
+              <img src={pdf} alt="Export to PDF" />
             </button>
-          </div>
-          <div className="col-lg-10">
-            <table className={`table table-bordered borderedtable`}>
+            <table className="table table-bordered borderedtable">
               <thead>
-                <tr
-                  className="animated-row"
-                  style={{ animationDelay: `${index++ * 0.1}s` }}
-                >
+                <tr>
                   <th>S.No</th>
-                  <th>Date</th>
-                  <th>Order ID</th>
+                  <th>Order Number</th>
                   <th>Customer Name</th>
                   <th>SE Name</th>
-                  <th>Warehouse Name</th>
-                  <th>Net Amount</th>
+                  <th>Warehouse</th>
+                  <th>Total Amount</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {reports.length === 0 && (
+                {filteredSalesOrders.length === 0 ? (
                   <tr>
                     <td colSpan={7}>NO DATA FOUND</td>
                   </tr>
-                )}
-
-                {reports.length > 0 &&
-                  reports.map((report) => (
-                    <tr
-                      key={report.id}
-                      className="animated-row"
-                      style={{ animationDelay: `${index++ * 0.1}s` }}
-                    >
-                      <td>{index++}</td>
-                      <td>{report.transactionDate}</td>
-                      <td>{report.order?.orderNumber}</td>
-                      <td>{report.order?.customer?.name}</td>
-                      <td>{report.order?.salesExecutive?.name}</td>
+                ) : (
+                  filteredSalesOrders.map((order, i) => (
+                    <tr key={order.salesOrderId} className="animated-row">
+                      <td>{i + 1}</td>
+                      <td>{order.orderNumber}</td>
+                      <td>{order.customer?.name}</td>
+                      <td>{order.salesExecutive?.name}</td>
+                      <td>{order.warehouse?.name}</td>
+                      <td>{calculateTotalAmount(order.paymentRequests)}</td>
                       <td>
-                        {report.order.warehouse && report.order.warehouse?.name}
-                      </td>
-                      <td>{report.netAmount}</td>
-                      <td>
-                        <ReportsViewModal report={report} />
+                        {/* Here, we call the function to open the modal directly */}
+                        <button
+                          onClick={() => openReportsModal(order)}
+                          className={`btn ${styles.viewBtn}`}
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {isModalOpen && (
-        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      {/* RENDER A SINGLE MODAL INSTANCE HERE, CONTROLLED BY STATE */}
+      {isReportsModalOpen && selectedSalesOrder && (
+        <ReportsViewModal
+          report={selectedSalesOrder}
+          onClose={closeReportsModal}
+          isOpen={isReportsModalOpen}
+        />
       )}
 
-      {loading && <Loading />}
+      {isModalOpen && error && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
     </>
   );
 }
