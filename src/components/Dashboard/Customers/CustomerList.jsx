@@ -679,6 +679,7 @@ function CustomerList({ navigate, isAdmin }) {
                       <th>S.No</th>
                       <th>Customer ID</th>
                       <th>Customer Name</th>
+                      <th>Firm Name</th>
                       <th>SE Name</th>
                       <th>Warehouse</th>
                       <th>
@@ -694,7 +695,7 @@ function CustomerList({ navigate, isAdmin }) {
                   <tbody>
                     {filteredCustomers.length === 0 && (
                       <tr className="animated-row">
-                        <td colSpan={8}>NO DATA FOUND</td>
+                        <td colSpan={9}>NO DATA FOUND</td>
                       </tr>
                     )}
                     {filteredCustomers.map((customer, index) => (
@@ -706,6 +707,7 @@ function CustomerList({ navigate, isAdmin }) {
                         <td>{((pageNo - 1) * limit) + index + 1}</td>
                         <td>{customer.customer_id}</td>
                         <td>{customer.name}</td>
+                        <td>{customer.firmName || customer.firm_name || 'N/A'}</td>
                         <td>{customer.salesExecutive?.name}</td>
                         <td>{customer.warehouse?.name}</td>
                                                  <td className={styles['activation-column']}>
