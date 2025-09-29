@@ -1,82 +1,119 @@
-import React from 'react'
+import React from 'react';
 import styles from "./Payments.module.css";
 import img from "./../../../images/dummy-img.jpeg";
 import { DialogActionTrigger } from "@/components/ui/dialog";
+import ImageZoomModal from "./ImageZoomModal"; // New component for image zoom
+import { useState } from 'react';
 
-function ReportsModal({report}) {
-  return (
-    <>
-      <h3 className={`px-3 mdl-title`}>Reports</h3>
+function ReportsModal({ report }) {
+    // The `report` prop now contains a sales order object with a nested array of `paymentRequests`.
+    console.log("ReportsModal received report:", report);
+    // Handle cases where `report` or `paymentRequests` are not yet available.
+    if (!report || !report.paymentRequests || report.paymentRequests.length === 0) {
+        return <p className="p-3">No payment data available for this order.</p>;
+    }
+
+    const [zoomImageUrl, setZoomImageUrl] = useState(null);
+
+    // Function to open the zoom modal
+    const openZoomModal = (url) => {
+        setZoomImageUrl(url);
+    };
+
+    // Function to close the zoom modal
+    const closeZoomModal = () => {
+        setZoomImageUrl(null);
+    };
+
+    // Since a sales order can have multiple payment requests, we need to iterate over them.
+    // The modal will display a summary of the sales order and then a detailed list of its payment requests.
+
+    return (
+        <>
+            <h3 className={`px-3 mdl-title`}>Payment Reports</h3>
+            
+            {/* Sales Order Summary Section */}
             <div className="row m-0 p-0">
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Date :</label>
-                <input type="date" value={report.transactionDate} />
-              </div>
-              {/* <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Time :</label>
-                <input type="text" />
-              </div> */}
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Order ID :</label>
-                <input type="text" value={report.order && report.order?.orderNumber} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Warehouse ID :</label>
-                <input type="text" value={report.order && report.order.warehouse?.id} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Warehouse Name :</label>
-                <input type="text" value={report.order && report.order.warehouse?.name} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Customer ID :</label>
-                <input type="text" value={report.order && report.order.customer?.id} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Customer Name :</label>
-                <input type="text" value={report.order && report.order.customer?.name}/>
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">SE ID :</label>
-                <input type="text" value={report.order && report.order.salesExecutive?.id} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">SE Name :</label>
-                <input type="text" value={report.order && report.order.salesExecutive?.name} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Net Amount :</label>
-                <input type="text" value={report.netAmount} />
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Txn ID :</label>
-                <input type="text" value={report.transactionReference}/>
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Payment Id :</label>
-                <input type="text" value={report.paymentId}/>
-              </div>
-              <div className={`col-4 ${styles.longformmdl}`}>
-                <label htmlFor="">Payment mode :</label>
-                <input type="text" value={report.paymentMode}/>
-              </div>
+                <h5 className={styles.headmdl}>Order Details</h5>
+                <div className={`col-4 ${styles.longformmdl}`}>
+                    <label htmlFor="">Order Number :</label>
+                    <input type="text" value={report.orderNumber} readOnly />
+                </div>
+                <div className={`col-4 ${styles.longformmdl}`}>
+                    <label htmlFor="">Customer Name :</label>
+                    <input type="text" value={report.customer?.name} readOnly />
+                </div>
+                <div className={`col-4 ${styles.longformmdl}`}>
+                    <label htmlFor="">SE Name :</label>
+                    <input type="text" value={report.salesExecutive?.name} readOnly />
+                </div>
+                <div className={`col-4 ${styles.longformmdl}`}>
+                    <label htmlFor="">Warehouse Name :</label>
+                    <input type="text" value={report.warehouse?.name} readOnly />
+                </div>
+                {/* We can calculate the total amount from all payments */}
+                <div className={`col-4 ${styles.longformmdl}`}>
+                    <label htmlFor="">Total Amount :</label>
+                    <input
+                        type="text"
+                        value={report.paymentRequests
+                            .reduce((sum, pr) => sum + (pr.netAmount || 0), 0)
+                            .toFixed(2)}
+                        readOnly
+                    />
+                </div>
             </div>
-      
-            <div className="row m-0 p-0">
-              <h5 className={styles.headmdl}>Photo</h5>
-              <div className="col-3">
-                <img src={report.paymentProof || img} alt="aadhar" className={styles.images} />
-              </div>
-            </div>
-            {/* <div className="row m-0 p-3 pt-4 justify-content-center">
-              <div className={`col-2`}>
-                <DialogActionTrigger asChild>
-                  <button className="cancelbtn">Close</button>
-                </DialogActionTrigger>
-              </div>
-            </div> */}
-    </>
-  )
+
+            {/* List of Individual Payment Requests */}
+            {report.paymentRequests.map((payment, index) => (
+                <div key={index}>
+                    <h5 className={styles.headmdl}>Payment #{index + 1}</h5>
+                    <div className="row m-0 p-0">
+                        <div className={`col-4 ${styles.longformmdl}`}>
+                            <label htmlFor="">Date :</label>
+                            <input type="date" value={payment.transactionDate} readOnly />
+                        </div>
+                        <div className={`col-4 ${styles.longformmdl}`}>
+                            <label htmlFor="">Net Amount :</label>
+                            <input type="text" value={payment.netAmount} readOnly />
+                        </div>
+                        <div className={`col-4 ${styles.longformmdl}`}>
+                            <label htmlFor="">Txn ID :</label>
+                            <input type="text" value={payment.transactionReference} readOnly />
+                        </div>
+                        <div className={`col-4 ${styles.longformmdl}`}>
+                            <label htmlFor="">Payment ID :</label>
+                            <input type="text" value={payment.paymentId} readOnly />
+                        </div>
+                        <div className={`col-4 ${styles.longformmdl}`}>
+                            <label htmlFor="">Payment Mode :</label>
+                            <input type="text" value={payment.paymentMode} readOnly />
+                        </div>
+                    </div>
+                    <div className="row m-0 p-0 pt-3">
+                        <h5 className={styles.headmdl}>Photo</h5>
+                        <div className="col-3">
+                            <img
+                                src={payment.paymentProof || img}
+                                alt={`Payment Proof ${index + 1}`}
+                                className={styles.images}
+                                onClick={() => openZoomModal(payment.paymentProof)} // Add this onClick handler
+                                style={{ cursor: 'pointer' }} // Add a pointer cursor to indicate it's clickable
+                            />
+                        </div>
+                    </div>
+                </div>
+            ))}
+
+            {/* Conditionally render the zoom modal */}
+            {zoomImageUrl && (
+                <ImageZoomModal
+                    imageUrl={zoomImageUrl}
+                    onClose={closeZoomModal}
+                />
+            )}
+        </>
+    );
 }
 
-export default ReportsModal
+export default ReportsModal;

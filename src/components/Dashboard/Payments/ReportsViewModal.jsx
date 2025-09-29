@@ -11,6 +11,7 @@ import {
 import ReportsModal from "./ReportsModal";
 
 function ReportsViewModal({report}) {
+  console.log("ReportsViewModal received report:", report);
   return (
     <>
       <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
