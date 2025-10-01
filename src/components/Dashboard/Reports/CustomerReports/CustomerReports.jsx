@@ -1,12 +1,12 @@
 import { useAuth } from "@/Auth";
 import React, { useEffect, useState } from "react";
-import xls from "./../../../images/xls-png.png";
-import pdf from "./../../../images/pdf-png.png";
-import styles from "./Reports.module.css";
+import xls from "@/images/xls-png.png";
+import pdf from "@/images/pdf-png.png";
+import styles from "../Reports.module.css";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
-import CustomSearchDropdown from "./CustomSearchDropDown";
+import CustomSearchDropdown from "../CustomSearchDropDown";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 
 function CustomerReports({ navigate }) {
@@ -174,7 +174,7 @@ function CustomerReports({ navigate }) {
       } catch (e) {
         console.log(e);
         setError(e.response?.data?.message);
-        setIsModalOpen(true)
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
@@ -207,7 +207,11 @@ function CustomerReports({ navigate }) {
     <>
       <p className="path">
         <span onClick={() => navigate("/reports")}>Reports</span>{" "}
-        <i class="bi bi-chevron-right"></i> Customer-Reports
+        <i class="bi bi-chevron-right"></i>{" "}
+        <span onClick={() => navigate("/reports/customer-reports")}>
+          Customer-Reports
+        </span>{" "}
+        <i class="bi bi-chevron-right"></i> Customer-Overall-Reports
       </p>
 
       {/* content From Here */}

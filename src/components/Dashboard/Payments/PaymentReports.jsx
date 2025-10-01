@@ -7,6 +7,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { useAuth } from "@/Auth";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 
 function PaymentReports({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -28,7 +29,7 @@ function PaymentReports({ navigate }) {
     setIsModalOpen(false);
     setError(null);
   };
-  
+
   const closeReportsModal = () => {
     setIsReportsModalOpen(false);
     setSelectedSalesOrder(null);
@@ -73,6 +74,10 @@ function PaymentReports({ navigate }) {
     fetchInitialData();
   }, []);
 
+  const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
   // Fetch payment reports based on filters
   useEffect(() => {
     setSalesOrders([]);
@@ -80,7 +85,7 @@ function PaymentReports({ navigate }) {
     async function fetchReports() {
       try {
         setLoading(true);
-        let query = `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}`;
+        let query = `/payment-requests?status=Approved&fromDate=${from}&toDate=${to}&limit=${limit}&page=${pageNo}`;
         if (warehouse && warehouse !== "all") {
           query += `&warehouseId=${warehouse}`;
         }
@@ -91,9 +96,14 @@ function PaymentReports({ navigate }) {
           query += `&salesExecutiveId=${se}`;
         }
         const res = await axiosAPI.get(query);
+        console.log(res);
+        setTotalPages(res.data.totalPages);
+
         setSalesOrders(res.data.salesOrders || []);
       } catch (e) {
-        setError(e.response?.data?.message || "Failed to fetch payment reports.");
+        setError(
+          e.response?.data?.message || "Failed to fetch payment reports."
+        );
         setIsModalOpen(true);
       } finally {
         setLoading(false);
@@ -253,7 +263,7 @@ function PaymentReports({ navigate }) {
       {loading && <Loading />}
       {!loading && filteredSalesOrders && (
         <div className="row m-0 p-3 justify-content-center">
-          <div className="col-lg-10">
+          <div className="col-lg-8">
             <button className={styles.xls} onClick={() => onExport("XLS")}>
               <p>Export to </p>
               <img src={xls} alt="Export to Excel" />
@@ -262,6 +272,24 @@ function PaymentReports({ navigate }) {
               <p>Export to </p>
               <img src={pdf} alt="Export to PDF" />
             </button>
+          </div>
+          <div className={`col-lg-2 ${styles.entity}`}>
+            <label htmlFor="">Entity :</label>
+            <select
+              name=""
+              id=""
+              value={limit}
+              onChange={(e) => setLimit(parseInt(e.target.value))}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+              <option value={40}>40</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+
+          <div className="col-lg-10">
             <table className="table table-bordered borderedtable">
               <thead>
                 <tr>
@@ -302,6 +330,28 @@ function PaymentReports({ navigate }) {
                 )}
               </tbody>
             </table>
+            <div className="row m-0 p-0 pt-3 justify-content-between">
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo > 1 && (
+                  <button onClick={() => setPageNo(pageNo - 1)}>
+                    <span>
+                      <FaArrowLeftLong />
+                    </span>{" "}
+                    Previous
+                  </button>
+                )}
+              </div>
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {pageNo < totalPages && (
+                  <button onClick={() => setPageNo(pageNo + 1)}>
+                    Next{" "}
+                    <span>
+                      <FaArrowRightLong />
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -34,11 +34,16 @@ function EmployeeMonthReport({ navigate }) {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
 
+  const [subfilters, setSubfilters] = useState();
+  const [subfilter, setSubfilter] = useState();
+
   useEffect(() => {
     async function fetch() {
       try {
         setLoading(true);
         setReports(null);
+        setSubfilters(null);
+        setSubfilter(null);
         const query = `/reports/employees/sales-monthly?fromDate=${from}&toDate=${to}&groupBy=${filter}`;
         const res = await axiosAPI.get(query);
         setReports(res.data.data);
@@ -51,6 +56,14 @@ function EmployeeMonthReport({ navigate }) {
     }
     fetch();
   }, [from, to, filter]);
+
+  useEffect(() => {
+    if (!reports) return;
+    let subs = [];
+    Object.entries(reports).map(([groupName, array]) => subs.push(groupName));
+    setSubfilters(subs);
+    console.log(subs);
+  }, [reports]);
 
   // ⬇️ Export function for multiple tables
   const onExport = async (type) => {
@@ -139,6 +152,22 @@ function EmployeeMonthReport({ navigate }) {
             <option value="employee">Employees</option>
           </select>
         </div>
+
+        {subfilters && subfilters.length !== 0 && (
+          <div className={`col-4 formcontent`}>
+            <label>Sub Filters :</label>
+            <select
+              onChange={(e) =>
+                setSubfilter(e.target.value === "null" ? null : e.target.value)
+              }
+            >
+              <option value="null">--select--</option>
+              {subfilters.map((name) => (
+                <option value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Export Buttons */}
@@ -156,44 +185,49 @@ function EmployeeMonthReport({ navigate }) {
             </button>
           </div>
           {Object.entries(reports).length === 0 && <h5>NO DATA FOUND</h5>}
-          {Object.entries(reports).map(([groupName, array]) => (
-            <div className="col-lg-10" key={groupName}>
-              <h6>{groupName} :</h6>
-              <table className={`table table-bordered borderedtable`}>
-                <thead>
-                  <tr className="animated-row">
-                    <th>S.No</th>
-                    <th>Previous Date</th>
-                    <th>Previous Quantity</th>
-                    <th>Current Date</th>
-                    <th>Current Quantity</th>
-                    <th>Decrease</th>
-                    <th>Increase</th>
-                    <th>Accumulated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {array.length === 0 && (
-                    <tr>
-                      <td colSpan={8}>NO DATA FOUND</td>
+          {Object.entries(reports)
+            .filter(([groupName]) => {
+              console.log(subfilter, groupName);
+              return !subfilter || subfilter === groupName;
+            })
+            .map(([groupName, array]) => (
+              <div className="col-lg-10" key={groupName}>
+                <h6>{groupName} :</h6>
+                <table className={`table table-bordered borderedtable`}>
+                  <thead>
+                    <tr className="animated-row">
+                      <th>S.No</th>
+                      <th>Previous Date</th>
+                      <th>Previous Quantity</th>
+                      <th>Current Date</th>
+                      <th>Current Quantity</th>
+                      <th>Decrease</th>
+                      <th>Increase</th>
+                      <th>Accumulated</th>
                     </tr>
-                  )}
-                  {array.map((report, index) => (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{report.prevDate}</td>
-                      <td>{report.prevQty}</td>
-                      <td>{report.currDate}</td>
-                      <td>{report.currQty}</td>
-                      <td>{report.decrease}</td>
-                      <td>{report.increase}</td>
-                      <td>{report.accumulated}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                  </thead>
+                  <tbody>
+                    {array.length === 0 && (
+                      <tr>
+                        <td colSpan={8}>NO DATA FOUND</td>
+                      </tr>
+                    )}
+                    {array.map((report, index) => (
+                      <tr key={index}>
+                        <td>{index + 1}</td>
+                        <td>{report.prevDate}</td>
+                        <td>{report.prevQty}</td>
+                        <td>{report.currDate}</td>
+                        <td>{report.currQty}</td>
+                        <td>{report.decrease}</td>
+                        <td>{report.increase}</td>
+                        <td>{report.accumulated}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
         </div>
       )}
 

@@ -7,8 +7,9 @@ import styles from "./../Reports.module.css";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import xls from "@/images/xls-png.png";
 import pdf from "@/images/pdf-png.png";
+import CustomSearchDropdown from "../CustomSearchDropDown";
 
-function EmployeeSaleReport({ navigate }) {
+function WarehouseWiseReport({ navigate }) {
   const date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
@@ -26,27 +27,37 @@ function EmployeeSaleReport({ navigate }) {
 
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
-  const [filter, setFilter] = useState("division");
 
   const [reports, setReports] = useState();
   const [pageNo, setPageNo] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
+  const [warehouses, setWarehouses] = useState();
+  const [warehouse, setWarehouse] = useState();
 
-  const [apifromdate, setApifromdate] = useState();
-  const [apitodate, setApitodate] = useState();
+  useEffect(() => {
+    async function fetch() {
+      try {
+        const res = await axiosAPI.get("/warehouses");
+        console.log(res);
+        setWarehouses(res.data.warehouses);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    fetch();
+  }, []);
 
   useEffect(() => {
     async function fetch() {
       try {
         setLoading(true);
         setReports(null);
-        const query = `/reports/employees/sales?fromDate=${from}&toDate=${to}&groupBy=${filter}`;
+        const query = `/warehouse/warehouse-wise-stock-summary?fromDate=${from}&toDate=${to}${warehouse ? `&warehouseId=${warehouse}` : ""}`;
         console.log(query);
         const res = await axiosAPI.get(query);
         setReports(res.data.data);
-        setApifromdate(res.data.fromDate);
-        setApitodate(res.data.toDate);
         console.log(res);
       } catch (e) {
         console.log(e);
@@ -58,41 +69,60 @@ function EmployeeSaleReport({ navigate }) {
     }
 
     fetch();
-  }, [from, to, filter]);
+  }, [from, to, warehouse]);
 
   const [tableData, setTableData] = useState();
 
   const onExport = (type) => {
     const arr = [];
     let x = 1;
+
     const columns = [
       "S.No",
-      "From Date",
-      "To Date",
-      "Particulars",
-      "Quantity",
-      "Alt Quantity(Tonnes)",
-      "Amount",
+      "Warehouse Name",
+      // "Product Name",
+      //   "Product Type",
+      //   "Package Weight",
+      //   "Package Weight Unit",
+      "Inward",
+      "Alt Inward",
+      "Stock In",
+      "Alt Stock In",
+      "Outward",
+      "Alt Outward",
+      "Stock Out",
+      "Alt Stock Out",
+      "Closing Balance",
+      "Alt Closing Balance",
     ];
 
     if (reports && reports.length > 0) {
       reports.map((report) =>
         arr.push({
           "S.No": x++,
-          "From Date": apifromdate,
-          "To Date": apitodate,
-          Particulars: report.particulars,
-          Quantity: report.qty,
-          "Alt Quantity(Tonnes)": report.altQty,
-          Amount: report.value,
+          "Warehouse Name": report.warehouseName,
+          // "Product Name": report.productName,
+          //   "Product Type": report.productType,
+          //   "Package Weight": report.packageWeight,
+          //   "Package Weight Unit": report.packageWeightUnit,
+          Inward: report.inward + "Bags",
+          "Alt Inward": report.inwardAlt + "Tonnes",
+          "Stock In": report.stockIn + "Bags",
+          "Alt Stock In": report.stockInAlt + "Tonnes",
+          Outward: report.outward + "Bags",
+          "Alt Outward": report.outwardAlt + "Tonnes",
+          "Stock Out": report.stockOut + "Bags",
+          "Alt Stock Out": report.stockOutAlt + "Tonnes",
+          "Closing Balance": report.closingBalance + "Bags",
+          "Alt Closing Balance": report.closingBalanceAlt + "Tonnes",
         })
       );
       setTableData(arr);
 
       if (type === "PDF")
-        handleExportPDF(columns, tableData, "Employee-Sales-report");
+        handleExportPDF(columns, tableData, "Warehouse-Wise-Report");
       else if (type === "XLS")
-        handleExportExcel(columns, tableData, "Employee-Sales-Report");
+        handleExportExcel(columns, tableData, "Warehouse-Wise-Report");
     } else {
       setError("Table is Empty");
       setIsModalOpen(true);
@@ -100,16 +130,27 @@ function EmployeeSaleReport({ navigate }) {
   };
 
   let index = 1;
+
+  const [warehouseOptions, setWarehouseOptions] = useState();
+
+  useEffect(() => {
+    const warehouseOptions = [
+      { value: "null", label: "--select--" },
+      ...(warehouses?.map((w) => ({ value: w.id, label: w.name })) || []),
+    ];
+
+    setWarehouseOptions(warehouseOptions);
+  }, [warehouses]);
+
   return (
     <>
       <p className="path">
         <span onClick={() => navigate("/reports")}>Reports</span>{" "}
-        <i class="bi bi-chevron-right"></i>
-        <span onClick={() => navigate("/reports/Employee-Reports")}>
-          {" "}
-          Employee-Reports
+        <i class="bi bi-chevron-right"></i>{" "}
+        <span onClick={() => navigate("/reports/stock-reports")}>
+          Stock-Reports
         </span>{" "}
-        <i class="bi bi-chevron-right"></i> Employee Sales Reports
+        <i class="bi bi-chevron-right"></i> Warehouse-Wise-Report
       </p>
 
       <div className="row m-0 p-3">
@@ -133,23 +174,17 @@ function EmployeeSaleReport({ navigate }) {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-
-        <div className={`col-4 formcontent`}>
-          <label htmlFor="">Filters :</label>
-          <select name="" id="" onChange={(e) => setFilter(e.target.value)}>
-            <option value="division">Divisions</option>
-            <option value="zone">Zones</option>
-            <option value="subzone">Sub Zones</option>
-            <option value="team">Teams</option>
-            <option value="employee">Employees</option>
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label={"Warehouse"}
+          onSelect={setWarehouse}
+          options={warehouseOptions}
+        />
       </div>
 
       {reports && (
         <>
           <div className="row m-0 p-3 pb-0 justify-content-around">
-            <div className="col-lg-4">
+            <div className="col-lg-7">
               <button className={styles.xls} onClick={() => onExport("XLS")}>
                 <p>Export to </p>
                 <img src={xls} alt="" />
@@ -176,7 +211,7 @@ function EmployeeSaleReport({ navigate }) {
             </div>
           </div>
           <div className="row m-0 p-3 justify-content-around">
-            <div className="col-lg-8">
+            <div className="col-lg-10">
               <table className={`table table-bordered borderedtable`}>
                 <thead>
                   <tr
@@ -184,12 +219,21 @@ function EmployeeSaleReport({ navigate }) {
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <th>S.No</th>
-                    <th>From Date</th>
-                    <th>To Date</th>
-                    <th>Particulars</th>
-                    <th>Quantity</th>
-                    <th>Alt Quantity(Tonnes)</th>
-                    <th>Amount</th>
+                    <th>Warehouse Name</th>
+                    {/* <th>Product Name</th> */}
+                    {/* <th>Product Type</th>
+                    <th>Package Weight</th>
+                    <th>Package Weight Unit</th> */}
+                    <th>Inward</th>
+                    <th>Alt Inward</th>
+                    <th>Stock In</th>
+                    <th>Alt Stock In</th>
+                    <th>Outward</th>
+                    <th>Alt Outward</th>
+                    <th>Stock Out</th>
+                    <th>Alt Stock Out</th>
+                    <th>Closing Balance</th>
+                    <th>Alt Closing Balance</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,12 +252,21 @@ function EmployeeSaleReport({ navigate }) {
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <td>{index++}</td>
-                      <td>{apifromdate}</td>
-                      <td>{apitodate}</td>
-                      <td>{report.particulars}</td>
-                      <td>{report.qty}</td>
-                      <td>{Number(report.altQty)?.toFixed(2)}</td>
-                      <td>{report.value}</td>
+                      <td>{report.warehouseName}</td>
+                      {/* <td>{report.productName}</td> */}
+                      {/* <td>{report.productType}</td>
+                      <td>{report.packageWeight}</td>
+                      <td>{report.packageWeightUnit}</td> */}
+                      <td>{report.inward} Bags</td>
+                      <td>{report.inwardAlt} Tonnes</td>
+                      <td>{report.stockIn} Bags</td>
+                      <td>{report.stockInAlt} Tonnes</td>
+                      <td>{report.outward} Bags</td>
+                      <td>{report.outwardAlt} Tonnes</td>
+                      <td>{report.stockOut} Bags</td>
+                      <td>{report.stockOutAlt} Tonnes</td>
+                      <td>{report.closingBalance} Bags</td>
+                      <td>{report.closingBalanceAlt} Tonnes</td>
                     </tr>
                   ))}
                 </tbody>
@@ -254,4 +307,4 @@ function EmployeeSaleReport({ navigate }) {
   );
 }
 
-export default EmployeeSaleReport;
+export default WarehouseWiseReport;

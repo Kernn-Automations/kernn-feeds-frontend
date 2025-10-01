@@ -34,6 +34,7 @@ function EmployeeComparisonReport({ navigate }) {
   // fetch list for filter
   useEffect(() => {
     async function fetchList() {
+      setList(null);
       setListLoading(true);
       let api =
         filter === "division"
