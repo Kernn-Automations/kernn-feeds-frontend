@@ -12,9 +12,9 @@ export default defineConfig({
       "wallpaper-launch-reward-pmc.trycloudflare.com",
       "kernn.feedbazaar.in",
       "web.kernn.xyz",
-      "fb-frontend-kaushik.kernn.xyz",
       "fb-web.kernn.xyz",
-      "fb-frontend-hari.kernn.xyz"
+      "fb-frontend-kaushik.kernn.xyz",
+      "mdms-frontend-hari.kernn.xyz"
     ],
     proxy: {
       '/api': {

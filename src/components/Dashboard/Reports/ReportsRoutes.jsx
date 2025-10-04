@@ -1,12 +1,13 @@
 import React, { lazy, Suspense } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
+import CustomerReportRoute from "./CustomerReportRoute";
 
 // Direct import for TargetReports to avoid lazy loading issue
 import TargetReports from "./TargetReports";
 
 // Lazy-loaded components
-const CustomerReports = lazy(() => import("./CustomerReports"));
+const CustomerReports = lazy(() => import("./CustomerReports/CustomerReports"));
 const EmployeeReports = lazy(() => import("./EmployeeReports"));
 const ReportsHome = lazy(() => import("./ReportsHome"));
 const SalesReports = lazy(() => import("./SalesReports"));
@@ -27,15 +28,15 @@ function ReportsRoutes() {
         }
       />
       <Route
-        path="/customer-reports"
+        path="/customer-reports/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
-            <CustomerReports navigate={navigate} />
+            <CustomerReportRoute navigate={navigate} />
           </Suspense>
         }
       />
       <Route
-        path="/employee-reports"
+        path="/employee-reports/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
             <EmployeeReports navigate={navigate} />
@@ -51,7 +52,7 @@ function ReportsRoutes() {
         }
       />
       <Route
-        path="/stock-reports"
+        path="/stock-reports/*"
         element={
           <Suspense fallback={<PageSkeleton />}>
             <StockReports navigate={navigate} />
