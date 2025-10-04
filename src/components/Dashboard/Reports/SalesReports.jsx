@@ -902,7 +902,7 @@ function SalesReports({ navigate }) {
             checked={showAll}
             onChange={(e) => setShowAll(e.target.checked)}
           />
-          <label htmlFor="showAll" className="mb-0">Show All</label>
+          <label htmlFor="showAll" className="mb-0">Show All Products</label>
         </div>
       </div>
 

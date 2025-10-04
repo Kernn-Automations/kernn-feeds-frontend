@@ -16,7 +16,7 @@ function ApprovalsViewModal({report, changeTrigger}) {
         <DialogTrigger asChild>
           <button>view</button>
         </DialogTrigger>
-        <DialogContent className="mdl">
+        <DialogContent className="mdl" backdrop={false}>
           <DialogBody>
             <ApprovalModal report={report} changeTrigger={changeTrigger} />
           </DialogBody>

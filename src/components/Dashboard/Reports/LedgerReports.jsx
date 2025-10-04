@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/Auth'
 import ErrorModal from '@/components/ErrorModal'
 import Loading from '@/components/Loading'
@@ -24,20 +24,16 @@ function LedgerReports({navigate}) {
     async function fetchCustomers() {
       try {
         setLoading(true)
-        // Get division ID from localStorage for division filtering
         const currentDivisionId = localStorage.getItem('currentDivisionId')
-        
         let endpoint = "/customers"
         if (currentDivisionId && currentDivisionId !== '1') {
           endpoint += `?divisionId=${currentDivisionId}`
         } else if (currentDivisionId === '1') {
           endpoint += `?showAllDivisions=true`
         }
-        
         const res = await axiosAPI.get(endpoint)
         const customersList = res.data.customers || []
-        
-        // Add dummy customer for DIGAMBAR SHANKAR SAWANT
+
         const dummyCustomer = {
           id: 'dummy-001',
           name: 'DIGAMBAR SHANKAR SAWANT',
@@ -48,7 +44,6 @@ function LedgerReports({navigate}) {
           email: '',
           isDummy: true
         }
-        
         setCustomers([dummyCustomer, ...customersList])
       } catch (err) {
         setError("Failed to fetch customers")
@@ -66,23 +61,21 @@ function LedgerReports({navigate}) {
       setIsModalOpen(true)
       return
     }
-    
-    // Find selected customer details (ensure id types match)
+
     const selectedCustomer = customers.find(c => String(c.id) === String(customer))
     if (selectedCustomer) {
-      const mapDetails = (c) => ({
-        name: c.name || c.customerName || 'Customer',
-        address: c.address || c.firmAddress || c.addressLine || c.fullAddress || '',
-        aadhar: c.aadhar || c.aadharNo || c.aadhaar || '',
-        location: c.location || (c.latitude && c.longitude ? `${c.latitude}, ${c.longitude}` : ''),
-        contact: c.contact || c.mobile || c.phone || '',
-        email: c.email || c.mail || ''
-      })
-      setSelectedCustomerDetails(mapDetails(selectedCustomer))
+      setSelectedCustomerDetails(selectedCustomer)
       setShowReport(true)
       setInfoMessage('')
-      
-      // Load dummy ledger data (initial slice)
+
+      // Only dummy customer has sample data
+      if (selectedCustomer.id !== 'dummy-001') {
+        setLedgerData([])
+        setInfoMessage('No ledger data found for this customer')
+        return
+      }
+
+      // Load dummy ledger data (in batches)
       setLedgerData([
         { date: '01 Apr 25', particulars: 'Opening Balance', vchType: '', vchNo: '', debit: '0.00', credit: '', balance: '0.00' },
         { date: '18 Jun 25', particulars: 'Sales Of Cattle Feed', vchType: 'Sales', vchNo: 'INV-2025-26-00012', debit: '', credit: '29,150.00', balance: '29,150.00 Dr' },
@@ -94,8 +87,7 @@ function LedgerReports({navigate}) {
         { date: '30 Jun 25', particulars: 'Sales Of Cattle Feed', vchType: 'Sales', vchNo: 'INV-2025-26-00027', debit: '', credit: '50,250.00', balance: '11,740.00 Cr' },
         { date: '', particulars: 'Sales Of Cattle Feed', vchType: 'Sales', vchNo: 'INV-2025-26-00028', debit: '', credit: '11,740.00', balance: '' },
       ])
-      
-      // Batch 2
+
       setLedgerData(prev => ([
         ...prev,
         { date: '08 Jul 25', particulars: 'YES BANK LIMITED', vchType: 'Receipt', vchNo: '68', debit: '33,490.00', credit: '', balance: '33,490.00 Cr' },
@@ -114,17 +106,6 @@ function LedgerReports({navigate}) {
         { date: '', particulars: 'Carried Over', vchType: '', vchNo: '', debit: '3,01,470.00', credit: '3,28,870.00', balance: '' },
       ]))
 
-      // If not the placeholder dummy, slightly randomize amounts to simulate different data
-      if (selectedCustomer.id !== 'dummy-001') {
-        setLedgerData(prev => prev.map((r) => ({
-          ...r,
-          debit: randomizeAmount(r.debit),
-          credit: randomizeAmount(r.credit),
-          balance: randomizeBalance(r.balance)
-        })))
-      }
-      
-      // Batch 3
       setLedgerData(prev => ([
         ...prev,
         { date: '', particulars: 'Brought Forward', vchType: '', vchNo: '', debit: '3,01,470.00', credit: '3,28,870.00', balance: '' },
@@ -145,7 +126,6 @@ function LedgerReports({navigate}) {
         { date: '', particulars: 'YES BANK LIMITED', vchType: 'Receipt', vchNo: '171', debit: '29,150.00', credit: '', balance: '' },
       ]))
 
-      // Batch 4
       setLedgerData(prev => ([
         ...prev,
         { date: '11 Aug 25', particulars: 'Sales Of Cattle Feed', vchType: 'Sales', vchNo: 'INV-2025-26-00131', debit: '', credit: '52,400.00', balance: '52,400.00 Dr' },
@@ -171,7 +151,6 @@ function LedgerReports({navigate}) {
         { date: '', particulars: 'Carried Over', vchType: '', vchNo: '', debit: '8,00,240.00', credit: '8,15,080.00', balance: '' },
       ]))
 
-      // Batch 5
       setLedgerData(prev => ([
         ...prev,
         { date: '', particulars: 'Brought Forward', vchType: '', vchNo: '', debit: '8,00,240.00', credit: '8,15,080.00', balance: '' },
@@ -202,7 +181,6 @@ function LedgerReports({navigate}) {
         { date: '', particulars: 'Sales Of Cattle Feed', vchType: 'Sales', vchNo: 'INV-2025-26-00217', debit: '', credit: '36,400.00', balance: '1,750.00 Dr' },
       ]))
 
-      // Batch 6
       setLedgerData(prev => ([
         ...prev,
         { date: '', particulars: 'Sales Of Cattle Feed', vchType: 'Credit Note', vchNo: '107', debit: '500.00', credit: '', balance: '1,250.00 Dr' },
@@ -258,7 +236,6 @@ function LedgerReports({navigate}) {
     })
   }, [ledgerData])
 
-  // Parse helper for ledger date format like '18 Jun 25'
   function parseLedgerDate(d) {
     if (!d) return null
     const parts = d.split(' ').filter(Boolean)
@@ -272,7 +249,6 @@ function LedgerReports({navigate}) {
     return new Date(year, m, day)
   }
 
-  // Apply from/to date filtering
   const rangedLedgerData = useMemo(() => {
     if (!fromDate && !toDate) return filledLedgerData
     const from = fromDate ? new Date(fromDate) : null
@@ -289,26 +265,6 @@ function LedgerReports({navigate}) {
       return true
     })
   }, [filledLedgerData, fromDate, toDate])
-
-  // Helpers to randomize amounts for non-dummy customers
-  const randomizeAmount = (amountStr) => {
-    if (!amountStr) return amountStr
-    const clean = amountStr.replace(/,/g, '')
-    const num = Number(clean)
-    if (Number.isNaN(num)) return amountStr
-    const variance = Math.max(50, num * 0.03) // ~3% or at least 50
-    const delta = (Math.random() - 0.5) * 2 * variance
-    const val = Math.max(0, num + delta)
-    return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
-
-  const randomizeBalance = (balanceStr) => {
-    if (!balanceStr) return balanceStr
-    const suffix = /\s*(Dr|Cr)$/i.test(balanceStr) ? balanceStr.match(/\s*(Dr|Cr)$/i)[1] : ''
-    const numPart = balanceStr.replace(/\s*(Dr|Cr)$/i, '')
-    const randomized = randomizeAmount(numPart)
-    return suffix ? `${randomized} ${suffix}` : randomized
-  }
 
   return (
      <>
@@ -425,17 +381,17 @@ function LedgerReports({navigate}) {
                     <tbody>
                       {rangedLedgerData.length > 0 ? (
                         rangedLedgerData.map((row, index) => (
-            <tr key={index} className={row.date === '' ? 'table-light' : ''}>
+                          <tr key={index} className={row.date === '' ? 'table-light' : ''}>
                             <td>{row.displayDate}</td>
-              <td>{row.particulars}</td>
-              <td>{row.vchType}</td>
-              <td>{row.vchNo}</td>
-              <td className="text-end">{row.debit}</td>
-              <td className="text-end">{row.credit}</td>
-              <td className="text-end">{row.balance}</td>
-            </tr>
-          ))
-        ) : (
+                            <td>{row.particulars}</td>
+                            <td>{row.vchType}</td>
+                            <td>{row.vchNo}</td>
+                            <td className="text-end">{row.debit}</td>
+                            <td className="text-end">{row.credit}</td>
+                            <td className="text-end">{row.balance}</td>
+                          </tr>
+                        ))
+                      ) : (
                         <tr>
                           <td colSpan="7" className="text-center text-muted">
                             {infoMessage || (fromDate || toDate ? 'No data for selected date range' : 'No ledger data available.')}

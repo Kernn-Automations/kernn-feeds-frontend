@@ -25,19 +25,62 @@ function ApprovalModal({ report, changeTrigger }) {
     }
   }, [report]);
 
+  // Dummy payment request data for testing
+  const dummyPaymentRequests = [
+    {
+      paymentRequestId: "dummy-001",
+      paymentMode: "UPI",
+      transactionReference: "123568900",
+      netAmount: "12980",
+      paymentProof: img,
+      status: "Pending"
+    },
+    {
+      paymentRequestId: "dummy-002",
+      paymentMode: "Net Banking",
+      transactionReference: "987654321",
+      netAmount: "8500",
+      paymentProof: img,
+      status: "Pending"
+    }
+  ];
+
+  // Use dummy data for testing (always show dummy data for now)
+  const paymentRequestsToShow = dummyPaymentRequests;
+
   const handleAction = async (paymentRequestId, action) => {
     setError(null);
     setLoadingIds((prev) => new Set(prev).add(paymentRequestId));
     try {
-      await axiosAPI.post(`/payment-requests/${paymentRequestId}`, { action });
-      setPaymentStatuses((prev) => ({
-        ...prev,
-        [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
-      }));
-      changeTrigger(); // Notify parent to refresh list as needed
+      // For dummy data, just update the local state
+      if (paymentRequestId.startsWith("dummy-")) {
+        setTimeout(() => {
+          setPaymentStatuses((prev) => ({
+            ...prev,
+            [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
+          }));
+          setLoadingIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(paymentRequestId);
+            return newSet;
+          });
+        }, 1000); // Simulate API delay
+      } else {
+        // For real data, make API call
+        await axiosAPI.post(`/payment-requests/${paymentRequestId}`, { action });
+        setPaymentStatuses((prev) => ({
+          ...prev,
+          [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
+        }));
+        changeTrigger(); // Notify parent to refresh list as needed
+        setLoadingIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(paymentRequestId);
+          return newSet;
+        });
+      }
     } catch (e) {
       setError(e.response?.data?.message || "Error updating payment status");
-    } finally {
       setLoadingIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(paymentRequestId);
@@ -67,7 +110,7 @@ function ApprovalModal({ report, changeTrigger }) {
       <div className="row m-0 p-0">
         <div className={`col-6 ${styles.longformmdl}`}>
           <label>Customer Name:</label>
-          <input type="text" value={report.customer?.name} readOnly />
+          <input type="text" value={report.customer?.name || "Jagan"} readOnly />
         </div>
         <div className={`col-6 ${styles.longformmdl}`}>
           <label>Warehouse:</label>
@@ -81,27 +124,43 @@ function ApprovalModal({ report, changeTrigger }) {
 
       <h4>Payment Requests</h4>
       <div className={styles.paymentsContainer}>
-        {report.paymentRequests.map((pr) => (
+        {paymentRequestsToShow.map((pr) => (
           <div key={pr.paymentRequestId} className={styles.paymentCard}>
-            <div>
-              <b>Payment Mode:</b> {pr.paymentMode}
+            <div className={styles.paymentDetails}>
+              <div className={styles.paymentDetailRow}>
+                <span className={styles.paymentDetailLabel}>Payment Mode:</span>
+                <span className={styles.paymentDetailValue}>{pr.paymentMode}</span>
+              </div>
+              <div className={styles.paymentDetailRow}>
+                <span className={styles.paymentDetailLabel}>Transaction Ref:</span>
+                <span className={styles.paymentDetailValue}>{pr.transactionReference || "N/A"}</span>
+              </div>
+              <div className={styles.paymentDetailRow}>
+                <span className={styles.paymentDetailLabel}>Amount:</span>
+                <span className={styles.paymentDetailValue}>{pr.netAmount}</span>
+              </div>
             </div>
-            <div>
-              <b>Transaction Ref:</b> {pr.transactionReference || "N/A"}
-            </div>
-            <div>
-              <b>Amount:</b> {pr.netAmount}
-            </div>
-            <div>
+            
+            <div className={styles.paymentImageSection}>
               <img
                 src={pr.paymentProof || img}
                 alt="Payment Proof"
-                className={styles.paymentProofThumbnail} // Use a new class for styling
+                className={styles.paymentImage}
                 onClick={() => openImageZoomModal(pr.paymentProof || img)}
               />
             </div>
+            
             <div className={styles.statusRow}>
-              <span>Status: {paymentStatuses[pr.paymentRequestId]}</span>
+              <div className={`${styles.statusBadge} ${
+                paymentStatuses[pr.paymentRequestId] === "Approved" 
+                  ? styles.statusApproved 
+                  : paymentStatuses[pr.paymentRequestId] === "Rejected" 
+                  ? styles.statusRejected 
+                  : styles.statusPending
+              }`}>
+                {paymentStatuses[pr.paymentRequestId] || "Pending"}
+              </div>
+              
               <div className={styles.actionButtons}>
                 <button
                   disabled={
@@ -112,7 +171,7 @@ function ApprovalModal({ report, changeTrigger }) {
                   className={styles.approveBtn}
                   title="Approve"
                 >
-                  ✔️
+                  Accept
                 </button>
                 <button
                   disabled={
@@ -123,7 +182,7 @@ function ApprovalModal({ report, changeTrigger }) {
                   className={styles.rejectBtn}
                   title="Reject"
                 >
-                  ❌
+                  Decline
                 </button>
               </div>
             </div>

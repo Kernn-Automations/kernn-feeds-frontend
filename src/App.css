@@ -126,7 +126,51 @@ textarea {
 .mdl {
   background-color: var(--primary-light);
   padding: 20px;
-  z-index: 1600;
+  z-index: 99999;
+}
+
+/* Global fix for all Chakra UI Dialog components */
+[data-chakra-component="DialogContent"] {
+  z-index: 99999 !important;
+}
+
+[data-chakra-component="DialogBackdrop"] {
+  z-index: 99998 !important;
+}
+
+[data-chakra-component="DialogRoot"] {
+  z-index: 99999 !important;
+}
+
+[data-chakra-component="DialogPositioner"] {
+  z-index: 99999 !important;
+}
+
+/* Target the portal container */
+#chakra-portal {
+  z-index: 99999 !important;
+}
+
+/* Override Bootstrap modal-backdrop z-index */
+.modal-backdrop {
+  z-index: 99997 !important;
+}
+
+.modal-backdrop.fade.show {
+  z-index: 99997 !important;
+}
+
+/* Ultimate fix - ensure all possible overlays are below the modal */
+div[style*="background-color: rgba(0, 0, 0, 0.5)"],
+div[style*="background-color: rgba(0, 0, 0, 0.7)"],
+div[style*="background: rgba(0, 0, 0, 0.5)"],
+div[style*="background: rgba(0, 0, 0, 0.7)"] {
+  z-index: 99997 !important;
+}
+
+/* Target any fixed positioned overlay */
+div[style*="position: fixed"][style*="background"] {
+  z-index: 99997 !important;
 }
 
 .inputcolumn-mdl {
