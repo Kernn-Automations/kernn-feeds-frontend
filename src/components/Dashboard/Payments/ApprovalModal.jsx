@@ -195,9 +195,9 @@ function ApprovalModal({ report, changeTrigger }) {
           isOpen={!!error}
           message={error}
           onClose={() => setError(null)}
-          // Added a higher z-index if your ErrorModal also uses a portal/fixed position
-          // You might need to adjust based on your ErrorModal's internal styling.
-          style={{ zIndex: 10001 }}
+          // Using global z-index hierarchy for error modal
+          // No need for inline z-index as it's handled by global CSS
+          className="error-modal-override"
         />
       )}
 

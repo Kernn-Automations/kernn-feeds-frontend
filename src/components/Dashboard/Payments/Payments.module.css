@@ -355,129 +355,14 @@
   padding: 6px 10px;
 }
 
-/* Fix z-index issue for payment approvals modal */
+/* Fix z-index issue for payment approvals modal - Use global hierarchy */
 .mdl {
-  z-index: 99999 !important;
+  /* z-index handled by global App.css */
 }
 
-/* Ensure Dialog content appears above all overlays */
-.mdl [data-chakra-component="DialogContent"] {
-  z-index: 99999 !important;
-}
-
-.mdl [data-chakra-component="DialogBackdrop"] {
-  z-index: 99998 !important;
-}
-
-/* Alternative approach - target the dialog container directly */
-.mdl > div {
-  z-index: 99999 !important;
-}
-
-/* Additional styles to ensure modal appears above overlay */
-.mdl [data-chakra-component="DialogPositioner"] {
-  z-index: 99999 !important;
-}
-
-.mdl [data-chakra-component="DialogContent"] {
-  z-index: 99999 !important;
-  position: relative;
-}
-
-/* Ensure the modal backdrop is below the content */
-.mdl [data-chakra-component="DialogBackdrop"] {
-  z-index: 99998 !important;
-}
-
-/* Global override for Chakra UI Dialog z-index */
-[data-chakra-component="DialogContent"] {
-  z-index: 99999 !important;
-}
-
-[data-chakra-component="DialogBackdrop"] {
-  z-index: 99998 !important;
-}
-
-/* More aggressive z-index overrides for Chakra UI Dialog */
-.chakra-portal [data-chakra-component="DialogContent"] {
-  z-index: 99999 !important;
-}
-
-.chakra-portal [data-chakra-component="DialogBackdrop"] {
-  z-index: 99998 !important;
-}
-
-/* Target the portal container directly */
-.chakra-portal {
-  z-index: 99999 !important;
-}
-
-/* Additional overrides for any remaining backdrop issues */
-div[data-chakra-component="DialogBackdrop"] {
-  z-index: 99998 !important;
-}
-
-div[data-chakra-component="DialogContent"] {
-  z-index: 99999 !important;
-}
-
-/* Specific targeting for the ApprovalsViewModal */
-.mdl [data-chakra-component="DialogRoot"] {
-  z-index: 99999 !important;
-}
-
-.mdl [data-chakra-component="DialogPositioner"] {
-  z-index: 99999 !important;
-}
-
-/* Ensure the modal title and content are visible */
+/* Payment-specific modal styling without z-index conflicts */
 .mdl-title {
-  z-index: 100000 !important;
   position: relative;
-}
-
-/* Additional safety for any nested elements */
-.mdl * {
-  z-index: inherit;
-}
-
-/* Ultimate fix - target all possible Chakra UI Dialog selectors */
-[data-chakra-component="DialogRoot"] {
-  z-index: 99999 !important;
-}
-
-[data-chakra-component="DialogPositioner"] {
-  z-index: 99999 !important;
-}
-
-/* Target the portal container that Chakra UI uses */
-#chakra-portal {
-  z-index: 99999 !important;
-}
-
-/* Target any div that might be the dialog container */
-div[role="dialog"] {
-  z-index: 99999 !important;
-}
-
-/* Target the backdrop specifically */
-div[data-chakra-component="DialogBackdrop"] {
-  z-index: 99998 !important;
-}
-
-/* Ensure the modal content is always on top */
-div[data-chakra-component="DialogContent"] {
-  z-index: 99999 !important;
-  position: relative !important;
-}
-
-/* Override Bootstrap modal-backdrop z-index */
-.modal-backdrop {
-  z-index: 99997 !important;
-}
-
-.modal-backdrop.fade.show {
-  z-index: 99997 !important;
 }
 
 /* Payment Cards Styling */

@@ -1854,7 +1854,7 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
       
       {/* Payment Required Modal */}
       {showPaymentRequiredModal && paymentRequiredData && (
-        <div className={styles.modal} style={{ zIndex: 1001 }}>
+        <div className={styles.modal}>
           <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Payment Details Required</h3>
