@@ -126,7 +126,127 @@ textarea {
 .mdl {
   background-color: var(--primary-light);
   padding: 20px;
-  z-index: 1600;
+  /* z-index handled by global hierarchy system */
+}
+
+/* ========================================
+   COMPREHENSIVE Z-INDEX HIERARCHY SYSTEM
+   ======================================== */
+
+/* Z-Index Hierarchy:
+   - Toasts/Notifications: 999999
+   - Modals/Dialogs: 100000-199999
+   - Overlays/Backdrops: 50000-99999
+   - Dropdowns/Popovers: 10000-49999
+   - Fixed elements: 1000-9999
+*/
+
+/* BOOTSTRAP MODALS - Highest Priority */
+.modal {
+  z-index: 150000 !important;
+}
+
+.modal-dialog {
+  z-index: 150001 !important;
+}
+
+.modal-content {
+  z-index: 150002 !important;
+}
+
+.modal-backdrop {
+  z-index: 149999 !important;
+}
+
+.modal-backdrop.fade.show {
+  z-index: 149999 !important;
+}
+
+/* CHAKRA UI DIALOGS - High Priority */
+[data-chakra-component="DialogRoot"] {
+  z-index: 140000 !important;
+}
+
+[data-chakra-component="DialogPositioner"] {
+  z-index: 140001 !important;
+}
+
+[data-chakra-component="DialogContent"] {
+  z-index: 140002 !important;
+}
+
+[data-chakra-component="DialogBackdrop"] {
+  z-index: 139999 !important;
+}
+
+/* Target the portal container */
+#chakra-portal {
+  z-index: 140000 !important;
+}
+
+.chakra-portal {
+  z-index: 140000 !important;
+}
+
+/* CUSTOM MODAL CLASSES */
+.mdl {
+  z-index: 130000 !important;
+}
+
+/* POPOVER AND DROPDOWN ELEMENTS */
+[data-chakra-component="PopoverContent"],
+[data-chakra-component="PopoverPositioner"] {
+  z-index: 120000 !important;
+}
+
+.dropdown-menu {
+  z-index: 110000 !important;
+}
+
+/* OVERLAYS AND BACKDROPS - Lower than modals */
+div[style*="background-color: rgba(0, 0, 0, 0.5)"],
+div[style*="background-color: rgba(0, 0, 0, 0.7)"],
+div[style*="background-color: rgba(0, 0, 0, 0.4)"],
+div[style*="background: rgba(0, 0, 0, 0.5)"],
+div[style*="background: rgba(0, 0, 0, 0.7)"],
+div[style*="background: rgba(0, 0, 0, 0.4)"] {
+  z-index: 50000 !important;
+}
+
+/* Target any fixed positioned overlay */
+div[style*="position: fixed"][style*="background"]:not([role="dialog"]):not([data-chakra-component]) {
+  z-index: 50000 !important;
+}
+
+/* SPECIFIC DIALOG ROLES */
+div[role="dialog"] {
+  z-index: 140000 !important;
+}
+
+/* ENSURE MODAL BUTTONS AND CONTENT ARE CLICKABLE */
+.modal-header,
+.modal-body,
+.modal-footer,
+.modal button,
+[data-chakra-component="DialogContent"] *,
+.mdl * {
+  position: relative;
+  z-index: inherit;
+}
+
+/* TOAST AND NOTIFICATION OVERRIDES */
+.toast,
+.alert {
+  z-index: 200000 !important;
+}
+
+/* SPECIFIC COMPONENT OVERRIDES */
+.role-choice-overlay {
+  z-index: 160000 !important;
+}
+
+.error-modal-override {
+  z-index: 180000 !important;
 }
 
 .inputcolumn-mdl {

@@ -114,7 +114,7 @@ function Login() {
         {login && !user.user?.showDivisions && <WelcomePage data={user} />}
 
         {showRoleChoice && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }} className="role-choice-overlay">
             <div style={{ background: "#fff", borderRadius: 8, padding: 24, width: "90%", maxWidth: 420, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
               <h4 style={{ marginBottom: 12 }}>Choose a view</h4>
               <p style={{ marginBottom: 20 }}>You have Admin and Staff Manager roles. Continue as:</p>
