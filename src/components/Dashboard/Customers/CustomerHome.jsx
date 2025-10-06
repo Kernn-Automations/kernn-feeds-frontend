@@ -156,6 +156,12 @@ function CustomerHome({ navigate, isAdmin }) {
           >
             Customer Transfer
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/customers/journal-voucher")}
+          >
+            Journal Voucher
+          </button>
         </div>
       </div>
 

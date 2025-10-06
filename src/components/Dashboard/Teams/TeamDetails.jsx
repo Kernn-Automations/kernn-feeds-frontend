@@ -446,7 +446,7 @@ function TeamDetails() {
       {isMembersOpen && (
         <div
           className="modal fade show"
-          style={{ display: 'block', position: 'fixed', inset: 0, zIndex: 1050 }}
+          style={{ display: 'block', position: 'fixed', inset: 0 }}
           tabIndex="-1"
           role="dialog"
           onClick={() => setIsMembersOpen(false)}
@@ -560,7 +560,6 @@ function TeamBillToBillModal({ isOpen, onClose, teamId, discounts, loading, onAd
         display: 'block', 
         position: 'fixed', 
         inset: 0, 
-        zIndex: 1050,
         backgroundColor: 'rgba(0, 0, 0, 0.5)'
       }}
       tabIndex="-1"
@@ -701,7 +700,6 @@ function TeamBillToBillModal({ isOpen, onClose, teamId, discounts, loading, onAd
             display: 'block', 
             position: 'fixed', 
             inset: 0, 
-            zIndex: 1060,
             backgroundColor: 'rgba(0, 0, 0, 0.5)'
           }}
           tabIndex="-1"
@@ -798,7 +796,6 @@ function TeamMonthlyDiscountModal({ isOpen, onClose, teamId, discounts, loading,
         display: 'block', 
         position: 'fixed', 
         inset: 0, 
-        zIndex: 1050,
         backgroundColor: 'rgba(0, 0, 0, 0.5)'
       }}
       tabIndex="-1"
@@ -939,7 +936,6 @@ function TeamMonthlyDiscountModal({ isOpen, onClose, teamId, discounts, loading,
             display: 'block', 
             position: 'fixed', 
             inset: 0, 
-            zIndex: 1060,
             backgroundColor: 'rgba(0, 0, 0, 0.5)'
           }}
           tabIndex="-1"
