@@ -10,6 +10,7 @@ const CustomerList = lazy(() => import("./CustomerList"));
 const KYCApproval = lazy(() => import("./KYCApproval"));
 const CreateCustomer = lazy(() => import("./CreateCustomer"));
 const CustomerTransfer = lazy(() => import("./CustomerTransfer"));
+const JournalVoucher = lazy(() => import("./JournalVoucher"));
 
 function CustomerRoutes() {
   const navigate = useNavigate();
@@ -67,6 +68,14 @@ function CustomerRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <CustomerTransfer navigate={navigate} isAdmin={isAdmin} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/journal-voucher"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <JournalVoucher navigate={navigate} isAdmin={isAdmin} />
           </Suspense>
         }
       />
