@@ -46,11 +46,13 @@ function IncomingStock({ navigate }) {
           productsEndpoint += `?divisionId=${currentDivisionId}`;
         }
 
-        console.log('IncomingStock - Initial data fetch with division parameters:');
-        console.log('IncomingStock - Division ID:', currentDivisionId);
-        console.log('IncomingStock - Warehouse endpoint:', warehouseEndpoint);
-        console.log('IncomingStock - Customers endpoint:', customersEndpoint);
-        console.log('IncomingStock - Products endpoint:', productsEndpoint);
+        console.log(
+          "IncomingStock - Initial data fetch with division parameters:"
+        );
+        console.log("IncomingStock - Division ID:", currentDivisionId);
+        console.log("IncomingStock - Warehouse endpoint:", warehouseEndpoint);
+        console.log("IncomingStock - Customers endpoint:", customersEndpoint);
+        console.log("IncomingStock - Products endpoint:", productsEndpoint);
 
         const res1 = await axiosAPI.get(warehouseEndpoint);
         const res2 = await axiosAPI.get(customersEndpoint);
@@ -77,7 +79,7 @@ function IncomingStock({ navigate }) {
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [tableData, setTableData] = useState([]);
-  
+
   // Add search state for PO ID and Warehouse Name
   const [poIdSearchTerm, setPoIdSearchTerm] = useState("");
   const [showPoIdSearch, setShowPoIdSearch] = useState(false);
@@ -87,7 +89,7 @@ function IncomingStock({ navigate }) {
   // Add ESC key functionality to exit search mode
   useEffect(() => {
     const handleEscKey = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (showProductSearch) {
           setShowProductSearch(false);
           setProductSearchTerm("");
@@ -104,11 +106,11 @@ function IncomingStock({ navigate }) {
     };
 
     if (showProductSearch || showPoIdSearch || showWarehouseSearch) {
-      document.addEventListener('keydown', handleEscKey);
+      document.addEventListener("keydown", handleEscKey);
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscKey);
+      document.removeEventListener("keydown", handleEscKey);
     };
   }, [showProductSearch, showPoIdSearch, showWarehouseSearch]);
 
@@ -116,32 +118,42 @@ function IncomingStock({ navigate }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Check if click is outside any of the search headers
-      const productNameHeader = document.querySelector('[data-product-name-header]');
-      const poIdHeader = document.querySelector('[data-poid-header]');
-      const warehouseHeader = document.querySelector('[data-warehouse-header]');
-      
-      if (showProductSearch && productNameHeader && !productNameHeader.contains(event.target)) {
+      const productNameHeader = document.querySelector(
+        "[data-product-name-header]"
+      );
+      const poIdHeader = document.querySelector("[data-poid-header]");
+      const warehouseHeader = document.querySelector("[data-warehouse-header]");
+
+      if (
+        showProductSearch &&
+        productNameHeader &&
+        !productNameHeader.contains(event.target)
+      ) {
         setShowProductSearch(false);
         setProductSearchTerm("");
       }
-      
+
       if (showPoIdSearch && poIdHeader && !poIdHeader.contains(event.target)) {
         setShowPoIdSearch(false);
         setPoIdSearchTerm("");
       }
-      
-      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+
+      if (
+        showWarehouseSearch &&
+        warehouseHeader &&
+        !warehouseHeader.contains(event.target)
+      ) {
         setShowWarehouseSearch(false);
         setWarehouseSearchTerm("");
       }
     };
 
     if (showProductSearch || showPoIdSearch || showWarehouseSearch) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showProductSearch, showPoIdSearch, showWarehouseSearch]);
 
@@ -159,7 +171,7 @@ function IncomingStock({ navigate }) {
   const [trigger, setTrigger] = useState(false);
 
   const onSubmit = () => {
-    setTrigger(prev => !prev);
+    setTrigger((prev) => !prev);
   };
 
   const [pageNo, setPageNo] = useState(1);
@@ -196,14 +208,20 @@ function IncomingStock({ navigate }) {
           query += `&productId=${product}`;
         }
 
-        console.log('IncomingStock - Fetching stock with warehouse filter:', warehouse);
-        console.log('IncomingStock - Division ID:', currentDivisionId);
-        console.log('IncomingStock - Show All Divisions:', showAllDivisions);
-        console.log('IncomingStock - Final query:', query);
+        console.log(
+          "IncomingStock - Fetching stock with warehouse filter:",
+          warehouse
+        );
+        console.log("IncomingStock - Division ID:", currentDivisionId);
+        console.log("IncomingStock - Show All Divisions:", showAllDivisions);
+        console.log("IncomingStock - Final query:", query);
 
         const res = await axiosAPI.get(query);
-        console.log('IncomingStock - API Response:', res);
-        console.log('IncomingStock - Incoming Stock Data:', res.data.incomingStock);
+        console.log("IncomingStock - API Response:", res);
+        console.log(
+          "IncomingStock - Incoming Stock Data:",
+          res.data.incomingStock
+        );
         const stockData = res.data.incomingStock || [];
         setStock(stockData);
         setFilteredStock(stockData); // Also set filteredStock initially
@@ -216,38 +234,61 @@ function IncomingStock({ navigate }) {
         setLoading(false);
       }
     }
-    
+
     // Always fetch data when component mounts or dependencies change
     fetch();
-  }, [trigger, pageNo, limit, from, to, warehouse, customer, product, selectedDivision?.id, showAllDivisions]);
+  }, [
+    trigger,
+    pageNo,
+    limit,
+    from,
+    to,
+    warehouse,
+    customer,
+    product,
+    selectedDivision?.id,
+    showAllDivisions,
+  ]);
 
   // Add search filtering effect
   useEffect(() => {
-    console.log('IncomingStock - Search effect triggered:', { stock, productSearchTerm, poIdSearchTerm, warehouseSearchTerm, filteredStock });
+    console.log("IncomingStock - Search effect triggered:", {
+      stock,
+      productSearchTerm,
+      poIdSearchTerm,
+      warehouseSearchTerm,
+      filteredStock,
+    });
     if (stock) {
       let filtered = stock;
-      
+
       // Filter by Product Name
       if (productSearchTerm) {
-        filtered = filtered.filter(item => 
-          item.productName.toLowerCase().includes(productSearchTerm.toLowerCase())
+        filtered = filtered.filter((item) =>
+          item.productName
+            .toLowerCase()
+            .includes(productSearchTerm.toLowerCase())
         );
       }
-      
+
       // Filter by PO ID
       if (poIdSearchTerm) {
-        filtered = filtered.filter(item => 
-          item.purchaseOrderId.toLowerCase().includes(poIdSearchTerm.toLowerCase())
+        filtered = filtered.filter((item) =>
+          item.purchaseOrderId
+            .toLowerCase()
+            .includes(poIdSearchTerm.toLowerCase())
         );
       }
-      
+
       // Filter by Warehouse Name
       if (warehouseSearchTerm) {
-        filtered = filtered.filter(item => 
-          item.warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())
+        filtered = filtered.filter((item) =>
+          item.warehouseName
+            .toLowerCase()
+            .includes(warehouseSearchTerm.toLowerCase())
         );
       }
-      
+
       setFilteredStock(filtered);
     }
   }, [stock, productSearchTerm, poIdSearchTerm, warehouseSearchTerm]);
@@ -266,7 +307,8 @@ function IncomingStock({ navigate }) {
       "Quantity",
       "Amount",
     ];
-    const dataToExport = filteredStock && filteredStock.length > 0 ? filteredStock : stock;
+    const dataToExport =
+      filteredStock && filteredStock.length > 0 ? filteredStock : stock;
     if (dataToExport && dataToExport.length > 0) {
       dataToExport.map((st) =>
         arr.push({
@@ -335,6 +377,13 @@ function IncomingStock({ navigate }) {
               ))}
           </select>
         </div>
+
+        <CustomSearchDropdown
+          label={"Warehouse"}
+          onSelect={setWarehouse}
+          options={warehouseOptions}
+        />
+
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
           <select
@@ -408,13 +457,19 @@ function IncomingStock({ navigate }) {
                 <tr>
                   <th>S.No</th>
                   <th>Date</th>
-                  <th 
+                  <th
                     onClick={() => setShowPoIdSearch(!showPoIdSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                     data-poid-header
                   >
                     {showPoIdSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search by PO ID..."
@@ -422,14 +477,14 @@ function IncomingStock({ navigate }) {
                           onChange={(e) => setPoIdSearchTerm(e.target.value)}
                           style={{
                             flex: 1,
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            minWidth: '120px',
-                            height: '28px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                           autoFocus
                         />
@@ -440,19 +495,19 @@ function IncomingStock({ navigate }) {
                               setPoIdSearchTerm("");
                             }}
                             style={{
-                              padding: '4px 8px',
-                              border: '1px solid #dc3545',
-                              borderRadius: '4px',
-                              background: '#dc3545',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              minWidth: '24px',
-                              height: '28px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             ✕
@@ -460,33 +515,39 @@ function IncomingStock({ navigate }) {
                         )}
                       </div>
                     ) : (
-                      <>
-                        PO ID
-                      </>
+                      <>PO ID</>
                     )}
                   </th>
-                  <th 
+                  <th
                     onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                     data-warehouse-header
                   >
                     {showWarehouseSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search by warehouse name..."
                           value={warehouseSearchTerm}
-                          onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                          onChange={(e) =>
+                            setWarehouseSearchTerm(e.target.value)
+                          }
                           style={{
                             flex: 1,
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            minWidth: '120px',
-                            height: '28px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                           autoFocus
                         />
@@ -497,19 +558,19 @@ function IncomingStock({ navigate }) {
                               setWarehouseSearchTerm("");
                             }}
                             style={{
-                              padding: '4px 8px',
-                              border: '1px solid #dc3545',
-                              borderRadius: '4px',
-                              background: '#dc3545',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              minWidth: '24px',
-                              height: '28px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             ✕
@@ -517,18 +578,22 @@ function IncomingStock({ navigate }) {
                         )}
                       </div>
                     ) : (
-                      <>
-                        Warehouse Name
-                      </>
+                      <>Warehouse Name</>
                     )}
                   </th>
-                  <th 
+                  <th
                     onClick={() => setShowProductSearch(!showProductSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                     data-product-name-header
                   >
                     {showProductSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search by product name..."
@@ -536,14 +601,14 @@ function IncomingStock({ navigate }) {
                           onChange={(e) => setProductSearchTerm(e.target.value)}
                           style={{
                             flex: 1,
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            minWidth: '120px',
-                            height: '28px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                           autoFocus
                         />
@@ -554,19 +619,19 @@ function IncomingStock({ navigate }) {
                               setProductSearchTerm("");
                             }}
                             style={{
-                              padding: '4px 8px',
-                              border: '1px solid #dc3545',
-                              borderRadius: '4px',
-                              background: '#dc3545',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              minWidth: '24px',
-                              height: '28px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             ✕
@@ -574,30 +639,45 @@ function IncomingStock({ navigate }) {
                         )}
                       </div>
                     ) : (
-                      <>
-                        Product Name
-                      </>
+                      <>Product Name</>
                     )}
                   </th>
                   <th>Quantity</th>
                   <th>Amount</th>
                 </tr>
-                {(showProductSearch && productSearchTerm) || (showPoIdSearch && poIdSearchTerm) || (showWarehouseSearch && warehouseSearchTerm) ? (
+                {(showProductSearch && productSearchTerm) ||
+                (showPoIdSearch && poIdSearchTerm) ||
+                (showWarehouseSearch && warehouseSearchTerm) ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
-                      {filteredStock ? `${filteredStock.length} item(s) found` : 'Searching...'}
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding: "8px",
+                        fontSize: "12px",
+                        color: "#666",
+                        backgroundColor: "#f8f9fa",
+                      }}
+                    >
+                      {filteredStock
+                        ? `${filteredStock.length} item(s) found`
+                        : "Searching..."}
                     </td>
                   </tr>
                 ) : null}
               </thead>
               <tbody>
-                {console.log('IncomingStock - Rendering table body:', { filteredStock, stock, productSearchTerm })}
+                {console.log("IncomingStock - Rendering table body:", {
+                  filteredStock,
+                  stock,
+                  productSearchTerm,
+                })}
                 {(!filteredStock || filteredStock.length === 0) && (
                   <tr>
                     <td colSpan={7}>NO DATA FOUND</td>
                   </tr>
                 )}
-                {filteredStock && filteredStock.length > 0 &&
+                {filteredStock &&
+                  filteredStock.length > 0 &&
                   filteredStock.map((st, stIndex) => (
                     <tr
                       key={st.id}

@@ -7,7 +7,7 @@ import styles from "./../Reports.module.css";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import xls from "@/images/xls-png.png";
 import pdf from "@/images/pdf-png.png";
-import CustomSearchDropdown from "../CustomSearchDropDown";
+import CustomSearchDropdown from "../../../../utils/CustomSearchDropDown";
 import { handleCustomerWisePDF } from "./CustomerWisePDFGenerator";
 
 function CustomerWiseReports({ navigate }) {

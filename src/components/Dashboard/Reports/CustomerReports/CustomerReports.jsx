@@ -6,7 +6,7 @@ import styles from "../Reports.module.css";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
-import CustomSearchDropdown from "../CustomSearchDropDown";
+import CustomSearchDropdown from "../../../../utils/CustomSearchDropDown";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 
 function CustomerReports({ navigate }) {

@@ -4,7 +4,13 @@ const CustomSearchDropdown = ({ label, options = [], onSelect }) => {
   const [search, setSearch] = useState("");
   const [showOptions, setShowOptions] = useState(false);
 
-  const filtered = options.filter((opt) =>
+  // Sort options alphabetically by label (case-insensitive)
+  const sortedOptions = [...options].sort((a, b) =>
+    a.label.toLowerCase().localeCompare(b.label.toLowerCase())
+  );
+
+  // Filter based on search text
+  const filtered = sortedOptions.filter((opt) =>
     opt.label.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -31,7 +37,7 @@ const CustomSearchDropdown = ({ label, options = [], onSelect }) => {
             zIndex: 999,
             background: "white",
             width: "260px",
-            maxHeight: "200px",
+            maxHeight: "400px",
             overflowY: "auto",
             borderRadius: "10px",
             boxShadow: "2px 2px 4px #333",
