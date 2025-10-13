@@ -7,6 +7,7 @@ import styles from "./Sales.module.css";
 import xls from "./../../../images/xls-png.png";
 import pdf from "./../../../images/pdf-png.png";
 import { useAuth } from "@/Auth";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function CancelledOrders() {
   const navigate = useNavigate();
@@ -31,123 +32,132 @@ function CancelledOrders() {
 
   useEffect(() => {
     // Fetch warehouses, customers etc.
-      async function fetchFilters() {
-    try {
-      const res1 = await axiosAPI.get("/warehouses");
-      const res2 = await axiosAPI.get("/customers?limit=all");
+    async function fetchFilters() {
+      try {
+        const res1 = await axiosAPI.get("/warehouses");
+        const res2 = await axiosAPI.get("/customers?limit=all");
 
-      setWarehouses(res1.data.warehouses);
-      setCustomers(res2.data.customers);
-    } catch (err) {
-      setError("Failed to fetch filters.");
-      setIsModalOpen(true);
+        setWarehouses(res1.data.warehouses);
+        setCustomers(res2.data.customers);
+      } catch (err) {
+        setError("Failed to fetch filters.");
+        setIsModalOpen(true);
+      }
     }
-  }
 
-  fetchFilters();
+    fetchFilters();
   }, []);
 
-  const onSubmit = async() => {
-    
+  const onSubmit = async () => {
     // API call logic for cancelled orders
-      setLoading(true);
-        try {
-            // ✅ Get division ID from localStorage for division filtering
-            const currentDivisionId = localStorage.getItem('currentDivisionId');
-            const currentDivisionName = localStorage.getItem('currentDivisionName');
-            
-            // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
-            let warehouseParam = {};
-            if (warehouse && warehouse !== "all") {
-              warehouseParam = { warehouse };
-            }
-            
-            // ✅ Add division parameters to prevent wrong division data
-            let divisionParam = {};
-            if (currentDivisionId && currentDivisionId !== '1') {
-              divisionParam = { divisionId: currentDivisionId };
-            } else if (currentDivisionId === '1') {
-              divisionParam = { showAllDivisions: true };
-            }
-            
-            console.log('CancelledOrders - Fetching orders with warehouse filter:', warehouse);
-            console.log('CancelledOrders - Warehouse parameter:', warehouseParam);
-            console.log('CancelledOrders - Division ID:', currentDivisionId);
-            console.log('CancelledOrders - Division Name:', currentDivisionName);
-            console.log('CancelledOrders - Division parameters added:', divisionParam);
-            
-            const queryParams = new URLSearchParams({
-            ...(from && { from }),
-            ...(to && { to }),
-            ...warehouseParam,
-            ...divisionParam,
-            ...(customer && { customer }),
-            limit,
-            page: pageNo,
-            }).toString();
+    setLoading(true);
+    try {
+      // ✅ Get division ID from localStorage for division filtering
+      const currentDivisionId = localStorage.getItem("currentDivisionId");
+      const currentDivisionName = localStorage.getItem("currentDivisionName");
 
-            const response = await axiosAPI.get(`/sales-orders/cancelled?${queryParams}`);
-            console.log('Cancelled orders API response:', response.data);
-            const ordersData = response.data.cancelledOrders || response.data.orders || response.data;
-            console.log('Processed orders data:', ordersData);
-            setOrders(Array.isArray(ordersData) ? ordersData : []); // Always set as array
-        } catch (err) {
-            setError("Failed to fetch cancelled orders.");
-            setIsModalOpen(true);
-        } finally {
-            setLoading(false);
-        }
-    
+      // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
+      let warehouseParam = {};
+      if (warehouse && warehouse !== "all") {
+        warehouseParam = { warehouse };
+      }
+
+      // ✅ Add division parameters to prevent wrong division data
+      let divisionParam = {};
+      if (currentDivisionId && currentDivisionId !== "1") {
+        divisionParam = { divisionId: currentDivisionId };
+      } else if (currentDivisionId === "1") {
+        divisionParam = { showAllDivisions: true };
+      }
+
+      console.log(
+        "CancelledOrders - Fetching orders with warehouse filter:",
+        warehouse
+      );
+      console.log("CancelledOrders - Warehouse parameter:", warehouseParam);
+      console.log("CancelledOrders - Division ID:", currentDivisionId);
+      console.log("CancelledOrders - Division Name:", currentDivisionName);
+      console.log(
+        "CancelledOrders - Division parameters added:",
+        divisionParam
+      );
+
+      const queryParams = new URLSearchParams({
+        ...(from && { from }),
+        ...(to && { to }),
+        ...warehouseParam,
+        ...divisionParam,
+        ...(customer && { customer }),
+        limit,
+        page: pageNo,
+      }).toString();
+
+      const response = await axiosAPI.get(
+        `/sales-orders/cancelled?${queryParams}`
+      );
+      console.log("Cancelled orders API response:", response.data);
+      const ordersData =
+        response.data.cancelledOrders || response.data.orders || response.data;
+      console.log("Processed orders data:", ordersData);
+      setOrders(Array.isArray(ordersData) ? ordersData : []); // Always set as array
+    } catch (err) {
+      setError("Failed to fetch cancelled orders.");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const GrandTotal = () => {
-    return orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+    return orders.reduce(
+      (sum, order) => sum + Number(order.totalAmount || 0),
+      0
+    );
   };
 
   const onExport = (type) => {
-  const arr = [];
-  let x = 1;
-  const columns = [
-    "S.No",
-    "Date",
-    "Order ID",
-    "Warehouse Name",
-    "Customer ID",
-    "Customer Name",
-    "Amount",
-    "Cancelled Date",
-    "Cancelled Reason"
-  ];
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Date",
+      "Order ID",
+      "Warehouse Name",
+      "Customer ID",
+      "Customer Name",
+      "Amount",
+      "Cancelled Date",
+      "Cancelled Reason",
+    ];
 
-  if (orders && orders.length > 0) {
-    orders.forEach((order) =>
-      arr.push({
-        "S.No": x++,
-        "Date": order.createdAt?.slice(0, 10),
-        "Order ID": order.orderNumber,
-        "Warehouse Name": order.warehouse?.name || "-",
-        "Customer ID": order.customer?.customer_id || "-",
-        "Customer Name": order.customer?.name || "-",
-        "Amount": order.totalAmount,
-        "Cancelled Date": order.cancelledAt?.slice(0, 10) || "-",
-        "Cancelled Reason": order.cancelReason || "-",
-      })
-    );
+    if (orders && orders.length > 0) {
+      orders.forEach((order) =>
+        arr.push({
+          "S.No": x++,
+          Date: order.createdAt?.slice(0, 10),
+          "Order ID": order.orderNumber,
+          "Warehouse Name": order.warehouse?.name || "-",
+          "Customer ID": order.customer?.customer_id || "-",
+          "Customer Name": order.customer?.name || "-",
+          Amount: order.totalAmount,
+          "Cancelled Date": order.cancelledAt?.slice(0, 10) || "-",
+          "Cancelled Reason": order.cancelReason || "-",
+        })
+      );
 
-    setTableData(arr);
-    const total = GrandTotal();
+      setTableData(arr);
+      const total = GrandTotal();
 
-    if (type === "PDF") {
-      handleExportPDF(columns, arr, "Cancelled_Orders", total);
-    } else if (type === "XLS") {
-      handleExportExcel(columns, arr, "Cancelled_Orders");
+      if (type === "PDF") {
+        handleExportPDF(columns, arr, "Cancelled_Orders", total);
+      } else if (type === "XLS") {
+        handleExportExcel(columns, arr, "Cancelled_Orders");
+      }
+    } else {
+      setError("Table is Empty");
+      setIsModalOpen(true);
     }
-  } else {
-    setError("Table is Empty");
-    setIsModalOpen(true);
-  }
-};
-
+  };
 
   const closeModal = () => setIsModalOpen(false);
 
@@ -161,47 +171,41 @@ function CancelledOrders() {
       <div className="row m-0 p-3">
         <div className="col-3 formcontent">
           <label>From :</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </div>
         <div className="col-3 formcontent">
           <label>To :</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label>Warehouse :</label>
-          <select
-            value={warehouse || ""}
-            onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
-          >
-            <option value="null">--select--</option>
-            <option value="all">All Warehouses</option>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="col-3 formcontent">
-          <label>Customer :</label>
-          <select
-            value={customer || ""}
-            onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}
-          >
-            <option value="null">--select--</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Warehouse"
+          onSelect={setWarehouse}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+        />
+
+        <CustomSearchDropdown
+          label="Customers"
+          onSelect={setCustomer}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+        />
       </div>
 
       <div className="row m-0 p-3 justify-content-center">
         <div className="col-3 formcontent">
-          <button className="submitbtn" onClick={onSubmit}>Submit</button>
-          <button className="cancelbtn" onClick={() => navigate("/sales")}>Cancel</button>
+          <button className="submitbtn" onClick={onSubmit}>
+            Submit
+          </button>
+          <button className="cancelbtn" onClick={() => navigate("/sales")}>
+            Cancel
+          </button>
         </div>
       </div>
 
@@ -221,7 +225,9 @@ function CancelledOrders() {
             <label>Entity :</label>
             <select value={limit} onChange={(e) => setLimit(e.target.value)}>
               {[10, 20, 30, 40, 50].map((num) => (
-                <option key={num} value={num}>{num}</option>
+                <option key={num} value={num}>
+                  {num}
+                </option>
               ))}
             </select>
           </div>
@@ -248,34 +254,41 @@ function CancelledOrders() {
                 )}
                 {orders.map((order, index) => {
                   // Try to get warehouse name directly from the order data first
-                  let warehouseName = order.salesOrder?.warehouse?.name || 
-                                    order.warehouse?.name || 
-                                    '-';
-                  
+                  let warehouseName =
+                    order.salesOrder?.warehouse?.name ||
+                    order.warehouse?.name ||
+                    "-";
+
                   // If warehouse name is not available directly, try to find it from warehouses list
-                  if (warehouseName === '-') {
-                    const warehouseId = order.salesOrder?.warehouseId || 
-                                      order.salesOrder?.warehouse?.id || 
-                                      order.warehouseId || 
-                                      order.warehouse?.id;
-                    
+                  if (warehouseName === "-") {
+                    const warehouseId =
+                      order.salesOrder?.warehouseId ||
+                      order.salesOrder?.warehouse?.id ||
+                      order.warehouseId ||
+                      order.warehouse?.id;
+
                     // Debug logging
-                    console.log('Order warehouse data:', {
+                    console.log("Order warehouse data:", {
                       orderId: order.id,
                       orderData: order,
                       salesOrderData: order.salesOrder,
                       warehouseId: warehouseId,
                       warehouseIdType: typeof warehouseId,
                       warehousesCount: warehouses?.length,
-                      warehouses: warehouses
+                      warehouses: warehouses,
                     });
-                    
+
                     if (warehouseId && Array.isArray(warehouses)) {
-                      const wh = warehouses.find(w => String(w.id) === String(warehouseId));
-                      console.log('Found warehouse:', wh);
+                      const wh = warehouses.find(
+                        (w) => String(w.id) === String(warehouseId)
+                      );
+                      console.log("Found warehouse:", wh);
                       if (wh) warehouseName = wh.name;
                     } else {
-                      console.log('No warehouse found for warehouseId:', warehouseId);
+                      console.log(
+                        "No warehouse found for warehouseId:",
+                        warehouseId
+                      );
                     }
                   }
                   return (
@@ -284,8 +297,12 @@ function CancelledOrders() {
                       <td>{order.createdAt?.slice(0, 10)}</td>
                       <td>{order.salesOrder?.orderNumber}</td>
                       <td>{warehouseName}</td>
-                      <td>{order.salesOrder?.customer?.customer_id || order.salesOrder?.customerId || '-'}</td>
-                      <td>{order.salesOrder?.customer?.name || '-'}</td>
+                      <td>
+                        {order.salesOrder?.customer?.customer_id ||
+                          order.salesOrder?.customerId ||
+                          "-"}
+                      </td>
+                      <td>{order.salesOrder?.customer?.name || "-"}</td>
                       <td>{order.salesOrder?.totalAmount}</td>
                       <td>{order.cancelledAt?.slice(0, 10)}</td>
                       <td>{order.cancellationReason}</td>
@@ -321,18 +338,31 @@ function CancelledOrders() {
       )}
 
       {reasonPopup.open && (
-        <div className="modal d-block" tabIndex="-1" style={{ background: "#00000066" }}>
+        <div
+          className="modal d-block"
+          tabIndex="-1"
+          style={{ background: "#00000066" }}
+        >
           <div className="modal-dialog">
             <div className="modal-content p-3">
               <div className="modal-header">
                 <h5 className="modal-title">Cancelled Reason</h5>
-                <button type="button" className="btn-close" onClick={() => setReasonPopup({ open: false, text: "" })}></button>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setReasonPopup({ open: false, text: "" })}
+                ></button>
               </div>
               <div className="modal-body">
                 <p>{reasonPopup.text}</p>
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setReasonPopup({ open: false, text: "" })}>Close</button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setReasonPopup({ open: false, text: "" })}
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

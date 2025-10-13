@@ -1,17 +1,14 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx"; // <-- THIS is important
+import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import imageBase64 from "../images/feeds-croped.png";
 import QRCode from "qrcode";
+import imageBase64 from "../images/feeds-croped.png";
 
-
-export const handleExportPDF = async (
-  columns,
-  data,
-  title,
-  grandTotal = null
-) => {
+/**
+ * ✅ EXPORT TO PDF
+ */
+export const handleExportPDF = async (columns, data, title, grandTotal = null) => {
   if (!data || data.length === 0) return;
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -38,37 +35,27 @@ export const handleExportPDF = async (
     modifiedData.push([...emptyCells, "Grand Total :", grandTotal.toFixed(2)]);
   }
 
-
+  // Draw Header + Footer
   const drawFooterAndHeader = () => {
     const pageNumber = doc.internal.getCurrentPageInfo().pageNumber;
     const pageCount = doc.internal.getNumberOfPages();
 
-    // HEADER
-    if (imageBase64) {
-      doc.addImage(imageBase64, "PNG", 10, 10, 40, 20); // logo left
-    }
-
-    if (qrBase64) {
-      doc.addImage(qrBase64, "PNG", pageWidth - 45, 10, 30, 30); // QR right
-    }
+    // Header
+    if (imageBase64) doc.addImage(imageBase64, "PNG", 10, 10, 40, 20);
+    if (qrBase64) doc.addImage(qrBase64, "PNG", pageWidth - 45, 10, 30, 30);
 
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
     doc.text(title, pageWidth / 2, 20, { align: "center" });
 
     doc.setFontSize(9);
     doc.setTextColor(80);
-    doc.text(`Generated on: ${formattedDate}`, pageWidth / 2, 27, {
-      align: "center",
-    });
+    doc.text(`Generated on: ${formattedDate}`, pageWidth / 2, 27, { align: "center" });
 
-    // Divider line below header
+    // Divider
     doc.setDrawColor(0);
-    doc.setLineWidth(0.2);
     doc.line(10, 40, pageWidth - 10, 40);
 
-    // FOOTER
-    doc.setDrawColor(0);
+    // Footer
     doc.setLineWidth(0.1);
     doc.line(10, pageHeight - 30, pageWidth - 10, pageHeight - 30);
 
@@ -76,44 +63,33 @@ export const handleExportPDF = async (
       "Registered Address : Flat No. 203, Mar Homes, Annojiguda, Pocharam, Korremal, Hyderabad, Telangana, India - 500088.",
       "This is an electronically generated document, no signature is required.",
     ];
+
     doc.setFontSize(8);
     footerLines.forEach((line, i) => {
       doc.setTextColor(150);
-      doc.text(line, pageWidth / 2, pageHeight - 22 + i * 4, {
-        align: "center",
-      });
+      doc.text(line, pageWidth / 2, pageHeight - 22 + i * 4, { align: "center" });
     });
 
     doc.setTextColor("#a92427");
-    doc.text(
-      "© Kernn Automations Private Limited",
-      pageWidth / 2,
-      pageHeight - 22 + footerLines.length * 4,
-      { align: "center" }
-    );
+    doc.text("© Kernn Automations Private Limited", pageWidth / 2, pageHeight - 12, {
+      align: "center",
+    });
 
     doc.setTextColor(0);
-    doc.text(
-      `Page ${pageNumber} of ${pageCount}`,
-      pageWidth - 40,
-      pageHeight - 10
-    );
+    doc.text(`Page ${pageNumber} of ${pageCount}`, pageWidth - 40, pageHeight - 6);
   };
 
+  // Generate Table
   autoTable(doc, {
     headStyles: {
       fillColor: [0, 49, 118],
       textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 10,
+      fontSize: 8,
     },
-    bodyStyles: {
-      textColor: [0, 0, 0],
-      fontSize: 9,
-    },
+    bodyStyles: { textColor: [0, 0, 0], fontSize: 7 },
     head: [modifiedColumns],
     body: modifiedData,
-    // Reserve top & bottom margins to avoid overlap
     margin: { top: 50, bottom: 40 },
     startY: 50,
     didDrawPage: drawFooterAndHeader,
@@ -122,25 +98,50 @@ export const handleExportPDF = async (
   doc.save(`${title}.pdf`);
 };
 
-
+/**
+ * ✅ EXPORT TO EXCEL (.xlsx)
+ * Includes bold + colored header styling
+ */
 export const handleExportExcel = (columns, data, title) => {
-  if (data.length > 0) {
-    console.log(data);
-    const worksheetData = [
-      columns,
-      ...data.map((row) => columns.map((col) => row[col])),
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  if (!data || data.length === 0) return;
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-    const dataBlob = new Blob([excelBuffer], {
-      type: "application/octet-stream",
-    });
-    saveAs(dataBlob, `${title}.xlsx`);
-  }
+  // Step 1: Prepare 2D array (rows)
+  const worksheetData = [
+    columns,
+    ...data.map((row) => columns.map((col) => row[col] ?? "")),
+  ];
+
+  // Step 2: Create worksheet
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  // Step 3: Apply bold style to header cells
+  columns.forEach((_, index) => {
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
+    if (!worksheet[cellAddress]) return;
+
+    worksheet[cellAddress].s = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "305496" } }, // Blue background
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+  });
+
+  // Step 4: Auto-adjust column widths
+  const colWidths = columns.map((col) => ({
+    wch: Math.max(col.length + 2, 15), // Auto width based on name length
+  }));
+  worksheet["!cols"] = colWidths;
+
+  // Step 5: Create workbook and save
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+    cellStyles: true,
+  });
+
+  const dataBlob = new Blob([excelBuffer], { type: "application/octet-stream" });
+  saveAs(dataBlob, `${title}.xlsx`);
 };

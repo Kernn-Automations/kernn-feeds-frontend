@@ -138,7 +138,7 @@ function ModifyProduct({ navigate, isAdmin }) {
                       <td>{product.createdAt.slice(0, 10)}</td>
                       <td>{product.SKU}</td>
                       <td>{product.name}</td>
-                      <td>{product.category.name}</td>
+                      <td>{product.category?.name}</td>
                       <td>
                         {product.productType === "packed"
                           ? product.packageWeightUnit

@@ -7,7 +7,7 @@ import styles from "./../Reports.module.css";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import xls from "@/images/xls-png.png";
 import pdf from "@/images/pdf-png.png";
-import CustomSearchDropdown from "../CustomSearchDropDown";
+import CustomSearchDropdown from "../../../../utils/CustomSearchDropDown";
 
 function WarehouseWiseReport({ navigate }) {
   const date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -131,17 +131,6 @@ function WarehouseWiseReport({ navigate }) {
 
   let index = 1;
 
-  const [warehouseOptions, setWarehouseOptions] = useState();
-
-  useEffect(() => {
-    const warehouseOptions = [
-      { value: "null", label: "--select--" },
-      ...(warehouses?.map((w) => ({ value: w.id, label: w.name })) || []),
-    ];
-
-    setWarehouseOptions(warehouseOptions);
-  }, [warehouses]);
-
   return (
     <>
       <p className="path">
@@ -175,9 +164,9 @@ function WarehouseWiseReport({ navigate }) {
           />
         </div>
         <CustomSearchDropdown
-          label={"Warehouse"}
+          label="Warehouse"
           onSelect={setWarehouse}
-          options={warehouseOptions}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
         />
       </div>
 
