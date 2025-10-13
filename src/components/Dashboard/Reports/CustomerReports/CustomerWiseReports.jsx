@@ -38,7 +38,6 @@ function CustomerWiseReports({ navigate }) {
 
   const [customers, setCustomers] = useState();
   const [customer, setCustomer] = useState();
-  const [customerOptions, setCustomerOptions] = useState();
   const [apicust, setApicust] = useState();
   const [totals, setTotals] = useState();
 
@@ -57,14 +56,6 @@ function CustomerWiseReports({ navigate }) {
 
     fetch();
   }, []);
-
-  useEffect(() => {
-    const customerOptions = [
-      ...(customers?.map((c) => ({ value: c.id, label: c.name })) || []),
-    ];
-
-    setCustomerOptions(customerOptions);
-  }, [customers]);
 
   useEffect(() => {
     async function fetch() {
@@ -95,30 +86,36 @@ function CustomerWiseReports({ navigate }) {
   const [tableData, setTableData] = useState();
 
   const onExport = (type) => {
-  const arr = [];
-  let x = 1;
+    const arr = [];
+    let x = 1;
 
-  const columns = ["S.No", "Product", "Bags", "Tonnes"];
+    const columns = ["S.No", "Product", "Bags", "Tonnes"];
 
-  if (reports && reports.length > 0) {
-    reports.forEach((report) =>
-      arr.push({
-        "S.No": x++,
-        Product: report.product,
-        Bags: report.bags,
-        Tonnes: report.tonnes,
-      })
-    );
+    if (reports && reports.length > 0) {
+      reports.forEach((report) =>
+        arr.push({
+          "S.No": x++,
+          Product: report.product,
+          Bags: report.bags,
+          Tonnes: report.tonnes,
+        })
+      );
 
-    if (type === "PDF")
-      handleCustomerWisePDF(columns, arr, "Customer-Wise-Report", apicust, totals);
-    else if (type === "XLS")
-      handleExportExcel(columns, arr, "Customer-Wise-Report");
-  } else {
-    setError("Table is Empty");
-    setIsModalOpen(true);
-  }
-};
+      if (type === "PDF")
+        handleCustomerWisePDF(
+          columns,
+          arr,
+          "Customer-Wise-Report",
+          apicust,
+          totals
+        );
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "Customer-Wise-Report");
+    } else {
+      setError("Table is Empty");
+      setIsModalOpen(true);
+    }
+  };
 
   let index = 1;
   return (
@@ -155,9 +152,9 @@ function CustomerWiseReports({ navigate }) {
         </div>
 
         <CustomSearchDropdown
-          label={"Customer"}
+          label="Customer"
           onSelect={setCustomer}
-          options={customerOptions}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
         />
 
         <div className={`col-4 formcontent`}>

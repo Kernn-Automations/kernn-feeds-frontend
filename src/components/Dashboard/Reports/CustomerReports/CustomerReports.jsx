@@ -183,26 +183,6 @@ function CustomerReports({ navigate }) {
     fetch();
   }, [from, to, customer, warehouse, pageNo, limit]);
 
-  const [warehouseOptions, setWarehouseOptions] = useState();
-  const [customerOptions, setCustomerOptions] = useState();
-
-  useEffect(() => {
-    const warehouseOptions = [
-      { value: "null", label: "--select--" },
-      { value: "all", label: "All Warehouses" },
-      ...(warehouses?.map((w) => ({ value: w.id, label: w.name })) || []),
-    ];
-
-    const customerOptions = [
-      { value: 0, label: "--select--" },
-      { value: null, label: "All Customers" },
-      ...(customers?.map((c) => ({ value: c.id, label: c.name })) || []),
-    ];
-
-    setCustomerOptions(customerOptions);
-    setWarehouseOptions(warehouseOptions);
-  }, [customers, warehouses]);
-
   return (
     <>
       <p className="path">
@@ -238,14 +218,15 @@ function CustomerReports({ navigate }) {
           />
         </div>
         <CustomSearchDropdown
-          label={"Customer"}
+          label="Customer"
           onSelect={setCustomer}
-          options={customerOptions}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
         />
+
         <CustomSearchDropdown
-          label={"Warehouse"}
+          label="Warehouse"
           onSelect={setWarehouse}
-          options={warehouseOptions}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
         />
       </div>
 

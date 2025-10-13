@@ -8,6 +8,7 @@ import Loading from "@/components/Loading";
 import { useAuth } from "@/Auth";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function PaymentReports({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -200,55 +201,23 @@ function PaymentReports({ navigate }) {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">WareHouse :</label>
-          <select
-            name=""
-            id=""
-            value={warehouse}
-            onChange={(e) => setWarehouse(e.target.value)}
-          >
-            <option value="">--select--</option>
-            <option value="all">All Warehouses</option>
-            {warehouses.map((wh) => (
-              <option key={wh.id} value={wh.id}>
-                {wh.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Sales Executive :</label>
-          <select
-            name=""
-            id=""
-            value={se}
-            onChange={(e) => setSe(e.target.value)}
-          >
-            <option value="">--select--</option>
-            {ses.map((se) => (
-              <option key={se.id} value={se.id}>
-                {se.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Customer :</label>
-          <select
-            name=""
-            id=""
-            value={customer}
-            onChange={(e) => setCustomer(e.target.value)}
-          >
-            <option value="">--select--</option>
-            {customers.map((cust) => (
-              <option key={cust.id} value={cust.id}>
-                {cust.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Warehouse"
+          onSelect={setWarehouse}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+        />
+
+        <CustomSearchDropdown
+          label="Sales Executive"
+          onSelect={setSe}
+          options={ses?.map((se) => ({ value: se.id, label: se.name }))}
+        />
+
+        <CustomSearchDropdown
+          label="Customers"
+          onSelect={setCustomer}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+        />
       </div>
       <div className="row m-0 p-2 justify-content-center">
         <div className={`col-3 formcontent`}>

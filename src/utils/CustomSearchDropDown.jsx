@@ -1,17 +1,39 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-const CustomSearchDropdown = ({ label, options = [], onSelect }) => {
+const CustomSearchDropdown = ({
+  label,
+  options = [],
+  onSelect,
+  labelKey = "label",
+  valueKey = "value",
+}) => {
   const [search, setSearch] = useState("");
   const [showOptions, setShowOptions] = useState(false);
+  const [finalOptions, setFinalOptions] = useState([]);
 
-  // Sort options alphabetically by label (case-insensitive)
-  const sortedOptions = [...options].sort((a, b) =>
-    a.label.toLowerCase().localeCompare(b.label.toLowerCase())
-  );
+  // Sort alphabetically and add "Select All" option on top
+  useEffect(() => {
+    if (options && Array.isArray(options)) {
+      const sorted = [...options].sort((a, b) =>
+        String(a[labelKey])
+          .toLowerCase()
+          .localeCompare(String(b[labelKey]).toLowerCase())
+      );
 
-  // Filter based on search text
-  const filtered = sortedOptions.filter((opt) =>
-    opt.label.toLowerCase().includes(search.toLowerCase())
+      // Always keep "Select All" at the top
+      const combined = [
+        { [labelKey]: "Select All", [valueKey]: null },
+        ...sorted,
+      ];
+      setFinalOptions(combined);
+    } else {
+      setFinalOptions([]);
+    }
+  }, [options, labelKey, valueKey]);
+
+  // Filter based on search
+  const filtered = finalOptions.filter((opt) =>
+    String(opt[labelKey]).toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -37,7 +59,7 @@ const CustomSearchDropdown = ({ label, options = [], onSelect }) => {
             zIndex: 999,
             background: "white",
             width: "260px",
-            maxHeight: "400px",
+            maxHeight: "200px",
             overflowY: "auto",
             borderRadius: "10px",
             boxShadow: "2px 2px 4px #333",
@@ -49,16 +71,18 @@ const CustomSearchDropdown = ({ label, options = [], onSelect }) => {
           {filtered.length > 0 ? (
             filtered.map((opt) => (
               <li
-                key={opt.value}
+                key={opt[valueKey]}
                 onMouseDown={() => {
-                  setSearch(opt.label);
-                  onSelect(opt.value);
+                  setSearch(opt[labelKey]);
+                  onSelect(opt[valueKey]);
                   setShowOptions(false);
                 }}
                 style={{
                   padding: "5px 10px",
                   cursor: "pointer",
                   fontSize: "15px",
+                  fontWeight:
+                    opt[labelKey] === "Select All" ? "bold" : "normal",
                 }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.background = "#f1f1f1")
@@ -67,11 +91,13 @@ const CustomSearchDropdown = ({ label, options = [], onSelect }) => {
                   (e.currentTarget.style.background = "transparent")
                 }
               >
-                {opt.label}
+                {opt[labelKey]}
               </li>
             ))
           ) : (
-            <li style={{ padding: "5px 10px", fontSize: "14px" }}>No results</li>
+            <li style={{ padding: "5px 10px", fontSize: "14px" }}>
+              No results
+            </li>
           )}
         </ul>
       )}

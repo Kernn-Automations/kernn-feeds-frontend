@@ -5,6 +5,7 @@ import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import styles from "../Dashboard.module.css";
+import SalesPieChart from "./SalesPieChart";
 
 function SalesHome({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -21,7 +22,9 @@ function SalesHome({ navigate }) {
         setSalesData(res.data);
       } catch (err) {
         console.error("Sales dashboard fetch error:", err);
-        setError(err?.response?.data?.message || "Failed to load sales dashboard");
+        setError(
+          err?.response?.data?.message || "Failed to load sales dashboard"
+        );
       } finally {
         setLoading(false);
       }
@@ -47,8 +50,12 @@ function SalesHome({ navigate }) {
       };
     }
 
-    const labels = salesData.salesTrend.map(item => item.month || item.label || item.date || "");
-    const data = salesData.salesTrend.map(item => item.amount ?? item.value ?? item.sales ?? 0);
+    const labels = salesData.salesTrend.map(
+      (item) => item.month || item.label || item.date || ""
+    );
+    const data = salesData.salesTrend.map(
+      (item) => item.amount ?? item.value ?? item.sales ?? 0
+    );
 
     return {
       labels,
@@ -67,7 +74,10 @@ function SalesHome({ navigate }) {
 
   // Transform salesByProduct for doughnut chart
   const productData = useMemo(() => {
-    if (!salesData?.salesByProduct || !Array.isArray(salesData.salesByProduct)) {
+    if (
+      !salesData?.salesByProduct ||
+      !Array.isArray(salesData.salesByProduct)
+    ) {
       return {
         labels: ["No Products"],
         datasets: [
@@ -80,8 +90,12 @@ function SalesHome({ navigate }) {
       };
     }
 
-    const labels = salesData.salesByProduct.map(item => item.product || item.name || "");
-    const data = salesData.salesByProduct.map(item => item.amount ?? item.sales ?? 0);
+    const labels = salesData.salesByProduct.map(
+      (item) => item.product || item.name || ""
+    );
+    const data = salesData.salesByProduct.map(
+      (item) => item.amount ?? item.sales ?? 0
+    );
 
     return {
       labels,
@@ -99,7 +113,7 @@ function SalesHome({ navigate }) {
             "#ff6384",
             "#36a2eb",
             "#cc65fe",
-            "#ffce56"
+            "#ffce56",
           ],
         },
       ],
@@ -132,10 +146,7 @@ function SalesHome({ navigate }) {
           >
             + New Sales Order
           </button>
-          <button
-            className="homebtn"
-            onClick={() => navigate("/sales/orders")}
-          >
+          <button className="homebtn" onClick={() => navigate("/sales/orders")}>
             Sales Orders
           </button>
           <button
@@ -155,47 +166,64 @@ function SalesHome({ navigate }) {
 
       {/* Cards */}
       <Flex wrap="wrap" justify="space-between" px={4}>
-        <ReusableCard 
-          title="Total Orders" 
-          value={salesData?.totalOrders || (loading ? <Loading /> : "0")} 
+        <ReusableCard
+          title="Total Orders"
+          value={salesData?.totalOrders || (loading ? <Loading /> : "0")}
         />
-        <ReusableCard 
-          title="Pending Orders" 
-          value={salesData?.pendingOrders || (loading ? <Loading /> : "0")} 
-          color="yellow.500" 
+        <ReusableCard
+          title="Pending Orders"
+          value={salesData?.pendingOrders || (loading ? <Loading /> : "0")}
+          color="yellow.500"
         />
-        <ReusableCard 
-          title="Cancelled Orders" 
-          value={salesData?.cancelledOrders || (loading ? <Loading /> : "0")} 
-          color="red.500" 
+        <ReusableCard
+          title="Cancelled Orders"
+          value={salesData?.cancelledOrders || (loading ? <Loading /> : "0")}
+          color="red.500"
         />
-        <ReusableCard 
-          title="This Month Sales" 
-          value={loading ? <Loading /> : `₹${Number(salesData?.thisMonthSales ?? 0).toLocaleString("en-IN")}`} 
-          color="green.500" 
+        <ReusableCard
+          title="This Month Sales"
+          value={
+            loading ? (
+              <Loading />
+            ) : (
+              `₹${Number(salesData?.thisMonthSales ?? 0).toLocaleString("en-IN")}`
+            )
+          }
+          color="green.500"
         />
       </Flex>
 
       {/* Charts */}
       <div className={styles["charts-grid"]}>
-        {trendData.labels && trendData.labels.length > 0 && trendData.datasets && trendData.datasets[0] && trendData.datasets[0].data && trendData.datasets[0].data.length > 0 && (
-          <ChartComponent
-            type="line"
-            title="Sales Trend"
-            data={trendData}
-            options={{ responsive: true }}
-          />
-        )}
-        {productData.labels && productData.labels.length > 0 && productData.datasets && productData.datasets[0] && productData.datasets[0].data && productData.datasets[0].data.length > 0 && (
-          <ChartComponent
-            type="doughnut"
-            title="Sales by Product"
-            data={productData}
-            options={{ responsive: true }}
-            legendPosition="left"
-          />
-        )}
+        {trendData.labels &&
+          trendData.labels.length > 0 &&
+          trendData.datasets &&
+          trendData.datasets[0] &&
+          trendData.datasets[0].data &&
+          trendData.datasets[0].data.length > 0 && (
+            <ChartComponent
+              type="line"
+              title="Sales Trend"
+              data={trendData}
+              options={{ responsive: true }}
+            />
+          )}
+        {productData.labels &&
+          productData.labels.length > 0 &&
+          productData.datasets &&
+          productData.datasets[0] &&
+          productData.datasets[0].data &&
+          productData.datasets[0].data.length > 0 && (
+            <ChartComponent
+              type="doughnut"
+              title="Sales by Product"
+              data={productData}
+              options={{ responsive: true }}
+              legendPosition="left"
+            />
+          )}
       </div>
+      <SalesPieChart />
     </>
   );
 }

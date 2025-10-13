@@ -6,7 +6,7 @@ import {
   DialogContent,
   DialogRoot,
 } from "@/components/ui/dialog";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Sales.module.css";
 import ComplementryModal from "./ComplementryModal";
 
@@ -29,7 +29,7 @@ function DispatchForm({
   const [destinations, setDestinations] = useState([
     { productId: "", quantity: "" },
   ]);
-const [complimentries, setComplimentries] = useState([]);
+  const [complimentries, setComplimentries] = useState([]);
   const { axiosAPI } = useAuth();
 
   const [openComplementryModal, setOpenComplementryModal] = useState(false);
@@ -56,6 +56,24 @@ const [complimentries, setComplimentries] = useState([]);
     );
     setDestinations(updated);
   };
+
+ 
+
+  const [products, setProducts] = useState();
+
+  useEffect(() => {
+    async function fetch(params) {
+      try {
+        const res = await axiosAPI.get("/products?showAll=true");
+        console.log(res);
+        setProducts(res.data.products);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    fetch();
+  }, []);
 
   const onSubmitBtn = async () => {
     if (!truckNumber || !driverName || !driverMobile) {
@@ -94,8 +112,12 @@ const [complimentries, setComplimentries] = useState([]);
         driverName,
         driverMobile,
         isPartialDispatch,
+        addComplementaryAttribute: isComplementryAdded,
+        complementaryItems: isComplementryAdded ? complimentries : [],
         ...(isPartialDispatch && { destinations }),
       };
+
+      console.log(dispatchData);
 
       const res = await axiosAPI.put(
         `/sales-orders/${orderId}/dispatch`,
@@ -188,15 +210,32 @@ const [complimentries, setComplimentries] = useState([]);
                 </label>
               </div>
             </div>
+            {isComplementryAdded && (
+              <div className={styles.compDetails}>
+                <h6>Complementry Details</h6>
+                {complimentries.map((comp) => {
+                  const product = products.find(
+                    (p) => String(p.id) === String(comp.productId)
+                  );
+                  return (
+                    <p>
+                      <span>{product?.name || comp.productId} : </span>
+                      {comp.bags} Bags
+                    </p>
+                  );
+                })}
+              </div>
+            )}
 
             <ComplementryModal
               openComplementryModal={openComplementryModal}
               setOpenComplementryModal={setOpenComplementryModal}
               isComplementryAdded={isComplementryAdded}
               setIsComplementryAdded={setIsComplementryAdded}
-              products={order.items}
+              products={products}
               complimentries={complimentries}
               setComplimentries={setComplimentries}
+              orderId={orderId}
             />
 
             {/* Partial Dispatch Destinations */}

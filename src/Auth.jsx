@@ -16,21 +16,21 @@ export const AuthProvider = ({ children }) => {
 
   // API Initialization
   const api = axios.create({
-    baseURL: BASE_URL,
+    baseURL: VITE_API,
     headers: {
       "Content-Type": "application/json",
     },
   });
 
   const formApi = axios.create({
-    baseURL: BASE_URL,
+    baseURL: VITE_API,
     headers: {
       "Content-Type": "multipart/form-data",
     },
   });
 
   const getPdf = axios.create({
-    baseURL: BASE_URL,
+    baseURL: VITE_API,
     headers: {
       "Content-Type": "Application/pdf",
     },
@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }) => {
       token = accessToken;
       reftoken = refreshToken;
       setIslogin(true);
-      
+
       // Start the refresh cycle
       console.log("Tokens saved, starting refresh cycle");
       startRefreshCycle();
@@ -116,10 +116,10 @@ export const AuthProvider = ({ children }) => {
   const startRefreshCycle = () => {
     const accessToken = localStorage.getItem("accessToken");
     const refreshToken = localStorage.getItem("refreshToken");
-    
+
     if (accessToken && refreshToken) {
       console.log("Starting token refresh cycle");
-      
+
       // Set up periodic refresh
       const interval = setInterval(
         async () => {
@@ -131,10 +131,9 @@ export const AuthProvider = ({ children }) => {
               return;
             }
 
-            const response = await axios.post(
-              `${VITE_API}/auth/refresh`,
-              { refreshToken: refreshToken }
-            );
+            const response = await axios.post(`${VITE_API}/auth/refresh`, {
+              refreshToken: refreshToken,
+            });
 
             console.log("Token refresh successful");
             localStorage.setItem("accessToken", response.data.accessToken);

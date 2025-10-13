@@ -440,7 +440,7 @@ a {
   background-color: #2fa924;
 }
 .cancelbtn {
-  background-color: #fd3b3b;
+  background-color: #fd3b3b !important;
 }
 .generatebtn {
   background-color: #2fa924;

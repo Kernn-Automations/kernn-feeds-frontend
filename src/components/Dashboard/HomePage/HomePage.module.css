@@ -1634,9 +1634,7 @@
 }
 
 /* Remove duplicate bigbox h4 override since we now have consistent heading styles */
-.secondRow .bigbox h4 {
-  /* All styles now handled by the unified heading styles above */
-}
+
 
 /* Fix heading positioning for all cards to match Order Status Overview and Customers */
 .orderStatusCard h4,

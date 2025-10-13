@@ -10,6 +10,7 @@ import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import axios from "axios";
 import Loading from "@/components/Loading";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function InvoicesPage({ navigate, setInvoiceId }) {
   const { axiosAPI } = useAuth();
@@ -43,21 +44,24 @@ function InvoicesPage({ navigate, setInvoiceId }) {
     async function fetchCustomers() {
       try {
         // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+        const currentDivisionName = localStorage.getItem("currentDivisionName");
+
         // ✅ Add division parameters to prevent wrong division data
         let endpoint = "/customers";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           endpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           endpoint += `?showAllDivisions=true`;
         }
-        
-        console.log('InvoicePage - Fetching customers with endpoint:', endpoint);
-        console.log('InvoicePage - Division ID:', currentDivisionId);
-        console.log('InvoicePage - Division Name:', currentDivisionName);
-        
+
+        console.log(
+          "InvoicePage - Fetching customers with endpoint:",
+          endpoint
+        );
+        console.log("InvoicePage - Division ID:", currentDivisionId);
+        console.log("InvoicePage - Division Name:", currentDivisionName);
+
         const res = await axiosAPI.get(endpoint);
         setCustomers(res.data.customers || []);
       } catch (err) {
@@ -73,24 +77,24 @@ function InvoicesPage({ navigate, setInvoiceId }) {
       try {
         setLoading(true);
         setInvoices(null);
-        
+
         // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+        const currentDivisionName = localStorage.getItem("currentDivisionName");
+
         // ✅ Add division parameters to prevent wrong division data
         let divisionParam = "";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           divisionParam = `&divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           divisionParam = `&showAllDivisions=true`;
         }
-        
-        console.log('InvoicePage - Fetching invoices with division filter');
-        console.log('InvoicePage - Division ID:', currentDivisionId);
-        console.log('InvoicePage - Division Name:', currentDivisionName);
-        console.log('InvoicePage - Division parameters added:', divisionParam);
-        
+
+        console.log("InvoicePage - Fetching invoices with division filter");
+        console.log("InvoicePage - Division ID:", currentDivisionId);
+        console.log("InvoicePage - Division Name:", currentDivisionName);
+        console.log("InvoicePage - Division parameters added:", divisionParam);
+
         const res = await axiosAPI.get(
           `/invoice?fromDate=${from}&toDate=${to}${
             warehouse ? `&warehouseId=${warehouse}` : ""
@@ -98,12 +102,12 @@ function InvoicesPage({ navigate, setInvoiceId }) {
         );
         console.log(res);
         const allItems = res.data.invoices;
-        console.log('All invoices:', allItems);
-        console.log('Total invoices:', allItems.length);
-        
+        console.log("All invoices:", allItems);
+        console.log("Total invoices:", allItems.length);
+
         // Store all invoices for frontend pagination
         setAllInvoices(allItems);
-        
+
         // Apply frontend pagination
         updatePagination(allItems, pageNo, limit);
       } catch (e) {
@@ -126,17 +130,17 @@ function InvoicesPage({ navigate, setInvoiceId }) {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedItems = allItems.slice(startIndex, endIndex);
-    
-    console.log('🔄 Frontend pagination:', {
+
+    console.log("🔄 Frontend pagination:", {
       totalItems: allItems.length,
       currentPage,
       itemsPerPage,
       startIndex,
       endIndex,
       paginatedItemsCount: paginatedItems.length,
-      totalPages: Math.ceil(allItems.length / itemsPerPage)
+      totalPages: Math.ceil(allItems.length / itemsPerPage),
     });
-    
+
     setInvoices(paginatedItems);
     setTotalPages(Math.ceil(allItems.length / itemsPerPage));
   };
@@ -169,25 +173,28 @@ function InvoicesPage({ navigate, setInvoiceId }) {
       "Date",
       "Invoice Number",
       "Invoice Type",
-      "Order ID",
-      "Warehouse",
-      "Customer ID",
+      "Sales Order Number",
       "Customer Name",
+      "Customer Mobile",
+      "Total Bags",
       "Amount",
-      "Status",
     ];
 
     const data = invoices.map((inv, i) => ({
-      "S.No": i + 1,
+      "S.No": (pageNo - 1) * limit + i + 1,
       Date: inv.invoiceDate?.slice(0, 10),
       "Invoice Number": inv.invoiceNumber,
-      "Invoice Type": inv.type,
-      "Order ID": inv.salesOrder?.id,
-      Warehouse: inv.salesOrder?.warehouse?.name,
-      "Customer ID": inv.customer?.customer_id,
+      "Invoice Type":
+        inv.type === "bill_of_supply"
+          ? "Bill Of Supply"
+          : inv.type === "tax_invoice"
+            ? "Tax Invoice"
+            : inv.type,
+      "Sales Order Number": inv.salesOrder?.orderNumber,
       "Customer Name": inv.customer?.name,
-      Amount: inv.salesOrder?.totalAmount,
-      Status: inv.salesOrder?.orderStatus,
+      "Customer Mobile": inv.customer?.mobile,
+      "Total Bags": inv.totalBags,
+      Amount: inv.totalAmount,
     }));
 
     if (type === "PDF") handleExportPDF(columns, data, "Invoices");
@@ -239,20 +246,11 @@ function InvoicesPage({ navigate, setInvoiceId }) {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className="col-3 formcontent">
-          <label>Customer:</label>
-          <select
-            value={customer || ""}
-            onChange={(e) => setCustomer(e.target.value || null)}
-          >
-            <option value="">--select--</option>
-            {customers?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Customers"
+          onSelect={setCustomer}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+        />
       </div>
 
       <div className="row m-0 p-3 justify-content-center">
@@ -305,7 +303,18 @@ function InvoicesPage({ navigate, setInvoiceId }) {
             <div className="row m-0 p-0 mb-3 justify-content-between">
               <div className="col-lg-6">
                 <p className="text-muted mb-0">
-                  Showing {invoices && invoices.length > 0 ? ((pageNo - 1) * limit) + 1 : 0} to {invoices && invoices.length > 0 ? Math.min(pageNo * limit, ((pageNo - 1) * limit) + invoices.length) : 0} of {allInvoices ? allInvoices.length : 0} entries
+                  Showing{" "}
+                  {invoices && invoices.length > 0
+                    ? (pageNo - 1) * limit + 1
+                    : 0}{" "}
+                  to{" "}
+                  {invoices && invoices.length > 0
+                    ? Math.min(
+                        pageNo * limit,
+                        (pageNo - 1) * limit + invoices.length
+                      )
+                    : 0}{" "}
+                  of {allInvoices ? allInvoices.length : 0} entries
                   {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
                 </p>
               </div>
@@ -316,12 +325,13 @@ function InvoicesPage({ navigate, setInvoiceId }) {
                 <tr>
                   <th>S.No</th>
                   <th>Date</th>
-                  <th>Invoice #</th>
+                  <th>Invoice Number</th>
                   <th>Invoice Type</th>
-                  <th>Customer ID</th>
-                  <th>Customer</th>
+                  <th>Sales Order Number</th>
+                  <th>Customer Name</th>
+                  <th>Customer Mobile</th>
+                  <th>Total Bags</th>
                   <th>Amount</th>
-                  <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -333,7 +343,7 @@ function InvoicesPage({ navigate, setInvoiceId }) {
                 ) : (
                   invoices.map((inv, i) => (
                     <tr key={inv.id}>
-                      <td>{((pageNo - 1) * limit) + i + 1}</td>
+                      <td>{(pageNo - 1) * limit + i + 1}</td>
                       <td>{inv.invoiceDate?.slice(0, 10)}</td>
                       <td>{inv.invoiceNumber}</td>
                       <td>
@@ -343,10 +353,15 @@ function InvoicesPage({ navigate, setInvoiceId }) {
                             ? "Tax Invoice"
                             : inv.type}
                       </td>
-                      <td>{inv.customer?.customer_id}</td>
+                      <td>{inv.salesOrder?.orderNumber}</td>
                       <td>{inv.customer?.name}</td>
+                      <td>{inv.customer?.mobile}</td>
+                      <td>
+                        {inv.totalBags === 1
+                          ? `${inv.totalBags} Bag`
+                          : `${inv.totalBags} Bags`}{" "}
+                      </td>
                       <td>₹{Number(inv.grandTotal || 0).toFixed(2)}</td>
-                      <td>{inv.salesOrder?.orderStatus}</td>
 
                       {/* ✅ DC PDF View Button */}
                       <td>

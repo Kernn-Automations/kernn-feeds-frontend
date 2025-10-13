@@ -131,17 +131,6 @@ function WarehouseWiseReport({ navigate }) {
 
   let index = 1;
 
-  const [warehouseOptions, setWarehouseOptions] = useState();
-
-  useEffect(() => {
-    const warehouseOptions = [
-      { value: "null", label: "--select--" },
-      ...(warehouses?.map((w) => ({ value: w.id, label: w.name })) || []),
-    ];
-
-    setWarehouseOptions(warehouseOptions);
-  }, [warehouses]);
-
   return (
     <>
       <p className="path">
@@ -175,9 +164,9 @@ function WarehouseWiseReport({ navigate }) {
           />
         </div>
         <CustomSearchDropdown
-          label={"Warehouse"}
+          label="Warehouse"
           onSelect={setWarehouse}
-          options={warehouseOptions}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
         />
       </div>
 

@@ -13,6 +13,7 @@ import Loading from "@/components/Loading";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import { FaSearch } from "react-icons/fa";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 function IncomingStock({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
   const [warehouses, setWarehouses] = useState();
@@ -358,50 +359,19 @@ function IncomingStock({ navigate }) {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">WareHouse :</label>
-          <select
-            name=""
-            id=""
-            onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            <option value="all">All Warehouses</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-          </select>
-        </div>
 
         <CustomSearchDropdown
-          label={"Warehouse"}
+          label="Warehouse"
           onSelect={setWarehouse}
-          options={warehouseOptions}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
         />
 
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Product :</label>
-          <select
-            name=""
-            id=""
-            onChange={(e) =>
-              setProduct(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {products &&
-              products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Products"
+          onSelect={setProduct}
+          options={products?.map((p) => ({ value: p.id, label: p.name }))}
+        />
+
         {/* <div className={`col-3 formcontent`}>
           <label htmlFor="">Customers :</label>
           <select name="" id="" onChange={(e) => setCustomer(e.target.value === "null" ? null : e.target.value)}>
