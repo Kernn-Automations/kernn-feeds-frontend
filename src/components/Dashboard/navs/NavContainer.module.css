@@ -24,7 +24,7 @@
   overflow-x: hidden;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none;
-  
+  padding: 5px;
  
 }
 
@@ -93,7 +93,7 @@
 
 .navicons > div:hover {
   background-color: var(--primary-color);
-  border-radius: 13px;
+  border-radius: 8px;
   color: white;
   transition: 0.2s ease;
   transform: scale(1.04);

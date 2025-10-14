@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   DialogBody,
   DialogCloseTrigger,
@@ -6,45 +6,74 @@ import {
   DialogRoot,
 } from "@/components/ui/dialog";
 import styles from "./Sales.module.css";
+import { useAuth } from "@/Auth";
 
 function ComplementryModal({
   openComplementryModal,
   setOpenComplementryModal,
   isComplementryAdded,
   setIsComplementryAdded,
-  complimentries, // always default to array
+  complimentries = [],
   setComplimentries,
-  products = [], // also safe default
+  products = [],
+  orderId,
 }) {
   const [currentRow, setCurrentRow] = useState({ productId: "", bags: "" });
 
-  // Handle input changes in the current row
+  const { axiosAPI } = useAuth();
+
+  // ✅ Compute available products excluding already added ones
+  const availableProducts = useMemo(() => {
+    const addedIds = new Set(complimentries.map((c) => String(c.productId)));
+    return products.filter((p) => !addedIds.has(String(p.id)));
+  }, [products, complimentries]);
+
+  // ✅ Handle input changes
   const handleRowChange = (field, value) => {
     setCurrentRow((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Add selected product to complimentries
+  // ✅ Add new product to complimentries
   const handleAddProduct = () => {
-    if (!currentRow.productId || !currentRow.bags) return; // simple validation
+    if (!currentRow.productId || !currentRow.bags) return;
 
-    console.log(currentRow);
-    setComplimentries((prev) => [...(prev || []), { ...currentRow }]);
-    setCurrentRow({ productId: "", bags: "" }); // reset for next input
+    setComplimentries((prev) => {
+      const updated = [...(prev || []), { ...currentRow }];
+      return updated;
+    });
+
+    setCurrentRow({ productId: "", bags: "" });
     setIsComplementryAdded(true);
-    console.log(complimentries);
   };
 
-  // Remove a product from complimentries
+  // ✅ Remove product and re-enable it in dropdown
   const handleRemoveProduct = (productId) => {
     setComplimentries((prev) =>
-      (prev || []).filter((c) => c.productId !== productId)
+      (prev || []).filter((c) => String(c.productId) !== String(productId))
     );
   };
 
-  // Filter products for dropdown (exclude already added)
-  const availableProducts = products.filter(
-    (p) => !(complimentries || []).some((c) => c.productId === p.productId)
-  );
+  const [pastcomps, setPastcomps] = useState();
+  const [loading, setLoading] = useState();
+
+  useEffect(() => {
+    async function fetch(params) {
+      try {
+        setLoading(true);
+        const res = await axiosAPI.get(
+          `/sales-orders/${orderId}/partial-dispatch-status`
+        );
+        console.log(res);
+        setPastcomps(res.data.complimentaryItems);
+      } catch (e) {
+        console.log(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetch();
+  }, []);
 
   return (
     <DialogRoot
@@ -58,7 +87,29 @@ function ComplementryModal({
         <DialogBody>
           <h5>Products Quantity</h5>
 
-          <table className="table table-bordered mt-3 borderedtable">
+          {loading && <p>Loading...</p>}
+
+          {pastcomps && (
+            <div className={styles.compDetails}>
+              <h6>Past Complementries</h6>
+              {pastcomps.length === 0 && <p>No Past Complimentries</p>}
+              {pastcomps.map((comp) => {
+                const product = products.find(
+                  (p) => String(p.id) === String(comp.productId)
+                );
+                return (
+                  <p>
+                    <span>{product?.name || comp.productId} : </span>
+                    {comp.bags} Bags
+                  </p>
+                );
+              })}
+            </div>
+          )}
+
+          <table
+            className={`table table-bordered mt-3 borderedtable ${styles.dispatchTable}`}
+          >
             <thead>
               <tr>
                 <th>Product</th>
@@ -67,27 +118,28 @@ function ComplementryModal({
               </tr>
             </thead>
             <tbody>
-              {/* Input row */}
-
-              {/* Already added products */}
+              {/* ✅ Existing added products */}
               {(complimentries || []).map((item) => {
-                const product = products.find((p) => p.productId === item.productId);
+                const product = products.find(
+                  (p) => String(p.id) === String(item.productId)
+                );
                 return (
                   <tr key={item.productId}>
-                    <td>{product?.productName || item.productId}</td>
+                    <td>{product?.name || item.productId}</td>
                     <td>{item.bags}</td>
                     <td>
                       <button
-                        className="btn btn-danger"
+                        className="cancelbtn"
                         onClick={() => handleRemoveProduct(item.productId)}
                       >
-                        Remove
+                        <i class="bi bi-trash3"></i>
                       </button>
                     </td>
                   </tr>
                 );
               })}
 
+              {/* ✅ Input row for adding new product */}
               <tr>
                 <td>
                   <select
@@ -95,12 +147,11 @@ function ComplementryModal({
                     onChange={(e) =>
                       handleRowChange("productId", e.target.value)
                     }
-                    className="form-select"
                   >
                     <option value="">Select Product</option>
                     {availableProducts.map((prod) => (
                       <option key={prod.id} value={prod.id}>
-                        {prod.productName}
+                        {prod.name}
                       </option>
                     ))}
                   </select>
@@ -110,17 +161,11 @@ function ComplementryModal({
                     type="number"
                     value={currentRow.bags}
                     onChange={(e) => handleRowChange("bags", e.target.value)}
-                    className="form-control"
                     min="1"
                   />
                 </td>
                 <td>
-                  <button
-                    className="btn btn-success"
-                    onClick={handleAddProduct}
-                  >
-                    Add
-                  </button>
+                  <button onClick={handleAddProduct}>Add</button>
                 </td>
               </tr>
             </tbody>
@@ -138,7 +183,10 @@ function ComplementryModal({
             </button>
             <button
               className="submitbtn"
-              onClick={() => setOpenComplementryModal(false)}
+              onClick={() => {
+                setOpenComplementryModal(false);
+                console.log("Final complementries:", complimentries);
+              }}
             >
               Done
             </button>

@@ -12,6 +12,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function PurchaseReport({ navigate }) {
   const [onsubmit, setonsubmit] = useState(false);
@@ -53,7 +54,7 @@ function PurchaseReport({ navigate }) {
   // Add ESC key functionality to exit search mode
   useEffect(() => {
     const handleEscKey = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (showDateSearch) {
           setShowDateSearch(false);
           setDateSearchTerm("");
@@ -70,11 +71,11 @@ function PurchaseReport({ navigate }) {
     };
 
     if (showDateSearch || showPurchaseIdSearch || showWarehouseSearch) {
-      document.addEventListener('keydown', handleEscKey);
+      document.addEventListener("keydown", handleEscKey);
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscKey);
+      document.removeEventListener("keydown", handleEscKey);
     };
   }, [showDateSearch, showPurchaseIdSearch, showWarehouseSearch]);
 
@@ -82,32 +83,42 @@ function PurchaseReport({ navigate }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Check if click is outside any of the search headers
-      const dateHeader = document.querySelector('[data-date-header]');
-      const purchaseIdHeader = document.querySelector('[data-purchaseid-header]');
-      const warehouseHeader = document.querySelector('[data-warehouse-header]');
-      
+      const dateHeader = document.querySelector("[data-date-header]");
+      const purchaseIdHeader = document.querySelector(
+        "[data-purchaseid-header]"
+      );
+      const warehouseHeader = document.querySelector("[data-warehouse-header]");
+
       if (showDateSearch && dateHeader && !dateHeader.contains(event.target)) {
         setShowDateSearch(false);
         setDateSearchTerm("");
       }
-      
-      if (showPurchaseIdSearch && purchaseIdHeader && !purchaseIdHeader.contains(event.target)) {
+
+      if (
+        showPurchaseIdSearch &&
+        purchaseIdHeader &&
+        !purchaseIdHeader.contains(event.target)
+      ) {
         setShowPurchaseIdSearch(false);
         setPurchaseIdSearchTerm("");
       }
-      
-      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+
+      if (
+        showWarehouseSearch &&
+        warehouseHeader &&
+        !warehouseHeader.contains(event.target)
+      ) {
         setShowWarehouseSearch(false);
         setWarehouseSearchTerm("");
       }
     };
 
     if (showDateSearch || showPurchaseIdSearch || showWarehouseSearch) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDateSearch, showPurchaseIdSearch, showWarehouseSearch]);
 
@@ -150,17 +161,17 @@ function PurchaseReport({ navigate }) {
       // Build query with optional date filters
       let query = `/purchases`;
       const params = [];
-      
+
       if (from && to) {
         params.push(`fromDate=${from}&toDate=${to}`);
       }
-      
+
       if (warehouse && warehouse !== "null") {
         params.push(`warehouseId=${warehouse}`);
       }
-      
+
       if (params.length > 0) {
-        query += `?${params.join('&')}`;
+        query += `?${params.join("&")}`;
       }
 
       console.log("Refreshing purchase orders...");
@@ -169,13 +180,13 @@ function PurchaseReport({ navigate }) {
       const res = await axiosAPI.get(query);
       console.log("Refresh - Full API Response:", res);
       console.log("Refresh - API purchaseOrders:", res.data.purchaseOrders);
-      
+
       // Client-side pagination since backend is not respecting limit
       const allPurchases = res.data.purchaseOrders || [];
       const startIndex = (pageNo - 1) * limit;
       const endIndex = startIndex + limit;
       const paginatedPurchases = allPurchases.slice(startIndex, endIndex);
-      
+
       setPurchases(paginatedPurchases);
       console.log("✅ Purchase orders refreshed successfully");
     } catch (error) {
@@ -200,36 +211,41 @@ function PurchaseReport({ navigate }) {
         setLoading(true);
 
         // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+        const currentDivisionName = localStorage.getItem("currentDivisionName");
 
         // Build query with optional date filters and division parameters
         let query = `/purchases`;
         const params = [];
-        
+
         if (from && to) {
           params.push(`fromDate=${from}&toDate=${to}`);
         }
-        
+
         if (warehouse && warehouse !== "null") {
           params.push(`warehouseId=${warehouse}`);
         }
-        
+
         // ✅ Add division parameters
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           params.push(`divisionId=${currentDivisionId}`);
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           params.push(`showAllDivisions=true`);
         }
-        
+
         if (params.length > 0) {
-          query += `?${params.join('&')}`;
+          query += `?${params.join("&")}`;
         }
 
         console.log("PurchaseReport - API Query:", query);
         console.log("PurchaseReport - Division ID:", currentDivisionId);
         console.log("PurchaseReport - Division Name:", currentDivisionName);
-        console.log("PurchaseReport - Limit value:", limit, "Type:", typeof limit);
+        console.log(
+          "PurchaseReport - Limit value:",
+          limit,
+          "Type:",
+          typeof limit
+        );
         console.log("PurchaseReport - Page number:", pageNo);
 
         const res = await axiosAPI.get(query);
@@ -237,13 +253,13 @@ function PurchaseReport({ navigate }) {
         console.log("API purchaseOrders:", res.data.purchaseOrders);
         console.log("Total Pages:", res.data.totalPages);
         console.log("Records returned:", res.data.purchaseOrders?.length || 0);
-        
+
         // Client-side pagination since backend is not respecting limit
         const allPurchases = res.data.purchaseOrders || [];
         const startIndex = (pageNo - 1) * limit;
         const endIndex = startIndex + limit;
         const paginatedPurchases = allPurchases.slice(startIndex, endIndex);
-        
+
         setPurchases(paginatedPurchases);
         setTotalPages(Math.ceil(allPurchases.length / limit));
       } catch (e) {
@@ -267,10 +283,14 @@ function PurchaseReport({ navigate }) {
       purchases.map((st) =>
         arr.push({
           "S.No": x++,
-  Date: st.createdAt ? st.createdAt.slice(0, 10) : '',
-  "PO ID": st.orderNumber || st.ordernumber || 'N/A',
-  "Warehouse Name": st.warehouse || warehouses?.find(w => w.id === st.warehouseId)?.name || st.warehouseId || 'N/A',
-  "Net Amount": st.totalAmount || "",
+          Date: st.createdAt ? st.createdAt.slice(0, 10) : "",
+          "PO ID": st.orderNumber || st.ordernumber || "N/A",
+          "Warehouse Name":
+            st.warehouse ||
+            warehouses?.find((w) => w.id === st.warehouseId)?.name ||
+            st.warehouseId ||
+            "N/A",
+          "Net Amount": st.totalAmount || "",
         })
       );
       setTableData(arr);
@@ -309,25 +329,12 @@ function PurchaseReport({ navigate }) {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">WareHouse :</label>
-          <select
-            name=""
-            id=""
-            value={warehouse ?? ""}
-            onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Warehouse"
+          onSelect={setWarehouse}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+        />
+
         <div className={`col-3`}>
           <button className="submitbtn" onClick={onSubmit}>
             Submit
@@ -370,13 +377,19 @@ function PurchaseReport({ navigate }) {
               <thead>
                 <tr>
                   <th>S.No</th>
-                  <th 
+                  <th
                     onClick={() => setShowDateSearch(!showDateSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                     data-date-header
                   >
                     {showDateSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search by date..."
@@ -384,14 +397,14 @@ function PurchaseReport({ navigate }) {
                           onChange={(e) => setDateSearchTerm(e.target.value)}
                           style={{
                             flex: 1,
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            minWidth: '120px',
-                            height: '28px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                           autoFocus
                         />
@@ -402,19 +415,19 @@ function PurchaseReport({ navigate }) {
                               setDateSearchTerm("");
                             }}
                             style={{
-                              padding: '4px 8px',
-                              border: '1px solid #dc3545',
-                              borderRadius: '4px',
-                              background: '#dc3545',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              minWidth: '24px',
-                              height: '28px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             ✕
@@ -422,33 +435,41 @@ function PurchaseReport({ navigate }) {
                         )}
                       </div>
                     ) : (
-                      <>
-                        Date
-                      </>
+                      <>Date</>
                     )}
                   </th>
-                  <th 
-                    onClick={() => setShowPurchaseIdSearch(!showPurchaseIdSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                  <th
+                    onClick={() =>
+                      setShowPurchaseIdSearch(!showPurchaseIdSearch)
+                    }
+                    style={{ cursor: "pointer", position: "relative" }}
                     data-purchaseid-header
                   >
                     {showPurchaseIdSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search by purchase ID..."
                           value={purchaseIdSearchTerm}
-                          onChange={(e) => setPurchaseIdSearchTerm(e.target.value)}
+                          onChange={(e) =>
+                            setPurchaseIdSearchTerm(e.target.value)
+                          }
                           style={{
                             flex: 1,
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            minWidth: '120px',
-                            height: '28px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                           autoFocus
                         />
@@ -459,19 +480,19 @@ function PurchaseReport({ navigate }) {
                               setPurchaseIdSearchTerm("");
                             }}
                             style={{
-                              padding: '4px 8px',
-                              border: '1px solid #dc3545',
-                              borderRadius: '4px',
-                              background: '#dc3545',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              minWidth: '24px',
-                              height: '28px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             ✕
@@ -479,33 +500,39 @@ function PurchaseReport({ navigate }) {
                         )}
                       </div>
                     ) : (
-                      <>
-                        Purchase ID
-                      </>
+                      <>Purchase ID</>
                     )}
                   </th>
-                  <th 
+                  <th
                     onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                     data-warehouse-header
                   >
                     {showWarehouseSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search by warehouse..."
                           value={warehouseSearchTerm}
-                          onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                          onChange={(e) =>
+                            setWarehouseSearchTerm(e.target.value)
+                          }
                           style={{
                             flex: 1,
-                            padding: '2px 6px',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            minWidth: '120px',
-                            height: '28px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                           autoFocus
                         />
@@ -516,19 +543,19 @@ function PurchaseReport({ navigate }) {
                               setWarehouseSearchTerm("");
                             }}
                             style={{
-                              padding: '4px 8px',
-                              border: '1px solid #dc3545',
-                              borderRadius: '4px',
-                              background: '#dc3545',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              minWidth: '24px',
-                              height: '28px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             ✕
@@ -536,36 +563,61 @@ function PurchaseReport({ navigate }) {
                         )}
                       </div>
                     ) : (
-                      <>
-                        Warehouse
-                      </>
+                      <>Warehouse</>
                     )}
                   </th>
                   <th>Status</th>
                   {/* <th>Net Amount</th> */}
                   <th>Action</th>
                 </tr>
-                {(showDateSearch && dateSearchTerm) || (showPurchaseIdSearch && purchaseIdSearchTerm) || (showWarehouseSearch && warehouseSearchTerm) ? (
+                {(showDateSearch && dateSearchTerm) ||
+                (showPurchaseIdSearch && purchaseIdSearchTerm) ||
+                (showWarehouseSearch && warehouseSearchTerm) ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                    <td
+                      colSpan={6}
+                      style={{
+                        padding: "8px",
+                        fontSize: "12px",
+                        color: "#666",
+                        backgroundColor: "#f8f9fa",
+                      }}
+                    >
                       {(() => {
-                        const filteredItems = purchases.filter(order => {
+                        const filteredItems = purchases.filter((order) => {
                           let pass = true;
                           if (dateSearchTerm) {
-                            const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
+                            const orderDate = order.createdAt
+                              ? order.createdAt.slice(0, 10)
+                              : "";
                             if (!orderDate.includes(dateSearchTerm)) {
                               pass = false;
                             }
                           }
                           if (purchaseIdSearchTerm) {
-                            const orderId = order.orderNumber || order.ordernumber || '';
-                            if (!orderId.toLowerCase().includes(purchaseIdSearchTerm.toLowerCase())) {
+                            const orderId =
+                              order.orderNumber || order.ordernumber || "";
+                            if (
+                              !orderId
+                                .toLowerCase()
+                                .includes(purchaseIdSearchTerm.toLowerCase())
+                            ) {
                               pass = false;
                             }
                           }
                           if (warehouseSearchTerm) {
-                            const warehouseName = order.warehouse || warehouses?.find(w => w.id === order.warehouseId)?.name || order.warehouseId || '';
-                            if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                            const warehouseName =
+                              order.warehouse ||
+                              warehouses?.find(
+                                (w) => w.id === order.warehouseId
+                              )?.name ||
+                              order.warehouseId ||
+                              "";
+                            if (
+                              !warehouseName
+                                .toLowerCase()
+                                .includes(warehouseSearchTerm.toLowerCase())
+                            ) {
                               pass = false;
                             }
                           }
@@ -581,47 +633,67 @@ function PurchaseReport({ navigate }) {
                 {(() => {
                   // Apply search filters to the purchases data
                   let filteredPurchases = purchases || [];
-                  
-                  if (dateSearchTerm || purchaseIdSearchTerm || warehouseSearchTerm) {
-                    filteredPurchases = filteredPurchases.filter(order => {
+
+                  if (
+                    dateSearchTerm ||
+                    purchaseIdSearchTerm ||
+                    warehouseSearchTerm
+                  ) {
+                    filteredPurchases = filteredPurchases.filter((order) => {
                       let pass = true;
-                      
+
                       // Apply date search filter
                       if (dateSearchTerm) {
-                        const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
+                        const orderDate = order.createdAt
+                          ? order.createdAt.slice(0, 10)
+                          : "";
                         if (!orderDate.includes(dateSearchTerm)) {
                           pass = false;
                         }
                       }
-                      
+
                       // Apply purchase ID search filter
                       if (purchaseIdSearchTerm) {
-                        const orderId = order.orderNumber || order.ordernumber || '';
-                        if (!orderId.toLowerCase().includes(purchaseIdSearchTerm.toLowerCase())) {
+                        const orderId =
+                          order.orderNumber || order.ordernumber || "";
+                        if (
+                          !orderId
+                            .toLowerCase()
+                            .includes(purchaseIdSearchTerm.toLowerCase())
+                        ) {
                           pass = false;
                         }
                       }
-                      
+
                       // Apply warehouse search filter
                       if (warehouseSearchTerm) {
-                        const warehouseName = order.warehouse || warehouses?.find(w => w.id === order.warehouseId)?.name || order.warehouseId || '';
-                        if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
+                        const warehouseName =
+                          order.warehouse ||
+                          warehouses?.find((w) => w.id === order.warehouseId)
+                            ?.name ||
+                          order.warehouseId ||
+                          "";
+                        if (
+                          !warehouseName
+                            .toLowerCase()
+                            .includes(warehouseSearchTerm.toLowerCase())
+                        ) {
                           pass = false;
                         }
                       }
-                      
+
                       return pass;
                     });
                   }
-                  
+
                   if (filteredPurchases.length === 0) {
                     return (
                       <tr>
                         <td colSpan={6}>NO DATA FOUND</td>
-                  </tr>
+                      </tr>
                     );
                   }
-                  
+
                   return filteredPurchases.map((order, index) => (
                     <tr
                       key={order.id}
@@ -629,18 +701,32 @@ function PurchaseReport({ navigate }) {
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <td>{index + 1}</td>
-        <td>{order.createdAt ? order.createdAt.slice(0, 10) : ''}</td>
-        <td>{order.orderNumber || order.ordernumber || 'N/A'}</td>
-        <td>
-          {order.warehouse || warehouses?.find(w => w.id === order.warehouseId)?.name || order.warehouseId || 'N/A'}
-        </td>
-        <td>
-          <span className={`badge ${order.status === 'Received' ? 'bg-success' : 'bg-warning'}`}>
-            {order.status === 'Received' ? 'Stocked In' : 'Pending'}
-          </span>
-        </td>
                       <td>
-          <ReportViewModal order={order} warehouses={warehouses} setWarehouses={setWarehouses} />
+                        {order.createdAt ? order.createdAt.slice(0, 10) : ""}
+                      </td>
+                      <td>{order.orderNumber || order.ordernumber || "N/A"}</td>
+                      <td>
+                        {order.warehouse ||
+                          warehouses?.find((w) => w.id === order.warehouseId)
+                            ?.name ||
+                          order.warehouseId ||
+                          "N/A"}
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${order.status === "Received" ? "bg-success" : "bg-warning"}`}
+                        >
+                          {order.status === "Received"
+                            ? "Stocked In"
+                            : "Pending"}
+                        </span>
+                      </td>
+                      <td>
+                        <ReportViewModal
+                          order={order}
+                          warehouses={warehouses}
+                          setWarehouses={setWarehouses}
+                        />
                       </td>
                     </tr>
                   ));

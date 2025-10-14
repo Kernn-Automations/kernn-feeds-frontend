@@ -6,6 +6,7 @@ import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import KYCModal from "./KYCModal";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function KYCApproval({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -32,25 +33,28 @@ function KYCApproval({ navigate, isAdmin }) {
     async function fetchWarehouses() {
       try {
         // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+        const currentDivisionName = localStorage.getItem("currentDivisionName");
+
         // ✅ Add division parameters to warehouses endpoint
         let warehousesEndpoint = "/warehouses";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           warehousesEndpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           warehousesEndpoint += `?showAllDivisions=true`;
         }
-        
-        console.log('KYCApproval - Fetching warehouses with endpoint:', warehousesEndpoint);
-        console.log('KYCApproval - Division ID:', currentDivisionId);
-        console.log('KYCApproval - Division Name:', currentDivisionName);
-        
+
+        console.log(
+          "KYCApproval - Fetching warehouses with endpoint:",
+          warehousesEndpoint
+        );
+        console.log("KYCApproval - Division ID:", currentDivisionId);
+        console.log("KYCApproval - Division Name:", currentDivisionName);
+
         const res = await axiosAPI.get(warehousesEndpoint);
         setWarehouses(res.data.warehouses || []);
       } catch (e) {
-        console.error('Failed to fetch warehouses:', e);
+        console.error("Failed to fetch warehouses:", e);
       }
     }
     fetchWarehouses();
@@ -62,11 +66,11 @@ function KYCApproval({ navigate, isAdmin }) {
       try {
         setLoading(true);
         setCustomers([]);
-        
+
         // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+        const currentDivisionName = localStorage.getItem("currentDivisionName");
+
         // ✅ Add division parameters to endpoint
         let query = "";
         if (searchTerm.trim().length >= 3) {
@@ -75,45 +79,48 @@ function KYCApproval({ navigate, isAdmin }) {
           // Remove pagination parameters to get all customers for frontend pagination
           query = `/customers?kycStatus=Pending`;
         }
-        
+
         // ✅ Add warehouse filter if selected
         if (warehouse && warehouse !== "all") {
           query += `&warehouseId=${warehouse}`;
         }
-        
+
         // ✅ Add division parameters to query
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           query += `&divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           query += `&showAllDivisions=true`;
         }
-        
+
         // ✅ Add division parameters to search query as well
         if (searchTerm.trim().length >= 3) {
-          if (currentDivisionId && currentDivisionId !== '1') {
+          if (currentDivisionId && currentDivisionId !== "1") {
             query += `&divisionId=${currentDivisionId}`;
-          } else if (currentDivisionId === '1') {
+          } else if (currentDivisionId === "1") {
             query += `&showAllDivisions=true`;
           }
         }
-        
-        console.log('KYCApproval - Fetching customers with query:', query);
-        console.log('KYCApproval - Selected warehouse:', warehouse);
-        console.log('KYCApproval - Warehouse filter applied:', warehouse && warehouse !== "all");
-        console.log('KYCApproval - Division ID:', currentDivisionId);
-        console.log('KYCApproval - Division Name:', currentDivisionName);
-        
+
+        console.log("KYCApproval - Fetching customers with query:", query);
+        console.log("KYCApproval - Selected warehouse:", warehouse);
+        console.log(
+          "KYCApproval - Warehouse filter applied:",
+          warehouse && warehouse !== "all"
+        );
+        console.log("KYCApproval - Division ID:", currentDivisionId);
+        console.log("KYCApproval - Division Name:", currentDivisionName);
+
         const res = await axiosAPI.get(query);
-        console.log(res)
-        
+        console.log(res);
+
         // Get all customers from response
         const allItems = res.data.customers;
-        console.log('All customers:', allItems);
-        console.log('Total customers:', allItems.length);
-        
+        console.log("All customers:", allItems);
+        console.log("Total customers:", allItems.length);
+
         // Store all customers for frontend pagination
         setAllCustomers(allItems);
-        
+
         // Apply frontend pagination
         updatePagination(allItems, pageNo, limit);
       } catch (e) {
@@ -137,17 +144,17 @@ function KYCApproval({ navigate, isAdmin }) {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedItems = allItems.slice(startIndex, endIndex);
-    
-    console.log('🔄 Frontend pagination:', {
+
+    console.log("🔄 Frontend pagination:", {
       totalItems: allItems.length,
       currentPage,
       itemsPerPage,
       startIndex,
       endIndex,
       paginatedItemsCount: paginatedItems.length,
-      totalPages: Math.ceil(allItems.length / itemsPerPage)
+      totalPages: Math.ceil(allItems.length / itemsPerPage),
     });
-    
+
     setCustomers(paginatedItems);
     setTotalPages(Math.ceil(allItems.length / itemsPerPage));
   };
@@ -176,23 +183,13 @@ function KYCApproval({ navigate, isAdmin }) {
       {!customerId && (
         <>
           <div className="row m-0 p-3">
-            <div className="col-3 formcontent">
-              <label>WareHouse:</label>
-              <select
-                value={warehouse || ""}
-                onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
-              >
-                <option value="null">--select--</option>
-                <option value="all">All Warehouses</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomSearchDropdown
+              label="Warehouse"
+              onSelect={setWarehouse}
+              options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+            />
           </div>
-          
+
           <div className="row m-0 p-3 pt-5 justify-content-end">
             <div className={`col-4 ${styles.search}`}>
               <input
@@ -214,8 +211,14 @@ function KYCApproval({ navigate, isAdmin }) {
                 value={limit}
                 onChange={(e) => {
                   const newLimit = Number(e.target.value);
-                  console.log('🔄 Entity selection changed:', { oldLimit: limit, newLimit });
-                  console.log('🔄 Current allCustomers length:', allCustomers.length);
+                  console.log("🔄 Entity selection changed:", {
+                    oldLimit: limit,
+                    newLimit,
+                  });
+                  console.log(
+                    "🔄 Current allCustomers length:",
+                    allCustomers.length
+                  );
                   setLimit(newLimit);
                   setPageNo(1); // reset to page 1 on limit change
                 }}
@@ -233,7 +236,18 @@ function KYCApproval({ navigate, isAdmin }) {
               <div className="row m-0 p-0 mb-3 justify-content-between">
                 <div className="col-lg-6">
                   <p className="text-muted mb-0">
-                    Showing {customers && customers.length > 0 ? ((pageNo - 1) * limit) + 1 : 0} to {customers && customers.length > 0 ? Math.min(pageNo * limit, ((pageNo - 1) * limit) + customers.length) : 0} of {allCustomers ? allCustomers.length : 0} entries
+                    Showing{" "}
+                    {customers && customers.length > 0
+                      ? (pageNo - 1) * limit + 1
+                      : 0}{" "}
+                    to{" "}
+                    {customers && customers.length > 0
+                      ? Math.min(
+                          pageNo * limit,
+                          (pageNo - 1) * limit + customers.length
+                        )
+                      : 0}{" "}
+                    of {allCustomers ? allCustomers.length : 0} entries
                     {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
                   </p>
                 </div>
@@ -264,10 +278,12 @@ function KYCApproval({ navigate, isAdmin }) {
                       className="animated-row"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <td>{((pageNo - 1) * limit) + index + 1}</td>
+                      <td>{(pageNo - 1) * limit + index + 1}</td>
                       <td>{customer.customer_id}</td>
                       <td>{customer.name}</td>
-                      <td>{customer.firmName || customer.firm_name || 'N/A'}</td>
+                      <td>
+                        {customer.firmName || customer.firm_name || "N/A"}
+                      </td>
                       <td>{customer.salesExecutive?.id}</td>
                       <td>{customer.salesExecutive?.name}</td>
                       <td>{customer.warehouse?.name}</td>

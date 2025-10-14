@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import styles from "./Payments.module.css";
 import CreditNoteModal from "./CreditNoteModal";
 import CreditNoteViewModal from "./CreditNoteViewModal";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function CreditNote({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -107,25 +108,12 @@ function CreditNote({ navigate }) {
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Customers :</label>
-          <select
-            name=""
-            id=""
-            value={customer}
-            onChange={(e) =>
-              setCustomer(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {customers &&
-              customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Customers"
+          onSelect={setCustomer}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+        />
+
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Discount Type :</label>
           <select

@@ -7,6 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Modal, Button } from "react-bootstrap";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function CustomerReportsPage({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -64,7 +65,11 @@ function CustomerReportsPage({ navigate }) {
         ref={ref}
         readOnly
       />
-      <span className="input-group-text" onClick={onClick} style={{ cursor: "pointer" }}>
+      <span
+        className="input-group-text"
+        onClick={onClick}
+        style={{ cursor: "pointer" }}
+      >
         <FaRegCalendarAlt />
       </span>
     </div>
@@ -77,23 +82,39 @@ function CustomerReportsPage({ navigate }) {
       return;
     }
 
-    const customerObj = customers.find(c => c.id === parseInt(customerId));
+    const customerObj = customers.find((c) => c.id === parseInt(customerId));
     console.log(customerObj);
     const customerCode = customerObj?.customer_id || "-";
 
     const columnsPDF = [
-      "S.No.", "Order Id", "Order Date", "Grand Total",
-      "Order Status", "Payment Mode", "Transaction Reference"
+      "S.No.",
+      "Order Id",
+      "Order Date",
+      "Grand Total",
+      "Order Status",
+      "Payment Mode",
+      "Transaction Reference",
     ];
 
     const columnsXLS = [
       ...columnsPDF,
-      "Customer Name","Customer ID", "Dispatch Date", "Delivery Date", "Driver Name", "Driver Mobile"
+      "Customer Name",
+      "Customer ID",
+      "Dispatch Date",
+      "Delivery Date",
+      "Driver Name",
+      "Driver Mobile",
     ];
 
     const rows = reportData.map((order, index) => {
-      const totalBaseAmount = order.items.reduce((sum, i) => sum + (i.pricePerUnit * i.quantity), 0);
-      const totalTaxAmount = order.items.reduce((sum, i) => sum + (parseFloat(i.taxAmount || 0)), 0);
+      const totalBaseAmount = order.items.reduce(
+        (sum, i) => sum + i.pricePerUnit * i.quantity,
+        0
+      );
+      const totalTaxAmount = order.items.reduce(
+        (sum, i) => sum + parseFloat(i.taxAmount || 0),
+        0
+      );
 
       return {
         "S.No.": index + 1,
@@ -105,24 +126,29 @@ function CustomerReportsPage({ navigate }) {
         "Transaction Reference": order.payment?.transactionReference || "-",
         "Customer Name": customerObj?.name,
         "Customer ID": customerCode,
-        "Dispatch Date": order.dispatch?.dispatchDate ? formatDate(order.dispatch.dispatchDate) : "-",
-        "Delivery Date": order.delivery?.deliveryDate ? formatDate(order.delivery.deliveryDate) : "-",
+        "Dispatch Date": order.dispatch?.dispatchDate
+          ? formatDate(order.dispatch.dispatchDate)
+          : "-",
+        "Delivery Date": order.delivery?.deliveryDate
+          ? formatDate(order.delivery.deliveryDate)
+          : "-",
         "Driver Name": order.dispatch?.driverName || "-",
-        "Driver Mobile": order.dispatch?.driverMobile || "-"
+        "Driver Mobile": order.dispatch?.driverMobile || "-",
       };
     });
 
     const summaryObject = summary && {
-        "Customer": summary.customerName,
-        "Customer ID": customerId,
-        "Total Revenue": summary.totalRevenue?.toFixed(2),
-        "Total Orders": summary.totalOrders,
-        "Confirmed": summary.confirmedOrders,
-        "Dispatched": summary.dispatchedOrders,
-        "Delivered": summary.deliveredOrders
+      Customer: summary.customerName,
+      "Customer ID": customerId,
+      "Total Revenue": summary.totalRevenue?.toFixed(2),
+      "Total Orders": summary.totalOrders,
+      Confirmed: summary.confirmedOrders,
+      Dispatched: summary.dispatchedOrders,
+      Delivered: summary.deliveredOrders,
     };
 
-    if (type === "PDF") handleExportPDF(columnsPDF, rows, "Customer Report", summaryObject);
+    if (type === "PDF")
+      handleExportPDF(columnsPDF, rows, "Customer Report", summaryObject);
     else handleExportExcel(columnsXLS, rows, "Customer Report");
   };
 
@@ -135,28 +161,34 @@ function CustomerReportsPage({ navigate }) {
 
       {/* 🔍 Filters */}
       <div className="row m-0 p-3">
-        <div className="col-3 formcontent">
-          <label>Customer</label>
-          <select
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value === "null" ? null : e.target.value)}
-          >
-            <option value="null">--select--</option>
-            {customers?.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Customers"
+          onSelect={setCustomerId}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+        />
+
         <div className="col-3 formcontent">
           <label>From Date</label>
-          <DatePicker selected={fromDate} onChange={setFromDate} dateFormat="dd/MM/yyyy" customInput={<CustomDateInput />} />
+          <DatePicker
+            selected={fromDate}
+            onChange={setFromDate}
+            dateFormat="dd/MM/yyyy"
+            customInput={<CustomDateInput />}
+          />
         </div>
         <div className="col-3 formcontent">
           <label>To Date</label>
-          <DatePicker selected={toDate} onChange={setToDate} dateFormat="dd/MM/yyyy" customInput={<CustomDateInput />} />
+          <DatePicker
+            selected={toDate}
+            onChange={setToDate}
+            dateFormat="dd/MM/yyyy"
+            customInput={<CustomDateInput />}
+          />
         </div>
         <div className="col-3 d-flex align-items-end">
-          <button className="generatebtn" onClick={fetchReport}>Generate Report</button>
+          <button className="generatebtn" onClick={fetchReport}>
+            Generate Report
+          </button>
         </div>
       </div>
 
@@ -164,13 +196,28 @@ function CustomerReportsPage({ navigate }) {
       {summary && (
         <div className="row m-0 px-4">
           <div className="col-12 mb-3">
-            <h5><strong>Customer:</strong> {summary.customerName}</h5>
-            <p><strong>Customer ID:</strong> {summary.customerCode}</p>
-            <p><strong>Total Revenue:</strong> ₹{summary.totalRevenue?.toFixed(2)}</p>
-            <p><strong>Total Orders:</strong> {summary.totalOrders}</p>
-            <p><strong>Confirmed:</strong> {summary.confirmedOrders}</p>
-            <p><strong>Dispatched:</strong> {summary.dispatchedOrders}</p>
-            <p><strong>Delivered:</strong> {summary.deliveredOrders}</p>
+            <h5>
+              <strong>Customer:</strong> {summary.customerName}
+            </h5>
+            <p>
+              <strong>Customer ID:</strong> {summary.customerCode}
+            </p>
+            <p>
+              <strong>Total Revenue:</strong> ₹
+              {summary.totalRevenue?.toFixed(2)}
+            </p>
+            <p>
+              <strong>Total Orders:</strong> {summary.totalOrders}
+            </p>
+            <p>
+              <strong>Confirmed:</strong> {summary.confirmedOrders}
+            </p>
+            <p>
+              <strong>Dispatched:</strong> {summary.dispatchedOrders}
+            </p>
+            <p>
+              <strong>Delivered:</strong> {summary.deliveredOrders}
+            </p>
           </div>
         </div>
       )}
@@ -179,8 +226,18 @@ function CustomerReportsPage({ navigate }) {
       {reportData.length > 0 && (
         <div className="row m-0 px-4">
           <div className="col-12 mb-2">
-            <button className="btn btn-success me-2" onClick={() => handleExport("XLS")}>Export Excel</button>
-            <button className="btn btn-danger" onClick={() => handleExport("PDF")}>Export PDF</button>
+            <button
+              className="btn btn-success me-2"
+              onClick={() => handleExport("XLS")}
+            >
+              Export Excel
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => handleExport("PDF")}
+            >
+              Export PDF
+            </button>
           </div>
           <div className="col-12">
             <table className="table table-bordered borderedtable">
@@ -198,8 +255,14 @@ function CustomerReportsPage({ navigate }) {
               </thead>
               <tbody>
                 {reportData.map((order, i) => {
-                  const base = order.items.reduce((sum, i) => sum + (i.pricePerUnit * i.quantity), 0);
-                  const tax = order.items.reduce((sum, i) => sum + (parseFloat(i.taxAmount || 0)), 0);
+                  const base = order.items.reduce(
+                    (sum, i) => sum + i.pricePerUnit * i.quantity,
+                    0
+                  );
+                  const tax = order.items.reduce(
+                    (sum, i) => sum + parseFloat(i.taxAmount || 0),
+                    0
+                  );
                   return (
                     <tr key={order.orderId}>
                       <td>{i + 1}</td>
@@ -210,7 +273,12 @@ function CustomerReportsPage({ navigate }) {
                       <td>₹{order.totalAmount}</td>
                       <td>{order.status}</td>
                       <td>
-                        <button className="btn btn-sm btn-outline-primary" onClick={() => setSelectedOrder(order)}>View</button>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
                   );
@@ -219,7 +287,7 @@ function CustomerReportsPage({ navigate }) {
             </table>
           </div>
         </div>
-      )} 
+      )}
 
       {/* 🔎 View Modal */}
       {selectedOrder && (
@@ -228,50 +296,74 @@ function CustomerReportsPage({ navigate }) {
             <Modal.Title>Order: {selectedOrder.orderId}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-          <ul>
-            {selectedOrder.items.map((item, idx) => {
-                const isPacked = item.unit?.toLowerCase() === "unit" || item.unit?.toLowerCase() === "units";
+            <ul>
+              {selectedOrder.items.map((item, idx) => {
+                const isPacked =
+                  item.unit?.toLowerCase() === "unit" ||
+                  item.unit?.toLowerCase() === "units";
                 const displayUnit = item.quantity > 1 ? "units" : "unit";
-                const totalTax = item.taxes?.reduce((sum, tax) => sum + (tax.amount || 0), 0) || 0;
-                const totalPriceWithTax = (item.pricePerUnit * item.quantity) + totalTax;
+                const totalTax =
+                  item.taxes?.reduce(
+                    (sum, tax) => sum + (tax.amount || 0),
+                    0
+                  ) || 0;
+                const totalPriceWithTax =
+                  item.pricePerUnit * item.quantity + totalTax;
 
                 return (
-                <li key={idx} className="mb-2">
-                    <strong>{item.productName}</strong> — {item.quantity} {isPacked ? displayUnit : item.unit} @ ₹{item.pricePerUnit}
+                  <li key={idx} className="mb-2">
+                    <strong>{item.productName}</strong> — {item.quantity}{" "}
+                    {isPacked ? displayUnit : item.unit} @ ₹{item.pricePerUnit}
                     {item.taxes?.length > 0 && (
-                    <ul className="ms-3 mt-1">
+                      <ul className="ms-3 mt-1">
                         {item.taxes.map((tax, i) => (
-                        <li key={i}>
-                            {tax.name} ({tax.percentage}%): ₹{tax.amount.toFixed(2)}
-                        </li>
+                          <li key={i}>
+                            {tax.name} ({tax.percentage}%): ₹
+                            {tax.amount.toFixed(2)}
+                          </li>
                         ))}
-                    </ul>
+                      </ul>
                     )}
-                    <div className="mt-1"> <strong>Total (incl. tax): ₹{totalPriceWithTax.toFixed(2)}</strong></div>
-                </li>
+                    <div className="mt-1">
+                      {" "}
+                      <strong>
+                        Total (incl. tax): ₹{totalPriceWithTax.toFixed(2)}
+                      </strong>
+                    </div>
+                  </li>
                 );
-            })}
+              })}
             </ul>
             {selectedOrder.payment && (
               <>
                 <h6>Payment Info</h6>
                 <p>
-                  <strong>Mode:</strong> {selectedOrder.payment.mode}<br />
-                  <strong>Status:</strong> {selectedOrder.payment.status}<br />
-                  <strong>Date:</strong> {formatDate(selectedOrder.payment.transactionDate)}<br />
-                  <strong>Amount:</strong> ₹{selectedOrder.totalAmount}<br />
-                  <strong>Reference:</strong> {selectedOrder.payment.transactionReference}
+                  <strong>Mode:</strong> {selectedOrder.payment.mode}
+                  <br />
+                  <strong>Status:</strong> {selectedOrder.payment.status}
+                  <br />
+                  <strong>Date:</strong>{" "}
+                  {formatDate(selectedOrder.payment.transactionDate)}
+                  <br />
+                  <strong>Amount:</strong> ₹{selectedOrder.totalAmount}
+                  <br />
+                  <strong>Reference:</strong>{" "}
+                  {selectedOrder.payment.transactionReference}
                 </p>
               </>
             )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setSelectedOrder(null)}>Close</Button>
+            <Button variant="secondary" onClick={() => setSelectedOrder(null)}>
+              Close
+            </Button>
           </Modal.Footer>
         </Modal>
       )}
 
-      {isModalOpen && <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />}
+      {isModalOpen && (
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
       {loading && <Loading />}
     </>
   );
