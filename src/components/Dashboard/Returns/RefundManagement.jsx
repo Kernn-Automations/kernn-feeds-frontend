@@ -102,18 +102,7 @@ const RefundManagement = () => {
         console.log('RefundManagement - Refund IDs:', refundsList.map(r => r.id));
         console.log('RefundManagement - Refund details:', refundsList.map(r => ({ id: r.id, refundNumber: r.refundNumber, refundAmount: r.refundAmount })));
         
-        // Check for invalid refund IDs
-        const invalidRefunds = refundsList.filter(r => r.id > 10);
-        if (invalidRefunds.length > 0) {
-          console.warn('RefundManagement - WARNING: Found invalid refund IDs:', invalidRefunds.map(r => r.id));
-          console.warn('RefundManagement - These IDs will cause 404 errors in payment API calls');
-        }
-        
-        // Filter out invalid refund IDs (temporary fix)
-        const validRefunds = refundsList.filter(r => r.id <= 10);
-        console.log('RefundManagement - Valid refunds (ID <= 10):', validRefunds.map(r => r.id));
-        
-        setRefunds(validRefunds);
+        setRefunds(refundsList);
       } else {
         console.error('Error loading refunds:', response.message || 'Unknown error');
         console.log('RefundManagement - Setting empty refunds array');
@@ -409,11 +398,11 @@ const RefundManagement = () => {
                 </td>
                 <td>
                   <div>
-                    <strong>{refund.returnRequest?.salesOrder?.customer?.customerName || 'N/A'}</strong>
-                    {refund.returnRequest?.salesOrder?.customer?.phone && (
+                    <strong>{refund.returnRequest?.customer?.name || 'N/A'}</strong>
+                    {refund.returnRequest?.customer?.mobile && (
                       <>
                         <br />
-                        <small className="text-muted">{refund.returnRequest.salesOrder.customer.phone}</small>
+                        <small className="text-muted">{refund.returnRequest.customer.mobile}</small>
                       </>
                     )}
                   </div>
@@ -582,7 +571,7 @@ const CreateRefundModal = ({ returnRequest, onSubmit, onClose }) => {
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Return Request</label>
             <p style={{ margin: '5px 0', color: '#7f8c8d' }}>
-              {returnRequest.returnNumber} - {returnRequest.salesOrder?.customer?.customerName}
+              {returnRequest.returnNumber} - {returnRequest.customer?.name}
             </p>
           </div>
           
@@ -740,7 +729,7 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
   });
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [savedPayments, setSavedPayments] = useState([]);
-  const [remainingAmount, setRemainingAmount] = useState(refund.refundAmount || 0);
+  const [remainingAmount, setRemainingAmount] = useState(parseFloat(refund.refundAmount) || 0);
   const [totalPaidAmount, setTotalPaidAmount] = useState(0);
   const [showPaymentRequiredModal, setShowPaymentRequiredModal] = useState(false);
   const [paymentRequiredData, setPaymentRequiredData] = useState(null);
@@ -812,22 +801,44 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
         
         // Set payment data from backend
         const backendPayments = data.payments || [];
-        const backendTotalPaid = data.refund?.totalPaidAmount || 0;
-        const backendRemaining = data.refund?.remainingAmount || (refund.refundAmount || 0);
+        const backendTotalPaid = parseFloat(data.refund?.totalPaidAmount) || 0;
+        const backendRefundAmount = parseFloat(refund.refundAmount) || 0;
+        const backendRemaining = parseFloat(data.refund?.remainingAmount);
+        
+        // Calculate remaining amount if backend doesn't provide it or if it seems incorrect
+        let calculatedRemaining = backendRefundAmount - backendTotalPaid;
+        
+        console.log('loadRefundPayments - Amount calculations:');
+        console.log('- backendRefundAmount:', backendRefundAmount);
+        console.log('- backendTotalPaid:', backendTotalPaid);
+        console.log('- backendRemaining from API:', backendRemaining);
+        console.log('- calculatedRemaining (refund - paid):', calculatedRemaining);
+        
+        // Use calculated remaining if backend remaining is not provided or seems incorrect
+        const finalRemaining = (backendRemaining !== undefined && backendRemaining >= 0) ? backendRemaining : calculatedRemaining;
         
         console.log('loadRefundPayments - Backend payments:', backendPayments);
         console.log('loadRefundPayments - Backend total paid:', backendTotalPaid);
         console.log('loadRefundPayments - Backend remaining:', backendRemaining);
+        console.log('loadRefundPayments - Original refund amount:', refund.refundAmount);
+        console.log('loadRefundPayments - Calculated remaining (refund - paid):', (parseFloat(refund.refundAmount) || 0) - backendTotalPaid);
         
         setSavedPayments(backendPayments);
         setTotalPaidAmount(backendTotalPaid);
-        setRemainingAmount(backendRemaining);
+        setRemainingAmount(finalRemaining);
+        
+        console.log('loadRefundPayments - Setting state values:');
+        console.log('- backendPayments:', backendPayments);
+        console.log('- backendTotalPaid:', backendTotalPaid);
+        console.log('- finalRemaining (used):', finalRemaining);
+        console.log('- backendRemaining (from API):', backendRemaining);
+        console.log('- calculatedRemaining (fallback):', calculatedRemaining);
         
         // Also update localStorage with backend data
         const dataToSave = {
           savedPayments: backendPayments,
           totalPaidAmount: backendTotalPaid,
-          remainingAmount: backendRemaining
+          remainingAmount: finalRemaining
         };
         localStorage.setItem(`refund_payment_${refund.id}`, JSON.stringify(dataToSave));
         
@@ -839,7 +850,13 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
           const parsed = JSON.parse(savedData);
           setSavedPayments(parsed.savedPayments || []);
           setTotalPaidAmount(parsed.totalPaidAmount || 0);
-          setRemainingAmount((refund.refundAmount || 0) - (parsed.totalPaidAmount || 0));
+          setRemainingAmount((parseFloat(refund.refundAmount) || 0) - (parseFloat(parsed.totalPaidAmount) || 0));
+        } else {
+          // No saved data, set remaining amount to full refund amount
+          console.log('loadRefundPayments - No saved data, setting remaining amount to full refund amount:', refund.refundAmount);
+          setSavedPayments([]);
+          setTotalPaidAmount(0);
+          setRemainingAmount(parseFloat(refund.refundAmount) || 0);
         }
       }
     } catch (error) {
@@ -850,7 +867,13 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
         const parsed = JSON.parse(savedData);
         setSavedPayments(parsed.savedPayments || []);
         setTotalPaidAmount(parsed.totalPaidAmount || 0);
-        setRemainingAmount((refund.refundAmount || 0) - (parsed.totalPaidAmount || 0));
+        setRemainingAmount((parseFloat(refund.refundAmount) || 0) - (parseFloat(parsed.totalPaidAmount) || 0));
+      } else {
+        // No saved data, set remaining amount to full refund amount
+        console.log('loadRefundPayments - Error fallback: No saved data, setting remaining amount to full refund amount:', refund.refundAmount);
+        setSavedPayments([]);
+        setTotalPaidAmount(0);
+        setRemainingAmount(parseFloat(refund.refundAmount) || 0);
       }
     }
   };
@@ -859,6 +882,12 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
   useEffect(() => {
     loadRefundPayments();
   }, [refund.id]);
+
+  // Manual refresh function for debugging
+  const handleRefreshPayments = async () => {
+    console.log('Manual refresh of payment data requested');
+    await loadRefundPayments();
+  };
 
   // Save draft when component unmounts or modal closes
   useEffect(() => {
@@ -921,14 +950,63 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
 
   // Add payment entry
   const handleAddPayment = async () => {
+    console.log('handleAddPayment - Frontend remaining amount:', remainingAmount);
+    console.log('handleAddPayment - Payment amount:', paymentDetails.paidAmount);
+    console.log('handleAddPayment - Refund amount:', refund.refundAmount);
+    console.log('handleAddPayment - Total paid amount:', totalPaidAmount);
+    
+    // Refresh payment data from backend before adding payment to ensure we have latest data
+    console.log('handleAddPayment - Refreshing payment data from backend before adding payment');
+    await loadRefundPayments();
+    
+    console.log('handleAddPayment - After refresh - Frontend remaining amount:', remainingAmount);
+    console.log('handleAddPayment - After refresh - Payment amount:', paymentDetails.paidAmount);
+    
     if (paymentDetails.paidAmount <= 0 || paymentDetails.paidAmount > remainingAmount) {
-      alert('Please enter a valid amount');
+      alert(`Please enter a valid amount. Maximum allowed: ₹${remainingAmount.toLocaleString()}`);
       return;
     }
 
     try {
       console.log('Adding payment for refund ID:', refund.id);
       console.log('Payment details:', paymentDetails);
+      
+      // Get the latest refund data from backend for logging purposes
+      console.log('handleAddPayment - Getting latest refund data from backend for logging');
+      const refundResponse = await fetchWithDivision(
+        `/returns/refunds/${refund.id}`,
+        localStorage.getItem('accessToken'),
+        null, // divisionId
+        false, // showAllDivisions
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (refundResponse.success && refundResponse.data) {
+        const latestRefund = refundResponse.data;
+        const backendRemainingAmount = parseFloat(latestRefund.remainingAmount) || 0;
+        const backendTotalPaid = parseFloat(latestRefund.totalPaidAmount) || 0;
+        const backendRefundAmount = parseFloat(latestRefund.refundAmount) || 0;
+        
+        console.log('handleAddPayment - Backend refund amount:', backendRefundAmount);
+        console.log('handleAddPayment - Backend total paid:', backendTotalPaid);
+        console.log('handleAddPayment - Backend remaining amount:', backendRemainingAmount);
+        console.log('handleAddPayment - Frontend remaining amount:', remainingAmount);
+        console.log('handleAddPayment - Payment amount to add:', parseFloat(paymentDetails.paidAmount));
+        
+        // Log the discrepancy for debugging
+        if (backendRemainingAmount !== remainingAmount) {
+          console.warn('handleAddPayment - Mismatch between frontend and backend remaining amounts:');
+          console.warn('Frontend remaining:', remainingAmount);
+          console.warn('Backend remaining:', backendRemainingAmount);
+        }
+      } else {
+        console.warn('handleAddPayment - Could not get latest refund data, proceeding with current data');
+      }
       
       // Prepare payment data for API
       const paymentData = {
@@ -984,7 +1062,15 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
         alert('Payment added successfully');
       } else {
         console.error('Failed to add payment:', response.message);
-        alert(response.message || 'Failed to add payment');
+        
+        // If the error is about exceeding remaining amount, refresh data and show better message
+        if (response.message && response.message.includes('cannot exceed remaining amount')) {
+          console.log('Payment rejected due to remaining amount mismatch, refreshing data');
+          await loadRefundPayments();
+          alert(`Payment rejected: ${response.message}\n\nData has been refreshed. Please check the updated remaining amount and try again.`);
+        } else {
+          alert(response.message || 'Failed to add payment');
+        }
       }
     } catch (error) {
       console.error('Error adding payment:', error);
@@ -1260,11 +1346,11 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
               </div>
               <div>
                 <strong>Customer:</strong>
-                <p>{refund.returnRequest?.salesOrder?.customer?.customerName || 'N/A'}</p>
+                <p>{refund.returnRequest?.customer?.name || 'N/A'}</p>
               </div>
               <div>
                 <strong>Customer Phone:</strong>
-                <p>{refund.returnRequest?.salesOrder?.customer?.phone || 'N/A'}</p>
+                <p>{refund.returnRequest?.customer?.mobile || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -1283,6 +1369,25 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
               marginBottom: '20px',
               border: '1px solid #e9ecef'
             }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h5 style={{ margin: 0, color: '#2c3e50' }}>Payment Summary</h5>
+                <button
+                  onClick={handleRefreshPayments}
+                  style={{
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '5px 10px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                  title="Refresh payment data from backend"
+                >
+                  <i className="bi bi-arrow-clockwise me-1"></i>
+                  Refresh
+                </button>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', textAlign: 'center' }}>
                 <div>
                   <strong style={{ color: '#2c3e50' }}>Total Refund Amount</strong>
@@ -1513,7 +1618,7 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
                     <input
                       type="number"
                       name="paidAmount"
-                      value={paymentDetails.paidAmount}
+                      value={paymentDetails.paidAmount || ''}
                       onChange={handlePaymentInputChange}
                       max={remainingAmount}
                       min="1"
@@ -1814,6 +1919,15 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
           borderTop: '1px solid #ecf0f1'
         }}>
           <div>
+            {/* Debug logging for Complete Refund button logic */}
+            {console.log('Complete Refund Button Debug:')}
+            {console.log('- refund.refundStatus:', refund.refundStatus)}
+            {console.log('- remainingAmount:', remainingAmount)}
+            {console.log('- totalPaidAmount:', totalPaidAmount)}
+            {console.log('- refund.refundAmount:', refund.refundAmount)}
+            {console.log('- Should show complete button:', refund.refundStatus !== 'completed' && remainingAmount <= 0)}
+            {console.log('- Should show warning:', refund.refundStatus !== 'completed' && remainingAmount > 0)}
+            
             {refund.refundStatus !== 'completed' && remainingAmount <= 0 && (
               <button
                 type="button"
@@ -1843,11 +1957,11 @@ const ViewRefundModal = ({ refund, onClose, onCompleteRefund }) => {
           </div>
           <button
             type="button"
-            className="btn btn-outline-secondary"
+            className="btn btn-secondary"
             onClick={onClose}
           >
             <i className="bi bi-x-lg me-1"></i>
-            Close
+            Cancel
           </button>
         </div>
       </div>

@@ -135,10 +135,10 @@ function ModifyProduct({ navigate, isAdmin }) {
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       <td>{index++}</td>
-                      <td>{product.createdAt.slice(0, 10)}</td>
+                      <td>{product.createdAt?.slice(0, 10) || ""}</td>
                       <td>{product.SKU}</td>
                       <td>{product.name}</td>
-                      <td>{product.category.name}</td>
+                      <td>{product.category?.name || "-"}</td>
                       <td>
                         {product.productType === "packed"
                           ? product.packageWeightUnit

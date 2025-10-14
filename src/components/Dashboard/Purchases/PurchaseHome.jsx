@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Flex, IconButton, Tooltip } from "@chakra-ui/react";
-import { FaSyncAlt } from "react-icons/fa";
+import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
@@ -136,23 +135,6 @@ function PurchaseHome({ navigate }) {
             onClick={() => navigate("/purchases/vendors")}
           >
             Vendors
-          </button>
-          
-          {/* Refresh Button */}
-          <button
-            onClick={fetchPurchaseDashboard}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              padding: "6px",
-            }}
-            title="Refresh Dashboard" // shows tooltip on hover
-          >
-            <FaSyncAlt size={24} color="#2a4d9b" />
           </button>
         </div>
       </div>

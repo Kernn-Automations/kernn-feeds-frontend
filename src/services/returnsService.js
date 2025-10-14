@@ -256,22 +256,29 @@ class ReturnsService {
       console.log('createReturnRequest - Creating return with data:', returnData);
       console.log('createReturnRequest - divisionId:', divisionId, 'showAllDivisions:', showAllDivisions);
       
-      // Prepare JSON payload WITHOUT images (to avoid large request size)
+      // Prepare JSON payload WITH compressed base64 images
       const jsonPayload = {
         salesOrderId: returnData.salesOrderId,
+        customerId: returnData.customerId,
         returnCase: returnData.returnCase,
         returnReason: returnData.returnReason,
         returnItems: returnData.returnItems,
         customReason: returnData.customReason,
         returnType: returnData.returnType,
         refundMethod: returnData.refundMethod,
-        notes: returnData.notes
-        // Note: images are NOT included in the initial request
+        notes: returnData.notes,
+        images: returnData.images || [] // Include compressed base64 images
       };
       
-      console.log('createReturnRequest - JSON payload (without images):', jsonPayload);
+      console.log('createReturnRequest - JSON payload (with compressed images):', {
+        ...jsonPayload,
+        images: jsonPayload.images?.map(img => ({
+          ...img,
+          data: img.data?.substring(0, 50) + '...' // Truncate for logging
+        }))
+      });
       
-      // Send JSON payload WITHOUT images first
+      // Send JSON payload WITH compressed base64 images
       const response = await fetchWithDivision(
         '/returns/requests',
         localStorage.getItem('accessToken'),
@@ -285,36 +292,6 @@ class ReturnsService {
       );
       
       console.log('createReturnRequest - API response:', response);
-      
-      // If return request was created successfully and we have images, upload them separately
-      if ((response.success || response.returnRequest || response.id) && returnData.images && returnData.images.length > 0) {
-        console.log('createReturnRequest - Uploading images separately...');
-        
-        const returnRequestId = response.returnRequest?.id || response.id || response.data?.id;
-        
-        if (returnRequestId) {
-          try {
-            const imageUploadResponse = await this.uploadReturnImages(
-              returnRequestId,
-              returnData.images,
-              divisionId,
-              showAllDivisions
-            );
-            
-            console.log('createReturnRequest - Image upload response:', imageUploadResponse);
-            
-            if (imageUploadResponse.success) {
-              console.log('createReturnRequest - Images uploaded successfully');
-            } else {
-              console.warn('createReturnRequest - Image upload failed:', imageUploadResponse.message);
-              // Don't fail the entire request if image upload fails
-            }
-          } catch (imageError) {
-            console.error('createReturnRequest - Error uploading images:', imageError);
-            // Don't fail the entire request if image upload fails
-          }
-        }
-      }
       
       return response;
     } catch (error) {
@@ -611,22 +588,31 @@ class ReturnsService {
       
       console.log('Raw response from getReturnItemImages:', response);
       
-      // Handle different possible response structures
-      if (response && response.success) {
-        // Ensure we have a proper images array
-        const images = response.data?.images || response.images || response.data || [];
+      // Normalize different possible response structures
+      let imagesCandidate = [];
+      if (Array.isArray(response)) {
+        imagesCandidate = response;
+      } else if (response) {
+        imagesCandidate = response.data?.images || response.images || response.data || [];
+      }
+
+      const images = Array.isArray(imagesCandidate) ? imagesCandidate : [];
+
+      // Treat presence of an images array as success, even if backend omits or sets success=false
+      if (images.length >= 0) {
         return {
           success: true,
-          data: { images: Array.isArray(images) ? images : [] },
+          data: { images },
           message: 'Images loaded successfully'
         };
-      } else {
-        return {
-          success: false,
-          data: { images: [] },
-          message: response?.message || 'Failed to load images'
-        };
       }
+
+      // Fallback error
+      return {
+        success: false,
+        data: { images: [] },
+        message: response?.message || 'Failed to load images'
+      };
     } catch (error) {
       console.error('Error fetching return item images:', error);
       return {

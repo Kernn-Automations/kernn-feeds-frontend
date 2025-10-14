@@ -17,25 +17,14 @@ const theme = {
   useSystemColorMode: false,
 };
 
-createRoot(document.getElementById("root")).render(
+const AppTree = (
   <StrictMode>
     <AuthProvider>
       <BrowserRouter>
         <DivisionProvider>
           <Provider theme={theme}>
             <LightMode>
-              {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
-                <LoadScript
-                  googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
-                  libraries={["places"]}
-                  onLoad={() => console.log("Google Maps loaded")}
-                  onError={(e) => console.error("Maps load error", e)}
-                >
-                  <App />
-                </LoadScript>
-              ) : (
-                <App />
-              )}
+              <App />
             </LightMode>
           </Provider>
         </DivisionProvider>
@@ -43,3 +32,20 @@ createRoot(document.getElementById("root")).render(
     </AuthProvider>
   </StrictMode>
 );
+
+const root = createRoot(document.getElementById("root"));
+
+if (import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
+  root.render(
+    <LoadScript
+      googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+      libraries={["places"]}
+      onLoad={() => console.log("Google Maps loaded")}
+      onError={(e) => console.error("Maps load error", e)}
+    >
+      {AppTree}
+    </LoadScript>
+  );
+} else {
+  root.render(AppTree);
+}

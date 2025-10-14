@@ -45,16 +45,46 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
   // Load dropdown data
   useEffect(() => {
     if (isOpen) {
+      console.log('Modal opened, loading dropdown data...');
+      console.log('Initial assignment type:', formData.assignmentType);
       loadDropdownData();
     }
   }, [isOpen]);
 
-  // Load employees when assignment type changes to employee
+  // Load appropriate data when assignment type changes
   useEffect(() => {
-    if (formData.assignmentType === 'employee') {
+    console.log('Assignment type changed to:', formData.assignmentType);
+    if (formData.assignmentType === 'team') {
+      console.log('Loading teams...');
+      loadTeams();
+    } else if (formData.assignmentType === 'employee') {
+      console.log('Loading employees...');
       loadEmployees();
     }
   }, [formData.assignmentType]);
+
+  // Load initial data when component mounts
+  useEffect(() => {
+    console.log('Component mounted, loading initial data...');
+    console.log('Initial assignment type:', formData.assignmentType);
+    if (formData.assignmentType === 'team') {
+      loadTeams();
+    } else if (formData.assignmentType === 'employee') {
+      loadEmployees();
+    }
+  }, []);
+
+  // Also load data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('Modal opened, loading data for assignment type:', formData.assignmentType);
+      if (formData.assignmentType === 'team') {
+        loadTeams();
+      } else if (formData.assignmentType === 'employee') {
+        loadEmployees();
+      }
+    }
+  }, [isOpen]);
 
   /**
    * Load dropdown data (teams and employees)
@@ -62,7 +92,12 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
   const loadDropdownData = async () => {
     try {
       setLoading(true);
-      const teamsResponse = await targetService.getTeams();
+      const currentDivisionId = localStorage.getItem('currentDivisionId') || '1';
+      console.log('Loading dropdown data for division:', currentDivisionId);
+      
+      // Load teams by default
+      const teamsResponse = await targetService.getTeams(currentDivisionId);
+      console.log('Teams response in loadDropdownData:', teamsResponse);
       setTeams(teamsResponse.teams || []);
     } catch (error) {
       console.error("Error loading dropdown data:", error);
@@ -74,17 +109,46 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
   };
 
   /**
+   * Load teams for current division
+   */
+  const loadTeams = async () => {
+    try {
+      setLoading(true);
+      const currentDivisionId = localStorage.getItem('currentDivisionId') || '1';
+      console.log('Loading teams for division:', currentDivisionId);
+      const teamsResponse = await targetService.getTeams(currentDivisionId);
+      console.log('Teams response:', teamsResponse);
+      const teamsList = teamsResponse.teams || [];
+      console.log('Teams list:', teamsList);
+      setTeams(teamsList);
+    } catch (error) {
+      console.error("Error loading teams:", error);
+      setError("Failed to load teams");
+      setIsErrorModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * Load employees for current division
    */
   const loadEmployees = async () => {
     try {
+      setLoading(true);
       const currentDivisionId = localStorage.getItem('currentDivisionId') || '1';
+      console.log('Loading employees for division:', currentDivisionId);
       const employeesResponse = await targetService.getEmployees(currentDivisionId);
-      setEmployees(employeesResponse.employees || []);
+      console.log('Employees response:', employeesResponse);
+      const employeesList = employeesResponse.employees || [];
+      console.log('Employees list:', employeesList);
+      setEmployees(employeesList);
     } catch (error) {
       console.error("Error loading employees:", error);
       setError("Failed to load employees");
       setIsErrorModalOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -237,7 +301,7 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <>
-      <DialogRoot open={isOpen} onOpenChange={onClose} placement="center" size="xl">
+      <DialogRoot open={isOpen} onOpenChange={onClose} placement="center" size="lg">
         <DialogContent className="mdl">
           <DialogBody>
             <h3 className="px-3 pb-3 mdl-title">Create New Target</h3>
@@ -323,11 +387,19 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                         className={errors.teamIds ? styles.errorField : ''}
                         style={{ minHeight: '120px' }}
                       >
-                        {teams.map(team => (
-                          <option key={team.id} value={team.id}>
-                            {team.name}
-                          </option>
-                        ))}
+                        {console.log('Teams state:', teams, 'Length:', teams.length)}
+                        {teams.length === 0 && <option disabled>No teams available</option>}
+                        {teams
+                          .filter(team => team.isActive === true)
+                          .map(team => {
+                            console.log('Rendering team:', team);
+                            const teamHeadName = team.teamHead?.name || 'No Head';
+                            return (
+                              <option key={team.id} value={team.id}>
+                                {team.name} (Head: {teamHeadName})
+                              </option>
+                            );
+                          })}
                       </select>
                       <small className="text-muted">Hold Ctrl/Cmd to select multiple teams</small>
                     </div>
@@ -341,11 +413,22 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                         className={errors.employeeIds ? styles.errorField : ''}
                         style={{ minHeight: '120px' }}
                       >
-                        {employees.map(employee => (
-                          <option key={employee.id} value={employee.id}>
-                            {employee.name} ({employee.employeeId})
-                          </option>
-                        ))}
+                        {console.log('Employees state:', employees, 'Length:', employees.length)}
+                        {employees.length === 0 && <option disabled>No employees available</option>}
+                        {employees
+                          .filter(employee => employee.status === 'Active')
+                          .map(employee => {
+                            console.log('Rendering employee:', employee);
+                            const primaryRole = employee.primaryRole || employee.roles?.[0]?.name || 'No Role';
+                            const teamStatus = employee.teamStatus === 'IN' ? 'In Team' : 'Not in Team';
+                            const currentTeam = employee.currentTeam?.name;
+                            const teamContext = currentTeam ? ` (${teamStatus}: ${currentTeam})` : ` (${teamStatus})`;
+                            return (
+                              <option key={employee.id} value={employee.id}>
+                                {employee.name} - {primaryRole}{teamContext}
+                              </option>
+                            );
+                          })}
                       </select>
                       <small className="text-muted">Hold Ctrl/Cmd to select multiple employees</small>
                     </div>

@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   let reftoken = localStorage.getItem("refreshToken") || null;
 
   const VITE_API = import.meta.env.VITE_API_URL;
-  const BASE_URL = "/api"; // Force use of proxy
+  const BASE_URL = VITE_API || 'http://localhost:8080';
 
   // API Initialization
   const api = axios.create({

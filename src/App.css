@@ -163,34 +163,43 @@ textarea {
 }
 
 /* CHAKRA UI DIALOGS - High Priority */
-[data-chakra-component="DialogRoot"] {
+[data-chakra-component="DialogRoot"],
+[data-scope="dialog"][data-part="root"] {
   z-index: 140000 !important;
 }
 
-[data-chakra-component="DialogPositioner"] {
+[data-chakra-component="DialogPositioner"],
+[data-scope="dialog"][data-part="positioner"] {
   z-index: 140001 !important;
 }
 
-[data-chakra-component="DialogContent"] {
+[data-chakra-component="DialogContent"],
+[data-scope="dialog"][data-part="content"] {
   z-index: 140002 !important;
+  position: relative;
 }
 
-[data-chakra-component="DialogBackdrop"] {
+[data-chakra-component="DialogBackdrop"],
+[data-scope="dialog"][data-part="backdrop"] {
   z-index: 139999 !important;
+  background-color: rgba(0, 0, 0, 0.6) !important; /* Dark backdrop like logout modal */
 }
 
 /* Target the portal container */
-#chakra-portal {
+#chakra-portal,
+[data-chakra-portal],
+[data-portal] {
   z-index: 140000 !important;
 }
 
-.chakra-portal {
+.chakra-portal,
+[class*="chakra-portal"] {
   z-index: 140000 !important;
 }
 
 /* CUSTOM MODAL CLASSES */
 .mdl {
-  z-index: 130000 !important;
+  z-index: 140003 !important;
 }
 
 /* POPOVER AND DROPDOWN ELEMENTS */
@@ -254,6 +263,50 @@ div[role="dialog"] {
   margin-bottom: 3px;
 }
 
+/* Targets Create Modal - shrink field widths */
+.targets-create-modal {
+  padding: 12px;
+}
+.targets-create-modal [data-scope="dialog"][data-part="content"],
+.targets-create-modal.mdl {
+  max-height: 70vh;
+  overflow: auto;
+  width: 90vw;
+  max-width: 700px;
+}
+.targets-create-modal .inputcolumn-mdl {
+  width: 100% !important;
+  margin-bottom: 8px;
+}
+.targets-create-modal .inputcolumn-mdl label {
+  display: block;
+  text-align: left;
+  width: auto;
+  padding-right: 0;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.targets-create-modal .inputcolumn-mdl input,
+.targets-create-modal .inputcolumn-mdl select,
+.targets-create-modal .inputcolumn-mdl textarea {
+  height: 32px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.targets-create-modal .inputcolumn-mdl textarea {
+  height: 60px;
+  resize: vertical;
+}
+
+/* Prevent overflow by stacking to one column on narrower modals */
+@media (max-width: 992px) {
+  .targets-create-modal .col-6 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
 .inputcolumn-mdl label {
   width: 220px;
   text-align: right;
@@ -268,7 +321,7 @@ div[role="dialog"] {
 .inputcolumn-mdl input,
 .inputcolumn-mdl select,
 .inputcolumn-mdl textarea {
-  width: 210px;
+  width: 100%;
   height: 24px;
   font-size: 15px;
   padding-left: 4px;

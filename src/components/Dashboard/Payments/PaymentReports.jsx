@@ -80,8 +80,6 @@ function PaymentReports({ navigate }) {
 
   // Fetch payment reports based on filters
   useEffect(() => {
-    setSalesOrders([]);
-    setFilteredSalesOrders([]);
     async function fetchReports() {
       try {
         setLoading(true);
@@ -90,7 +88,7 @@ function PaymentReports({ navigate }) {
           query += `&warehouseId=${warehouse}`;
         }
         if (customer) {
-          query += `&customerTd=${customer}`;
+          query += `&customerId=${customer}`;
         }
         if (se) {
           query += `&salesExecutiveId=${se}`;
@@ -110,29 +108,12 @@ function PaymentReports({ navigate }) {
       }
     }
     fetchReports();
-  }, [trigger, from, to, warehouse, customer, se]);
+  }, [trigger, from, to, warehouse, customer, se, pageNo, limit]);
 
-  // Apply filters to sales orders
+  // Mirror server-side results into table; server already applies filters via query
   useEffect(() => {
-    const filtered = salesOrders.filter((order) => {
-      let isMatch = true;
-      if (warehouse && warehouse !== "all") {
-        isMatch = isMatch && order.warehouse?.id === warehouse;
-      }
-      if (customer) {
-        isMatch = isMatch && order.customer?.id === customer;
-      }
-      if (se) {
-        isMatch = isMatch && order.salesExecutive?.id === se;
-      }
-      const orderDate = new Date(order.paymentRequests[0]?.transactionDate);
-      const fromDate = new Date(from);
-      const toDate = new Date(to);
-      isMatch = isMatch && orderDate >= fromDate && orderDate <= toDate;
-      return isMatch;
-    });
-    setFilteredSalesOrders(filtered);
-  }, [salesOrders, warehouse, customer, se, from, to]);
+    setFilteredSalesOrders(salesOrders || []);
+  }, [salesOrders]);
 
   // Helper to calculate total amount for a sales order
   const calculateTotalAmount = (paymentRequests) => {

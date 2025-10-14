@@ -12,6 +12,7 @@ import orderAni from "../../../images/animations/confirmed.gif";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong } from "react-icons/fa6";
 import { FaArrowRightLong } from "react-icons/fa6";
+import { useSearchParams } from "react-router-dom";
 
 function Orders({
   navigate,
@@ -23,12 +24,13 @@ function Orders({
   to,
   setTo,
 }) {
+  const [searchParams] = useSearchParams();
   const [onsubmit, setonsubmit] = useState(false);
 
   const [warehouse, setWarehouse] = useState();
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
-  const [status, setStatus] = useState();
+  const [status, setStatus] = useState(searchParams.get('status') || '');
 
   let index = 1;
 
@@ -61,6 +63,16 @@ function Orders({
   const [showCustomerNameSearch, setShowCustomerNameSearch] = useState(false);
   const [paymentModeSearchTerm, setPaymentModeSearchTerm] = useState("");
   const [showPaymentModeSearch, setShowPaymentModeSearch] = useState(false);
+
+  // Handle URL parameter changes for status filter
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setStatus(statusParam);
+      setTrigger(prev => !prev); // Trigger data refetch
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     async function fetch() {
       try {
@@ -113,7 +125,7 @@ function Orders({
       }
     }
     fetch();
-  }, [trigger, pageNo, limit]);
+  }, [trigger, pageNo, limit, status]);
 
   // Add ESC key functionality to exit search mode
   useEffect(() => {
@@ -392,6 +404,7 @@ function Orders({
             <option value="Dispatched">Dispatched</option>
             <option value="Delivered">Delivered</option>
             <option value="Cancelled">Cancelled</option>
+            <option value="pendingPaymentApprovals">Payment Pending</option>
           </select>
         </div>
       </div>

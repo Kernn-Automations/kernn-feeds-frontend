@@ -10,6 +10,8 @@ const OutgoingStock = lazy(() => import("./OutgoingStock"));
 const StockSummary = lazy(() => import("./StockSummary"));
 const CurrentStock = lazy(() => import("./CurrentStock"))
 const DamagedGoods = lazy(() => import("./DamagedGoods"));
+const ManualStockManagement = lazy(() => import("./ManualStockManagement"));
+const ManualStockAPITest = lazy(() => import("./ManualStockAPITest"));
 
 function InventoryRoutes() {
   const navigate = useNavigate();
@@ -62,6 +64,22 @@ function InventoryRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <DamagedGoods navigate={navigate} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/manage-stock"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <ManualStockManagement navigate={navigate} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/manage-stock-test"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <ManualStockAPITest navigate={navigate} />
           </Suspense>
         }
       />

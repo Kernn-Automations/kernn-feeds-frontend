@@ -3,7 +3,7 @@ import styles from "./InventoryTab.module.css"; // Custom CSS module
 import DamagedGoodsModal from "./DamagedGoodsModal";
 import { useAuth } from "@/Auth";
 
-function InventoryTab({ inventory = [], warehouse }) {
+function InventoryTab({ inventory = [], warehouse, onInventoryUpdated }) {
   const { axiosAPI } = useAuth();
   const [showDamageSummary, setShowDamageSummary] = useState(false);
   const [damageReports, setDamageReports] = useState([]);
@@ -119,7 +119,7 @@ function InventoryTab({ inventory = [], warehouse }) {
                     Pack: {item.packageWeight} {item.packageWeightUnit}
                   </p>
                 )}
-                <DamagedGoodsModal item={item} warehouse={warehouse}/>
+                <DamagedGoodsModal item={item} warehouse={warehouse} onSuccess={onInventoryUpdated}/>
               </div>
             </div>
           );
@@ -133,7 +133,7 @@ function InventoryTab({ inventory = [], warehouse }) {
           className={styles.damageSummaryButton}
           onClick={() => setShowDamageSummary(true)}
         >
-          📊 Damage Summary Report
+          Damage Summary Report
         </button>
       </div>
 

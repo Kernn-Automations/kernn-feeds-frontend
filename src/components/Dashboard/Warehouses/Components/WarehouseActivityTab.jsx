@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styles from "./WarehouseActivityTab.module.css";
 import { format } from "date-fns";
 import {
@@ -54,15 +54,107 @@ const groupByDate = (activities) => {
   return grouped;
 };
 
-function WarehouseActivityTab({ activities = [] }) {
-  if (!activities.length)
-    return <div className={styles.empty}>No activity recorded.</div>;
+// Filter Component
+function ActivityFilters({ filters, onApplyFilters, onReset }) {
+  const [localFilters, setLocalFilters] = useState({
+    fromDate: filters.fromDate || '',
+    toDate: filters.toDate || '',
+    entity: filters.entity || ''
+  });
+
+  const handleFilterChange = (field, value) => {
+    const newFilters = { ...localFilters, [field]: value };
+    setLocalFilters(newFilters);
+    // Do NOT refresh data immediately - only update local state
+  };
+
+  const handleSubmit = () => {
+    // Only refresh data when Submit button is clicked
+    onApplyFilters(localFilters);
+  };
+
+  const handleCancel = () => {
+    // Reset local filters to original values without refreshing data
+    setLocalFilters({
+      fromDate: filters.fromDate || '',
+      toDate: filters.toDate || '',
+      entity: filters.entity || ''
+    });
+  };
+
+  return (
+    <div className={styles.filterContainer}>
+      <div className={styles.filterRow}>
+        <div className={styles.filterField}>
+          <label>From Date:</label>
+          <input
+            type="date"
+            value={localFilters.fromDate}
+            onChange={(e) => handleFilterChange('fromDate', e.target.value)}
+          />
+        </div>
+        <div className={styles.filterField}>
+          <label>To Date:</label>
+          <input
+            type="date"
+            value={localFilters.toDate}
+            onChange={(e) => handleFilterChange('toDate', e.target.value)}
+          />
+        </div>
+        <div className={styles.filterField}>
+          <label>Entity:</label>
+          <select
+            value={localFilters.entity}
+            onChange={(e) => handleFilterChange('entity', e.target.value)}
+          >
+            <option value="">-- All --</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+            <option value="50">50</option>
+          </select>
+        </div>
+        <div className={styles.filterActions}>
+          <button className={styles.submitButton} onClick={handleSubmit}>
+            Submit
+          </button>
+          <button className={styles.cancelButton} onClick={handleCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WarehouseActivityTab({ activities = [], filters = {}, onApplyFilters, loading = false }) {
+  if (!activities.length && !loading)
+    return (
+      <div>
+        <ActivityFilters 
+          filters={filters} 
+          onApplyFilters={onApplyFilters}
+        />
+        <div className={styles.empty}>No activity recorded.</div>
+      </div>
+    );
 
   const groupedActivities = groupByDate(activities);
 
   return (
     <div className={styles.activityContainer}>
-      {Object.entries(groupedActivities).map(([date, logs]) => (
+      <ActivityFilters 
+        filters={filters} 
+        onApplyFilters={onApplyFilters}
+      />
+      {loading ? (
+        <div className={styles.loadingContainer}>
+          <div className={styles.loadingSpinner}></div>
+          <p>Loading activities...</p>
+        </div>
+      ) : (
+        Object.entries(groupedActivities).map(([date, logs]) => (
         <div key={date} className={styles.dateGroup}>
           <h6 className={styles.dateHeader}>{date}</h6>
           <ul className={styles.activityList}>
@@ -112,7 +204,8 @@ function WarehouseActivityTab({ activities = [] }) {
             })}
           </ul>
         </div>
-      ))}
+      ))
+      )}
     </div>
   );
 }

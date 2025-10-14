@@ -12,14 +12,12 @@ function CreateEmployee({ navigate }) {
     employeeId: "",
     email: "",
     mobile: "",
-    warehouseId: "",
   });
 
   const [roles, setRoles] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [selectedSupervisor, setSelectedSupervisor] = useState();
-  const [warehouses, setWarehouses] = useState([]);
 
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -31,40 +29,14 @@ function CreateEmployee({ navigate }) {
   const adminRole = roles.find((r) => r.name.toLowerCase() === "admin");
   const isAdminSelected = selectedRoles.includes(adminRole?.id);
 
-  const warehouseRequired = roles.some(
-    (r) =>
-      selectedRoles.includes(r.id) &&
-      ["business officer", "warehouse manager", "area manager"].includes(r.name.toLowerCase())
-  );
 
-  // Load roles and warehouses
+  // Load roles
   useEffect(() => {
     async function fetchInitial() {
       try {
         setLoading(true);
-        
-        // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
-        // ✅ Add division parameters to warehouses endpoint
-        let warehousesEndpoint = "/warehouse";
-        if (currentDivisionId && currentDivisionId !== '1') {
-          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          warehousesEndpoint += `?showAllDivisions=true`;
-        }
-        
-        console.log('CreateEmployee - Fetching warehouses with endpoint:', warehousesEndpoint);
-        console.log('CreateEmployee - Division ID:', currentDivisionId);
-        console.log('CreateEmployee - Division Name:', currentDivisionName);
-        
-        const [rolesRes, warehousesRes] = await Promise.all([
-          axiosAPI.get("/employees/roles"),
-          axiosAPI.get(warehousesEndpoint),
-        ]);
+        const rolesRes = await axiosAPI.get("/employees/roles");
         setRoles(rolesRes.data.roles || []);
-        setWarehouses(warehousesRes.data.warehouses || []);
       } catch (err) {
         setError(
           err?.response?.data?.message || "Failed to load initial data."
@@ -121,18 +93,6 @@ function CreateEmployee({ navigate }) {
     const updatedRoles = selectedRoles.filter((_, i) => i !== index);
     setSelectedRoles(updatedRoles);
 
-    // Reset warehouse & supervisor if the conditions no longer apply
-    if (
-      !updatedRoles.some((roleId) => {
-        const role = roles.find((r) => r.id === roleId);
-        return ["business officer", "warehouse manager"].includes(
-          role?.name.toLowerCase()
-        );
-      })
-    ) {
-      setForm((prev) => ({ ...prev, warehouseId: "" }));
-    }
-
     if (
       updatedRoles.every((roleId) => {
         const role = roles.find((r) => r.id === roleId);
@@ -151,7 +111,6 @@ function CreateEmployee({ navigate }) {
       !form.employeeId ||
       !form.mobile ||
       selectedRoles.length === 0 ||
-      (warehouseRequired && !form.warehouseId) ||
       (!isAdminSelected && !selectedSupervisor)
     ) {
       setError("Please fill all the required fields.");
@@ -161,7 +120,6 @@ function CreateEmployee({ navigate }) {
 
     const payload = {
       ...form,
-      warehouseId: warehouseRequired ? parseInt(form.warehouseId) : null,
       roleIds: selectedRoles,
       supervisorId: isAdminSelected ? null : parseInt(selectedSupervisor),
     };
@@ -239,23 +197,7 @@ function CreateEmployee({ navigate }) {
             </>
           )}
 
-          {warehouseRequired && (
-            <>
-              <label className="mt-3">Warehouse:</label>
-              <select
-                name="warehouseId"
-                value={form.warehouseId || ""}
-                onChange={handleFormChange}
-              >
-                <option value="">-- Select Warehouse --</option>
-                {warehouses.map((wh) => (
-                  <option key={wh.id} value={wh.id}>
-                    {wh.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
+          {/* Warehouse selection removed as it's no longer needed */}
 
           {!isAdminSelected && supervisors.length > 0 && (
             <>

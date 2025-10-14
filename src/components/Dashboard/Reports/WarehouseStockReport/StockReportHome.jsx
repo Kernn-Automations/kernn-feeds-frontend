@@ -21,6 +21,14 @@ function StockReportHome({ navigate }) {
           <button
             className="homebtn"
             onClick={() =>
+              navigate("/reports/stock-reports/product-stock-summary")
+            }
+          >
+            Product Stock Summary
+          </button>
+          <button
+            className="homebtn"
+            onClick={() =>
               navigate("/reports/stock-reports/closing-balance-reports")
             }
           >
