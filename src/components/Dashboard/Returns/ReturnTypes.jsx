@@ -318,9 +318,7 @@ const ReturnTypes = ({ returnTypes, onRefresh }) => {
         </button>
       </div>
 
-      <div className={styles.alert + ' ' + styles.alertInfo}>
-        <strong>Return Types:</strong> The system includes predefined return types for common scenarios. These types are managed by the system administrator.
-      </div>
+      {/* Removed descriptive alert per request */}
 
       <table className="table table-bordered borderedtable">
         <thead>

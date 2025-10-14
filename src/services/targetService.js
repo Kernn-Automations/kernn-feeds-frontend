@@ -87,12 +87,36 @@ class TargetService {
 
   /**
    * Get teams for dropdown
+   * @param {string|number} divisionId - Division ID (optional)
    * @returns {Promise} API response
    */
-  async getTeams() {
+  async getTeams(divisionId = null) {
     try {
-      const response = await axiosInstance.get('/teams/teams');
-      return response.data;
+      let endpoint = '/teams';
+      
+      // Add division parameter if provided
+      if (divisionId) {
+        endpoint += `?divisionId=${divisionId}`;
+      } else {
+        // Check if we should show all divisions
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        if (currentDivisionId === '1' || currentDivisionId === 'all') {
+          endpoint += '?showAllDivisions=true';
+        } else if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        }
+      }
+      
+      const response = await axiosInstance.get(endpoint);
+      const data = response.data;
+      console.log('Teams API response:', data);
+      
+      // Handle the actual API response structure
+      // For teams: data.data.teams (nested structure)
+      const teams = data?.data?.teams || [];
+      console.log('Extracted teams:', teams);
+      
+      return { teams: Array.isArray(teams) ? teams : [] };
     } catch (error) {
       throw this.handleError(error);
     }
@@ -100,13 +124,36 @@ class TargetService {
 
   /**
    * Get employees for dropdown
-   * @param {number} divisionId - Division ID
+   * @param {string|number} divisionId - Division ID (optional)
    * @returns {Promise} API response
    */
-  async getEmployees(divisionId) {
+  async getEmployees(divisionId = null) {
     try {
-      const response = await axiosInstance.get(`/employees/division/${divisionId}`);
-      return response.data;
+      let endpoint = '/employees';
+      
+      // Add division parameter if provided
+      if (divisionId) {
+        endpoint += `?divisionId=${divisionId}`;
+      } else {
+        // Check if we should show all divisions
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        if (currentDivisionId === '1' || currentDivisionId === 'all') {
+          endpoint += '?showAllDivisions=true';
+        } else if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        }
+      }
+      
+      const response = await axiosInstance.get(endpoint);
+      const data = response.data;
+      console.log('Employees API response:', data);
+      
+      // Handle the actual API response structure
+      // For employees: data.data (direct array)
+      const employees = data?.data || [];
+      console.log('Extracted employees:', employees);
+      
+      return { employees: Array.isArray(employees) ? employees : [] };
     } catch (error) {
       throw this.handleError(error);
     }

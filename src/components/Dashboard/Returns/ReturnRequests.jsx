@@ -354,9 +354,7 @@ const ReturnRequests = ({
           </div>
         </div>
 
-        <div className={styles.alert + ' ' + styles.alertInfo}>
-          <strong>Return Requests:</strong> Manage and track all return requests. Use filters to find specific returns by status or type.
-        </div>
+        {/* Informational alert removed as per request */}
         
         <div className={styles.emptyState}>
           <div className={styles.emptyStateIcon}>
@@ -448,9 +446,7 @@ const ReturnRequests = ({
         </div>
       </div>
 
-      <div className={styles.alert + ' ' + styles.alertInfo}>
-        <strong>Return Requests:</strong> Manage and track all return requests. Use filters to find specific returns by status or type.
-      </div>
+      {/* Informational alert removed as per request */}
 
       <table className="table table-bordered borderedtable">
         <thead>
@@ -488,10 +484,10 @@ const ReturnRequests = ({
                   <strong>{returnItem.salesOrder?.customer?.customerName || 
                            returnItem.salesOrder?.customer?.name || 
                            returnItem.customer?.name || 'N/A'}</strong>
-                  {returnItem.salesOrder?.customer?.phone && (
+                  {returnItem.salesOrder?.customer?.mobile && (
                     <>
                       <br />
-                      <small className="text-muted">{returnItem.salesOrder.customer.phone}</small>
+                      <small className="text-muted">{returnItem.salesOrder.customer.mobile}</small>
                     </>
                   )}
                 </div>

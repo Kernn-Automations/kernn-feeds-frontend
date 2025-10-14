@@ -32,11 +32,17 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   const adminRole = roles.find((r) => r.name.toLowerCase() === "admin");
   const isAdminSelected = selectedRoles.includes(adminRole?.id);
 
-  const warehouseRequired = roles.some(
-    (r) =>
-      selectedRoles.includes(r.id) &&
-      ["business officer", "warehouse manager", "area business manager"].includes(r.name.toLowerCase())
+  // Hide warehouse selection when specific roles are selected
+  const rolesHideWarehouse = [
+    "business officer",
+    "warehouse manager",
+    "area business manager",
+  ];
+  const hasRoleThatHidesWarehouse = roles.some(
+    (r) => selectedRoles.includes(r.id) && rolesHideWarehouse.includes(r.name.toLowerCase())
   );
+  // As per requirement, when the above roles are selected, warehouse field should not appear
+  const warehouseRequired = !hasRoleThatHidesWarehouse && false;
 
   // Load roles and warehouses
   useEffect(() => {
@@ -82,9 +88,14 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   useEffect(() => {
     async function fetchSupervisors() {
       const lastRoleId = selectedRoles[selectedRoles.length - 1];
-      const lastRole = roles.find((r) => r.name === lastRoleId);
+      const lastRole = roles.find((r) => r.id === lastRoleId);
 
-      if (!lastRole || lastRole.name.toLowerCase() === "admin") {
+      if (!lastRole) {
+        setSupervisors([]);
+        return;
+      }
+
+      if (lastRole.name && lastRole.name.toLowerCase() === "admin") {
         setSupervisors([]);
         return;
       }
@@ -149,13 +160,14 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   console.log(selectedRoles);
   console.log(availableRoles);
   const handleSubmit = async () => {
+    const parsedSupervisorId = selectedSupervisor != null && selectedSupervisor !== "" ? parseInt(selectedSupervisor) : null;
     if (
       !form.name ||
       !form.employeeId ||
       !form.mobile ||
       selectedRoles.length === 0 ||
       (warehouseRequired && !form.warehouseId) ||
-      (!isAdminSelected && !selectedSupervisor)
+      (!isAdminSelected && (parsedSupervisorId == null || Number.isNaN(parsedSupervisorId)))
     ) {
       setError("Please fill all the required fields.");
       setIsModalOpen(true);
@@ -166,7 +178,7 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
       ...form,
       warehouseId: warehouseRequired ? parseInt(form.warehouseId) : null,
       roleIds: selectedRoles,
-      supervisorId: isAdminSelected ? null : parseInt(selectedSupervisor),
+      supervisorId: isAdminSelected ? null : parsedSupervisorId,
     };
     console.log(payload)
     try {

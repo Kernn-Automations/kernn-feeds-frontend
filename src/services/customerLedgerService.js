@@ -21,18 +21,22 @@ class CustomerLedgerService {
       if (toDate) params.append('toDate', toDate);
 
       const response = await axiosAPI.get(`${this.baseURL}/${customerId}/ledger?${params.toString()}`);
-      
-      if (response.data.success) {
-        return {
-          success: true,
-          data: response.data.data
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || 'Failed to fetch customer ledger'
-        };
+
+      // Handle the new backend response structure
+      const payload = response?.data;
+      if (payload?.success && payload?.data) {
+        return { success: true, data: payload.data };
       }
+      // Fallback for old format
+      const ledger = payload?.data || payload?.ledger || payload?.items || payload;
+      const ok = Array.isArray(ledger) || typeof ledger === 'object';
+      if (ok) {
+        return { success: true, data: ledger };
+      }
+      return {
+        success: false,
+        message: payload?.message || 'Failed to fetch customer ledger'
+      };
     } catch (error) {
       console.error('Customer Ledger API Error:', error);
       return {
@@ -52,18 +56,22 @@ class CustomerLedgerService {
   async getCustomerLedgerByFinancialYear(axiosAPI, customerId, financialYear) {
     try {
       const response = await axiosAPI.get(`${this.baseURL}/${customerId}/ledger/financial-year/${financialYear}`);
-      
-      if (response.data.success) {
-        return {
-          success: true,
-          data: response.data.data
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || 'Failed to fetch customer ledger'
-        };
+
+      // Handle the new backend response structure
+      const payload = response?.data;
+      if (payload?.success && payload?.data) {
+        return { success: true, data: payload.data };
       }
+      // Fallback for old format
+      const ledger = payload?.data || payload?.ledger || payload?.items || payload;
+      const ok = Array.isArray(ledger) || typeof ledger === 'object';
+      if (ok) {
+        return { success: true, data: ledger };
+      }
+      return {
+        success: false,
+        message: payload?.message || 'Failed to fetch customer ledger'
+      };
     } catch (error) {
       console.error('Customer Ledger API Error:', error);
       return {
@@ -87,9 +95,9 @@ class CustomerLedgerService {
       if (fromDate) params.append('fromDate', fromDate);
       if (toDate) params.append('toDate', toDate);
 
-      const response = await axiosAPI.get(`${this.baseURL}/${customerId}/ledger/pdf?${params.toString()}`, {
-        responseType: 'blob'
-      });
+      // Use blob-configured instance if available
+      const getBlob = typeof axiosAPI.getpdf === 'function' ? axiosAPI.getpdf : axiosAPI.get;
+      const response = await getBlob(`${this.baseURL}/${customerId}/ledger/pdf?${params.toString()}`);
       
       return {
         success: true,
@@ -158,9 +166,9 @@ class CustomerLedgerService {
           filename = `customer-ledger-${customerId}-${fromDate}-to-${toDate}.pdf`;
       }
 
-      const response = await axiosAPI.get(`${this.baseURL}/${customerId}/ledger/pdf?fromDate=${fromDate}&toDate=${toDate}`, {
-        responseType: 'blob'
-      });
+      // Use blob-configured instance if available
+      const getBlob = typeof axiosAPI.getpdf === 'function' ? axiosAPI.getpdf : axiosAPI.get;
+      const response = await getBlob(`${this.baseURL}/${customerId}/ledger/pdf?fromDate=${fromDate}&toDate=${toDate}`);
       
       return {
         success: true,
@@ -173,6 +181,18 @@ class CustomerLedgerService {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to download PDF'
       };
+    }
+  }
+
+  /**
+   * Call debug endpoint for troubleshooting
+   */
+  async debug(axiosAPI) {
+    try {
+      const res = await axiosAPI.get(`/customers/ledger/debug`);
+      return { success: true, data: res.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   }
 

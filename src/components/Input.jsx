@@ -19,7 +19,9 @@ function Input({ setLogin, setUser, setRole }) {
     setEmail(onlyNums)};
 
   const onSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     setOntap(true);
     setResp(true);
     setLoading(true);

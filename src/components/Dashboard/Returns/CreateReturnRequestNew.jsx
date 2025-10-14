@@ -405,6 +405,30 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
   console.log('Sales order search term:', searchTerm);
   console.log('Selected customer:', selectedCustomer);
 
+  // Orders list for current selection (used for dropdown)
+  const ordersForCustomer = selectedCustomer
+    ? salesOrders.filter(o => o.customer?.id === selectedCustomer.id)
+    : salesOrders;
+
+  // Simple dropdown change handlers
+  const handleCustomerSelectDropdown = async (e) => {
+    const id = Number(e.target.value);
+    const cust = customers.find(c => c.id === id) || null;
+    await handleCustomerSelect(cust);
+  };
+
+  const handleOrderSelectDropdown = (e) => {
+    const id = Number(e.target.value);
+    const order = ordersForCustomer.find(o => o.id === id);
+    if (order) {
+      handleOrderSelect(order);
+    } else {
+      setSelectedSalesOrder(null);
+      setReturnItems([]);
+      setFormData(prev => ({ ...prev, salesOrderId: '' }));
+    }
+  };
+
   // Debug effect to log state changes
   useEffect(() => {
     console.log('Sales orders state changed:', salesOrders);
@@ -531,9 +555,10 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
     setShowDropdown(false);
     setHighlightedIndex(-1);
     
-      // Initialize return items from sales order items
+    // Initialize return items from sales order items
       const items = order.salesOrderItems.map(item => ({
-        id: item.id,
+        // Preserve the sales order line id so backend can identify the exact item
+        salesOrderItemId: item.id,
         productId: item.productId,
         productName: item.product.name,
         originalQuantity: item.quantity,
@@ -810,18 +835,17 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
   return (
     <DialogRoot
       placement={"center"}
-      size={"xl"}
+      size={"lg"}
       className={styles.mdl}
       open={true}
       onOpenChange={onClose}
       modal={true}
       closeOnInteractOutside={true}
-      style={{ marginTop: '10%' }}
     >
-      <DialogContent className="mdl" style={{ marginTop: '10%' }}>
+      <DialogContent className="mdl" style={{ maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden', maxWidth: '900px' }}>
         <DialogBody>
-          <div className="d-flex justify-content-between align-items-center px-3">
-            <h5 className="mdl-title mb-0">Create Return Request</h5>
+          <div className="px-3">
+            <h3 className="px-3 pb-3 mdl-title">Create Return Request</h3>
           </div>
           
           {loading && (
@@ -833,336 +857,138 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
             </div>
           )}
 
-          {/* Debug Info */}
-          <div className="mb-3 p-2 bg-light rounded">
-            <small className="text-muted">
-              Debug Info: Sales Orders: {salesOrders.length}, Customers: {customers.length}
-            </small>
-            <div className="mt-2">
-              <button 
-                type="button" 
-                className="btn btn-sm btn-outline-secondary me-2"
-                onClick={loadInitialData}
-              >
-                Reload Data
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-sm btn-outline-primary"
-                onClick={() => {
-                  const testData = [
-                    {
-                      id: 1,
-                      orderNumber: "SO-2024-001",
-                      orderStatus: "Dispatched",
-                      totalAmount: 5000,
-                      customer: {
-                        id: 1,
-                        name: "John Doe",
-                        phone: "9876543210",
-                        email: "john@example.com"
-                      },
-                      salesOrderItems: [
-                        {
-                          id: 1,
-                          productId: 10,
-                          quantity: 100,
-                          unit: "kg",
-                          unitPrice: 50,
-                          product: { id: 10, name: "Sample Product", SKU: "SKU001" }
-                        }
-                      ]
-                    }
-                  ];
-                  setSalesOrders(testData);
-                  console.log('Set test data:', testData);
-                }}
-              >
-                Set Test Data
-              </button>
-            </div>
-          </div>
+          {/* Removed debug info */}
 
           {!loading && (
             <form onSubmit={handleSubmit}>
-            {/* Customer Selection */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
-              <label>Select Customer *</label>
-              <div className={styles.customerSearchContainer}>
-                <div className={styles.searchInputWrapper} onClick={handleCustomerInputFocus}>
-                <input
-                  type="text"
-                    placeholder="Click here to search customers..."
-                    value={customerSearchTerm}
-                    onChange={handleCustomerSearchChange}
-                    onKeyDown={handleCustomerKeyDown}
-                    onFocus={handleCustomerInputFocus}
-                  className="form-control"
+            <div className="row">
+              {/* Left column */}
+              <div className="col-6">
+                {/* Customer Selection - dropdown only */}
+                <div className={`mb-3 inputcolumn-mdl`}>
+                  <label>Select Customer *</label>
+                  <select
+                    className="form-select"
+                    value={selectedCustomer?.id || ''}
+                    onChange={handleCustomerSelectDropdown}
                     required
-                    disabled={loading}
-                    autoComplete="off"
-                />
-                  <div className={styles.searchIcon}>
-                    <i className="bi bi-person"></i>
-              </div>
-                  {customerSearchTerm && (
-                    <button
-                      type="button"
-                      className={styles.clearButton}
-                      onClick={handleClearCustomerSearch}
-                      title="Clear customer search"
-                    >
-                      <i className="bi bi-x"></i>
-                    </button>
+                    style={{ width: '70%', height: '36px' }}
+                  >
+                    <option value="">-- Select Customer --</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} {c.phone ? `- ${c.phone}` : ''}</option>
+                    ))}
+                  </select>
+                  {validationErrors.customer && (
+                    <div className="text-danger small mt-1">{validationErrors.customer}</div>
                   )}
                 </div>
-                
-                {showCustomerDropdown && (
-                  <div className={styles.searchDropdown}>
-                    {filteredCustomers.length > 0 ? (
-                      <>
-                        <div className={styles.searchResultsHeader}>
-                          <span className={styles.resultsCount}>
-                            {customerSearchTerm.trim() ? 
-                              `${filteredCustomers.length} customer${filteredCustomers.length !== 1 ? 's' : ''} found` :
-                              `All ${filteredCustomers.length} customer${filteredCustomers.length !== 1 ? 's' : ''}`
-                            }
-                          </span>
-                        </div>
-                        <div className={styles.dropdownList}>
-                        {filteredCustomers.slice(0, 10).map((customer, index) => (
-                          <div
-                            key={customer.id}
-                            className={`${styles.dropdownItem} ${
-                              index === highlightedCustomerIndex ? styles.highlighted : ''
-                            }`}
-                            onClick={() => handleCustomerSelect(customer)}
-                            onMouseEnter={() => setHighlightedCustomerIndex(index)}
-                          >
-                            <div className={styles.customerInfo}>
-                              <div className={styles.customerName}>
-                                {customer.name}
-                              </div>
-                              {customer.phone && (
-                                <div className={styles.customerPhone}>
-                                  📞 {customer.phone}
-                                </div>
-                              )}
-                              {customer.email && (
-                                <div className={styles.customerEmail}>
-                                  ✉️ {customer.email}
-                                </div>
-                              )}
-                            </div>
-                            <div className={styles.customerDetails}>
-                              <div className={styles.customerId}>
-                                ID: {customer.id}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {filteredCustomers.length > 10 && (
-                          <div className={styles.moreResults}>
-                            +{filteredCustomers.length - 10} more customers
-                          </div>
-                        )}
-                        </div>
-                      </>
-                    ) : (
-                      <div className={styles.noResults}>
-                        <i className="bi bi-person"></i>
-                        <span>
-                          {customerSearchTerm.trim() ? 
-                            `No customers found matching "${customerSearchTerm}"` :
-                            'No customers available'
-                          }
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              {validationErrors.customer && (
-                <div className="text-danger small mt-1">{validationErrors.customer}</div>
-              )}
-            </div>
 
-            {/* Enhanced Sales Order Selection */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
-              <label>Select Sales Order *</label>
-              <div className={styles.searchContainer}>
-                <div className={styles.searchInputWrapper} onClick={handleInputFocus}>
-                <input
-                  type="text"
-                    placeholder="Click here to search orders..."
-                  value={searchTerm}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={handleInputFocus}
-                  className="form-control"
-                required
-                disabled={loading}
-                    autoComplete="off"
+                {/* Sales Order Dropdown */}
+                <div className={`mb-3 inputcolumn-mdl`}>
+                  <label>Select Sales Order *</label>
+                  <select
+                    className="form-select"
+                    value={selectedSalesOrder?.id || ''}
+                    onChange={handleOrderSelectDropdown}
+                    required
+                    disabled={!ordersForCustomer.length}
+                    style={{ width: '70%', height: '36px' }}
+                  >
+                    <option value="">-- Select Sales Order --</option>
+                    {ordersForCustomer.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.orderNumber} - {o.customer?.name}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.salesOrderId && (
+                    <div className="text-danger small mt-1">{validationErrors.salesOrderId}</div>
+                  )}
+                </div>
+
+                {/* Return Type */}
+                <div className={`mb-3 inputcolumn-mdl`}>
+                  <label>Return Type *</label>
+                  <select 
+                    value={formData.returnType} 
+                    onChange={(e) => handleFormChange('returnType', e.target.value)}
+                    required
+                    className="form-select"
+                    style={{ width: '70%', height: '36px' }}
+                  >
+                    <option value="">Select Return Type</option>
+                    {returnTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label} - {type.description}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.returnType && (
+                    <div className="text-danger small mt-1">{validationErrors.returnType}</div>
+                  )}
+                </div>
+
+                {/* Custom Reason */}
+                <div className={`mb-3 inputcolumn-mdl`}>
+                  <label>Custom Reason (Optional)</label>
+                  <textarea
+                    value={formData.customReason}
+                    onChange={(e) => handleFormChange('customReason', e.target.value)}
+                    className="form-control"
+                    placeholder="Enter additional details about the return reason..."
+                    rows={3}
+                    style={{ width: '70%', height: '80px' }}
                   />
-                  <div className={styles.searchIcon}>
-                    <i className="bi bi-search"></i>
-                  </div>
-                  {searchTerm && (
-                    <button
-                      type="button"
-                      className={styles.clearButton}
-                      onClick={handleClearSearch}
-                      title="Clear search"
-                    >
-                      <i className="bi bi-x"></i>
-                    </button>
+                </div>
+              </div>
+
+              {/* Right column */}
+              <div className="col-6">
+                {/* Refund Method */}
+                <div className={`mb-3 inputcolumn-mdl`}>
+                  <label>Refund Method *</label>
+                  <select 
+                    value={formData.refundMethod} 
+                    onChange={(e) => handleFormChange('refundMethod', e.target.value)}
+                    required
+                    className="form-select"
+                    style={{ width: '70%', height: '36px' }}
+                  >
+                    <option value="">Select refund method</option>
+                    {refundMethods.map(method => (
+                      <option key={method.value} value={method.value}>
+                        {method.label} - {method.description}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.refundMethod && (
+                    <div className="text-danger small mt-1">{validationErrors.refundMethod}</div>
                   )}
                 </div>
-                
-                {showDropdown && (
-                  <div className={styles.searchDropdown}>
-                    {filteredSalesOrders.length > 0 ? (
-                      <>
-                        <div className={styles.searchResultsHeader}>
-                          <span className={styles.resultsCount}>
-                            {searchTerm.trim() ? 
-                              `${filteredSalesOrders.length} order${filteredSalesOrders.length !== 1 ? 's' : ''} found` :
-                              `All ${filteredSalesOrders.length} order${filteredSalesOrders.length !== 1 ? 's' : ''}`
-                            }
-                          </span>
-                        </div>
-                        <div className={styles.dropdownList}>
-                        {filteredSalesOrders.slice(0, 10).map((order, index) => (
-                          <div
-                            key={order.id}
-                            className={`${styles.dropdownItem} ${
-                              index === highlightedIndex ? styles.highlighted : ''
-                            }`}
-                            onClick={() => handleOrderSelect(order)}
-                            onMouseEnter={() => setHighlightedIndex(index)}
-                          >
-                            <div className={styles.orderInfo}>
-                              <div className={styles.orderNumber}>
-                                {order.orderNumber}
-                              </div>
-                              <div className={styles.customerInfo}>
-                                {order.customer?.name || 'Unknown Customer'}
-                              </div>
-                            </div>
-                            <div className={styles.orderDetails}>
-                              <div className={styles.orderAmount}>
-                                ₹{order.totalAmount}
-                              </div>
-                              <div className={styles.orderStatus}>
-                                {order.orderStatus}
-                              </div>
-                            </div>
-                            {order.customer?.phone && (
-                              <div className={styles.customerPhone}>
-                                📞 {order.customer.phone}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {filteredSalesOrders.length > 10 && (
-                          <div className={styles.moreResults}>
-                            +{filteredSalesOrders.length - 10} more results
-                          </div>
-                        )}
-                        </div>
-                      </>
-                    ) : (
-                      <div className={styles.noResults}>
-                        <i className="bi bi-search"></i>
-                        <span>
-                          {searchTerm.trim() ? 
-                            `No orders found matching "${searchTerm}"` :
-                            'No orders available'
-                          }
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+
+                {/* Return Reason Selection */}
+                <div className={`mb-3 inputcolumn-mdl`}>
+                  <label>Return Reason *</label>
+                  <select
+                    value={formData.returnReason}
+                    onChange={(e) => handleFormChange('returnReason', e.target.value)}
+                    required
+                    className="form-select"
+                    style={{ width: '70%', height: '36px' }}
+                  >
+                    <option value="">Select reason</option>
+                    {returnReasons.map((reason) => (
+                      <option key={reason.id} value={reason.id}>
+                        {reason.reasonName || reason.name}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.returnReason && (
+                    <div className="text-danger small mt-1">{validationErrors.returnReason}</div>
+                  )}
+                </div>
               </div>
-              {validationErrors.salesOrderId && (
-                <div className="text-danger small mt-1">{validationErrors.salesOrderId}</div>
-              )}
-            </div>
-
-            {/* Return Type */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
-              <label>Return Type *</label>
-              <select 
-                value={formData.returnType} 
-                onChange={(e) => handleFormChange('returnType', e.target.value)}
-                required
-                className="form-select"
-              >
-                <option value="">Select Return Type</option>
-                {returnTypes.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label} - {type.description}
-                  </option>
-                ))}
-              </select>
-              {validationErrors.returnType && (
-                <div className="text-danger small mt-1">{validationErrors.returnType}</div>
-              )}
-            </div>
-
-            {/* Refund Method */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
-              <label>Refund Method *</label>
-              <select 
-                value={formData.refundMethod} 
-                onChange={(e) => handleFormChange('refundMethod', e.target.value)}
-                required
-                className="form-select"
-              >
-                <option value="">Select refund method</option>
-                {refundMethods.map(method => (
-                  <option key={method.value} value={method.value}>
-                    {method.label} - {method.description}
-                  </option>
-                ))}
-              </select>
-              {validationErrors.refundMethod && (
-                <div className="text-danger small mt-1">{validationErrors.refundMethod}</div>
-              )}
-            </div>
-
-            {/* Return Reason Selection */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
-              <label>Return Reason *</label>
-              <select
-                value={formData.returnReason}
-                onChange={(e) => handleFormChange('returnReason', e.target.value)}
-                required
-                className="form-select"
-              >
-                <option value="">Select reason</option>
-                {returnReasons.map((reason) => (
-                  <option key={reason.id} value={reason.id}>
-                    {reason.reasonName || reason.name}
-                  </option>
-                ))}
-              </select>
-              {validationErrors.returnReason && (
-                <div className="text-danger small mt-1">{validationErrors.returnReason}</div>
-              )}
-            </div>
-
-            {/* Custom Reason */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
-              <label>Custom Reason (Optional)</label>
-              <textarea
-                value={formData.customReason}
-                onChange={(e) => handleFormChange('customReason', e.target.value)}
-                className="form-control"
-                placeholder="Enter additional details about the return reason..."
-                rows={3}
-              />
             </div>
 
             {/* Selected Sales Order Details */}
@@ -1260,7 +1086,7 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
             )}
 
             {/* Image Upload */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
+            <div className={`mb-3 inputcolumn-mdl`}>
               <label>Upload Images *</label>
               <ImageUploadComponent
                 onImagesChange={handleImagesChange}
@@ -1276,7 +1102,7 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
             </div>
 
             {/* Notes */}
-            <div className={`mb-3 ${styles.dispatchForm}`}>
+            <div className={`mb-3 inputcolumn-mdl`}>
               <label>Additional Notes (Optional)</label>
               <textarea
                 value={formData.notes}
@@ -1284,6 +1110,7 @@ const CreateReturnRequestNew = ({ onClose, onSuccess }) => {
                 className="form-control"
                 placeholder="Additional notes"
                 rows={4}
+                style={{ width: '70%', height: '100px' }}
               />
             </div>
 

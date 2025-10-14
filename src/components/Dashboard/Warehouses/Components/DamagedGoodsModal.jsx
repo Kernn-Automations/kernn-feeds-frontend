@@ -12,7 +12,7 @@ import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 
-const DamagedGoodsModal = ({ item, warehouse }) => {
+const DamagedGoodsModal = ({ item, warehouse, onSuccess }) => {
   // ✅ State for file
   const [imageFile, setImageFile] = useState(null);
   const [damagedQuantity, setDamagedQuantity] = useState('');
@@ -93,6 +93,14 @@ const DamagedGoodsModal = ({ item, warehouse }) => {
         // Close modal after success
         const closeButton = document.querySelector('[data-radix-dialog-close]');
         if (closeButton) closeButton.click();
+        // Notify parent to refresh inventory
+        if (typeof onSuccess === 'function') {
+          try {
+            onSuccess();
+          } catch (e) {
+            console.error('Error calling onSuccess callback:', e);
+          }
+        }
       }, 2000);
       
     } catch (error) {

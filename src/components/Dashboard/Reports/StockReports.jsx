@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import StockSummaryReport from "./WarehouseStockReport/StockSummaryReport";
+import ProductStockSummary from "./WarehouseStockReport/ProductStockSummary";
 import ClosingBalanceReport from "./WarehouseStockReport/ClosingBalanceReport";
 import WarehouseWiseReport from "./WarehouseStockReport/WarehouseWiseReport";
 import StockReportHome from "./WarehouseStockReport/StockReportHome";
@@ -23,6 +24,14 @@ function StockReports({ navigate }) {
           element={
             <Suspense fallback={<PageSkeleton />}>
               <StockSummaryReport navigate={navigate} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/product-stock-summary"
+          element={
+            <Suspense fallback={<PageSkeleton />}>
+              <ProductStockSummary navigate={navigate} />
             </Suspense>
           }
         />

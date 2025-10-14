@@ -3,6 +3,10 @@ import { FaMapMarkerAlt, FaBoxOpen, FaTruck, FaRupeeSign } from "react-icons/fa"
 import styles from "./DetailsTab.module.css"; // Create and style this CSS module
 
 function DetailsTab({ warehouse }) {
+  if (!warehouse) {
+    return null;
+  }
+
   const {
     name,
     plot,
@@ -15,11 +19,16 @@ function DetailsTab({ warehouse }) {
     pincode,
     latitude,
     longitude,
-    manager = {},
-    ordersToDispatch = [],
-    ordersToDeliver = [],
-    totalTurnover = 0,
+    manager,
+    ordersToDispatch,
+    ordersToDeliver,
+    totalTurnover,
   } = warehouse;
+
+  const safeManager = manager ?? {};
+  const safeOrdersToDispatch = ordersToDispatch ?? [];
+  const safeOrdersToDeliver = ordersToDeliver ?? [];
+  const safeTotalTurnover = Number(totalTurnover || 0);
 
   const address = [plot, street, area, city, district, state, country, pincode]
     .filter(Boolean)
@@ -42,15 +51,15 @@ function DetailsTab({ warehouse }) {
 
       <div className={styles.section}>
         <h4>Warehouse Manager</h4>
-        <p><span>Name:</span> {manager.name || "N/A"}</p>
-        <p><span>Mobile:</span> {manager.mobile || "N/A"}</p>
+        <p><span>Name:</span> {safeManager.name || "N/A"}</p>
+        <p><span>Mobile:</span> {safeManager.mobile || "N/A"}</p>
       </div>
 
       <div className={styles.row}>
         <div className={styles.card}>
           <div className={styles.cardIcon}><FaBoxOpen /></div>
           <div>
-            <h6>{ordersToDispatch.length}</h6>
+            <h6>{safeOrdersToDispatch.length}</h6>
             <p>Orders to Dispatch</p>
           </div>
         </div>
@@ -58,7 +67,7 @@ function DetailsTab({ warehouse }) {
         <div className={styles.card}>
           <div className={styles.cardIcon}><FaTruck /></div>
           <div>
-            <h6>{ordersToDeliver.length}</h6>
+            <h6>{safeOrdersToDeliver.length}</h6>
             <p>Orders to Deliver</p>
           </div>
         </div>
@@ -66,7 +75,7 @@ function DetailsTab({ warehouse }) {
         <div className={styles.card}>
           <div className={styles.cardIcon}><FaRupeeSign /></div>
           <div>
-            <h6>{totalTurnover.toLocaleString()} Tonnes</h6>
+            <h6>{safeTotalTurnover.toLocaleString()} Tonnes</h6>
             <p>Total Turnover</p>
           </div>
         </div>

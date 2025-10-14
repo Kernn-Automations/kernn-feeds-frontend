@@ -6,19 +6,15 @@ import {
   DialogCloseTrigger,
   DialogContent,
   DialogRoot,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import ReportsModal from "./ReportsModal";
 
-function ReportsViewModal({report}) {
+function ReportsViewModal({ report, isOpen, onClose }) {
   console.log("ReportsViewModal received report:", report);
   return (
     <>
-      <DialogRoot placement={"center"} size={"lg"} className={styles.mdl}>
-        <DialogTrigger asChild>
-          <button>view</button>
-        </DialogTrigger>
-        <DialogContent className="mdl">
+      <DialogRoot open={isOpen} onOpenChange={onClose} placement={"center"} size={"lg"} className={styles.mdl}>
+        <DialogContent backdrop={false} className={styles.dialogContent}>
           <DialogBody>
             <ReportsModal report={report} />
           </DialogBody>

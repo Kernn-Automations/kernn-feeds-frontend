@@ -25,39 +25,32 @@ function Login() {
     const onlyStaff = isStaffManager(currentUser) && !isAdmin(currentUser);
     const bothRoles = hasBothAdminAndStaff(currentUser);
 
-    if (login && bothRoles) {
-      // Show chooser popup
-      setShowRoleChoice(true);
-      return;
-    }
+    // if (login && bothRoles) {
+    //   // Show chooser popup
+    //   setShowRoleChoice(true);
+    //   return;
+    // }
 
-    if (login && onlyStaff) {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        localStorage.setItem("activeView", "staff");
-        navigate("/store");
-      } else {
-        const timer = setTimeout(() => {
-          const tokenCheck = localStorage.getItem("accessToken");
-          if (tokenCheck) {
-            localStorage.setItem("activeView", "staff");
-            navigate("/store");
-          }
-        }, 100);
-        return () => clearTimeout(timer);
-      }
-    }
+    // if (login && onlyStaff) {
+    //   const token = localStorage.getItem("accessToken");
+    //   if (token) {
+    //     localStorage.setItem("activeView", "staff");
+    //     navigate("/store");
+    //   } else {
+    //     const timer = setTimeout(() => {
+    //       const tokenCheck = localStorage.getItem("accessToken");
+    //       if (tokenCheck) {
+    //         localStorage.setItem("activeView", "staff");
+    //         navigate("/store");
+    //       }
+    //     }, 100);
+    //     return () => clearTimeout(timer);
+    //   }
+    // }
 
-    if (login && wantsDivision) {
-      console.log(
-        "Login.jsx - User needs division selection, redirecting to /divs"
-      );
-      console.log(
-        "Login.jsx - Reason: showDivisions=",
-        currentUser?.showDivisions,
-        "roles=",
-        currentUser?.roles
-      );
+    // Navigate directly to /divs for all users after login
+    if (login) {
+      console.log("Login.jsx - User logged in, navigating to /divs");
       // Wait for token to be available before redirecting
       const token = localStorage.getItem("accessToken");
       if (token) {
@@ -77,23 +70,55 @@ function Login() {
         }, 100);
         return () => clearTimeout(timer);
       }
-    } else if (login && !currentUser?.showDivisions) {
-      console.log(
-        "Login.jsx - User does not need division selection, redirecting to /dashboard"
-      );
-      // User doesn't need division selection, go to dashboard
-      // Add a small delay to ensure state is properly set
-      const timer = setTimeout(() => {
-        navigate("/");
-      }, 200);
-      return () => clearTimeout(timer);
-    } else {
-      console.log("Login.jsx - No action taken:", {
-        login,
-        hasUser: !!currentUser,
-        showDivisions: currentUser?.showDivisions,
-      });
     }
+
+    // Original logic commented out - now all users go to /divs
+    // if (login && wantsDivision) {
+    //   console.log(
+    //     "Login.jsx - User needs division selection, redirecting to /divs"
+    //   );
+    //   console.log(
+    //     "Login.jsx - Reason: showDivisions=",
+    //     currentUser?.showDivisions,
+    //     "roles=",
+    //     currentUser?.roles
+    //   );
+    //   // Wait for token to be available before redirecting
+    //   const token = localStorage.getItem("accessToken");
+    //   if (token) {
+    //     console.log("Login.jsx - Token found, navigating to /divs");
+    //     navigate("/divs");
+    //   } else {
+    //     console.log("Login.jsx - Token not found, waiting...");
+    //     // Wait a bit for token to be stored
+    //     const timer = setTimeout(() => {
+    //       const tokenCheck = localStorage.getItem("accessToken");
+    //       if (tokenCheck) {
+    //         console.log(
+    //           "Login.jsx - Token found after delay, navigating to /divs"
+    //         );
+    //         navigate("/divs");
+    //       }
+    //     }, 100);
+    //     return () => clearTimeout(timer);
+    //   }
+    // } else if (login && !currentUser?.showDivisions) {
+    //   console.log(
+    //     "Login.jsx - User does not need division selection, redirecting to /dashboard"
+    //   );
+    //   // User doesn't need division selection, go to dashboard
+    //   // Add a small delay to ensure state is properly set
+    //   const timer = setTimeout(() => {
+    //     navigate("/");
+    //   }, 200);
+    //   return () => clearTimeout(timer);
+    // } else {
+    //   console.log("Login.jsx - No action taken:", {
+    //     login,
+    //     hasUser: !!currentUser,
+    //     showDivisions: currentUser?.showDivisions,
+    //   });
+    // }
   }, [login, user, navigate]);
 
   return (
@@ -111,9 +136,9 @@ function Login() {
           </>
         )}
 
-        {login && !user.user?.showDivisions && <WelcomePage data={user} />}
+        {/* {login && !user.user?.showDivisions && <WelcomePage data={user} />} */}
 
-        {showRoleChoice && (
+        {/* {showRoleChoice && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }} className="role-choice-overlay">
             <div style={{ background: "#fff", borderRadius: 8, padding: 24, width: "90%", maxWidth: 420, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
               <h4 style={{ marginBottom: 12 }}>Choose a view</h4>
@@ -144,7 +169,7 @@ function Login() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </>
   );

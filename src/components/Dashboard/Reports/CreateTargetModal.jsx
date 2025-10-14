@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
+import targetService from "@/services/targetService";
 import {
 	DialogActionTrigger,
 	DialogBody,
@@ -36,6 +37,12 @@ function CreateTargetModal({ onCreated }) {
 	const [notes, setNotes] = useState("");
 	const [isRecurring, setIsRecurring] = useState(false);
 
+	// Assignment-specific dropdown data
+	const [teams, setTeams] = useState([]);
+	const [employees, setEmployees] = useState([]);
+	const [selectedTeamId, setSelectedTeamId] = useState("");
+	const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+
 	const divisionParam = useMemo(() => {
 		const currentDivisionId = localStorage.getItem("currentDivisionId");
 		if (!currentDivisionId || currentDivisionId === "all") return undefined;
@@ -57,11 +64,61 @@ function CreateTargetModal({ onCreated }) {
 		setPriority("medium");
 		setNotes("");
 		setIsRecurring(false);
+		setTeams([]);
+		setEmployees([]);
+		setSelectedTeamId("");
+		setSelectedEmployeeId("");
 	};
+
+	// Load dropdown lists when assignment type changes or modal opens
+	useEffect(() => {
+		async function loadLists() {
+			try {
+				const currentDivisionId = localStorage.getItem("currentDivisionId") || "1";
+				console.log('Reports CreateTargetModal - Loading lists for division:', currentDivisionId, 'assignmentType:', assignmentType);
+				
+				// Load teams for team assignment
+				if (assignmentType === "team") {
+					console.log('Loading teams...');
+					const res = await targetService.getTeams(currentDivisionId);
+					console.log('Teams response:', res);
+					const list = res?.teams || [];
+					console.log('Teams list:', list);
+					setTeams(Array.isArray(list) ? list : []);
+					setEmployees([]);
+					setSelectedEmployeeId("");
+				}
+				// Load employees for employee assignment
+				if (assignmentType === "employee") {
+					console.log('Loading employees...');
+					const res = await targetService.getEmployees(currentDivisionId);
+					console.log('Employees response:', res);
+					const list = res?.employees || [];
+					console.log('Employees list:', list);
+					setEmployees(Array.isArray(list) ? list : []);
+					setTeams([]);
+					setSelectedTeamId("");
+				}
+			} catch (e) {
+				console.error("CreateTargetModal - failed to load lists", e);
+			}
+		}
+		if (isOpen) loadLists();
+	}, [assignmentType, isOpen]);
 
 	const handleCreate = async () => {
 		if (!name || !targetType || !assignmentType || !budgetNumber || !budgetUnit || !timeFrame || !timeFrameValue || !startDate || !endDate) {
 			setError("Please fill all required fields");
+			setIsErrorOpen(true);
+			return;
+		}
+		if (assignmentType === "team" && !selectedTeamId) {
+			setError("Please select a team");
+			setIsErrorOpen(true);
+			return;
+		}
+		if (assignmentType === "employee" && !selectedEmployeeId) {
+			setError("Please select an employee");
 			setIsErrorOpen(true);
 			return;
 		}
@@ -81,6 +138,8 @@ function CreateTargetModal({ onCreated }) {
 				isRecurring,
 				priority,
 				notes,
+				...(assignmentType === "team" && selectedTeamId ? { teamIds: [Number(selectedTeamId)] } : {}),
+				...(assignmentType === "employee" && selectedEmployeeId ? { employeeIds: [Number(selectedEmployeeId)] } : {}),
 				...(divisionParam ? { divisionId: divisionParam } : {}),
 			};
 
@@ -131,7 +190,7 @@ function CreateTargetModal({ onCreated }) {
 			open={isOpen}
 			onOpenChange={handleOpenChange}
 			placement={"center"}
-			size={"lg"}
+			size={"md"}
 			modal={true}
 			closeOnInteractOutside={true}
 			closeOnEsc={true}
@@ -139,94 +198,130 @@ function CreateTargetModal({ onCreated }) {
 			<DialogTrigger asChild>
 				<button className="homebtn">+ Create Target</button>
 			</DialogTrigger>
-			<DialogContent className="mdl">
+			<DialogContent className="mdl targets-create-modal">
 				<DialogBody>
 					<h3 className={`px-3 pb-3 mdl-title`}>Create Target</h3>
 
 					<div className="row">
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Name :</label>
-							<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter target name" />
-						</div>
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Target Type :</label>
-							<select value={targetType} onChange={(e) => setTargetType(e.target.value)}>
-								<option value="sales">Sales</option>
-								<option value="customer">Customer</option>
-							</select>
-						</div>
+						{/* Left column */}
+						<div className="col-6">
+							<div className={`inputcolumn-mdl`}>
+								<label>Name :</label>
+								<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter target name" />
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Target Type :</label>
+								<select value={targetType} onChange={(e) => setTargetType(e.target.value)}>
+									<option value="sales">Sales</option>
+									<option value="customer">Customer</option>
+								</select>
+							</div>
+				<div className={`inputcolumn-mdl`}>
+								<label>Assignment Type :</label>
+								<select value={assignmentType} onChange={(e) => setAssignmentType(e.target.value)}>
+									<option value="team">Team</option>
+									<option value="employee">Employee</option>
+								</select>
+							</div>
+				{/* Conditional dropdown below Assignment Type */}
+				{assignmentType === "team" && (
+					<div className={`inputcolumn-mdl`}>
+						<label>Team :</label>
+						<select value={selectedTeamId} onChange={(e) => setSelectedTeamId(e.target.value)}>
+							<option value="">-- Select Team --</option>
+							{console.log('Reports Teams state:', teams)}
+							{teams.length === 0 && <option disabled>No teams available</option>}
+							{teams
+								.filter(team => team.isActive === true)
+								.map((t) => {
+									const teamHeadName = t.teamHead?.name || 'No Head';
+									return (
+										<option key={t.id} value={t.id}>
+											{t.name} (Head: {teamHeadName})
+										</option>
+									);
+								})}
+						</select>
 					</div>
-
-					<div className="row">
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Assignment Type :</label>
-							<select value={assignmentType} onChange={(e) => setAssignmentType(e.target.value)}>
-								<option value="team">Team</option>
-								<option value="employee">Employee</option>
-							</select>
-						</div>
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Budget Number :</label>
-							<input type="number" value={budgetNumber} onChange={(e) => setBudgetNumber(e.target.value)} placeholder="e.g. 100000" />
-						</div>
+				)}
+				{assignmentType === "employee" && (
+					<div className={`inputcolumn-mdl`}>
+						<label>Employee :</label>
+						<select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
+							<option value="">-- Select Employee --</option>
+							{console.log('Reports Employees state:', employees)}
+							{employees.length === 0 && <option disabled>No employees available</option>}
+							{employees
+								.filter(employee => employee.status === 'Active')
+								.map((emp) => {
+									const primaryRole = emp.primaryRole || emp.roles?.[0]?.name || 'No Role';
+									const teamStatus = emp.teamStatus === 'IN' ? 'In Team' : 'Not in Team';
+									const currentTeam = emp.currentTeam?.name;
+									const teamContext = currentTeam ? ` (${teamStatus}: ${currentTeam})` : ` (${teamStatus})`;
+									return (
+										<option key={emp.id} value={emp.id}>
+											{emp.name} - {primaryRole}{teamContext}
+										</option>
+									);
+								})}
+						</select>
 					</div>
+				)}
+							<div className={`inputcolumn-mdl`}>
+								<label>Budget Number :</label>
+								<input type="number" value={budgetNumber} onChange={(e) => setBudgetNumber(e.target.value)} placeholder="e.g. 100000" />
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Budget Unit :</label>
+								<select value={budgetUnit} onChange={(e) => setBudgetUnit(e.target.value)}>
+									<option value="count">Count</option>
+									<option value="bags">Bags</option>
+									<option value="tons">Tons</option>
+								</select>
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Time Frame</label>
+								<select value={timeFrame} onChange={(e) => setTimeFrame(e.target.value)}>
+									<option value="months">Months</option>
+								</select>
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Description:</label>
+								<textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the target"></textarea>
+							</div>
+						</div>
 
-					<div className="row">
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Budget Unit :</label>
-							<select value={budgetUnit} onChange={(e) => setBudgetUnit(e.target.value)}>
-								<option value="count">Count</option>
-								<option value="bags">Bags</option>
-								<option value="tons">Tons</option>
-							</select>
-						</div>
-						<div className={`col-3 inputcolumn-mdl`}>
-							<label>Time Frame :</label>
-							<select value={timeFrame} onChange={(e) => setTimeFrame(e.target.value)}>
-								<option value="months">Months</option>
-							</select>
-						</div>
-						<div className={`col-3 inputcolumn-mdl`}>
-							<label>Value :</label>
-							<input type="number" value={timeFrameValue} onChange={(e) => setTimeFrameValue(e.target.value)} />
-						</div>
-					</div>
-
-					<div className="row">
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Start Date :</label>
-							<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-						</div>
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>End Date :</label>
-							<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-						</div>
-					</div>
-
-					<div className="row">
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Priority :</label>
-							<select value={priority} onChange={(e) => setPriority(e.target.value)}>
-								<option value="low">Low</option>
-								<option value="medium">Medium</option>
-								<option value="high">High</option>
-								<option value="critical">Critical</option>
-							</select>
-						</div>
-						<div className={`col-6 inputcolumn-mdl`}>
-							<label>Recurring :</label>
-							<input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
-						</div>
-					</div>
-
-					<div className="row">
-						<div className={`col-12 inputcolumn-mdl`}>
-							<label>Description :</label>
-							<textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the target"></textarea>
-						</div>
-						<div className={`col-12 inputcolumn-mdl`}>
-							<label>Notes :</label>
-							<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes"></textarea>
+						{/* Right column */}
+						<div className="col-6">
+							<div className={`inputcolumn-mdl`}>
+								<label>Value :</label>
+								<input type="number" value={timeFrameValue} onChange={(e) => setTimeFrameValue(e.target.value)} />
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Start Date :</label>
+								<input type="date" placeholder="dd-mm-yyyy" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>End Date :</label>
+								<input type="date" placeholder="dd-mm-yyyy" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Priority :</label>
+								<select value={priority} onChange={(e) => setPriority(e.target.value)}>
+									<option value="low">Low</option>
+									<option value="medium">Medium</option>
+									<option value="high">High</option>
+									<option value="critical">Critical</option>
+								</select>
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Recurring :</label>
+								<input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
+							</div>
+							<div className={`inputcolumn-mdl`}>
+								<label>Notes:</label>
+								<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes"></textarea>
+							</div>
 						</div>
 					</div>
 

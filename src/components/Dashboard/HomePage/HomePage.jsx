@@ -8,6 +8,7 @@ import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
 import { useDivision } from "@/components/context/DivisionContext";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import HomePageSkeleton from "@/components/SkeletonLoaders/HomePageSkeleton";
 import LowStockAlerts from "./LowStockAlerts";
@@ -31,6 +32,7 @@ function HomePage() {
   const hour = new Date().getHours();
   let wish;
   const user = JSON.parse(localStorage.getItem("user"));
+  const navigate = useNavigate();
 
   if (hour < 12) {
     wish = "Good Morning";
@@ -104,6 +106,20 @@ function HomePage() {
   });
 
   const VITE_API = import.meta.env.VITE_API_URL;
+
+  // Function to handle order status click navigation
+  const handleOrderStatusClick = (status) => {
+    // Map homepage status values to backend status values
+    const statusMapping = {
+      'confirmed': 'Confirmed',
+      'dispatched': 'Dispatched', 
+      'delivered': 'Delivered',
+      'pendingPaymentApprovals': 'pendingPaymentApprovals'
+    };
+    
+    const mappedStatus = statusMapping[status] || status;
+    navigate(`/sales/orders?status=${mappedStatus}`);
+  };
 
   useEffect(() => {
     async function fetchInitial() {
@@ -396,7 +412,12 @@ function HomePage() {
                 </div>
               ) : (
                 <div className={styles.orderStatusGrid}>
-                  <div className={styles.statusItem}>
+                  <div 
+                    className={styles.statusItem} 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleOrderStatusClick('confirmed')}
+                    title="Click to view confirmed orders"
+                  >
                     <div className={styles.statusIcon} style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" }}>
                       <FaClock />
                     </div>
@@ -405,7 +426,12 @@ function HomePage() {
                       <p>Confirmed</p>
                     </div>
                   </div>
-                  <div className={styles.statusItem}>
+                  <div 
+                    className={styles.statusItem} 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleOrderStatusClick('dispatched')}
+                    title="Click to view dispatched orders"
+                  >
                     <div className={styles.statusIcon} style={{ backgroundColor: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
                       <FaTruck />
                     </div>
@@ -414,7 +440,12 @@ function HomePage() {
                       <p>Dispatched</p>
                     </div>
                   </div>
-                  <div className={styles.statusItem}>
+                  <div 
+                    className={styles.statusItem} 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleOrderStatusClick('delivered')}
+                    title="Click to view delivered orders"
+                  >
                     <div className={styles.statusIcon} style={{ backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
                       <FaCheckCircle />
                     </div>
@@ -423,7 +454,12 @@ function HomePage() {
                       <p>Delivered</p>
                     </div>
                   </div>
-                  <div className={styles.statusItem}>
+                  <div 
+                    className={styles.statusItem} 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleOrderStatusClick('pendingPaymentApprovals')}
+                    title="Click to view payment pending orders"
+                  >
                     <div className={styles.statusIcon} style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444" }}>
                       <FaExclamationTriangle />
                     </div>

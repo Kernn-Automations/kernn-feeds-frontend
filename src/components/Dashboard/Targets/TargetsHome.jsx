@@ -172,18 +172,7 @@ function TargetsHome() {
       </div>
 
 
-      {/* Loading State */}
-      {loading && (
-        <div className={styles.loadingContainer}>
-          <div className={styles.loadingCard}>
-            <Loading />
-            <p className={styles.loadingText}>Loading active targets...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Targets Table */}
-      {!loading && (
+      {/* Targets Table - always render structure, fill rows as data loads */}
         <div className="row m-0 p-3 justify-content-center">
           <div className="col-md-12">
             <div className="table-responsive">
@@ -200,18 +189,27 @@ function TargetsHome() {
                   </tr>
                 </thead>
                 <tbody>
-                  {targets.length === 0 && (
-                    <tr className="animated-row">
-                      <td colSpan={7} className="text-center py-4">
-                        <div className="text-muted">
-                          <i className="bi bi-inbox display-4 d-block mb-2"></i>
-                          <h6>No Active Targets Found</h6>
-                          <p className="mb-0">Click "Create Target" to add your first target.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  {targets.map((row, idx) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-4">
+                      <div className="d-flex flex-column align-items-center">
+                        <Loading />
+                        <p className="mt-2 mb-0 text-muted">Loading active targets...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : targets.length === 0 ? (
+                  <tr className="animated-row">
+                    <td colSpan={7} className="text-center py-4">
+                      <div className="text-muted">
+                        <i className="bi bi-inbox display-4 d-block mb-2"></i>
+                        <h6>No Active Targets Found</h6>
+                        <p className="mb-0">Click "Create Target" to add your first target.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  targets.map((row, idx) => (
                     <tr
                       key={row.id || row.targetCode || idx}
                       className="animated-row"
@@ -236,7 +234,7 @@ function TargetsHome() {
                           )}
                         </div>
                       </td>
-                      <td className="text-end fw-medium">
+                      <td className="text-center fw-medium">
                         {renderTargetNumber(row)}
                       </td>
                       <td>
@@ -252,36 +250,37 @@ function TargetsHome() {
                           {renderDeadline(row)}
                         </span>
                       </td>
-                      <td className="text-end">
-                        <div className="d-flex align-items-center justify-content-end">
-                          <span className="fw-medium me-2">
-                            {renderCurrentlyMet(row)}
-                          </span>
+                      <td className="text-center">
+                        <div className="d-flex flex-column align-items-center">
                           {row.budgetNumber && (
-                            <div className="progress" style={{ width: '60px', height: '6px' }}>
+                            <div className="progress" style={{ width: '70px', height: '6px' }}>
                               <div
                                 className={`progress-bar ${
-                                  (renderCurrentlyMet(row) / row.budgetNumber) * 100 >= 100 ? 'bg-success' :
-                                  (renderCurrentlyMet(row) / row.budgetNumber) * 100 >= 75 ? 'bg-info' :
-                                  (renderCurrentlyMet(row) / row.budgetNumber) * 100 >= 50 ? 'bg-warning' : 'bg-danger'
+                                  (Number(renderCurrentlyMet(row).toString().replace(/,/g, '')) / row.budgetNumber) * 100 >= 100 ? 'bg-success' :
+                                  (Number(renderCurrentlyMet(row).toString().replace(/,/g, '')) / row.budgetNumber) * 100 >= 75 ? 'bg-info' :
+                                  (Number(renderCurrentlyMet(row).toString().replace(/,/g, '')) / row.budgetNumber) * 100 >= 50 ? 'bg-warning' : 'bg-danger'
                                 }`}
                                 role="progressbar"
                                 style={{ 
-                                  width: `${Math.min((renderCurrentlyMet(row) / row.budgetNumber) * 100, 100)}%` 
+                                  width: `${Math.min((Number(renderCurrentlyMet(row).toString().replace(/,/g, '')) / row.budgetNumber) * 100, 100)}%` 
                                 }}
                               ></div>
                             </div>
                           )}
+                          <span className="fw-medium mt-1">
+                            {renderCurrentlyMet(row)}
+                          </span>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-      )}
+      
 
       {/* Error Modal */}
       {isErrorOpen && (

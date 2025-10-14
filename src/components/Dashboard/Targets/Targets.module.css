@@ -1194,24 +1194,24 @@
 }
 
 .inputcolumn-mdl {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .inputcolumn-mdl label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   color: #2c3e50;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .inputcolumn-mdl input,
 .inputcolumn-mdl select {
   width: 100%;
-  padding: 10px 12px;
+  padding: 6px 8px;
   border: 1px solid #dee2e6;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 13px;
   transition: border-color 0.2s ease;
 }
 

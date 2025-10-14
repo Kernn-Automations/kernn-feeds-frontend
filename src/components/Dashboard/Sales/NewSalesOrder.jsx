@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 //import axios from "axios";
 import ApiService from "../../../services/apiService";
 import { useAuth } from "@/Auth";
@@ -878,7 +878,16 @@ export default function SalesOrderWizard() {
       const payload = {
         cartId: cartId || null,
         customerId: customerDetails.customer_id,
-        cartItems: [{ productId: product.id, quantity, unit: product.unit }],
+        // Allow adding even when product is out of stock; backend may ignore if unsupported
+        allowOutOfStock: true,
+        allowBackorder: true,
+        cartItems: [{ 
+          productId: product.id, 
+          quantity, 
+          unit: product.unit,
+          allowOutOfStock: true,
+          allowBackorder: true
+        }],
       };
       const res = await axiosAPI.post(apiUrl, payload);
       console.log('Full API response:', res)
@@ -1663,12 +1672,6 @@ export default function SalesOrderWizard() {
                   ⚠️ This product is out of stock. Adding to cart for future availability.
                 </div>
               )}
-              
-              <div style={{ marginTop: '12px', textAlign: 'center' }}>
-                <p style={{ margin: '0', fontWeight: '600', color: 'var(--primary-color)', fontSize: '16px' }}>
-                  Total: ₹{((selectedProductForQty.basePrice || 0) * (parseInt(inputQuantity) || 0)).toLocaleString('en-IN')}
-                </p>
-              </div>
             </div>
           </div>
           
@@ -1942,48 +1945,90 @@ export default function SalesOrderWizard() {
                                return <div style={{ color: '#dc2626' }}>Cart item not found</div>;
                              }
                              
-                             if (!priceBreakup) {
-                               return (
-                                 <div>
-                                   <div style={{ color: '#dc2626', marginBottom: '8px' }}>No priceBreakup data</div>
-                                   <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                     Available fields: {Object.keys(cartItem).join(', ')}
-                                   </div>
-                                 </div>
-                               );
-                             }
+                            if (!priceBreakup) {
+                              const amountBase = (cartItem?.cartBaseAmount ?? cartItem?.total ?? cartItem?.totalPrice ?? ((cartItem?.price || 0) * (cartItem?.quantity || 1)));
+                              const taxAmt = (cartItem?.cartTaxAmount ?? 0);
+                              const totalAmt = (cartItem?.cartTotalAmount ?? (amountBase + taxAmt));
+                              return (
+                                <>
+                                  {/* Quantity */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#64748b', fontWeight: '500' }}>Quantity:</span>
+                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                      {(cartItem?.quantity || 0)} {product.productType === "packed" ? 'packs' : (cartItem?.unit === 'packet' ? 'packs' : (cartItem?.unit || 'units'))}
+                                    </span>
+                                  </div>
+                                  {/* Amount */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#64748b', fontWeight: '500' }}>Amount:</span>
+                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                      ₹{(amountBase || 0).toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  {/* Tax Amount */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#64748b', fontWeight: '500' }}>Tax Amount:</span>
+                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                      ₹{(taxAmt || 0).toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  {/* Total Amount */}
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    paddingTop: '8px',
+                                    borderTop: '2px solid #0369a1',
+                                    marginTop: '8px'
+                                  }}>
+                                    <span style={{ color: '#0369a1', fontWeight: '700', fontSize: '14px' }}>Total Amount:</span>
+                                    <span style={{ fontWeight: '700', color: '#0369a1', fontSize: '16px' }}>
+                                      ₹{(totalAmt || 0).toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                </>
+                              );
+                            }
                              
                              return (
                                <>
+                                {/* Quantity */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: '#64748b', fontWeight: '500' }}>Quantity:</span>
+                                  <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                    {priceBreakup.quantity || 0} {product.productType === "packed" ? 'packs' : ((priceBreakup.unit === 'packet' ? 'packs' : (priceBreakup.unit || 'units')))}
+                                  </span>
+                                </div>
                                  {/* Quantity */}
                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                    <span style={{ color: '#64748b', fontWeight: '500' }}>Quantity:</span>
                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                                     {priceBreakup.quantity || 0} {priceBreakup.unit || 'units'}
+                                     {priceBreakup.quantity || 0} {product.productType === "packed" ? 'packs' : ((priceBreakup.unit === 'packet' ? 'packs' : (priceBreakup.unit || 'units')))}
                                    </span>
                                  </div>
                                  
-                                 {/* Quantity in KG */}
+                                 {/* Quantity in KG (only for non-packed products) */}
+                                 {product.productType !== 'packed' && (
+                                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                     <span style={{ color: '#64748b', fontWeight: '500' }}>Quantity in KG:</span>
+                                     <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                       {priceBreakup.quantityInkg || 'N/A'} {priceBreakup.quantityInkg ? 'kg' : ''}
+                                     </span>
+                                   </div>
+                                 )}
+                                 
+                                {/* Amount */}
                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                   <span style={{ color: '#64748b', fontWeight: '500' }}>Quantity in KG:</span>
+                                  <span style={{ color: '#64748b', fontWeight: '500' }}>Amount:</span>
                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                                     {priceBreakup.quantityInkg || 'N/A'} {priceBreakup.quantityInkg ? 'kg' : ''}
+                                    ₹{(((priceBreakup.amount ?? priceBreakup.totalCost) || 0)).toLocaleString('en-IN')}
                                    </span>
                                  </div>
                                  
-                                 {/* Total Cost */}
+                                {/* Tax Amount */}
                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                   <span style={{ color: '#64748b', fontWeight: '500' }}>Total Cost:</span>
+                                  <span style={{ color: '#64748b', fontWeight: '500' }}>Tax Amount:</span>
                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                                     ₹{(priceBreakup.totalCost || 0).toLocaleString('en-IN')}
-                                   </span>
-                                 </div>
-                                 
-                                 {/* Tax Amount */}
-                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                   <span style={{ color: '#64748b', fontWeight: '500' }}>Tax Amount:</span>
-                                   <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                                     ₹{(priceBreakup.taxAmount || 0).toLocaleString('en-IN')}
+                                    ₹{((priceBreakup.taxAmount ?? cartItem?.cartTaxAmount ?? 0)).toLocaleString('en-IN')}
                                    </span>
                                  </div>
                                  
@@ -2006,7 +2051,7 @@ export default function SalesOrderWizard() {
                                    </div>
                                  </div>
                                  
-                                 {/* Total Amount */}
+                                {/* Total Amount */}
                                  <div style={{ 
                                    display: 'flex', 
                                    justifyContent: 'space-between',
@@ -2016,7 +2061,7 @@ export default function SalesOrderWizard() {
                                  }}>
                                    <span style={{ color: '#0369a1', fontWeight: '700', fontSize: '14px' }}>Total Amount:</span>
                                    <span style={{ fontWeight: '700', color: '#0369a1', fontSize: '16px' }}>
-                                     ₹{(priceBreakup.totalAmount || 0).toLocaleString('en-IN')}
+                                    ₹{(((priceBreakup.totalAmount ?? cartItem?.cartTotalAmount ?? ((priceBreakup.totalCost || cartItem?.cartBaseAmount || 0) + (priceBreakup.taxAmount ?? cartItem?.cartTaxAmount ?? 0))) || 0)).toLocaleString('en-IN')}
                                    </span>
                                  </div>
                                </>
@@ -2062,87 +2107,87 @@ export default function SalesOrderWizard() {
             ? "invalid"
             : undefined
         }
-        style={{ marginBottom: '16px', maxWidth: '600px', width: '100%' }}
+        style={{ marginBottom: '16px', width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}
       >
         <div style={{ fontWeight: '600', marginBottom: '8px' }}>
           Drop-off #{index + 1}
         </div>
         
-        <div className="row m-0 p-3">
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>Receiver Name :</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(260px, 1fr))', gap: '14px', padding: '12px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Receiver Name :</label>
               <input
                 type="text"
                 defaultValue={drop.receiverName}
                 onBlur={(e) => handleDropOffChange(index, "receiverName", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>Receiver Mobile :</label>
+          <div style={{ minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Receiver Mobile :</label>
               <input
                 type="text"
                 defaultValue={drop.receiverMobile}
                 onBlur={(e) => handleDropOffChange(index, "receiverMobile", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>Plot :</label>
+          <div style={{ minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Plot :</label>
               <input
                 type="text"
                 defaultValue={drop.plot}
                 onBlur={(e) => handleDropOffChange(index, "plot", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>Street :</label>
+          <div style={{ minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Street :</label>
               <input
                 type="text"
                 defaultValue={drop.street}
                 onBlur={(e) => handleDropOffChange(index, "street", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>Area :</label>
+          <div style={{ minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Area :</label>
               <input
                 type="text"
                 defaultValue={drop.area}
                 onBlur={(e) => handleDropOffChange(index, "area", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>City :</label>
+          <div style={{ minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>City :</label>
               <input
                 type="text"
                 defaultValue={drop.city}
                 onBlur={(e) => handleDropOffChange(index, "city", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
-          <div className="col-6">
-            <div className={customerStyles.longform}>
-              <label>Pincode :</label>
+          <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Pincode :</label>
               <input
                 type="text"
                 defaultValue={drop.pincode}
                 onBlur={(e) => handleDropOffChange(index, "pincode", e.target.value)}
-                style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
               />
             </div>
           </div>
@@ -2304,6 +2349,8 @@ export default function SalesOrderWizard() {
                       area: "",
                       city: "",
                       pincode: "",
+                      latitude: 17.3850, // Hyderabad default
+                      longitude: 78.4867,
                       items: [],
                     }))
                   ];
@@ -2327,9 +2374,9 @@ export default function SalesOrderWizard() {
         <hr style={styles.divider} />
         
         {dropOffs.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(320px, 1fr))', gap: '15px', alignItems: 'stretch' }}>
             {dropOffs.map((drop, idx) => (
-              <div key={`dropoff-${idx}`}>
+              <div key={`dropoff-${idx}`} style={{ width: '100%' }}>
                 {renderDropOffCard(idx, drop)}
               </div>
             ))}
@@ -2372,7 +2419,6 @@ export default function SalesOrderWizard() {
           <h2 style={styles.sectionTitle}>Review Order</h2>
           <Card>
             <div style={{ textAlign: 'center', padding: '40px' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
               <h3 style={{ color: '#718096', margin: '0' }}>No review data available</h3>
               <p style={{ color: '#a0aec0', margin: '8px 0 0 0' }}>Please go back and complete the previous steps</p>
             </div>
@@ -2396,19 +2442,6 @@ export default function SalesOrderWizard() {
           {/* Customer Information */}
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#667eea',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                👤
-              </div>
               <div>
                 <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Customer</h3>
                 <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Order recipient</p>
@@ -2436,19 +2469,6 @@ export default function SalesOrderWizard() {
           {s.name && (
             <Card>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  backgroundColor: '#10b981',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: 'bold'
-                }}>
-                  👨‍💼
-                </div>
                 <div>
                   <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Sales Executive</h3>
                   <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Account manager</p>
@@ -2474,19 +2494,6 @@ export default function SalesOrderWizard() {
           {/* Warehouse */}
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#f59e0b',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                🏪
-              </div>
               <div>
                 <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Warehouse</h3>
                 <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Fulfillment center</p>
@@ -2510,19 +2517,6 @@ export default function SalesOrderWizard() {
         {/* Drop-off Points */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#ef4444',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold'
-            }}>
-              📍
-            </div>
             <div>
               <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Drop-off Points</h3>
               <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Delivery locations</p>
@@ -2567,19 +2561,6 @@ export default function SalesOrderWizard() {
         {/* Products */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#8b5cf6',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold'
-            }}>
-              📦
-            </div>
             <div>
               <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Products</h3>
               <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Order items</p>
@@ -2626,19 +2607,6 @@ export default function SalesOrderWizard() {
         {/* Order Totals */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#10b981',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold'
-            }}>
-              💰
-            </div>
             <div>
               <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Order Summary</h3>
               <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Price breakdown</p>
@@ -2735,7 +2703,7 @@ export default function SalesOrderWizard() {
               onClick={() => setActivePaymentTab(0)}
               type='button'
             >
-              💳 UPI Payment
+              UPI Payment
             </button>
             <button
               style={{
@@ -2745,26 +2713,13 @@ export default function SalesOrderWizard() {
               onClick={() => setActivePaymentTab(1)}
               type='button'
             >
-              🏦 Bank Transfer
+              Bank Transfer
             </button>
           </div>
           
           {activePaymentTab === 0 && (
             <div style={{ padding: '20px', backgroundColor: '#f7fafc', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#667eea',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: '16px'
-                }}>
-                  💳
-                </div>
+              <div style={{ marginBottom: '12px' }}>
                 <div>
                   <h4 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>UPI Payment Details</h4>
                   <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Use the following UPI ID for payment</p>
@@ -2788,20 +2743,7 @@ export default function SalesOrderWizard() {
           
           {activePaymentTab === 1 && (
             <div style={{ padding: '20px', backgroundColor: '#f7fafc', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#10b981',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: '16px'
-                }}>
-                  🏦
-                </div>
+              <div style={{ marginBottom: '16px' }}>
                 <div>
                   <h4 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Bank Transfer Details</h4>
                   <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Use the following bank details for transfer</p>
@@ -2847,7 +2789,7 @@ export default function SalesOrderWizard() {
             variant="success"
             style={{ minWidth: 'auto' }}
           >
-            ➕ Add Payment
+            Add Payment
           </Button>
         </div>
 
@@ -2855,21 +2797,7 @@ export default function SalesOrderWizard() {
           {payments.map((payment, i) => (
             <Card key={i}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    backgroundColor: '#8b5cf6',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                  }}>
-                    {i + 1}
-                  </div>
+                <div>
                   <div>
                     <h4 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Payment #{i + 1}</h4>
                     <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Payment details and proof</p>
@@ -2892,7 +2820,7 @@ export default function SalesOrderWizard() {
                       e.target.style.backgroundColor = '#fee2e2';
                     }}
                   >
-                    🗑️
+                    Delete
                   </button>
                 )}
               </div>
@@ -2960,9 +2888,9 @@ export default function SalesOrderWizard() {
                     value={payment.transactionStatus}
                     onChange={e => updatePaymentFieldLocal(i, "transactionStatus", e.target.value)}
                   >
-                    <option value="Completed">✅ Completed</option>
-                    <option value="Processing">⏳ Processing</option>
-                    <option value="Failed">❌ Failed</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Failed">Failed</option>
                   </Select>
                 </div>
               </div>
@@ -3062,7 +2990,7 @@ export default function SalesOrderWizard() {
             disabled={paymentUploading}
             style={{ minWidth: '200px' }}
           >
-            {paymentUploading ? '⏳ Submitting...' : '✅ Submit Order'}
+            {paymentUploading ? 'Submitting...' : 'Submit Order'}
           </Button>
         </div>
       </div>

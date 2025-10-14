@@ -363,6 +363,17 @@
   position: relative;
 }
 
+/* Ensure dialog content has a visible background and padding */
+.dialogContent {
+  background: #ffffff !important;
+  padding: 16px !important;
+  border-radius: 8px;
+  max-height: 90vh;
+  overflow: auto;
+  position: relative !important;
+  z-index: 140002 !important; /* Higher than backdrop */
+}
+
 /* Payment Cards Styling */
 .paymentsContainer {
   display: grid;

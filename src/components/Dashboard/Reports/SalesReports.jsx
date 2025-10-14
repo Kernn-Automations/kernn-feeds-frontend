@@ -25,14 +25,22 @@ function SalesReports({ navigate }) {
 
   // Filters for API calls
   const [filters, setFilters] = useState({
+    // Hierarchy Filters
     divisionId: null,
     zoneId: null,
     subZoneId: null,
     teamId: null,
     employeeId: null,
     customerId: null,
+    // Date Filters
     startDate: null,
-    endDate: null
+    endDate: null,
+    timePeriod: null,
+    // Display Options
+    showProducts: false,
+    // Pagination
+    page: 1,
+    limit: 50
   });
   
   // Options for dropdowns
@@ -221,6 +229,16 @@ function SalesReports({ navigate }) {
     setFilters(prev => {
       const newFilters = { ...prev, [key]: value };
       
+      // Handle time period and date filter logic
+      if (key === 'timePeriod' && value) {
+        // Clear custom date filters when timePeriod is selected
+        newFilters.startDate = null;
+        newFilters.endDate = null;
+      } else if ((key === 'startDate' || key === 'endDate') && value) {
+        // Clear timePeriod when custom dates are selected
+        newFilters.timePeriod = null;
+      }
+      
       // Reset dependent filters
       if (key === 'divisionId') {
         newFilters.zoneId = null;
@@ -293,6 +311,32 @@ function SalesReports({ navigate }) {
     });
   };
 
+  // Validate filters before making API calls
+  const validateFilters = () => {
+    const errors = [];
+    
+    // Check if date filters are valid
+    if (filters.startDate && filters.endDate) {
+      const startDate = new Date(filters.startDate);
+      const endDate = new Date(filters.endDate);
+      if (startDate > endDate) {
+        errors.push('Start date cannot be after end date');
+      }
+    }
+    
+    // Check if timePeriod and custom dates are both set
+    if (filters.timePeriod && (filters.startDate || filters.endDate)) {
+      errors.push('Cannot use both time period and custom date range');
+    }
+    
+    // Check if at least one date filter is set
+    if (!filters.timePeriod && !filters.startDate && !filters.endDate) {
+      errors.push('Please select a date range or time period');
+    }
+    
+    return errors;
+  };
+
   // Determine the appropriate endpoint based on filters
   const getReportEndpoint = () => {
     if (filters.customerId) return '/reports/sales/customer';
@@ -304,14 +348,24 @@ function SalesReports({ navigate }) {
     return '/reports/sales/all-divisions'; // Default to all divisions
   };
 
+  // Compute export level expected by backend generic export endpoints
+  const getExportLevel = () => {
+    if (filters.customerId) return 'customer';
+    if (filters.employeeId) return 'employee';
+    if (filters.teamId) return 'team';
+    if (filters.subZoneId) return 'subzone';
+    if (filters.zoneId) return 'zone';
+    if (filters.divisionId) return 'division';
+    return 'all-divisions';
+  };
+
   const fetchSalesData = async () => {
     try {
       setLoading(true);
       const endpoint = getReportEndpoint();
       const params = {
         ...filters,
-        showProducts: false,
-        showAll: false
+        showProducts: showAll
       };
       
       // Remove null values from params
@@ -387,8 +441,7 @@ function SalesReports({ navigate }) {
       const endpoint = getReportEndpoint();
       const params = {
         ...filters,
-        showProducts: true,
-        showAll: true
+        showProducts: true
       };
       
       // Remove null values from params
@@ -666,6 +719,15 @@ function SalesReports({ navigate }) {
 
   const onSubmit = () => {
     console.log('onSubmit called - showAll:', showAll);
+    
+    // Validate filters before proceeding
+    const validationErrors = validateFilters();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(', '));
+      setIsErrorOpen(true);
+      return;
+    }
+    
     if (showAll) {
       console.log('Calling fetchDetailedData...');
       fetchDetailedData();
@@ -684,14 +746,22 @@ function SalesReports({ navigate }) {
     setIsDetailedView(false);
     setSalesData([]);
     setFilters({
+      // Hierarchy Filters
       divisionId: null,
       zoneId: null,
       subZoneId: null,
       teamId: null,
       employeeId: null,
       customerId: null,
+      // Date Filters
       startDate: null,
-      endDate: null
+      endDate: null,
+      timePeriod: null,
+      // Display Options
+      showProducts: false,
+      // Pagination
+      page: 1,
+      limit: 50
     });
     setOptions(prev => ({
       ...prev,
@@ -708,41 +778,36 @@ function SalesReports({ navigate }) {
     try {
       setLoading(true);
       
-      const endpoint = getReportEndpoint();
+      // Validate filters before exporting
+      const validationErrors = validateFilters();
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join(', '));
+        setIsErrorOpen(true);
+        return;
+      }
+      
+      // Use generic export endpoints
       const exportEndpoint = type === "PDF" ? 
-        `${endpoint}/export/pdf` : 
-        `${endpoint}/export/excel`;
+        `/reports/sales/export/pdf` : 
+        `/reports/sales/export/excel`;
       
       const params = {
         ...filters,
         showProducts: showAll,
-        showAll: showAll
+        level: getExportLevel()
       };
-      
-      // Remove null values from params
-      Object.keys(params).forEach(key => {
+      // Remove null/empty values
+      Object.keys(params).forEach((key) => {
         if (params[key] === null || params[key] === undefined || params[key] === '') {
           delete params[key];
         }
       });
-      
+
       console.log('Export endpoint:', exportEndpoint);
       console.log('Export params:', params);
 
-      // Build query string manually to avoid axios params formatting
-      const queryParams = new URLSearchParams();
-      Object.keys(params).forEach(key => {
-        if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
-          queryParams.append(key, params[key]);
-        }
-      });
-      
-      const fullExportUrl = queryParams.toString() ? `${exportEndpoint}?${queryParams.toString()}` : exportEndpoint;
-      console.log('Export URL:', fullExportUrl);
-
-      const response = await axiosAPI.get(fullExportUrl, { 
-        responseType: 'blob'
-      });
+      // Use PDF-configured client to avoid responseType being sent as query
+      const response = await axiosAPI.getpdf(exportEndpoint, params);
       
       // Create download
       const blob = new Blob([response.data], { 
@@ -782,6 +847,7 @@ function SalesReports({ navigate }) {
             id="startDate"
             value={filters.startDate || ''}
             onChange={(e) => handleFilterChange('startDate', e.target.value || null)}
+            disabled={filters.timePeriod}
           />
         </div>
         <div className="col-md-3 formcontent">
@@ -791,7 +857,21 @@ function SalesReports({ navigate }) {
             id="endDate"
             value={filters.endDate || ''}
             onChange={(e) => handleFilterChange('endDate', e.target.value || null)}
+            disabled={filters.timePeriod}
           />
+        </div>
+        <div className="col-md-3 formcontent">
+          <label htmlFor="timePeriod">Time Period:</label>
+          <select 
+            id="timePeriod"
+            value={filters.timePeriod || ''} 
+            onChange={(e) => handleFilterChange('timePeriod', e.target.value || null)}
+          >
+            <option value="">Custom Range</option>
+            <option value="monthly">Current Month</option>
+            <option value="quarterly">Current Quarter</option>
+            <option value="yearly">Current Year</option>
+          </select>
         </div>
       </div>
 
@@ -935,6 +1015,48 @@ function SalesReports({ navigate }) {
               <p>Export to </p>
               <img src={pdf} alt="" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && salesData && salesData.length > 0 && (
+        <div className="row m-0 p-3 justify-content-center">
+          <div className="col-12 d-flex justify-content-center align-items-center gap-3">
+            <div className="d-flex align-items-center gap-2">
+              <label htmlFor="limit">Records per page:</label>
+              <select 
+                id="limit"
+                value={filters.limit} 
+                onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
+                className="form-select"
+                style={{width: '80px'}}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <button 
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => handleFilterChange('page', Math.max(1, filters.page - 1))}
+                disabled={filters.page <= 1}
+              >
+                Previous
+              </button>
+              <span className="px-3">
+                Page {filters.page}
+              </span>
+              <button 
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => handleFilterChange('page', filters.page + 1)}
+                disabled={salesData.length < filters.limit}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       )}

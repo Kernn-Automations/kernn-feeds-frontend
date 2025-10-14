@@ -1,32 +1,89 @@
 import React, { useState, useRef } from 'react';
 import styles from './Returns.module.css';
 
-const ImageUploadComponent = ({ onImagesChange, maxImages = 5, maxSizeKB = 100 }) => {
+const ImageUploadComponent = ({ onImagesChange, maxImages = 3, maxSizeKB = 100 }) => {
   const [images, setImages] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Convert file to base64
-  const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result;
-        resolve({
-          data: base64,
-          type: file.type,
-          filename: file.name,
-          size: file.size
-        });
+  // Compress image to stay under size limit
+  const compressImage = (file, maxSizeKB) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (maintain aspect ratio)
+        let { width, height } = img;
+        const maxDimension = 800; // Max width/height for compression
+        
+        if (width > height) {
+          if (width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Try different quality levels to stay under size limit
+        let quality = 0.8;
+        const tryCompress = () => {
+          canvas.toBlob((blob) => {
+            if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
+              resolve(blob);
+            } else {
+              quality -= 0.1;
+              tryCompress();
+            }
+          }, file.type, quality);
+        };
+        
+        tryCompress();
       };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      
+      img.src = URL.createObjectURL(file);
     });
+  };
+
+  // Convert file to base64
+  const convertToBase64 = async (file) => {
+    try {
+      // First compress the image
+      const compressedBlob = await compressImage(file, maxSizeKB);
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result;
+          resolve({
+            data: base64,
+            type: file.type,
+            filename: file.name,
+            size: compressedBlob.size
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(compressedBlob);
+      });
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      throw error;
+    }
   };
 
   // Validate image
   const validateImage = (file) => {
-    const maxSize = maxSizeKB * 1024; // Convert KB to bytes
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     
     if (!allowedTypes.includes(file.type)) {
@@ -34,9 +91,12 @@ const ImageUploadComponent = ({ onImagesChange, maxImages = 5, maxSizeKB = 100 }
       return false;
     }
     
-    if (file.size > maxSize) {
-      alert(`Image size must be less than ${maxSizeKB}KB. Current size: ${Math.round(file.size/1024)}KB`);
-      return false;
+    // Don't check file size here since we'll compress automatically
+    // Just warn if file is extremely large
+    if (file.size > 10 * 1024 * 1024) { // 10MB warning
+      if (!confirm(`This image is very large (${Math.round(file.size/1024/1024)}MB). It will be compressed to under ${maxSizeKB}KB. Continue?`)) {
+        return false;
+      }
     }
     
     return true;
@@ -56,17 +116,41 @@ const ImageUploadComponent = ({ onImagesChange, maxImages = 5, maxSizeKB = 100 }
       return;
     }
     
+    if (validFiles.length === 0) return;
+    
     try {
+      // Show processing message
+      const processingMsg = document.createElement('div');
+      processingMsg.className = 'alert alert-info position-fixed';
+      processingMsg.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
+      processingMsg.innerHTML = '<i class="bi bi-hourglass-split"></i> Compressing images...';
+      document.body.appendChild(processingMsg);
+      
       const base64Images = await Promise.all(
-        validFiles.map(file => convertToBase64(file))
+        validFiles.map(async (file, index) => {
+          console.log(`Compressing image ${index + 1}/${validFiles.length}: ${file.name}`);
+          return await convertToBase64(file);
+        })
       );
+      
+      // Remove processing message
+      processingMsg.remove();
       
       const newImages = [...images, ...base64Images];
       setImages(newImages);
       onImagesChange(newImages);
+      
+      // Show success message
+      const successMsg = document.createElement('div');
+      successMsg.className = 'alert alert-success position-fixed';
+      successMsg.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
+      successMsg.innerHTML = `<i class="bi bi-check-circle"></i> ${base64Images.length} image(s) compressed and ready`;
+      document.body.appendChild(successMsg);
+      setTimeout(() => successMsg.remove(), 3000);
+      
     } catch (error) {
       console.error('Error converting images:', error);
-      alert('Error processing images');
+      alert('Error processing images: ' + error.message);
     }
   };
 
