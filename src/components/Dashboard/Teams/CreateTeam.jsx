@@ -32,6 +32,27 @@ function CreateTeam({ navigate, isAdmin }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   
+  // Utility: check if employee has Business Officer role
+  const hasBusinessOfficerRole = (employee) => {
+    if (!employee || !Array.isArray(employee.roles)) return false;
+    const normalizedRoleNames = employee.roles
+      .map((r) => String(r?.name || '').toLowerCase().trim());
+    return normalizedRoleNames.some((n) => (
+      n === 'business officer' ||
+      n === 'bo' ||
+      (n.includes('business') && n.includes('officer'))
+    ));
+  };
+
+  // Ensure divisionId is set when a specific division is selected globally
+  useEffect(() => {
+    if (selectedDivision?.id && selectedDivision.id !== 'all' && selectedDivision.id !== '1') {
+      setFormData(prev => (
+        prev.divisionId === selectedDivision.id ? prev : { ...prev, divisionId: selectedDivision.id }
+      ));
+    }
+  }, [selectedDivision]);
+
   // Fetch divisions for dropdown
   useEffect(() => {
     async function fetchDivisions() {
@@ -252,6 +273,23 @@ function CreateTeam({ navigate, isAdmin }) {
 
       const numericHeadId = Number(formData.teamHeadId);
       const numericSubZoneId = Number(formData.subZoneId);
+
+      // Validate roles: Team Head must be BO and all members must be BO
+      const headEmployee = employees.find((emp) => emp.id === numericHeadId);
+      if (!hasBusinessOfficerRole(headEmployee)) {
+        setError("Team head must have Business Officer role");
+        setIsModalOpen(true);
+        return;
+      }
+      const invalidMembers = selectedMembers
+        .map((id) => employees.find((e) => e.id === id))
+        .filter((emp) => !hasBusinessOfficerRole(emp));
+      if (invalidMembers.length > 0) {
+        const names = invalidMembers.map((m) => m?.name || 'Unknown').join(', ');
+        setError(`Team member validation failed: Only Business Officer allowed. Invalid: ${names}`);
+        setIsModalOpen(true);
+        return;
+      }
       
       // Prepare member data with role information
       const memberData = selectedMembers.map(memberId => {
@@ -475,7 +513,9 @@ function CreateTeam({ navigate, isAdmin }) {
                         required
                       >
                         <option value="">Select Team Head</option>
-                        {employees.map(emp => (
+                        {employees
+                          .filter((emp) => hasBusinessOfficerRole(emp))
+                          .map(emp => (
                           <option key={emp.id} value={emp.id}>
                             {emp.name}
                           </option>
@@ -520,7 +560,7 @@ function CreateTeam({ navigate, isAdmin }) {
                           >
                             <option value="null">-- Add Member --</option>
                             {employees
-                              .filter(emp => !selectedMembers.includes(emp.id))
+                              .filter(emp => hasBusinessOfficerRole(emp) && !selectedMembers.includes(emp.id))
                               .map((emp) => (
                                 <option key={emp.id} value={emp.id}>
                                   {emp.name} - {emp.roles?.[0]?.name || 'No Role'}

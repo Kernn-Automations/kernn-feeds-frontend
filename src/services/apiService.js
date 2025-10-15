@@ -2,8 +2,11 @@ import authService from './authService';
 
 class ApiService {
   constructor() {
-    // Use proxy in development, direct URL in production
-    this.baseURL = import.meta.env.DEV ? '/api' : 'https://fb-backend-shanmukh.kernn.xyz';
+    // Prefer explicit API URL if provided, otherwise:
+    // - use proxy in development
+    // - use backend domain in production
+    const ENV_API = import.meta.env.VITE_API_URL;
+    this.baseURL = ENV_API || (import.meta.env.DEV ? '/api' : 'https://fb-backend-chandra.kernn.xyz');
   }
 
   // Enhanced API request handler with automatic token refresh
@@ -25,7 +28,16 @@ class ApiService {
     };
     
     try {
-      const response = await fetch(`${this.baseURL}${url}`, {
+      // In development, some endpoints should NOT be prefixed with "/api"
+      const normalizedUrl = typeof url === 'string' ? url.trim() : '';
+      // Only bypass proxy for certain dev-only direct endpoints (NOT targets)
+      const shouldBypassApiPrefix = import.meta.env.DEV && (
+        normalizedUrl.startsWith('/teams') || normalizedUrl.startsWith('teams') ||
+        normalizedUrl.startsWith('/employees') || normalizedUrl.startsWith('employees')
+      );
+      const composedUrl = shouldBypassApiPrefix ? url : `${this.baseURL}${url}`;
+
+      const response = await fetch(composedUrl, {
         ...options,
         headers
       });
@@ -47,7 +59,8 @@ class ApiService {
         if (refreshResult.success) {
           // Retry the original request with new token
           headers.Authorization = `Bearer ${refreshResult.accessToken}`;
-          return await fetch(`${this.baseURL}${url}`, {
+          const retryUrl = shouldBypassApiPrefix ? url : `${this.baseURL}${url}`;
+          return await fetch(retryUrl, {
             ...options,
             headers
           });

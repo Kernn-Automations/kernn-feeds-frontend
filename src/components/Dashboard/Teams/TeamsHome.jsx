@@ -11,6 +11,7 @@ function TeamsHome({ navigate, isAdmin }) {
   const [teams, setTeams] = useState([]);
   const { axiosAPI } = useAuth();
   const { selectedDivision, getCurrentDivisionId, isAllDivisionsSelected } = useDivision();
+  const [employees, setEmployees] = useState([]);
   const [error, setError] = useState();
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,15 +94,65 @@ function TeamsHome({ navigate, isAdmin }) {
   }, []);
 
   const [statusFilter, setStatusFilter] = useState('all');
+  const [teamFilter, setTeamFilter] = useState('');
+  const [employeeFilter, setEmployeeFilter] = useState('');
+
+  // Fetch employees for Employee filter
+  useEffect(() => {
+    async function fetchEmployees() {
+      try {
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        let endpoint = '/employees';
+        if (currentDivisionId && currentDivisionId !== '1') {
+          endpoint += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          endpoint += `?showAllDivisions=true`;
+        }
+        const res = await axiosAPI.get(endpoint);
+        let employeeData = [];
+        if (res.data && res.data.success && Array.isArray(res.data.data)) {
+          employeeData = res.data.data;
+        } else if (res.data && Array.isArray(res.data.employees)) {
+          employeeData = res.data.employees;
+        } else if (Array.isArray(res.data)) {
+          employeeData = res.data;
+        }
+        setEmployees(employeeData);
+      } catch (e) {
+        setEmployees([]);
+      }
+    }
+    fetchEmployees();
+  }, [axiosAPI]);
 
   let index = 1;
   
-  // Filter teams based on status
-  const filteredTeams = teams.filter(team => {
-    if (statusFilter === 'all') return true;
-    const status = team?.status || (team?.isActive ? 'Active' : 'Inactive');
-    return status === statusFilter;
-  });
+  // Helper: get team id and membership checks
+  const getTeamId = (team) => team.id || team.teamId;
+  const teamIncludesEmployee = (team, empId) => {
+    if (!empId) return true;
+    const matchId = Number(empId);
+    const headId = team.teamHead?.id || team.teamLead?.id || team.lead?.id || null;
+    if (Number(headId) === matchId) return true;
+    const members = Array.isArray(team.teamMembers) ? team.teamMembers : (Array.isArray(team.members) ? team.members : []);
+    return members.some((m) => {
+      const mid = m?.id || m?.employee?.id || m?.user?.id || (typeof m === 'number' ? m : null);
+      return Number(mid) === matchId;
+    });
+  };
+
+  // Apply filters: status, team, employee
+  const filteredTeams = teams
+    .filter(team => {
+      if (statusFilter === 'all') return true;
+      const status = team?.status || (team?.isActive ? 'Active' : 'Inactive');
+      return status === statusFilter;
+    })
+    .filter(team => {
+      if (!teamFilter) return true;
+      return String(getTeamId(team)) === String(teamFilter);
+    })
+    .filter(team => teamIncludesEmployee(team, employeeFilter));
   
   // Show loading state
   if (loading) {
@@ -164,20 +215,53 @@ function TeamsHome({ navigate, isAdmin }) {
       <div className="row m-0 p-3 justify-content-center">
         <div className="col-lg-12">
           {/* Filter Controls */}
-          <div className="mb-3">
-            <label className="form-label me-2">Filter by Status:</label>
-            <select 
-              className="form-select d-inline-block w-auto" 
-              value={statusFilter} 
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Teams</option>
-              <option value="Active">Active Only</option>
-              <option value="Inactive">Inactive Only</option>
-            </select>
-            <span className="ms-3">
-              Showing {filteredTeams.length} of {teams.length} teams
-            </span>
+          <div className="row m-0 p-3">
+            <div className="col-3 formcontent">
+              <label htmlFor="">Status:</label>
+              <select
+                name=""
+                id=""
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Teams</option>
+                <option value="Active">Active Only</option>
+                <option value="Inactive">Inactive Only</option>
+              </select>
+            </div>
+            <div className="col-3 formcontent">
+              <label htmlFor="">Team:</label>
+              <select
+                name=""
+                id=""
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+              >
+                <option value="">All Teams</option>
+                {teams.map((t) => (
+                  <option key={getTeamId(t)} value={getTeamId(t)}>
+                    {t.teamName || t.name || getTeamId(t)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-3 formcontent">
+              <label htmlFor="">Employee:</label>
+              <select
+                name=""
+                id=""
+                value={employeeFilter}
+                onChange={(e) => setEmployeeFilter(e.target.value)}
+              >
+                <option value="">All Employees</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name || emp.fullName || emp.employeeId || emp.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
           </div>
           
           <table className={`table table-bordered borderedtable`}>

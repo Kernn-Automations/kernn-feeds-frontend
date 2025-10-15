@@ -642,12 +642,7 @@ export default function SalesOrderWizard() {
   const [dropOffs, setDropOffs] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
 
-  // Fetch priceBreakup when warehouse type changes
-  useEffect(() => {
-    if (selectedWarehouseType && cartId && Object.keys(cartItems).length > 0) {
-      fetchCartPriceBreakup();
-    }
-  }, [selectedWarehouseType]);
+  // Price calculation useEffect removed to prevent glitching
   const [isDropValid, setIsDropValid] = useState([]);
   const [dropValidationErrors, setDropValidationErrors] = useState([]);
   const [dropDistances, setDropDistances] = useState([]);
@@ -673,6 +668,21 @@ export default function SalesOrderWizard() {
   ]);
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [activePaymentTab, setActivePaymentTab] = useState(0);
+
+  // Debug step changes and data preservation
+  useEffect(() => {
+    console.log(`Step changed to: ${step}`);
+    console.log('Data preservation check:', {
+      selectedCustomer,
+      customerDetails: !!customerDetails,
+      cartItems: Object.keys(cartItems).length,
+      cartId,
+      selectedWarehouseType,
+      dropOffs: dropOffs.length,
+      reviewData: !!reviewData,
+      payments: payments.length
+    });
+  }, [step, selectedCustomer, customerDetails, cartItems, cartId, selectedWarehouseType, dropOffs, reviewData, payments]);
 
   // === Step 1: Customer Load & Select ===
   useEffect(() => {
@@ -781,39 +791,8 @@ export default function SalesOrderWizard() {
   }, [selectedCustomer]);
 
   // === Step 2: Load Products based on customer's warehouse, initialize cart ===
-  useEffect(() => {
-    if (!customerDetails) return;
-    async function loadProductsForWarehouse() {
-      try {
-        setProductsLoading(true);
-        const warehouseId = customerDetails.warehouseId;
-        let url = ApiUrls.getProducts.replace(':id', warehouseId);
-        
-        // Add division context parameters
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        if (currentDivisionId && currentDivisionId !== '1') {
-          url += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          url += `?showAllDivisions=true`;
-        }
-        
-        console.log('Products URL with division params:', url);
-        const res = await axiosAPI.get(url);
-        console.log(res);
-        setProducts(res.data.products || []);
-        setAvailableProducts(res.data.products || []);
-      } catch (e) {
-        showToast({
-          title: "Failed to load products",
-          status: "error",
-          duration: 4000,
-        });
-      } finally {
-        setProductsLoading(false);
-      }
-    }
-    loadProductsForWarehouse();
-  }, [customerDetails]);
+  // Note: Products are now loaded from customer details API response in the customer step
+  // This useEffect is removed to prevent unnecessary API calls in customer step
 
   // Show quantity modal for product
   function showQuantityModalForProduct(product) {
@@ -822,37 +801,7 @@ export default function SalesOrderWizard() {
     setShowQuantityModal(true);
   }
 
-  // Fetch priceBreakup data for cart items
-  async function fetchCartPriceBreakup() {
-    if (!cartId) return;
-    
-    try {
-      // Use a default warehouse type if none selected
-      const warehouseType = selectedWarehouseType || 'main';
-      const res = await axiosAPI.get(
-        `${ApiUrls.get_review_details}/${cartId}?warehouseType=${warehouseType}`
-      );
-      
-      if (res.data && res.data.items) {
-        // Update cart items with priceBreakup data
-        setCartItems(prevItems => {
-          const updatedItems = { ...prevItems };
-          res.data.items.forEach(reviewItem => {
-            if (updatedItems[reviewItem.productId] && reviewItem.priceBreakup) {
-              updatedItems[reviewItem.productId] = {
-                ...updatedItems[reviewItem.productId],
-                priceBreakup: reviewItem.priceBreakup
-              };
-            }
-          });
-          return updatedItems;
-        });
-      }
-    } catch (e) {
-      console.log('Failed to fetch priceBreakup data:', e);
-      // Don't show error toast as this is not critical for basic cart functionality
-    }
-  }
+  // Tax calculation removed - using cart API response data instead
 
   // Add or Update cart item (step 2)
   async function addOrUpdateCart(product, quantity) {
@@ -894,11 +843,29 @@ export default function SalesOrderWizard() {
       if (isNewCart) setCartId(res.data.cart.id);
       
       const itemsMap = {};
+      const priceBreakupByProduct = {};
+      // Map priceBreakup array by productId for quick attachment to items
+      if (Array.isArray(res?.data?.priceBreakup)) {
+        res.data.priceBreakup.forEach((pb) => {
+          const pid = Number(pb.productId);
+          if (!priceBreakupByProduct[pid]) priceBreakupByProduct[pid] = [];
+          priceBreakupByProduct[pid].push(pb);
+        });
+      }
+
       res.data.cart.items.forEach((it) => {
         console.log('Individual cart item:', it);
-        itemsMap[it.productId] = {
+        const pid = Number(it.productId);
+        itemsMap[pid] = {
           ...it,
+          productId: pid,
           totalPrice: it.price * it.quantity,
+          // Include tax information if available in cart response
+          cartTaxAmount: it.taxAmount || it.tax || (priceBreakupByProduct[pid]?.[0]?.taxAmount) || 0,
+          cartBaseAmount: it.baseAmount || it.price * it.quantity,
+          cartTotalAmount: it.totalAmount || it.total || (priceBreakupByProduct[pid]?.[0]?.totalAmount) || (it.price * it.quantity),
+          // Attach priceBreakup from header response for UI
+          priceBreakup: priceBreakupByProduct[pid] || undefined,
         };
       });
       console.log('Final cart items map:', itemsMap);
@@ -907,8 +874,7 @@ export default function SalesOrderWizard() {
       setWarehouseOptions(res.data.logistics?.warehouseOptions || []);
       setCartTotal(res.data.totals?.cartTotalAmount || 0);
       
-      // Fetch priceBreakup data for the cart items
-      await fetchCartPriceBreakup();
+      // Tax amounts should be included in cart API response
       
       showToast({
         title: `Added ${quantity} ${product.productType === "packed" ? "packs" : product.unit} of ${product.name} to cart`,
@@ -960,24 +926,95 @@ export default function SalesOrderWizard() {
       }
       
       console.log('Remove from cart URL with division params:', removeUrl);
-      const res = await axiosAPI.post(removeUrl, {
-        cartId,
-        productId,
-      });
+      // Prefer removing by cart item id if backend expects it
+      const existingItem = cartItems?.[productId];
+      const cartItemId = existingItem?.id;
+      const payload = cartItemId 
+        ? { cartId, customerId: customerDetails?.customer_id, cartItemId } 
+        : { cartId, customerId: customerDetails?.customer_id, productId: Number(productId) };
+      console.log('Remove from cart payload:', payload);
+      const res = await axiosAPI.post(removeUrl, payload);
       
       const itemsMap = {};
+      const priceBreakupByProduct = {};
+      if (Array.isArray(res?.data?.priceBreakup)) {
+        res.data.priceBreakup.forEach((pb) => {
+          const pid = Number(pb.productId);
+          if (!priceBreakupByProduct[pid]) priceBreakupByProduct[pid] = [];
+          priceBreakupByProduct[pid].push(pb);
+        });
+      }
       res.data.cart.items.forEach((it) => {
-        itemsMap[it.productId] = {
+        const pid = Number(it.productId);
+        itemsMap[pid] = {
           ...it,
+          productId: pid,
           totalPrice: it.price * it.quantity,
+          // Include tax information if available in cart response
+          cartTaxAmount: it.taxAmount || it.tax || (priceBreakupByProduct[pid]?.[0]?.taxAmount) || 0,
+          cartBaseAmount: it.baseAmount || it.price * it.quantity,
+          cartTotalAmount: it.totalAmount || it.total || (priceBreakupByProduct[pid]?.[0]?.totalAmount) || (it.price * it.quantity),
+          priceBreakup: priceBreakupByProduct[pid] || undefined,
         };
       });
       setCartItems(itemsMap);
       setCartTotal(res.data.totals?.cartTotalAmount || 0);
       
-      // Fetch priceBreakup data for remaining cart items
-      await fetchCartPriceBreakup();
+      // Tax amounts should be included in cart API response
     } catch (e) {
+      console.error('Remove from cart failed:', e?.response?.data || e.message);
+      // Fallback: try updateCart with quantity = 0 to remove the product
+      try {
+        let updateUrl = ApiUrls.updateCart;
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        if (currentDivisionId && currentDivisionId !== '1') {
+          updateUrl += `?divisionId=${currentDivisionId}`;
+        } else if (currentDivisionId === '1') {
+          updateUrl += `?showAllDivisions=true`;
+        }
+        const existingItem = cartItems?.[productId];
+        const unit = existingItem?.unit || 'kg';
+        const fallbackPayload = {
+          cartId,
+          customerId: customerDetails?.customer_id,
+          cartItems: [
+            {
+              productId: Number(productId),
+              quantity: 0,
+              unit,
+            },
+          ],
+        };
+        console.log('Fallback remove via updateCart payload:', fallbackPayload);
+        const res = await axiosAPI.post(updateUrl, fallbackPayload);
+
+        const itemsMap = {};
+        const priceBreakupByProduct = {};
+        if (Array.isArray(res?.data?.priceBreakup)) {
+          res.data.priceBreakup.forEach((pb) => {
+            const pid = Number(pb.productId);
+            if (!priceBreakupByProduct[pid]) priceBreakupByProduct[pid] = [];
+            priceBreakupByProduct[pid].push(pb);
+          });
+        }
+        res.data.cart.items.forEach((it) => {
+          const pid = Number(it.productId);
+          itemsMap[pid] = {
+            ...it,
+            productId: pid,
+            totalPrice: it.price * it.quantity,
+            cartTaxAmount: it.taxAmount || it.tax || (priceBreakupByProduct[pid]?.[0]?.taxAmount) || 0,
+            cartBaseAmount: it.baseAmount || it.price * it.quantity,
+            cartTotalAmount: it.totalAmount || it.total || (priceBreakupByProduct[pid]?.[0]?.totalAmount) || (it.price * it.quantity),
+            priceBreakup: priceBreakupByProduct[pid] || undefined,
+          };
+        });
+        setCartItems(itemsMap);
+        setCartTotal(res.data.totals?.cartTotalAmount || 0);
+        return;
+      } catch (fallbackErr) {
+        console.error('Fallback remove via updateCart failed:', fallbackErr?.response?.data || fallbackErr.message);
+      }
       showToast({
         title: "Failed to remove item",
         status: "error",
@@ -1207,6 +1244,16 @@ export default function SalesOrderWizard() {
     if (!reviewData) return;
     try {
       setReviewLoading(true);
+      
+      // Add division context parameters
+      let finalizeUrl = ApiUrls.finalizeOrder;
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      if (currentDivisionId && currentDivisionId !== '1') {
+        finalizeUrl += `?divisionId=${currentDivisionId}`;
+      } else if (currentDivisionId === '1') {
+        finalizeUrl += `?showAllDivisions=true`;
+      }
+      
       const payload = {
         customerId: customerDetails.customer_id,
         cartItems: Object.values(cartItems).map((item) => ({
@@ -1218,7 +1265,11 @@ export default function SalesOrderWizard() {
         dropOffs,
         paymentMethod: payments.length > 0 ? payments[0].paymentMode : "UPI",
       };
-      const res = await axiosAPI.post(ApiUrls.finalizeOrder, payload);
+      
+      console.log("Finalize order payload:", payload);
+      console.log("Finalize order URL:", finalizeUrl);
+      
+      const res = await axiosAPI.post(finalizeUrl, payload);
       console.log("Finalize order response:", res);
       if (res.status === 201) {
         // Update reviewData with the order information from the response
@@ -1245,9 +1296,20 @@ export default function SalesOrderWizard() {
         });
       }
     } catch (e) {
-      console.log(e);
+      console.error("Finalize order error:", e);
+      console.error("Error response:", e.response?.data);
+      
+      let errorMessage = "Error finalizing order";
+      if (e.response?.data?.message) {
+        errorMessage = e.response.data.message;
+      } else if (e.response?.data?.error) {
+        errorMessage = e.response.data.error;
+      } else if (e.response?.status === 400) {
+        errorMessage = "Invalid data sent to server. Please check all fields.";
+      }
+      
       showToast({
-        title: "Error finalizing order",
+        title: errorMessage,
         status: "error",
         duration: 4000,
       });
@@ -1434,6 +1496,16 @@ export default function SalesOrderWizard() {
               onClick={() => {
                 // Only allow navigation to completed steps (green ones)
                 if (index < step) {
+                  console.log(`Navigating from step ${step} to step ${index}`);
+                  console.log('Current data state:', {
+                    selectedCustomer,
+                    customerDetails: !!customerDetails,
+                    cartItems: Object.keys(cartItems).length,
+                    cartId,
+                    selectedWarehouseType,
+                    dropOffs: dropOffs.length,
+                    reviewData: !!reviewData
+                  });
                   setStep(index);
                 }
               }}
@@ -1513,49 +1585,11 @@ export default function SalesOrderWizard() {
   };
 
   const Input = ({ type = 'text', value, onChange, placeholder, disabled, style = {}, ...props }) => {
-    const handleChange = (e) => {
-      console.log('Input onChange triggered:', { type, value: e.target.value, placeholder });
-      // Prevent any event bubbling that might cause issues
-      e.stopPropagation();
-      if (onChange) {
-        onChange(e);
-      }
-    };
-
-    const handleKeyDown = (e) => {
-      console.log('Input onKeyDown:', e.key);
-      // Prevent any default behavior that might cause issues
-      e.stopPropagation();
-      // Don't prevent default for normal typing keys, but prevent form submission
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    const handleKeyUp = (e) => {
-      e.stopPropagation();
-    };
-
-    const handleFocus = (e) => {
-      e.target.style.borderColor = styles.inputFocus.borderColor;
-      e.stopPropagation();
-    };
-
-    const handleBlur = (e) => {
-      e.target.style.borderColor = styles.input.borderColor;
-      e.stopPropagation();
-    };
-
     return (
       <input
         type={type}
         value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
         style={{ ...styles.input, ...style }}
@@ -1588,13 +1622,24 @@ export default function SalesOrderWizard() {
     return <div style={{ ...cardStyle, ...style }}>{children}</div>;
   };
 
-  // Quantity Modal Component
+  // Simple Quantity Modal Component
   const QuantityModal = () => {
     if (!showQuantityModal || !selectedProductForQty) return null;
 
     return (
       <div 
-        style={styles.modal}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             setShowQuantityModal(false);
@@ -1603,44 +1648,45 @@ export default function SalesOrderWizard() {
           }
         }}
       >
-        <div style={styles.modalContent}>
-          <div style={styles.modalHeader}>
-            <h3 style={styles.modalTitle}>Add to Cart</h3>
-            <button
-              style={styles.closeButton}
-              onClick={() => {
-                setShowQuantityModal(false);
-                setSelectedProductForQty(null);
-                setInputQuantity('');
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#f7fafc';
-                e.target.style.color = '#e53e3e';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#718096';
-              }}
-            >
-              ×
-            </button>
-          </div>
-          
-          <div style={styles.modalBody}>
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ margin: '0 0 8px 0', fontWeight: '600', color: '#2d3748' }}>
+        <div 
+          style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '400px',
+            maxWidth: '90vw',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: '#2d3748' }}>
+              Add to Cart
+            </h3>
+            
+            <div style={{ marginBottom: '12px' }}>
+              <strong style={{ color: '#2d3748' }}>Product Name:</strong>
+              <div style={{ color: '#4a5568', marginTop: '4px' }}>
                 {selectedProductForQty.name}
-              </h4>
-              <p style={{ margin: '0', color: '#718096', fontSize: '14px' }}>
-                Available: {selectedProductForQty.quantity || selectedProductForQty.stockQuantity || selectedProductForQty.stock || 0} {selectedProductForQty.productType === "packed" ? "packs" : selectedProductForQty.unit}
-              </p>
-              <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>
-                Price: ₹{(selectedProductForQty.basePrice || 0).toLocaleString('en-IN')} per {selectedProductForQty.productType === "packed" ? "pack" : selectedProductForQty.unit}
-              </p>
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: '12px' }}>
+              <strong style={{ color: '#2d3748' }}>Available:</strong>
+              <div style={{ color: '#4a5568', marginTop: '4px' }}>
+                {selectedProductForQty.quantity || selectedProductForQty.stockQuantity || selectedProductForQty.stock || 0} {selectedProductForQty.productType === "packed" ? "packs" : selectedProductForQty.unit}
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <strong style={{ color: '#2d3748' }}>Price:</strong>
+              <div style={{ color: '#4a5568', marginTop: '4px' }}>
+                ₹{(selectedProductForQty.basePrice || 0).toLocaleString('en-IN')} per {selectedProductForQty.productType === "packed" ? "pack" : selectedProductForQty.unit}
+              </div>
             </div>
             
             <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#2d3748' }}>
                 Quantity to Add
               </label>
               <input
@@ -1648,51 +1694,54 @@ export default function SalesOrderWizard() {
                 min="1"
                 value={inputQuantity}
                 placeholder="Enter quantity"
-                onChange={(e) => {
-                  setInputQuantity(e.target.value);
+                onChange={(e) => setInputQuantity(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  outline: 'none'
                 }}
-                style={styles.quantityInput}
-                onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                 autoFocus
               />
-              
-              {/* Out of stock warning */}
-              {(selectedProductForQty.quantity || selectedProductForQty.stockQuantity || selectedProductForQty.stock || 0) <= 0 && (
-                <div style={{
-                  marginTop: '8px',
-                  padding: '8px 12px',
-                  backgroundColor: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '6px',
-                  color: '#dc2626',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}>
-                  ⚠️ This product is out of stock. Adding to cart for future availability.
-                </div>
-              )}
             </div>
           </div>
           
-          <div style={styles.modalFooter}>
-            <Button
-              variant="secondary"
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button
               onClick={() => {
                 setShowQuantityModal(false);
                 setSelectedProductForQty(null);
                 setInputQuantity('');
               }}
+              style={{
+                padding: '6px 12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '4px',
+                backgroundColor: 'white',
+                color: '#4a5568',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
             >
               Cancel
-            </Button>
-            <Button
-              variant="primary"
+            </button>
+            <button
               onClick={handleQuantityConfirm}
               disabled={!inputQuantity || parseInt(inputQuantity) <= 0}
+              style={{
+                padding: '6px 12px',
+                border: 'none',
+                borderRadius: '4px',
+                backgroundColor: !inputQuantity || parseInt(inputQuantity) <= 0 ? '#e2e8f0' : '#003176',
+                color: !inputQuantity || parseInt(inputQuantity) <= 0 ? '#a0aec0' : 'white',
+                cursor: !inputQuantity || parseInt(inputQuantity) <= 0 ? 'not-allowed' : 'pointer',
+                fontSize: '14px'
+              }}
             >
               Add to Cart
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -1730,21 +1779,7 @@ export default function SalesOrderWizard() {
 
         {customerDetails && (
           <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                backgroundColor: '#667eea',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '18px'
-              }}>
-                {customerDetails.name?.charAt(0)?.toUpperCase() || 'C'}
-              </div>
+            <div style={{ marginBottom: '20px' }}>
               <div>
                 <h3 style={{ margin: '0', fontWeight: '600', fontSize: '16px', color: '#555' }}>
                   Customer Details
@@ -1824,7 +1859,7 @@ export default function SalesOrderWizard() {
           <Loader />
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }} className="product-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }} className="product-grid">
               {products.map((product) => {
                 const inCart = cartItems[product.id]?.quantity || 0;
                 const isInCart = inCart > 0;
@@ -1998,13 +2033,6 @@ export default function SalesOrderWizard() {
                                     {priceBreakup.quantity || 0} {product.productType === "packed" ? 'packs' : ((priceBreakup.unit === 'packet' ? 'packs' : (priceBreakup.unit || 'units')))}
                                   </span>
                                 </div>
-                                 {/* Quantity */}
-                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                   <span style={{ color: '#64748b', fontWeight: '500' }}>Quantity:</span>
-                                   <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                                     {priceBreakup.quantity || 0} {product.productType === "packed" ? 'packs' : ((priceBreakup.unit === 'packet' ? 'packs' : (priceBreakup.unit || 'units')))}
-                                   </span>
-                                 </div>
                                  
                                  {/* Quantity in KG (only for non-packed products) */}
                                  {product.productType !== 'packed' && (
@@ -2032,24 +2060,7 @@ export default function SalesOrderWizard() {
                                    </span>
                                  </div>
                                  
-                                 {/* Tax Breakdown */}
-                                 <div style={{ marginTop: '4px' }}>
-                                   <span style={{ color: '#64748b', fontWeight: '500', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Tax Breakdown:</span>
-                                   <div style={{ marginLeft: '8px', display: 'grid', gap: '2px' }}>
-                                     {priceBreakup.taxBreakdown && priceBreakup.taxBreakdown.length > 0 ? (
-                                       priceBreakup.taxBreakdown.map((tax, index) => (
-                                         <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                                           <span style={{ color: '#64748b' }}>{tax.name} ({tax.percentage}%):</span>
-                                           <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                                             ₹{(tax.amount || 0).toLocaleString('en-IN')}
-                                           </span>
-                                         </div>
-                                       ))
-                                     ) : (
-                                       <div style={{ fontSize: '12px', color: '#64748b' }}>No breakdown available</div>
-                                     )}
-                                   </div>
-                                 </div>
+                                 {/* Tax Breakdown removed as per requirement */}
                                  
                                 {/* Total Amount */}
                                  <div style={{ 
@@ -2113,81 +2124,81 @@ export default function SalesOrderWizard() {
           Drop-off #{index + 1}
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(260px, 1fr))', gap: '14px', padding: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))', gap: '12px', padding: '12px' }}>
           <div style={{ minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Receiver Name :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Receiver Name :</label>
               <input
                 type="text"
                 defaultValue={drop.receiverName}
                 onBlur={(e) => handleDropOffChange(index, "receiverName", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Receiver Mobile :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Receiver Mobile :</label>
               <input
                 type="text"
                 defaultValue={drop.receiverMobile}
                 onBlur={(e) => handleDropOffChange(index, "receiverMobile", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Plot :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Plot :</label>
               <input
                 type="text"
                 defaultValue={drop.plot}
                 onBlur={(e) => handleDropOffChange(index, "plot", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Street :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Street :</label>
               <input
                 type="text"
                 defaultValue={drop.street}
                 onBlur={(e) => handleDropOffChange(index, "street", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Area :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Area :</label>
               <input
                 type="text"
                 defaultValue={drop.area}
                 onBlur={(e) => handleDropOffChange(index, "area", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>City :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%', display: 'block' }}>City :</label>
               <input
                 type="text"
                 defaultValue={drop.city}
                 onBlur={(e) => handleDropOffChange(index, "city", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>
           <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
             <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Pincode :</label>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%', display: 'block' }}>Pincode :</label>
               <input
                 type="text"
                 defaultValue={drop.pincode}
                 onBlur={(e) => handleDropOffChange(index, "pincode", e.target.value)}
-                style={{ width: '100%', height: '36px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '14px' }}
+                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
               />
             </div>
           </div>

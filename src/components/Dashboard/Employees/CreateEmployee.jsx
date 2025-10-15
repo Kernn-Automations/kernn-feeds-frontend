@@ -111,7 +111,7 @@ function CreateEmployee({ navigate }) {
       !form.employeeId ||
       !form.mobile ||
       selectedRoles.length === 0 ||
-      (!isAdminSelected && !selectedSupervisor)
+      (!isAdminSelected && supervisors.length > 0 && !selectedSupervisor)
     ) {
       setError("Please fill all the required fields.");
       setIsModalOpen(true);
@@ -121,7 +121,11 @@ function CreateEmployee({ navigate }) {
     const payload = {
       ...form,
       roleIds: selectedRoles,
-      supervisorId: isAdminSelected ? null : parseInt(selectedSupervisor),
+      supervisorId: isAdminSelected
+        ? null
+        : (supervisors.length > 0 && selectedSupervisor)
+        ? parseInt(selectedSupervisor)
+        : null,
     };
 
     try {

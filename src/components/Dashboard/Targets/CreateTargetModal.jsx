@@ -335,41 +335,18 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Assignment Type */}
+              {/* Assign To */}
               <div className="row">
                 <div className="col-12">
                   <div className="inputcolumn-mdl">
-                    <label>Assignment Type *</label>
-                    <div className="d-flex gap-4">
-                      <div className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="radio"
-                          name="assignmentType"
-                          id="assignmentTeam"
-                          value="team"
-                          checked={formData.assignmentType === 'team'}
-                          onChange={(e) => handleInputChange('assignmentType', e.target.value)}
-                        />
-                        <label className="form-check-label" htmlFor="assignmentTeam">
-                          Assign to Teams
-                        </label>
-                      </div>
-                      <div className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="radio"
-                          name="assignmentType"
-                          id="assignmentEmployee"
-                          value="employee"
-                          checked={formData.assignmentType === 'employee'}
-                          onChange={(e) => handleInputChange('assignmentType', e.target.value)}
-                        />
-                        <label className="form-check-label" htmlFor="assignmentEmployee">
-                          Assign to Employees
-                        </label>
-                      </div>
-                    </div>
+                    <label>Assign To *</label>
+                    <select
+                      value={formData.assignmentType}
+                      onChange={(e) => handleInputChange('assignmentType', e.target.value)}
+                    >
+                      <option value="team">Team</option>
+                      <option value="employee">Employee</option>
+                    </select>
                   </div>
                 </div>
               </div>

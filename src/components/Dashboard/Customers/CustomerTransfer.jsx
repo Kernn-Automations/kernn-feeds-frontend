@@ -246,19 +246,19 @@ function CustomerTransfer({ navigate }) {
             </div>
             <div className={`col-3 ${styles.longform}`}>
               <label>Division :</label>
-              <input type="text" readOnly value={customerDetails.division || ''} />
+              <input type="text" readOnly value={(customerDetails.division && customerDetails.division.name) || customerDetails.division || ''} />
             </div>
             <div className={`col-3 ${styles.longform}`}>
               <label>Zone :</label>
-              <input type="text" readOnly value={customerDetails.zone || ''} />
+              <input type="text" readOnly value={(customerDetails.zone && customerDetails.zone.name) || customerDetails.zone || ''} />
             </div>
             <div className={`col-3 ${styles.longform}`}>
               <label>SubZone :</label>
-              <input type="text" readOnly value={customerDetails.subZone || ''} />
+              <input type="text" readOnly value={(customerDetails.subZone && customerDetails.subZone.name) || customerDetails.subZone || ''} />
             </div>
             <div className={`col-3 ${styles.longform}`}>
               <label>Team :</label>
-              <input type="text" readOnly value={customerDetails.team || ''} />
+              <input type="text" readOnly value={(customerDetails.team && customerDetails.team.name) || customerDetails.team || ''} />
             </div>
             <div className={`col-3 ${styles.longform}`}>
               <label>Current Executive :</label>
@@ -272,7 +272,7 @@ function CustomerTransfer({ navigate }) {
           <select value={toEmployeeId} onChange={(e) => setToEmployeeId(e.target.value)}>
             <option value="">Select employee</option>
             {availableEmployees.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.name} ({emp.team})</option>
+              <option key={emp.id} value={emp.id}>{emp.name} {(emp.team || emp.teamName) ? `(${(emp.team && emp.team.name) || emp.team || emp.teamName})` : ''}</option>
             ))}
           </select>
         </div>
@@ -281,7 +281,7 @@ function CustomerTransfer({ navigate }) {
           <select value={selectedSalesExecutiveId} onChange={(e) => setSelectedSalesExecutiveId(e.target.value)}>
             <option value="">Select sales executive</option>
             {salesExecutives.map((se) => (
-              <option key={se.id} value={se.id}>{se.name} ({se.team || 'N/A'})</option>
+              <option key={se.id} value={se.id}>{se.name} {se.team || (se.team && se.team.name) ? `(${(se.team && se.team.name) || se.team || 'N/A'})` : ''}</option>
             ))}
           </select>
         </div>
@@ -349,7 +349,7 @@ function CustomerTransfer({ navigate }) {
           <select value={bulkSelectedSalesExecutiveId} onChange={(e) => setBulkSelectedSalesExecutiveId(e.target.value)}>
             <option value="">Select sales executive</option>
             {salesExecutives.map((se) => (
-              <option key={se.id} value={se.id}>{se.name} ({se.team || 'N/A'})</option>
+              <option key={se.id} value={se.id}>{se.name} {se.team || (se.team && se.team.name) ? `(${(se.team && se.team.name) || se.team || 'N/A'})` : ''}</option>
             ))}
           </select>
         </div>

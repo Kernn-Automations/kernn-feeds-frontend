@@ -115,7 +115,7 @@ function LedgerReports({navigate}) {
 
         result = await customerLedgerService.fetchCustomerLedger(
           axiosAPI, 
-          selectedCustomer.id, 
+          selectedCustomer.customer_id || selectedCustomer.id, 
           reportType, 
           periodData
         )
@@ -182,7 +182,7 @@ function LedgerReports({navigate}) {
 
       const result = await customerLedgerService.downloadPDF(
         axiosAPI,
-        selectedCustomerDetails.id,
+        selectedCustomerDetails.customer_id || selectedCustomerDetails.id,
         reportType,
         periodData
       )
@@ -406,9 +406,9 @@ function LedgerReports({navigate}) {
                         <th>Particulars</th>
                         <th>Vch Type</th>
                         <th>Vch No.</th>
-                        <th>Debit</th>
-                        <th>Credit</th>
-                        <th>Balance</th>
+                        <th className="text-center">Debit</th>
+                        <th className="text-center">Credit</th>
+                        <th className="text-center">Balance</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -419,9 +419,9 @@ function LedgerReports({navigate}) {
                             <td>{row.particulars}</td>
                             <td>{row.vchType}</td>
                             <td>{row.vchNo}</td>
-                            <td className="text-end">{row.debit}</td>
-                            <td className="text-end">{row.credit}</td>
-                            <td className="text-end">{row.balance}</td>
+                            <td className="text-center">{row.debit}</td>
+                            <td className="text-center">{row.credit}</td>
+                            <td className="text-center">{row.balance}</td>
                           </tr>
                         ))
                       ) : (

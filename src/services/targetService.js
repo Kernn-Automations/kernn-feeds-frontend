@@ -92,31 +92,22 @@ class TargetService {
    */
   async getTeams(divisionId = null) {
     try {
-      let endpoint = '/teams';
-      
-      // Add division parameter if provided
-      if (divisionId) {
-        endpoint += `?divisionId=${divisionId}`;
-      } else {
-        // Check if we should show all divisions
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        if (currentDivisionId === '1' || currentDivisionId === 'all') {
-          endpoint += '?showAllDivisions=true';
-        } else if (currentDivisionId && currentDivisionId !== '1') {
-          endpoint += `?divisionId=${currentDivisionId}`;
-        }
-      }
-      
-      const response = await axiosInstance.get(endpoint);
+      // New dropdown endpoint
+      const response = await axiosInstance.get('/targets/dropdowns/teams');
       const data = response.data;
-      console.log('Teams API response:', data);
+      console.log('Teams dropdown API response:', data);
       
-      // Handle the actual API response structure
-      // For teams: data.data.teams (nested structure)
-      const teams = data?.data?.teams || [];
+      // Accept several possible shapes robustly
+      const possibleTeams =
+        (Array.isArray(data) ? data : null) ||
+        data?.teams ||
+        data?.data?.teams ||
+        data?.data ||
+        [];
+      const teams = Array.isArray(possibleTeams) ? possibleTeams : [];
       console.log('Extracted teams:', teams);
       
-      return { teams: Array.isArray(teams) ? teams : [] };
+      return { teams };
     } catch (error) {
       throw this.handleError(error);
     }
@@ -129,31 +120,22 @@ class TargetService {
    */
   async getEmployees(divisionId = null) {
     try {
-      let endpoint = '/employees';
-      
-      // Add division parameter if provided
-      if (divisionId) {
-        endpoint += `?divisionId=${divisionId}`;
-      } else {
-        // Check if we should show all divisions
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        if (currentDivisionId === '1' || currentDivisionId === 'all') {
-          endpoint += '?showAllDivisions=true';
-        } else if (currentDivisionId && currentDivisionId !== '1') {
-          endpoint += `?divisionId=${currentDivisionId}`;
-        }
-      }
-      
-      const response = await axiosInstance.get(endpoint);
+      // New dropdown endpoint
+      const response = await axiosInstance.get('/targets/dropdowns/employees');
       const data = response.data;
-      console.log('Employees API response:', data);
+      console.log('Employees dropdown API response:', data);
       
-      // Handle the actual API response structure
-      // For employees: data.data (direct array)
-      const employees = data?.data || [];
+      // Accept several possible shapes robustly
+      const possibleEmployees =
+        (Array.isArray(data) ? data : null) ||
+        data?.employees ||
+        data?.data?.employees ||
+        data?.data ||
+        [];
+      const employees = Array.isArray(possibleEmployees) ? possibleEmployees : [];
       console.log('Extracted employees:', employees);
       
-      return { employees: Array.isArray(employees) ? employees : [] };
+      return { employees };
     } catch (error) {
       throw this.handleError(error);
     }
