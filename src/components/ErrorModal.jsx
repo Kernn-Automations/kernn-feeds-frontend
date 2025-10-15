@@ -31,11 +31,11 @@ function ErrorModal({isOpen, message, onClose}) {
   useEffect(() => {
     if (isOpen && isTokenError) {
       console.log('Token-related error detected, automatically logging out...');
-      // Small delay to allow user to see the error message briefly
+      // 5 second delay as requested
       const timeoutId = setTimeout(() => {
         onClose(); // Close the modal first
         removeLogin(); // Then logout
-      }, 2000); // 2 second delay
+      }, 5000); // 5 second delay
       
       return () => clearTimeout(timeoutId);
     }
@@ -43,23 +43,25 @@ function ErrorModal({isOpen, message, onClose}) {
 
   return (
     <>
-    <Modal show={isOpen} onHide={onClose}>
-      <Modal.Header closeButton>
+    <Modal show={isOpen} onHide={isTokenError ? undefined : onClose} backdrop={isTokenError ? 'static' : true} keyboard={!isTokenError}>
+      <Modal.Header closeButton={!isTokenError}>
         <Modal.Title>Error</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p className={styles.error}>{message || "Unknown Error, Please contact Admin"}</p>
         {isTokenError && (
           <p className={styles.error} style={{marginTop: '10px', fontSize: '14px', color: '#ff6b6b'}}>
-            You will be automatically logged out in a few seconds...
+            You will be automatically logged out in 5 seconds...
           </p>
         )}
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-      </Modal.Footer>
+      {!isTokenError && (
+        <Modal.Footer>
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </Modal.Footer>
+      )}
     </Modal>
 
 {/* <DialogRoot open={isOpen}>

@@ -11,7 +11,7 @@ function StockSummary({navigate}) {
   const [from, setFrom] = useState(new Date().toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [warehouseId, setWarehouseId] = useState();
-  const [stockData, setStockData] = useState({});
+  const [stockData, setStockData] = useState([]);
   const [expandedYears, setExpandedYears] = useState({});
   const [expandedMonths, setExpandedMonths] = useState({});
   const [expandedDates, setExpandedDates] = useState({});
@@ -90,8 +90,12 @@ function StockSummary({navigate}) {
       console.log('StockSummary - Division parameters added:', divisionParam);
       
       const res = await axiosAPI.get(query);
-      console.log(res);
-      setStockData(res.data.data || {});
+      console.log('StockSummary - Full API response:', res);
+      console.log('StockSummary - Response data:', res.data);
+      console.log('StockSummary - Data array:', res.data.data);
+      console.log('StockSummary - Data type:', typeof res.data.data);
+      console.log('StockSummary - Is array:', Array.isArray(res.data.data));
+      setStockData(res.data.data || []);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch stock data.");
       setIsModalOpen(true);
@@ -131,6 +135,60 @@ function StockSummary({navigate}) {
                 ? `${data.packageWeight} ${data.packageWeightUnit}`
                 : "-"}
             </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  // New function to render array data from the API
+  const renderArrayData = (dataArray) => (
+    <table className="table table-bordered borderedtable table-sm mt-2">
+      <thead className="table-light">
+        <tr>
+          <th>Particulars</th>
+          <th>Warehouse</th>
+          <th>Product</th>
+          <th>Opening</th>
+          <th>Inward</th>
+          <th>Outward</th>
+          <th>Stock In</th>
+          <th>Stock Out</th>
+          <th>Closing</th>
+          <th>Type</th>
+          <th>Package Info</th>
+          <th>Opening Alt</th>
+          <th>Inward Alt</th>
+          <th>Outward Alt</th>
+          <th>Stock In Alt</th>
+          <th>Stock Out Alt</th>
+          <th>Closing Alt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {dataArray.map((item, index) => (
+          <tr key={index}>
+            <td>{item.particulars}</td>
+            <td>{item.warehouseName || '-'}</td>
+            <td>{item.productName || '-'}</td>
+            <td>{item.opening?.toFixed(2)}</td>
+            <td>{item.inward?.toFixed(2)}</td>
+            <td>{item.outward?.toFixed(2)}</td>
+            <td>{item.stockIn?.toFixed(2)}</td>
+            <td>{item.stockOut?.toFixed(2)}</td>
+            <td>{item.closing?.toFixed(2)}</td>
+            <td>{item.productType}</td>
+            <td>
+              {item.productType === "packed"
+                ? `${item.packageWeight} ${item.packageWeightUnit}`
+                : "-"}
+            </td>
+            <td>{item.openingAlt?.toFixed(2)}</td>
+            <td>{item.inwardAlt?.toFixed(2)}</td>
+            <td>{item.outwardAlt?.toFixed(2)}</td>
+            <td>{item.stockInAlt?.toFixed(2)}</td>
+            <td>{item.stockOutAlt?.toFixed(2)}</td>
+            <td>{item.closingAlt?.toFixed(2)}</td>
           </tr>
         ))}
       </tbody>
@@ -189,7 +247,12 @@ function StockSummary({navigate}) {
         </div>
 
         {/* Stock Display */}
-        {Object.keys(stockData?.hierarchy || {}).length > 0 ? (
+        {Array.isArray(stockData) && stockData.length > 0 ? (
+          <div className="mb-3">
+            <h5 className="mb-3">Stock Summary Data</h5>
+            {renderArrayData(stockData)}
+          </div>
+        ) : stockData && typeof stockData === 'object' && Object.keys(stockData?.hierarchy || {}).length > 0 ? (
           Object.entries(stockData.hierarchy).map(([year, yearObj]) => (
             <div key={year} className="mb-3 border rounded p-2 bg-light">
               <h5

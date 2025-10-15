@@ -8,7 +8,6 @@ import {
   GoogleMap,
   MarkerF,
   Polyline,
-  useJsApiLoader,
   InfoWindow,
 } from "@react-google-maps/api";
 import LoadingAnimation from "@/components/LoadingAnimation";
@@ -31,10 +30,6 @@ function LocationsHome() {
   const isLoaded = typeof window !== "undefined" && !!window.google;
 
 // Maps API is loaded globally in main.jsx via LoadScript
-  // Google Maps API key
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-  });
 
   // Fetch employees on mount
   useEffect(() => {
@@ -215,28 +210,7 @@ function LocationsHome() {
         </div>
         {type === "employee" && (
           <>
-            <div className="col-4 formcontent">
-              <label htmlFor="employee-select">Select Employee: </label>
-              <select
-                id="employee-select"
-                value={selectedEmployee}
-                onChange={e => setSelectedEmployee(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">-- Select Employee --</option>
-                {loading ? (
-                  <option value="" disabled>Loading employees...</option>
-                ) : employees.length === 0 ? (
-                  <option value="" disabled>No employees found</option>
-                ) : (
-                  employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name || emp.fullName || emp.employeeId || emp.id}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
+            
             <CustomSearchDropdown
               label="Employees"
               onSelect={setSelectedEmployee}
@@ -245,6 +219,7 @@ function LocationsHome() {
                 label: emp.name || emp.fullName || emp.employeeId || emp.id,
               }))}
             />
+            
             <div className="col-3 formcontent">
               <label htmlFor="date-select">Select Date: </label>
               <input
@@ -274,62 +249,9 @@ function LocationsHome() {
       {/* Summary Info removed */}
 
       {/* Latest Locations Overview removed */}
-      {/* Summary Info */}
-      {!loading && employees.length > 0 && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-md-10">
-            <div className="alert alert-success">
-              <strong>Current Division:</strong>{" "}
-              {localStorage.getItem("currentDivisionName") || "N/A"}
-              <br />
-              <strong>Available Employees:</strong> {employees.length}
-              {selectedEmployee && (
-                <>
-                  <br />
-                  <strong>Selected Employee:</strong>{" "}
-                  {employees.find((emp) => emp.id == selectedEmployee)?.name ||
-                    "N/A"}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Summary Info removed per request */}
 
-      {/* Latest Locations Overview */}
-      {!loading && latestLocations.length > 0 && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-md-10">
-            <div className="alert alert-info">
-              <h6>
-                <strong>Latest Locations Overview</strong>
-              </h6>
-              <div className="row">
-                <div className="col-md-6">
-                  <strong>Employees with Location:</strong>{" "}
-                  {
-                    latestLocations.filter(
-                      (loc) => loc.latitude && loc.longitude
-                    ).length
-                  }
-                </div>
-                <div className="col-md-6">
-                  <strong>Employees without Location:</strong>{" "}
-                  {
-                    latestLocations.filter(
-                      (loc) => !loc.latitude || !loc.longitude
-                    ).length
-                  }
-                </div>
-              </div>
-              <small className="text-muted">
-                Showing latest known location for each employee in current
-                division
-              </small>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Latest Locations Overview removed per request */}
 
       {/* No Data Message */}
       {!loading &&
@@ -366,7 +288,6 @@ function LocationsHome() {
       {/* View All Latest Locations Button removed */}
 
       {/* Map Section - show only when an employee is selected */}
-      {type === "employee" && selectedEmployee && isLoaded && !loading && (
       {/* View All Latest Locations Button */}
       {!loading &&
         type === "employee" &&
@@ -388,10 +309,7 @@ function LocationsHome() {
                 >
                   📍 View All Latest Locations on Map
                 </button>
-                <p className="text-muted mt-2">
-                  Click to see the latest known location of all employees in the
-                  current division
-                </p>
+                {/* Helper text removed per request */}
               </div>
             </div>
           </div>
@@ -423,16 +341,6 @@ function LocationsHome() {
               )}
               {/* Markers for locations */}
               {Array.isArray(locations) && locations.map((loc, idx) => {
-                const employee = loc.employee || employees.find(emp => emp.id == selectedEmployee);
-                // Format date/time
-                let timeLabel = "";
-                if (loc.recordedAt || loc.timestamp || loc.time || loc.createdAt) {
-                  const rawTime = loc.recordedAt || loc.timestamp || loc.time || loc.createdAt;
-                  const dateObj = new Date(rawTime);
-                  if (!isNaN(dateObj)) {
-                    const pad = n => n.toString().padStart(2, '0');
-                    timeLabel = `${pad(dateObj.getDate())}/${pad(dateObj.getMonth() + 1)}/${dateObj.getFullYear()}, ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())}`;
-              {locations.map((loc, idx) => {
                 // Handle both individual employee locations and latest locations
                 const employee =
                   loc.employee ||
@@ -483,7 +391,6 @@ function LocationsHome() {
                       lat: Number(loc.latitude),
                       lng: Number(loc.longitude),
                     }}
-                    title={`${employee?.name || 'Employee'}: ${timeLabel}${battery !== null ? `, Battery: ${battery}%` : ''}`}
                     icon={{
                       url: isLatest
                         ? "data:image/svg+xml;utf-8,<svg height='28' width='28' xmlns='http://www.w3.org/2000/svg'><circle cx='14' cy='14' r='10' fill='%23FF0000' stroke='white' stroke-width='3'/><circle cx='14' cy='14' r='4' fill='white'/></svg>"

@@ -41,7 +41,7 @@ function Orders({
   const [teamsId, setTeamsId] = useState();
   const [employeeId, setEmployeeId] = useState();
 
-  let index = 1;
+  // Serial number base will be computed per page for continuous numbering
 
   // backend -----------------
   const [orders, setOrders] = useState([]); // Initialize as empty array
@@ -58,6 +58,7 @@ function Orders({
   const [pageNo, setPageNo] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
+  const [pageTotalsByPage, setPageTotalsByPage] = useState({});
 
   // Add search state variables for searchable fields
   const [dateSearchTerm, setDateSearchTerm] = useState("");
@@ -319,6 +320,136 @@ function Orders({
     }
     return kgs / 1000;
   };
+
+  // Apply table header search filters to a given orders array
+  const applyFilters = (ordersList = []) => {
+    let filtered = ordersList;
+
+    if (
+      dateSearchTerm ||
+      orderIdSearchTerm ||
+      warehouseSearchTerm ||
+      customerIdSearchTerm ||
+      customerNameSearchTerm ||
+      paymentModeSearchTerm
+    ) {
+      filtered = ordersList.filter((order) => {
+        let pass = true;
+
+        if (dateSearchTerm) {
+          const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : "";
+          if (!orderDate.includes(dateSearchTerm)) pass = false;
+        }
+
+        if (orderIdSearchTerm) {
+          const orderId = order.orderNumber || "";
+          if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (warehouseSearchTerm) {
+          const warehouseName = order.warehouse?.name || "";
+          if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (customerIdSearchTerm) {
+          const customerId = order.customer?.customer_id || "";
+          if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (customerNameSearchTerm) {
+          const customerName = order.customer?.name || "";
+          if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (paymentModeSearchTerm) {
+          const paymentMode = "UPI";
+          if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        return pass;
+      });
+    }
+
+    return filtered;
+  };
+
+  // Page Totals (Value, Bags, Tons) based on currently loaded page
+  const getPageTotals = (source = orders) => {
+    let totalValue = 0;
+    let totalBags = 0;
+    let totalTons = 0;
+
+    if (!Array.isArray(source)) return { totalValue, totalBags, totalTons };
+
+    for (const order of source) {
+      // Value (sum of all orders in the current page)
+      if (typeof order?.totalAmount === "number") {
+        totalValue += order.totalAmount;
+      }
+
+      // Tons
+      totalTons += Qty(order?.items) || 0;
+
+      // Bags (only for packed products)
+      if (Array.isArray(order?.items)) {
+        for (const item of order.items) {
+          const productType = item?.product?.productType;
+          const unit = item?.unit;
+          const packageWeight = item?.product?.packageWeight || 0; // in kg
+
+          if (productType === "packed") {
+            if (unit === "kg") {
+              // Treat quantity as number of bags when unit is 'kg'
+              totalBags += Number(item?.quantity) || 0;
+            } else if (unit === "tons") {
+              // Convert tons to bags using package weight (kg per bag)
+              if (packageWeight > 0) {
+                const bags = ((Number(item?.quantity) || 0) * 1000) / packageWeight;
+                totalBags += bags;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { totalValue, totalBags, totalTons };
+  };
+
+  // Reset accumulated page totals when filters or page size change
+  useEffect(() => {
+    setPageTotalsByPage({});
+  }, [
+    from,
+    to,
+    warehouse,
+    customer,
+    status,
+    divisionId,
+    zoneId,
+    subZoneId,
+    teamsId,
+    employeeId,
+    limit,
+    dateSearchTerm,
+    orderIdSearchTerm,
+    warehouseSearchTerm,
+    customerIdSearchTerm,
+    customerNameSearchTerm,
+    paymentModeSearchTerm,
+  ]);
+
+  // Cache current page totals (after applying header filters)
+  useEffect(() => {
+    const filteredOrders = applyFilters(orders || []);
+    const totals = getPageTotals(filteredOrders);
+    setPageTotalsByPage((prev) => ({ ...prev, [pageNo]: totals }));
+  }, [orders, pageNo, dateSearchTerm, orderIdSearchTerm, warehouseSearchTerm, customerIdSearchTerm, customerNameSearchTerm, paymentModeSearchTerm]);
 
   // pdf code -----------------------------------
 
@@ -822,90 +953,7 @@ function Orders({
                       }}
                     >
                       {(() => {
-                        let filteredOrders = orders || [];
-
-                        if (
-                          dateSearchTerm ||
-                          orderIdSearchTerm ||
-                          warehouseSearchTerm ||
-                          customerIdSearchTerm ||
-                          customerNameSearchTerm ||
-                          paymentModeSearchTerm
-                        ) {
-                          filteredOrders = orders.filter((order) => {
-                            let pass = true;
-
-                            if (dateSearchTerm) {
-                              const orderDate = order.createdAt
-                                ? order.createdAt.slice(0, 10)
-                                : "";
-                              if (!orderDate.includes(dateSearchTerm)) {
-                                pass = false;
-                              }
-                            }
-
-                            if (orderIdSearchTerm) {
-                              const orderId = order.orderNumber || "";
-                              if (
-                                !orderId
-                                  .toLowerCase()
-                                  .includes(orderIdSearchTerm.toLowerCase())
-                              ) {
-                                pass = false;
-                              }
-                            }
-
-                            if (warehouseSearchTerm) {
-                              const warehouseName = order.warehouse?.name || "";
-                              if (
-                                !warehouseName
-                                  .toLowerCase()
-                                  .includes(warehouseSearchTerm.toLowerCase())
-                              ) {
-                                pass = false;
-                              }
-                            }
-
-                            if (customerIdSearchTerm) {
-                              const customerId =
-                                order.customer?.customer_id || "";
-                              if (
-                                !customerId
-                                  .toLowerCase()
-                                  .includes(customerIdSearchTerm.toLowerCase())
-                              ) {
-                                pass = false;
-                              }
-                            }
-
-                            if (customerNameSearchTerm) {
-                              const customerName = order.customer?.name || "";
-                              if (
-                                !customerName
-                                  .toLowerCase()
-                                  .includes(
-                                    customerNameSearchTerm.toLowerCase()
-                                  )
-                              ) {
-                                pass = false;
-                              }
-                            }
-
-                            if (paymentModeSearchTerm) {
-                              const paymentMode = "UPI";
-                              if (
-                                !paymentMode
-                                  .toLowerCase()
-                                  .includes(paymentModeSearchTerm.toLowerCase())
-                              ) {
-                                pass = false;
-                              }
-                            }
-
-                            return pass;
-                          });
-                        }
-
+                        const filteredOrders = applyFilters(orders || []);
                         return `Showing ${filteredOrders.length} result(s)`;
                       })()}
                     </td>
@@ -914,93 +962,7 @@ function Orders({
               </thead>
               <tbody>
                 {(() => {
-                  // Apply search filters to the orders data
-                  let filteredOrders = orders || [];
-
-                  if (
-                    dateSearchTerm ||
-                    orderIdSearchTerm ||
-                    warehouseSearchTerm ||
-                    customerIdSearchTerm ||
-                    customerNameSearchTerm ||
-                    paymentModeSearchTerm
-                  ) {
-                    filteredOrders = orders.filter((order) => {
-                      let pass = true;
-
-                      // Apply date search filter
-                      if (dateSearchTerm) {
-                        const orderDate = order.createdAt
-                          ? order.createdAt.slice(0, 10)
-                          : "";
-                        if (!orderDate.includes(dateSearchTerm)) {
-                          pass = false;
-                        }
-                      }
-
-                      // Apply order ID search filter
-                      if (orderIdSearchTerm) {
-                        const orderId = order.orderNumber || "";
-                        if (
-                          !orderId
-                            .toLowerCase()
-                            .includes(orderIdSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-
-                      // Apply warehouse search filter
-                      if (warehouseSearchTerm) {
-                        const warehouseName = order.warehouse?.name || "";
-                        if (
-                          !warehouseName
-                            .toLowerCase()
-                            .includes(warehouseSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-
-                      // Apply customer ID search filter
-                      if (customerIdSearchTerm) {
-                        const customerId = order.customer?.customer_id || "";
-                        if (
-                          !customerId
-                            .toLowerCase()
-                            .includes(customerIdSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-
-                      // Apply customer name search filter
-                      if (customerNameSearchTerm) {
-                        const customerName = order.customer?.name || "";
-                        if (
-                          !customerName
-                            .toLowerCase()
-                            .includes(customerNameSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-
-                      // Apply payment mode search filter
-                      if (paymentModeSearchTerm) {
-                        const paymentMode = "UPI"; // Since it's hardcoded as UPI in the table
-                        if (
-                          !paymentMode
-                            .toLowerCase()
-                            .includes(paymentModeSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-
-                      return pass;
-                    });
-                  }
+                  const filteredOrders = applyFilters(orders || []);
 
                   if (filteredOrders.length === 0) {
                     return (
@@ -1010,13 +972,15 @@ function Orders({
                     );
                   }
 
-                  return filteredOrders.map((order) => (
+                  const pageSize = Number(limit) || 10;
+                  const startSerial = (pageNo - 1) * pageSize + 1;
+                  return filteredOrders.map((order, i) => (
                     <tr
                       key={order.id}
                       className="animated-row"
-                      style={{ animationDelay: `${index * 0.1}s` }}
+                      style={{ animationDelay: `${(i + 1) * 0.1}s` }}
                     >
-                      <td>{index++}</td>
+                      <td>{startSerial + i}</td>
                       <td>
                         {order.createdAt ? order.createdAt.slice(0, 10) : ""}
                       </td>
@@ -1119,11 +1083,43 @@ function Orders({
                 })()}
               </tbody>
             </table>
-            {orders.length > 0 && (
-              <p className="text-end fs-5 pe-3 py-2" colSpan={10}>
-                Grand Total : {GrandTotal()}
-              </p>
-            )}
+            {orders.length > 0 && (() => {
+              // Sum totals from page 1 to current page
+              const cumulative = Array.from({ length: pageNo }, (_, i) => pageTotalsByPage[i + 1])
+                .filter(Boolean)
+                .reduce(
+                  (acc, t) => ({
+                    totalValue: acc.totalValue + (t.totalValue || 0),
+                    totalBags: acc.totalBags + (t.totalBags || 0),
+                    totalTons: acc.totalTons + (t.totalTons || 0),
+                  }),
+                  { totalValue: 0, totalBags: 0, totalTons: 0 }
+                );
+              const { totalValue, totalBags, totalTons } = cumulative;
+              const formattedValue = (totalValue || 0).toLocaleString();
+              const formattedBags = Math.round(totalBags || 0);
+              const formattedTons = (totalTons || 0).toFixed(3);
+              return (
+                <div className="d-flex justify-content-end pe-0 py-2 w-100">
+                  <table className="table table-borderless table-sm w-auto mb-0 text-center ms-auto" style={{ fontSize: "13px" }}>
+                    <thead>
+                      <tr>
+                        <th className="px-3 text-center">Total</th>
+                        <th className="px-3 text-center">Number of bags</th>
+                        <th className="px-3 text-center">Weight in Tons</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="px-3 text-center align-middle">{formattedValue}</td>
+                        <td className="px-3 text-center align-middle">{formattedBags}</td>
+                        <td className="px-3 text-center align-middle">{formattedTons}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
 
             <div className="row m-0 p-0 pt-3 justify-content-between">
               <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>

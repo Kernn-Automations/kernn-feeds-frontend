@@ -32,7 +32,9 @@ export const handleExportPDF = async (columns, data, title, grandTotal = null) =
   // Add grand total row if applicable
   if (grandTotal !== null) {
     const emptyCells = Array(modifiedColumns.length - 2).fill("");
-    modifiedData.push([...emptyCells, "Grand Total :", grandTotal.toFixed(2)]);
+    // Ensure grandTotal is a number before calling toFixed
+    const totalValue = typeof grandTotal === 'number' ? grandTotal : parseFloat(grandTotal) || 0;
+    modifiedData.push([...emptyCells, "Grand Total :", totalValue.toFixed(2)]);
   }
 
   // Draw Header + Footer

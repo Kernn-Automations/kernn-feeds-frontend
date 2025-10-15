@@ -124,7 +124,7 @@ function SalesHome({ navigate }) {
     <>
       {/* Error Display */}
       {error && (
-        <div className="container-fluid">
+        <div className="container-fluid" style={{ position: 'relative', zIndex: 1 }}>
           <div className="row m-0 p-3">
             <div className="col text-center">
               <div className="alert alert-danger">

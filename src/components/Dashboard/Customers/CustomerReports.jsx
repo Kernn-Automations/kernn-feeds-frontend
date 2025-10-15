@@ -8,6 +8,9 @@ import { Modal, Button } from "react-bootstrap";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
+import styles from "./Customers.module.css";
+import xls from "./../../../images/xls-png.png";
+import pdf from "./../../../images/pdf-png.png";
 
 function CustomerReportsPage({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -225,18 +228,14 @@ function CustomerReportsPage({ navigate }) {
       {/* 📋 Report Table */}
       {reportData.length > 0 && (
         <div className="row m-0 px-4">
-          <div className="col-12 mb-2">
-            <button
-              className="btn btn-success me-2"
-              onClick={() => handleExport("XLS")}
-            >
-              Export Excel
+          <div className="col-12 mb-2 d-flex">
+            <button className={styles.xls} onClick={() => handleExport("XLS")}>
+              <p>Export to </p>
+              <img src={xls} alt="Export to Excel" />
             </button>
-            <button
-              className="btn btn-danger"
-              onClick={() => handleExport("PDF")}
-            >
-              Export PDF
+            <button className={styles.xls} onClick={() => handleExport("PDF")}>
+              <p>Export to </p>
+              <img src={pdf} alt="Export to PDF" />
             </button>
           </div>
           <div className="col-12">

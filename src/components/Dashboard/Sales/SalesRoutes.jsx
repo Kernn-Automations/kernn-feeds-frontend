@@ -23,9 +23,11 @@ function SalesRoutes() {
     const [managers, setManagers] = useState();
 
   const { axiosAPI } = useAuth();
-  const user = JSON.parse(localStorage.getItem("user"))
-  const roles = JSON.stringify(user.roles);
-  const isAdmin = roles.includes("Admin");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const roles = user?.roles;
+  const isAdmin = Array.isArray(roles)
+    ? roles.includes("Admin")
+    : (typeof roles === "string" ? roles.includes("Admin") : false);
 
   const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
      .toISOString()

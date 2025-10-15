@@ -2,6 +2,26 @@
   text-align: right;
   margin-bottom: 0;
 }
+
+/* Fix z-index issues for alert messages */
+.alert {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* Ensure alert containers don't overlay on modals/popups */
+.container-fluid .alert,
+.row .alert,
+.col .alert {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* Fix for division alert messages */
+.divisionAlert .alert {
+  position: relative;
+  z-index: 1 !important;
+}
 .mdlclose {
   background-color: transparent !important;
   color: white;
