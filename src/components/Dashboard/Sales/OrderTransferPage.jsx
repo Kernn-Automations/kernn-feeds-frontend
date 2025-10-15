@@ -3,6 +3,7 @@ import { useAuth } from "@/Auth";
 import styles from "./OrderTransferPage.module.css";
 import SuccessModal from "@/components/SuccessModal";
 import ErrorModal from "@/components/ErrorModal";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function OrderTransferPage({ navigate }) {
   const { axiosAPI } = useAuth();
@@ -71,11 +72,7 @@ function OrderTransferPage({ navigate }) {
   return (
     <>
       <p className="path">
-        <span
-          onClick={() => navigate("/sales")}
-        >
-          sales
-        </span>{" "}
+        <span onClick={() => navigate("/sales")}>sales</span>{" "}
         <i className="bi bi-chevron-right"></i> Stock Transfer
       </p>
       <div className={`${styles.page} container py-4`}>
@@ -83,19 +80,11 @@ function OrderTransferPage({ navigate }) {
 
         <div className="row g-3 mb-4">
           <div className="col-md-6">
-            <label className="form-label">Source Warehouse :</label>
-            <select
-              className="form-select"
-              value={selectedWarehouseId}
-              onChange={(e) => setSelectedWarehouseId(e.target.value)}
-            >
-              <option value="">-- Select Warehouse --</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
+            <CustomSearchDropdown
+              label="Warehouse"
+              onSelect={setSelectedWarehouseId}
+              options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+            />
           </div>
 
           {salesOrders.length > 0 && (

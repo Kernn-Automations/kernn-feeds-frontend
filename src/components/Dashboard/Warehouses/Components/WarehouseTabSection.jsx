@@ -5,7 +5,7 @@ import WarehouseActivityTab from "./WarehouseActivityTab";
 import WarehouseStockSummaryTab from "./WarehouseStockSummaryTab";
 import styles from './WarehouseTabSection.module.css';
 
-function WarehouseTabSection({ warehouseDetails }) {
+function WarehouseTabSection({ warehouseDetails, activityFilters, onActivityFilterChange, activityLoading, onInventoryUpdated }) {
   const { warehouse, inventory, activities, stockSummary, ordersToDispatch, ordersToDeliver, totalTurnover } = warehouseDetails;
 
   const [activeTab, setActiveTab] = useState("Details");
@@ -25,9 +25,14 @@ function WarehouseTabSection({ warehouseDetails }) {
           />
         );
       case "Inventory":
-        return <InventoryTab inventory={inventory} warehouse={warehouse} />;
+        return <InventoryTab inventory={inventory} warehouse={warehouse} onInventoryUpdated={onInventoryUpdated} />;
       case "Activity":
-        return <WarehouseActivityTab activities={activities} />;
+        return <WarehouseActivityTab 
+          activities={activities} 
+          filters={activityFilters} 
+          onApplyFilters={onActivityFilterChange}
+          loading={activityLoading}
+        />;
       case "StockSummary":
         return <WarehouseStockSummaryTab warehouse={warehouse} />;
       default:

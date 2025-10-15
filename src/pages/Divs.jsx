@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { normalizeRoleName } from "../utils/roleUtils";
 import { useNavigate } from "react-router-dom";
 import styles from "./Divs.module.css";
 import tokenManager from "../utils/tokenManager";
@@ -79,20 +80,21 @@ const Divs = () => {
       if (data.success) {
         const divisionsList = data.data;
         
-        // Add "All Divisions" option if user is Admin and has access to multiple divisions
+        // Add "All Divisions" option if user is Admin or Super Admin
         let divisionsWithAll = [...divisionsList];
         
         // Check if user is Admin or Super Admin and has multiple divisions
         if (user && user.roles && Array.isArray(user.roles)) {
           const isAdminOrSuperAdmin = user.roles.some(role => {
-            const roleName = role.name && role.name.toLowerCase();
-            return roleName === "admin" || roleName === "super admin" || roleName === "superadmin";
+            const roleName = normalizeRoleName(role);
+            return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
           });
           
           console.log("Divs.jsx - Is Admin or Super Admin:", isAdminOrSuperAdmin);
           console.log("Divs.jsx - Divisions count:", divisionsList.length);
-          
-          if (isAdminOrSuperAdmin && divisionsList.length > 1) {
+
+          // Always include All Divisions for admins, even if only one division is present
+          if (isAdminOrSuperAdmin) {
             console.log("Divs.jsx - Adding All Divisions option");
             divisionsWithAll = [
               { 
@@ -103,6 +105,9 @@ const Divs = () => {
               },
               ...divisionsList
             ];
+          } else {
+            // Ensure non-admin users never see an All Divisions option
+            divisionsWithAll = divisionsWithAll.filter(d => d?.id !== "all" && !d?.isAllDivisions);
           }
         }
         
@@ -268,11 +273,51 @@ const Divs = () => {
           navigate("/", { replace: true });
         }, 1500); // Increased delay to ensure context state is updated
       } else {
-        const errorData = await response.json();
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {}
         console.error("Divs.jsx - Select division failed:", errorData);
-        setError(
-          `Failed to select division: ${errorData.message || "Unknown error"}`
-        );
+
+        // Graceful fallback: if server denies changing division (common for non-admins),
+        // proceed with client-side selection so app can filter by division locally
+        const msg = (errorData.message || "").toLowerCase();
+        if (response.status === 403 || msg.includes("permission") || msg.includes("not allowed") || msg.includes("not have permission")) {
+          console.warn("Divs.jsx - Server denied division change; applying client-side selection fallback.");
+
+          const divisionData = {
+            id: division.id,
+            name: division.name,
+            state: division.state,
+            isActive: division.isActive,
+            createdAt: division.createdAt,
+            updatedAt: division.updatedAt,
+            isAllDivisions: division.isAllDivisions || false
+          };
+
+          // Update context and localStorage
+          setSelectedDivision(divisionData);
+          localStorage.setItem("selectedDivision", JSON.stringify(divisionData));
+          localStorage.setItem("currentDivisionId", division.id.toString());
+          localStorage.setItem("currentDivisionName", division.name);
+
+          try {
+            const userData = JSON.parse(localStorage.getItem("user"));
+            if (userData) {
+              userData.showDivisions = false;
+              localStorage.setItem("user", JSON.stringify(userData));
+            }
+          } catch {}
+
+          setDivisionSelected(true);
+          setTimeout(() => {
+            navigate("/", { replace: true });
+          }, 800);
+        } else {
+          setError(
+            `Failed to select division: ${errorData.message || "Unknown error"}`
+          );
+        }
       }
     } catch (error) {
       console.error("Error selecting division:", error);

@@ -14,8 +14,27 @@
   
 }
 
+/* BOOTSTRAP MODAL Z-INDEX OVERRIDES */
 .modal {
-  --bs-modal-zindex: 1700 !important;
+  --bs-modal-zindex: 150000 !important;
+}
+
+/* Ensure all Bootstrap modal components follow hierarchy */
+.modal-dialog {
+  z-index: 150001 !important;
+}
+
+.modal-content {
+  z-index: 150002 !important;
+}
+
+.modal-backdrop {
+  z-index: 149999 !important;
+}
+
+/* Override any potential conflicts with Bootstrap's own backdrop */
+.modal.show {
+  z-index: 150000 !important;
 }
 
 * {

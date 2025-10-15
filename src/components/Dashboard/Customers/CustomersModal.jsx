@@ -34,6 +34,9 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
   const [msme, setMsme] = useState("");
 
   const [customerdata, setCustomerdata] = useState();
+  const [products, setProducts] = useState([]);
+  const [billToBillDiscounts, setBillToBillDiscounts] = useState([]);
+  const [monthlyDiscounts, setMonthlyDiscounts] = useState([]);
 
   const [trigger, setTrigger] = useState(false);
 
@@ -41,18 +44,141 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
     async function fetch() {
       try {
         setLoading(true);
-        const res = await axiosAPI.get(`/customers/${customerId}`);
-        console.log(res);
-        setCustomerdata(res.data.customer);
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+
+        // Build both endpoint variants with division context
+        const buildUrl = (base) => {
+          let u = `${base}/${customerId}`;
+          if (currentDivisionId && currentDivisionId !== '1') {
+            u += `?divisionId=${currentDivisionId}`;
+          } else if (currentDivisionId === '1') {
+            u += `?showAllDivisions=true`;
+          }
+          return u;
+        };
+
+        const customersUrl = buildUrl('/customers');
+        const customerUrl = buildUrl('/customer');
+
+        let res;
+        try {
+          // Try plural endpoint first (observed in backend)
+          res = await axiosAPI.get(customersUrl);
+        } catch (err) {
+          if (err?.response?.status === 404) {
+            // Fallback to singular endpoint
+            res = await axiosAPI.get(customerUrl);
+          } else {
+            throw err;
+          }
+        }
+
+        const data = res.data || {};
+        const customer = data.customer || data?.data?.customer || data;
+        const pad = data.productsAndDiscounting || data?.data?.productsAndDiscounting || {};
+        setCustomerdata(customer);
+        setProducts(pad?.products || []);
+        setBillToBillDiscounts(pad?.billToBillDiscounts || pad?.bill_to_bill_discounts || []);
+        setMonthlyDiscounts(pad?.monthlyDiscounts || pad?.monthly_discounts || []);
       } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+        setError(e.response?.data?.message || 'Failed to load customer');
+        setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
     fetch();
-  }, [trigger]);
+  }, [trigger, customerId]);
+
+  // Update a single product custom price
+  const saveProductPrice = async (productId, customPrice) => {
+    try {
+      setLoading(true);
+      await axiosAPI.put(`/customer/product-pricing`, {
+        customerId,
+        productId,
+        customPrice: customPrice === '' || customPrice == null ? null : Number(customPrice),
+      });
+      // Optimistically update UI
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, customPrice } : p));
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to update product price');
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Edit existing bill-to-bill discount
+  const saveBillToBillDiscount = async (discount) => {
+    try {
+      setLoading(true);
+      await axiosAPI.put(`/bill-to-bill-discount`, {
+        discountId: discount.id,
+        minQuantity: Number(discount.minQuantity ?? discount.min_quantity ?? 0),
+        discountAmount: Number(discount.discountAmount ?? discount.discount_amount ?? 0),
+      });
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to update bill-to-bill discount');
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Edit existing monthly discount
+  const saveMonthlyDiscount = async (discount) => {
+    try {
+      setLoading(true);
+      await axiosAPI.put(`/monthly-discount`, {
+        discountId: discount.id,
+        minTurnover: Number(discount.minTurnover ?? discount.min_turnover ?? 0),
+        discountAmount: Number(discount.discountAmount ?? discount.discount_amount ?? 0),
+      });
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to update monthly discount');
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add new discounts
+  const addBillToBillDiscount = async () => {
+    try {
+      setLoading(true);
+      const res = await axiosAPI.post(`/bill-to-bill-discount`, {
+        customerId,
+        minQuantity: 0,
+        discountAmount: 0,
+      });
+      const created = res.data?.discount || res.data;
+      setBillToBillDiscounts(prev => [...prev, created]);
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to add bill-to-bill discount');
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addMonthlyDiscount = async () => {
+    try {
+      setLoading(true);
+      const res = await axiosAPI.post(`/monthly-discount`, {
+        customerId,
+        minTurnover: 0,
+        discountAmount: 0,
+      });
+      const created = res.data?.discount || res.data;
+      setMonthlyDiscounts(prev => [...prev, created]);
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to add monthly discount');
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onApproveClick = async () => {
     try {
@@ -481,6 +607,143 @@ function CustomersModal({ customerId, setCustomerId, isAdmin }) {
                 />
               </div>
             ))}
+          </div>
+
+          {/* Products & Discounting */}
+          <div className="row m-0 p-0 mt-3">
+            <h5 className={styles.headmdl}>Products & Discounting</h5>
+            <div className="col-12">
+              <div className="table-responsive">
+                <table className="table table-bordered borderedtable">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Base Price</th>
+                      <th>Custom Price</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="text-center">No products</td>
+                      </tr>
+                    )}
+                    {products.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.name}</td>
+                        <td>{p.basePrice ?? p.base_price ?? '-'}</td>
+                        <td>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Enter price"
+                            className="text-center"
+                            value={p.customPrice ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setProducts(prev => prev.map(x => x.id === p.id ? { ...x, customPrice: val } : x));
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <button className="btn btn-sm btn-primary" onClick={() => saveProductPrice(p.id, p.customPrice)}>Save</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="row m-0 p-0 mt-3">
+            <div className="col-6">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h6 className="mb-0">Bill-to-Bill Discounts</h6>
+                <button className="btn btn-sm btn-outline-primary" onClick={addBillToBillDiscount}>Add</button>
+              </div>
+              <div className="table-responsive">
+                <table className="table table-sm table-bordered borderedtable">
+                  <thead>
+                    <tr>
+                      <th>Min Qty</th>
+                      <th>Amount</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(billToBillDiscounts || []).map((d) => (
+                      <tr key={d.id}>
+                        <td>
+                          <input type="number" value={d.minQuantity ?? d.min_quantity ?? 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setBillToBillDiscounts(prev => prev.map(x => x.id === d.id ? { ...x, minQuantity: val } : x));
+                            }} />
+                        </td>
+                        <td>
+                          <input type="number" step="0.01" value={d.discountAmount ?? d.discount_amount ?? 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setBillToBillDiscounts(prev => prev.map(x => x.id === d.id ? { ...x, discountAmount: val } : x));
+                            }} />
+                        </td>
+                        <td>
+                          <button className="btn btn-sm btn-primary" onClick={() => saveBillToBillDiscount(d)}>Save</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {billToBillDiscounts.length === 0 && (
+                      <tr><td colSpan="3" className="text-center">No discounts</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="col-6">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h6 className="mb-0">Monthly Discounts</h6>
+                <button className="btn btn-sm btn-outline-primary" onClick={addMonthlyDiscount}>Add</button>
+              </div>
+              <div className="table-responsive">
+                <table className="table table-sm table-bordered borderedtable">
+                  <thead>
+                    <tr>
+                      <th>Min Turnover</th>
+                      <th>Amount</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(monthlyDiscounts || []).map((d) => (
+                      <tr key={d.id}>
+                        <td>
+                          <input type="number" value={d.minTurnover ?? d.min_turnover ?? 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setMonthlyDiscounts(prev => prev.map(x => x.id === d.id ? { ...x, minTurnover: val } : x));
+                            }} />
+                        </td>
+                        <td>
+                          <input type="number" step="0.01" value={d.discountAmount ?? d.discount_amount ?? 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setMonthlyDiscounts(prev => prev.map(x => x.id === d.id ? { ...x, discountAmount: val } : x));
+                            }} />
+                        </td>
+                        <td>
+                          <button className="btn btn-sm btn-primary" onClick={() => saveMonthlyDiscount(d)}>Save</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {monthlyDiscounts.length === 0 && (
+                      <tr><td colSpan="3" className="text-center">No discounts</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <div className="row m-0 p-0 justify-content-center">

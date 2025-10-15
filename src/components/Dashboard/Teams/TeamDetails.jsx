@@ -285,7 +285,8 @@ function TeamDetails() {
               <div className="card-header d-flex justify-content-between align-items-center">
                 <strong>Team Info</strong>
                 <button 
-                  className="btn btn-sm btn-primary" 
+                  className="btn btn-sm" 
+                  style={{ backgroundColor: '#003176', borderColor: '#003176', color: '#fff' }} 
                   disabled={statusSaving || teamStatus === team.isActive} 
                   onClick={handleSaveTeamStatus}
                 >
@@ -332,18 +333,18 @@ function TeamDetails() {
             <div className="card mb-3">
               <div className="card-header d-flex justify-content-between align-items-center">
                 <strong>Products & Pricing</strong>
-                <button className="btn btn-sm btn-primary" disabled={saving} onClick={handleSaveProducts}>
+                <button className="btn btn-sm" style={{ backgroundColor: '#003176', borderColor: '#003176', color: '#fff' }} disabled={saving} onClick={handleSaveProducts}>
                   {saving ? 'Saving...' : 'Save Products'}
                 </button>
               </div>
               <div className="card-body">
                 <div className="table-responsive">
-                  <table className="table table-bordered">
+                  <table className="table table-bordered borderedtable">
                     <thead>
                       <tr>
                         <th>Product</th>
-                        <th>Enabled</th>
-                        <th>Selling Price</th>
+                        <th className="text-center">Enabled</th>
+                        <th className="text-center">Selling Price</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -412,7 +413,7 @@ function TeamDetails() {
                     <small className="text-muted">Loading warehouses...</small>
                   )}
                 </div>
-                <button className="btn btn-secondary w-100" disabled={saving || !warehouseId || warehousesLoading} onClick={handleAssignWarehouse}>
+                <button className="btn w-100" style={{ backgroundColor: '#003176', borderColor: '#003176', color: '#fff' }} disabled={saving || !warehouseId || warehousesLoading} onClick={handleAssignWarehouse}>
                   {saving ? 'Assigning...' : 'Assign'}
                 </button>
               </div>
@@ -424,11 +425,11 @@ function TeamDetails() {
               </div>
               <div className="card-body">
                 <div className="d-flex flex-column gap-2">
-                  <button className="btn btn-outline-primary" onClick={() => setIsBillToBillOpen(true)}>
+                  <button className="btn" style={{ backgroundColor: '#003176', borderColor: '#003176', color: '#fff' }} onClick={() => setIsBillToBillOpen(true)}>
                     <i className="bi bi-plus-circle me-1"></i>
                     Add Bill-to-Bill Discount
                   </button>
-                  <button className="btn btn-outline-secondary" onClick={() => setIsMonthlyOpen(true)}>
+                  <button className="btn" style={{ backgroundColor: '#003176', borderColor: '#003176', color: '#fff' }} onClick={() => setIsMonthlyOpen(true)}>
                     <i className="bi bi-plus-circle me-1"></i>
                     Add Monthly Discount
                   </button>
@@ -446,7 +447,7 @@ function TeamDetails() {
       {isMembersOpen && (
         <div
           className="modal fade show"
-          style={{ display: 'block', position: 'fixed', inset: 0, zIndex: 1050 }}
+          style={{ display: 'block', position: 'fixed', inset: 0 }}
           tabIndex="-1"
           role="dialog"
           onClick={() => setIsMembersOpen(false)}
@@ -560,7 +561,6 @@ function TeamBillToBillModal({ isOpen, onClose, teamId, discounts, loading, onAd
         display: 'block', 
         position: 'fixed', 
         inset: 0, 
-        zIndex: 1050,
         backgroundColor: 'rgba(0, 0, 0, 0.5)'
       }}
       tabIndex="-1"
@@ -701,7 +701,6 @@ function TeamBillToBillModal({ isOpen, onClose, teamId, discounts, loading, onAd
             display: 'block', 
             position: 'fixed', 
             inset: 0, 
-            zIndex: 1060,
             backgroundColor: 'rgba(0, 0, 0, 0.5)'
           }}
           tabIndex="-1"
@@ -798,7 +797,6 @@ function TeamMonthlyDiscountModal({ isOpen, onClose, teamId, discounts, loading,
         display: 'block', 
         position: 'fixed', 
         inset: 0, 
-        zIndex: 1050,
         backgroundColor: 'rgba(0, 0, 0, 0.5)'
       }}
       tabIndex="-1"
@@ -939,7 +937,6 @@ function TeamMonthlyDiscountModal({ isOpen, onClose, teamId, discounts, loading,
             display: 'block', 
             position: 'fixed', 
             inset: 0, 
-            zIndex: 1060,
             backgroundColor: 'rgba(0, 0, 0, 0.5)'
           }}
           tabIndex="-1"

@@ -738,20 +738,23 @@
   font-weight: 500;
 }
 
-.dispatchDetails, .deliveryDetails {
+.dispatchDetails,
+.deliveryDetails {
   background-color: white;
   padding: 12px;
   border-radius: 6px;
   border: 1px solid #e9ecef;
 }
 
-.dispatchInfo, .deliveryInfo {
+.dispatchInfo,
+.deliveryInfo {
   font-size: 14px;
   margin: 0 0 8px 0;
   color: #333;
 }
 
-.dispatchInfo:last-child, .deliveryInfo:last-child {
+.dispatchInfo:last-child,
+.deliveryInfo:last-child {
   margin-bottom: 0;
 }
 
@@ -930,7 +933,7 @@
   top: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -940,7 +943,7 @@
 .cancelModalBox {
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(44,44,44,0.15);
+  box-shadow: 0 4px 24px rgba(44, 44, 44, 0.15);
   padding: 36px 32px 24px 32px;
   min-width: 340px;
   max-width: 98vw;
@@ -1005,4 +1008,141 @@
   font-weight: bold;
   font-size: 17px;
   margin: 0;
+}
+
+.dispatchTable select,
+.dispatchTable input {
+  height: 27px;
+  width: 100%;
+  font-size: 15px;
+  border-radius: 4px;
+  box-shadow: 1px 1px 4px #00000050;
+  padding-left: 4px;
+}
+
+/* pie chart */
+
+.pieContainer {
+  width: 96%;
+  margin: auto;
+  padding: 20px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+}
+
+.mainTitle {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 24px;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  justify-content: center;
+}
+
+.chartCard {
+  background: #fff;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.chartCard:hover {
+  transform: translateY(-4px);
+}
+
+.chartTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #444;
+}
+
+.legendContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 10px;
+  margin-left: 20px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+}
+
+.legendColor {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  margin-right: 8px;
+}
+
+.totalText {
+  margin-top: 10px;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.noData {
+  color: #999;
+}
+
+.loading {
+  text-align: center;
+  font-size: 1rem;
+  color: #666;
+}
+
+.selectDropdown {
+  width: 200px;
+  height: 30px;
+  box-shadow: 2px 2px 4px #00000060;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+}
+.tooltipBox {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
+  color: #333;
+  font-size: 13px;
+}
+
+.tooltipTitle {
+  font-weight: 600;
+  font-size: 14px;
+  color: #222;
+  margin-bottom: 5px;
+}
+
+.tooltipBox p {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.compDetails h5 {
+  font-size: 16px;
+}
+.compDetails p {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  padding-left: 40px;
+}
+.compDetails p span {
+  font-weight: 600;
+  margin-right: 15px;
 }

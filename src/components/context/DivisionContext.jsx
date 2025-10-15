@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { normalizeRoleName } from "@/utils/roleUtils";
 import { useAuth } from "../../Auth";
 
 const DivisionContext = createContext();
@@ -82,7 +83,7 @@ export function DivisionProvider({ children }) {
       const resp = await axiosAPI.get("/divisions/user-divisions");
       const list = resp.data.divisions || resp.data.data || [];
       
-      // Add "All Divisions" option if user is Admin and has access to multiple divisions
+      // Add "All Divisions" option if user is Admin or Super Admin
       let divisionsWithAll = [...list];
       
       // Check if user is Admin or Super Admin and has multiple divisions
@@ -90,12 +91,12 @@ export function DivisionProvider({ children }) {
         const userData = JSON.parse(localStorage.getItem("user"));
         if (userData && userData.roles && Array.isArray(userData.roles)) {
           const isAdminOrSuperAdmin = userData.roles.some(role => {
-            const roleName = role.name && role.name.toLowerCase();
-            return roleName === "admin" || roleName === "super admin" || roleName === "superadmin";
+            const roleName = normalizeRoleName(role);
+            return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
           });
           
-          // Reduced logging - only log when adding All Divisions option
-          if (isAdminOrSuperAdmin && list.length > 1) {
+          // Always include All Divisions for admins, even if only one division is present
+          if (isAdminOrSuperAdmin) {
             console.log('DivisionContext - Adding All Divisions option for admin user');
             divisionsWithAll = [
               { 
@@ -109,6 +110,9 @@ export function DivisionProvider({ children }) {
               },
               ...list
             ];
+          } else {
+            // Ensure non-admin users never see an All Divisions option
+            divisionsWithAll = divisionsWithAll.filter(d => d?.id !== "all" && !d?.isAllDivisions);
           }
         }
       } catch (error) {

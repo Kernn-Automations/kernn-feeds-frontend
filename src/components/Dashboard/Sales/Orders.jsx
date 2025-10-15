@@ -12,6 +12,9 @@ import orderAni from "../../../images/animations/confirmed.gif";
 import { handleExportExcel, handleExportPDF } from "@/utils/PDFndXLSGenerator";
 import { FaArrowLeftLong } from "react-icons/fa6";
 import { FaArrowRightLong } from "react-icons/fa6";
+import { useSearchParams } from "react-router-dom";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
+import FiltersForSales from "./FiltersForSales";
 
 function Orders({
   navigate,
@@ -23,14 +26,22 @@ function Orders({
   to,
   setTo,
 }) {
+  const [searchParams] = useSearchParams();
   const [onsubmit, setonsubmit] = useState(false);
 
   const [warehouse, setWarehouse] = useState();
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
-  const [status, setStatus] = useState();
+  const [status, setStatus] = useState(searchParams.get('status') || '');
 
-  let index = 1;
+  // Filters to divisions
+  const [divisionId, setDivisionId] = useState();
+  const [zoneId, setZoneId] = useState();
+  const [subZoneId, setSubZoneId] = useState();
+  const [teamsId, setTeamsId] = useState();
+  const [employeeId, setEmployeeId] = useState();
+
+  // Serial number base will be computed per page for continuous numbering
 
   // backend -----------------
   const [orders, setOrders] = useState([]); // Initialize as empty array
@@ -47,6 +58,7 @@ function Orders({
   const [pageNo, setPageNo] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
+  const [pageTotalsByPage, setPageTotalsByPage] = useState({});
 
   // Add search state variables for searchable fields
   const [dateSearchTerm, setDateSearchTerm] = useState("");
@@ -61,43 +73,54 @@ function Orders({
   const [showCustomerNameSearch, setShowCustomerNameSearch] = useState(false);
   const [paymentModeSearchTerm, setPaymentModeSearchTerm] = useState("");
   const [showPaymentModeSearch, setShowPaymentModeSearch] = useState(false);
+
+  // Handle URL parameter changes for status filter
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setStatus(statusParam);
+      setTrigger(prev => !prev); // Trigger data refetch
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     async function fetch() {
       try {
         setOrders(null);
         setLoading(true);
-        
+
         // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+        const currentDivisionName = localStorage.getItem("currentDivisionName");
+
         // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
         let warehouseParam = "";
         if (warehouse && warehouse !== "all") {
           warehouseParam = `&warehouseId=${warehouse}`;
         }
-        
+
         // ✅ Add division parameters to prevent wrong division data
         let divisionParam = "";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           divisionParam = `&divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           divisionParam = `&showAllDivisions=true`;
         }
-        
-        console.log('Orders - Fetching orders with warehouse filter:', warehouse);
-        console.log('Orders - Warehouse parameter:', warehouseParam);
-        console.log('Orders - Division ID:', currentDivisionId);
-        console.log('Orders - Division Name:', currentDivisionName);
-        console.log('Orders - Division parameters added:', divisionParam);
-        
+
+        console.log(
+          "Orders - Fetching orders with warehouse filter:",
+          warehouse
+        );
+        console.log("Orders - Warehouse parameter:", warehouseParam);
+        console.log("Orders - Division ID:", currentDivisionId);
+        console.log("Orders - Division Name:", currentDivisionName);
+        console.log("Orders - Division parameters added:", divisionParam);
+
         const query = `/sales-orders?fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
           customer ? `&customerId=${customer}` : ""
-        }${
-          status ? `&status=${status}` : ""
-        }&page=${pageNo}&limit=${limit}`;
-        
-        console.log('Orders - Final query:', query);
+        }${status ? `&status=${status}` : ""}&page=${pageNo}&limit=${limit}${divisionId ? `&divisionId=${divisionId}` : ""}${zoneId ? `&zoneId=${zoneId}` : ""}${subZoneId ? `&subZoneId=${subZoneId}` : ""}${teamsId ? `&teamId=${teamsId}` : ""}${employeeId ? `&employeeId=${employeeId}` : ""}`;
+
+        console.log("Orders - Final query:", query);
 
         const res = await axiosAPI.get(query);
         console.log(res, limit);
@@ -113,12 +136,12 @@ function Orders({
       }
     }
     fetch();
-  }, [trigger, pageNo, limit]);
+  }, [trigger, pageNo, limit, status]);
 
   // Add ESC key functionality to exit search mode
   useEffect(() => {
     const handleEscKey = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (showDateSearch) {
           setShowDateSearch(false);
           setDateSearchTerm("");
@@ -146,65 +169,119 @@ function Orders({
       }
     };
 
-    if (showDateSearch || showOrderIdSearch || showWarehouseSearch || showCustomerIdSearch || showCustomerNameSearch || showPaymentModeSearch) {
-      document.addEventListener('keydown', handleEscKey);
+    if (
+      showDateSearch ||
+      showOrderIdSearch ||
+      showWarehouseSearch ||
+      showCustomerIdSearch ||
+      showCustomerNameSearch ||
+      showPaymentModeSearch
+    ) {
+      document.addEventListener("keydown", handleEscKey);
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscKey);
+      document.removeEventListener("keydown", handleEscKey);
     };
-  }, [showDateSearch, showOrderIdSearch, showWarehouseSearch, showCustomerIdSearch, showCustomerNameSearch, showPaymentModeSearch]);
+  }, [
+    showDateSearch,
+    showOrderIdSearch,
+    showWarehouseSearch,
+    showCustomerIdSearch,
+    showCustomerNameSearch,
+    showPaymentModeSearch,
+  ]);
 
   // Add click outside functionality to exit search mode
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Check if click is outside any of the search headers
-      const dateHeader = document.querySelector('[data-date-header]');
-      const orderIdHeader = document.querySelector('[data-orderid-header]');
-      const warehouseHeader = document.querySelector('[data-warehouse-header]');
-      const customerIdHeader = document.querySelector('[data-customerid-header]');
-      const customerNameHeader = document.querySelector('[data-customername-header]');
-      const paymentModeHeader = document.querySelector('[data-paymentmode-header]');
-      
+      const dateHeader = document.querySelector("[data-date-header]");
+      const orderIdHeader = document.querySelector("[data-orderid-header]");
+      const warehouseHeader = document.querySelector("[data-warehouse-header]");
+      const customerIdHeader = document.querySelector(
+        "[data-customerid-header]"
+      );
+      const customerNameHeader = document.querySelector(
+        "[data-customername-header]"
+      );
+      const paymentModeHeader = document.querySelector(
+        "[data-paymentmode-header]"
+      );
+
       if (showDateSearch && dateHeader && !dateHeader.contains(event.target)) {
         setShowDateSearch(false);
         setDateSearchTerm("");
       }
-      
-      if (showOrderIdSearch && orderIdHeader && !orderIdHeader.contains(event.target)) {
+
+      if (
+        showOrderIdSearch &&
+        orderIdHeader &&
+        !orderIdHeader.contains(event.target)
+      ) {
         setShowOrderIdSearch(false);
         setOrderIdSearchTerm("");
       }
-      
-      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
+
+      if (
+        showWarehouseSearch &&
+        warehouseHeader &&
+        !warehouseHeader.contains(event.target)
+      ) {
         setShowWarehouseSearch(false);
         setWarehouseSearchTerm("");
       }
-      
-      if (showCustomerIdSearch && customerIdHeader && !customerIdHeader.contains(event.target)) {
+
+      if (
+        showCustomerIdSearch &&
+        customerIdHeader &&
+        !customerIdHeader.contains(event.target)
+      ) {
         setShowCustomerIdSearch(false);
         setCustomerIdSearchTerm("");
       }
-      
-      if (showCustomerNameSearch && customerNameHeader && !customerNameHeader.contains(event.target)) {
+
+      if (
+        showCustomerNameSearch &&
+        customerNameHeader &&
+        !customerNameHeader.contains(event.target)
+      ) {
         setShowCustomerNameSearch(false);
         setCustomerNameSearchTerm("");
       }
-      
-      if (showPaymentModeSearch && paymentModeHeader && !paymentModeHeader.contains(event.target)) {
+
+      if (
+        showPaymentModeSearch &&
+        paymentModeHeader &&
+        !paymentModeHeader.contains(event.target)
+      ) {
         setShowPaymentModeSearch(false);
         setPaymentModeSearchTerm("");
       }
     };
 
-    if (showDateSearch || showOrderIdSearch || showWarehouseSearch || showCustomerIdSearch || showCustomerNameSearch || showPaymentModeSearch) {
-      document.addEventListener('mousedown', handleClickOutside);
+    if (
+      showDateSearch ||
+      showOrderIdSearch ||
+      showWarehouseSearch ||
+      showCustomerIdSearch ||
+      showCustomerNameSearch ||
+      showPaymentModeSearch
+    ) {
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showDateSearch, showOrderIdSearch, showWarehouseSearch, showCustomerIdSearch, showCustomerNameSearch, showPaymentModeSearch]);
+  }, [
+    showDateSearch,
+    showOrderIdSearch,
+    showWarehouseSearch,
+    showCustomerIdSearch,
+    showCustomerNameSearch,
+    showPaymentModeSearch,
+  ]);
 
   const onSubmit = () => {
     // console.log(from, to, warehouse, customer);
@@ -244,6 +321,136 @@ function Orders({
     return kgs / 1000;
   };
 
+  // Apply table header search filters to a given orders array
+  const applyFilters = (ordersList = []) => {
+    let filtered = ordersList;
+
+    if (
+      dateSearchTerm ||
+      orderIdSearchTerm ||
+      warehouseSearchTerm ||
+      customerIdSearchTerm ||
+      customerNameSearchTerm ||
+      paymentModeSearchTerm
+    ) {
+      filtered = ordersList.filter((order) => {
+        let pass = true;
+
+        if (dateSearchTerm) {
+          const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : "";
+          if (!orderDate.includes(dateSearchTerm)) pass = false;
+        }
+
+        if (orderIdSearchTerm) {
+          const orderId = order.orderNumber || "";
+          if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (warehouseSearchTerm) {
+          const warehouseName = order.warehouse?.name || "";
+          if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (customerIdSearchTerm) {
+          const customerId = order.customer?.customer_id || "";
+          if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (customerNameSearchTerm) {
+          const customerName = order.customer?.name || "";
+          if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        if (paymentModeSearchTerm) {
+          const paymentMode = "UPI";
+          if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
+            pass = false;
+        }
+
+        return pass;
+      });
+    }
+
+    return filtered;
+  };
+
+  // Page Totals (Value, Bags, Tons) based on currently loaded page
+  const getPageTotals = (source = orders) => {
+    let totalValue = 0;
+    let totalBags = 0;
+    let totalTons = 0;
+
+    if (!Array.isArray(source)) return { totalValue, totalBags, totalTons };
+
+    for (const order of source) {
+      // Value (sum of all orders in the current page)
+      if (typeof order?.totalAmount === "number") {
+        totalValue += order.totalAmount;
+      }
+
+      // Tons
+      totalTons += Qty(order?.items) || 0;
+
+      // Bags (only for packed products)
+      if (Array.isArray(order?.items)) {
+        for (const item of order.items) {
+          const productType = item?.product?.productType;
+          const unit = item?.unit;
+          const packageWeight = item?.product?.packageWeight || 0; // in kg
+
+          if (productType === "packed") {
+            if (unit === "kg") {
+              // Treat quantity as number of bags when unit is 'kg'
+              totalBags += Number(item?.quantity) || 0;
+            } else if (unit === "tons") {
+              // Convert tons to bags using package weight (kg per bag)
+              if (packageWeight > 0) {
+                const bags = ((Number(item?.quantity) || 0) * 1000) / packageWeight;
+                totalBags += bags;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { totalValue, totalBags, totalTons };
+  };
+
+  // Reset accumulated page totals when filters or page size change
+  useEffect(() => {
+    setPageTotalsByPage({});
+  }, [
+    from,
+    to,
+    warehouse,
+    customer,
+    status,
+    divisionId,
+    zoneId,
+    subZoneId,
+    teamsId,
+    employeeId,
+    limit,
+    dateSearchTerm,
+    orderIdSearchTerm,
+    warehouseSearchTerm,
+    customerIdSearchTerm,
+    customerNameSearchTerm,
+    paymentModeSearchTerm,
+  ]);
+
+  // Cache current page totals (after applying header filters)
+  useEffect(() => {
+    const filteredOrders = applyFilters(orders || []);
+    const totals = getPageTotals(filteredOrders);
+    setPageTotalsByPage((prev) => ({ ...prev, [pageNo]: totals }));
+  }, [orders, pageNo, dateSearchTerm, orderIdSearchTerm, warehouseSearchTerm, customerIdSearchTerm, customerNameSearchTerm, paymentModeSearchTerm]);
+
   // pdf code -----------------------------------
 
   const [tableData, setTableData] = useState([]);
@@ -258,8 +465,9 @@ function Orders({
       "Order ID",
       "Warehouse Name",
       "Customer ID",
-      "Qty",
       "Customer Name",
+      "Firm Name",
+      "Qty",
       "TNX Amount",
       "Payment Mode",
       "Status",
@@ -278,9 +486,11 @@ function Orders({
           Date: order.createdAt.slice(0, 10),
           "Order ID": order.orderNumber,
           "Warehouse Name": order.warehouse?.name,
-          Qty: `${Qty(order.items)} Tons`,
           "Customer ID": order.customer?.customer_id,
           "Customer Name": order.customer?.name,
+          "Firm Name":
+            order.customer?.firmName || order.customer?.firm_name || "N/A",
+          Qty: `${Qty(order.items)} Tons`,
           "TNX Amount": order.totalAmount,
           "Payment Mode": "UPI",
           Status: order.orderStatus,
@@ -330,26 +540,12 @@ function Orders({
             onChange={(e) => setTo(e.target.value)}
           />
         </div>
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">WareHouse :</label>
-          <select
-            name=""
-            id=""
-            value={warehouse}
-            onChange={(e) =>
-              setWarehouse(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            <option value="all">All Warehouses</option>
-            {warehouses &&
-              warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Warehouse"
+          onSelect={setWarehouse}
+          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+        />
+
         {/* <div className={`col-3 formcontent`}>
           <label htmlFor="">Product :</label>
           <select name="" id="">
@@ -357,25 +553,12 @@ function Orders({
             {products && products.map((product) => <option value={product.id}>{product.name}</option>)}
           </select>
         </div> */}
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Customer :</label>
-          <select
-            name=""
-            id=""
-            value={customer}
-            onChange={(e) =>
-              setCustomer(e.target.value === "null" ? null : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {customers &&
-              customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Customers"
+          onSelect={setCustomer}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+        />
+
         <div className={`col-3 formcontent`}>
           <label htmlFor="">Status :</label>
           <select
@@ -390,9 +573,24 @@ function Orders({
             <option value="Dispatched">Dispatched</option>
             <option value="Delivered">Delivered</option>
             <option value="Cancelled">Cancelled</option>
+            <option value="pendingPaymentApprovals">Payment Pending</option>
           </select>
         </div>
+        {/* Filters for divisions */}
+        <FiltersForSales
+          divisionId={divisionId}
+          employeeId={employeeId}
+          setDivisionId={setDivisionId}
+          setEmployeeId={setEmployeeId}
+          setSubZoneId={setSubZoneId}
+          setTeamsId={setTeamsId}
+          setZoneId={setZoneId}
+          subZoneId={subZoneId}
+          teamsId={teamsId}
+          zoneId={zoneId}
+        />
       </div>
+
       <div className="row m-0 p-3 justify-content-center">
         {/* Submit/Cancel buttons centered */}
         <div className="col-12 d-flex justify-content-center">
@@ -405,7 +603,7 @@ function Orders({
             </button>
           </div>
         </div>
-        
+
         {/* Status Legend - Single row with 6 icons */}
         <div className="col-12 d-flex justify-content-center mt-3">
           <div className="d-flex gap-4">
@@ -517,13 +715,19 @@ function Orders({
               <thead>
                 <tr>
                   <th>S.No</th>
-                  <th 
+                  <th
                     data-date-header
                     onClick={() => setShowDateSearch(!showDateSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                   >
                     {showDateSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search Date..."
@@ -531,13 +735,13 @@ function Orders({
                           onChange={(e) => setDateSearchTerm(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
                           style={{
-                            padding: '2px 5px',
-                            fontSize: '12px',
-                            border: '1px solid #ccc',
-                            borderRadius: '3px',
-                            width: '120px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 5px",
+                            fontSize: "12px",
+                            border: "1px solid #ccc",
+                            borderRadius: "3px",
+                            width: "120px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                         />
                         <button
@@ -547,27 +751,33 @@ function Orders({
                             setShowDateSearch(false);
                           }}
                           style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666'
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            color: "#666",
                           }}
                         >
                           ×
                         </button>
                       </div>
                     ) : (
-                      'Date'
+                      "Date"
                     )}
                   </th>
-                  <th 
+                  <th
                     data-orderid-header
                     onClick={() => setShowOrderIdSearch(!showOrderIdSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                   >
                     {showOrderIdSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search Order ID..."
@@ -575,13 +785,13 @@ function Orders({
                           onChange={(e) => setOrderIdSearchTerm(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
                           style={{
-                            padding: '2px 5px',
-                            fontSize: '12px',
-                            border: '1px solid #ccc',
-                            borderRadius: '3px',
-                            width: '120px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 5px",
+                            fontSize: "12px",
+                            border: "1px solid #ccc",
+                            borderRadius: "3px",
+                            width: "120px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                         />
                         <button
@@ -591,41 +801,50 @@ function Orders({
                             setShowOrderIdSearch(false);
                           }}
                           style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666'
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            color: "#666",
                           }}
                         >
                           ×
                         </button>
                       </div>
                     ) : (
-                      'Order ID'
+                      "Order ID"
                     )}
                   </th>
-                  <th 
+
+                  <th
                     data-warehouse-header
                     onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    style={{ cursor: "pointer", position: "relative" }}
                   >
                     {showWarehouseSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search Warehouse..."
                           value={warehouseSearchTerm}
-                          onChange={(e) => setWarehouseSearchTerm(e.target.value)}
+                          onChange={(e) =>
+                            setWarehouseSearchTerm(e.target.value)
+                          }
                           onClick={(e) => e.stopPropagation()}
                           style={{
-                            padding: '2px 5px',
-                            fontSize: '12px',
-                            border: '1px solid #ccc',
-                            borderRadius: '3px',
-                            width: '120px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 5px",
+                            fontSize: "12px",
+                            border: "1px solid #ccc",
+                            borderRadius: "3px",
+                            width: "120px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                         />
                         <button
@@ -635,85 +854,58 @@ function Orders({
                             setShowWarehouseSearch(false);
                           }}
                           style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666'
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            color: "#666",
                           }}
                         >
                           ×
                         </button>
                       </div>
                     ) : (
-                      'Warehouse Name'
+                      "Warehouse Name"
                     )}
                   </th>
-                  <th 
-                    data-customerid-header
-                    onClick={() => setShowCustomerIdSearch(!showCustomerIdSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
-                  >
-                    {showCustomerIdSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <input
-                          type="text"
-                          placeholder="Search Customer ID..."
-                          value={customerIdSearchTerm}
-                          onChange={(e) => setCustomerIdSearchTerm(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            padding: '2px 5px',
-                            fontSize: '12px',
-                            border: '1px solid #ccc',
-                            borderRadius: '3px',
-                            width: '120px',
-                            color: '#000',
-                            backgroundColor: '#fff'
-                          }}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCustomerIdSearchTerm("");
-                            setShowCustomerIdSearch(false);
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666'
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      'Customer ID'
-                    )}
-                  </th>
-                  <th 
+
+                  <th>Division</th>
+                  <th>Zone</th>
+                  <th>Sub Zone</th>
+                  <th>Team</th>
+                  <th>Employees</th>
+
+                  <th
                     data-customername-header
-                    onClick={() => setShowCustomerNameSearch(!showCustomerNameSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
+                    onClick={() =>
+                      setShowCustomerNameSearch(!showCustomerNameSearch)
+                    }
+                    style={{ cursor: "pointer", position: "relative" }}
                   >
                     {showCustomerNameSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                        }}
+                      >
                         <input
                           type="text"
                           placeholder="Search Customer Name..."
                           value={customerNameSearchTerm}
-                          onChange={(e) => setCustomerNameSearchTerm(e.target.value)}
+                          onChange={(e) =>
+                            setCustomerNameSearchTerm(e.target.value)
+                          }
                           onClick={(e) => e.stopPropagation()}
                           style={{
-                            padding: '2px 5px',
-                            fontSize: '12px',
-                            border: '1px solid #ccc',
-                            borderRadius: '3px',
-                            width: '120px',
-                            color: '#000',
-                            backgroundColor: '#fff'
+                            padding: "2px 5px",
+                            fontSize: "12px",
+                            border: "1px solid #ccc",
+                            borderRadius: "3px",
+                            width: "120px",
+                            color: "#000",
+                            backgroundColor: "#fff",
                           }}
                         />
                         <button
@@ -723,125 +915,45 @@ function Orders({
                             setShowCustomerNameSearch(false);
                           }}
                           style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666'
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            color: "#666",
                           }}
                         >
                           ×
                         </button>
                       </div>
                     ) : (
-                      'Customer Name'
+                      "Customer Name"
                     )}
                   </th>
+
                   <th>Qunatity</th>
                   <th>TNX Amount</th>
-                  <th 
-                    data-paymentmode-header
-                    onClick={() => setShowPaymentModeSearch(!showPaymentModeSearch)}
-                    style={{ cursor: 'pointer', position: 'relative' }}
-                  >
-                    {showPaymentModeSearch ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <input
-                          type="text"
-                          placeholder="Search Payment Mode..."
-                          value={paymentModeSearchTerm}
-                          onChange={(e) => setPaymentModeSearchTerm(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            padding: '2px 5px',
-                            fontSize: '12px',
-                            border: '1px solid #ccc',
-                            borderRadius: '3px',
-                            width: '120px',
-                            color: '#000',
-                            backgroundColor: '#fff'
-                          }}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPaymentModeSearchTerm("");
-                            setShowPaymentModeSearch(false);
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#666'
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      'Payment Mode'
-                    )}
-                  </th>
+
                   <th>Status</th>
                 </tr>
                 {/* Search results counter row */}
-                {(dateSearchTerm || orderIdSearchTerm || warehouseSearchTerm || customerIdSearchTerm || customerNameSearchTerm || paymentModeSearchTerm) && (
+                {(dateSearchTerm ||
+                  orderIdSearchTerm ||
+                  warehouseSearchTerm ||
+                  customerIdSearchTerm ||
+                  customerNameSearchTerm ||
+                  paymentModeSearchTerm) && (
                   <tr>
-                    <td colSpan={10} style={{ textAlign: 'center', fontStyle: 'italic', color: '#666', padding: '8px' }}>
+                    <td
+                      colSpan={10}
+                      style={{
+                        textAlign: "center",
+                        fontStyle: "italic",
+                        color: "#666",
+                        padding: "8px",
+                      }}
+                    >
                       {(() => {
-                        let filteredOrders = orders || [];
-                        
-                        if (dateSearchTerm || orderIdSearchTerm || warehouseSearchTerm || customerIdSearchTerm || customerNameSearchTerm || paymentModeSearchTerm) {
-                          filteredOrders = orders.filter(order => {
-                            let pass = true;
-                            
-                            if (dateSearchTerm) {
-                              const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
-                              if (!orderDate.includes(dateSearchTerm)) {
-                                pass = false;
-                              }
-                            }
-                            
-                            if (orderIdSearchTerm) {
-                              const orderId = order.orderNumber || '';
-                              if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase())) {
-                                pass = false;
-                              }
-                            }
-                            
-                            if (warehouseSearchTerm) {
-                              const warehouseName = order.warehouse?.name || '';
-                              if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
-                                pass = false;
-                              }
-                            }
-                            
-                            if (customerIdSearchTerm) {
-                              const customerId = order.customer?.customer_id || '';
-                              if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase())) {
-                                pass = false;
-                              }
-                            }
-                            
-                            if (customerNameSearchTerm) {
-                              const customerName = order.customer?.name || '';
-                              if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase())) {
-                                pass = false;
-                              }
-                            }
-                            
-                            if (paymentModeSearchTerm) {
-                              const paymentMode = 'UPI';
-                              if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase())) {
-                                pass = false;
-                              }
-                            }
-                            
-                            return pass;
-                          });
-                        }
-                        
+                        const filteredOrders = applyFilters(orders || []);
                         return `Showing ${filteredOrders.length} result(s)`;
                       })()}
                     </td>
@@ -850,65 +962,8 @@ function Orders({
               </thead>
               <tbody>
                 {(() => {
-                  // Apply search filters to the orders data
-                  let filteredOrders = orders || [];
-                  
-                  if (dateSearchTerm || orderIdSearchTerm || warehouseSearchTerm || customerIdSearchTerm || customerNameSearchTerm || paymentModeSearchTerm) {
-                    filteredOrders = orders.filter(order => {
-                      let pass = true;
-                      
-                      // Apply date search filter
-                      if (dateSearchTerm) {
-                        const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : '';
-                        if (!orderDate.includes(dateSearchTerm)) {
-                          pass = false;
-                        }
-                      }
-                      
-                      // Apply order ID search filter
-                      if (orderIdSearchTerm) {
-                        const orderId = order.orderNumber || '';
-                        if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase())) {
-                          pass = false;
-                        }
-                      }
-                      
-                      // Apply warehouse search filter
-                      if (warehouseSearchTerm) {
-                        const warehouseName = order.warehouse?.name || '';
-                        if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())) {
-                          pass = false;
-                        }
-                      }
-                      
-                      // Apply customer ID search filter
-                      if (customerIdSearchTerm) {
-                        const customerId = order.customer?.customer_id || '';
-                        if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase())) {
-                          pass = false;
-                        }
-                      }
-                      
-                      // Apply customer name search filter
-                      if (customerNameSearchTerm) {
-                        const customerName = order.customer?.name || '';
-                        if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase())) {
-                          pass = false;
-                        }
-                      }
-                      
-                      // Apply payment mode search filter
-                      if (paymentModeSearchTerm) {
-                        const paymentMode = 'UPI'; // Since it's hardcoded as UPI in the table
-                        if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase())) {
-                          pass = false;
-                        }
-                      }
-                      
-                      return pass;
-                    });
-                  }
-                  
+                  const filteredOrders = applyFilters(orders || []);
+
                   if (filteredOrders.length === 0) {
                     return (
                       <tr>
@@ -916,29 +971,39 @@ function Orders({
                       </tr>
                     );
                   }
-                  
-                  return filteredOrders.map((order) => (
+
+                  const pageSize = Number(limit) || 10;
+                  const startSerial = (pageNo - 1) * pageSize + 1;
+                  return filteredOrders.map((order, i) => (
                     <tr
                       key={order.id}
                       className="animated-row"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                      onClick={() => {
-                        setOrderId(order.id);
-                        navigate("/sales/tracking");
-                      }}
+                      style={{ animationDelay: `${(i + 1) * 0.1}s` }}
                     >
-                      <td>{index++}</td>
+                      <td>{startSerial + i}</td>
                       <td>
                         {order.createdAt ? order.createdAt.slice(0, 10) : ""}
                       </td>
                       <td>{order.orderNumber}</td>
                       <td>{order.warehouse?.name}</td>
-                      <td>{order.customer?.customer_id}</td>
+                      <td>{order.hierarchy?.division}</td>
+                      <td>{order.hierarchy?.zone}</td>
+                      <td>{order.hierarchy?.subZone}</td>
+                      <td>{order.hierarchy?.team}</td>
+                      <td>{order.hierarchy?.employee}</td>
+
                       <td>{order.customer?.name}</td>
+
                       <td>{Qty(order.items)} Tons</td>
                       <td>{order.totalAmount}</td>
-                      <td>UPI</td>
-                      <td className={styles.imageCol}>
+
+                      <td
+                        className={styles.imageCol}
+                        onClick={() => {
+                          setOrderId(order.id);
+                          navigate("/sales/tracking");
+                        }}
+                      >
                         {order.orderStatus === "awaitingPaymentConfirmation" ? (
                           <p>
                             <svg
@@ -1018,11 +1083,43 @@ function Orders({
                 })()}
               </tbody>
             </table>
-            {orders.length > 0 && (
-              <p className="text-end fs-5 pe-3 py-2" colSpan={10}>
-                Grand Total : {GrandTotal()}
-              </p>
-            )}
+            {orders.length > 0 && (() => {
+              // Sum totals from page 1 to current page
+              const cumulative = Array.from({ length: pageNo }, (_, i) => pageTotalsByPage[i + 1])
+                .filter(Boolean)
+                .reduce(
+                  (acc, t) => ({
+                    totalValue: acc.totalValue + (t.totalValue || 0),
+                    totalBags: acc.totalBags + (t.totalBags || 0),
+                    totalTons: acc.totalTons + (t.totalTons || 0),
+                  }),
+                  { totalValue: 0, totalBags: 0, totalTons: 0 }
+                );
+              const { totalValue, totalBags, totalTons } = cumulative;
+              const formattedValue = (totalValue || 0).toLocaleString();
+              const formattedBags = Math.round(totalBags || 0);
+              const formattedTons = (totalTons || 0).toFixed(3);
+              return (
+                <div className="d-flex justify-content-end pe-0 py-2 w-100">
+                  <table className="table table-borderless table-sm w-auto mb-0 text-center ms-auto" style={{ fontSize: "13px" }}>
+                    <thead>
+                      <tr>
+                        <th className="px-3 text-center">Total</th>
+                        <th className="px-3 text-center">Number of bags</th>
+                        <th className="px-3 text-center">Weight in Tons</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="px-3 text-center align-middle">{formattedValue}</td>
+                        <td className="px-3 text-center align-middle">{formattedBags}</td>
+                        <td className="px-3 text-center align-middle">{formattedTons}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
 
             <div className="row m-0 p-0 pt-3 justify-content-between">
               <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>

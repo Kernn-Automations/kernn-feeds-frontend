@@ -10,7 +10,7 @@ import ReturnReports from './ReturnReports';
 import RefundManagement from './RefundManagement';
 import CreateReturnRequestNew from './CreateReturnRequestNew';
 import ReturnsDashboardComprehensive from './ReturnsDashboardComprehensive';
-import ReturnsSystemTest from './ReturnsSystemTest';
+// import ReturnsSystemTest from './ReturnsSystemTest';
 import Loading from '../../Loading';
 
 const ReturnsHome = ({ initialTab }) => {
@@ -288,22 +288,6 @@ const ReturnsHome = ({ initialTab }) => {
         <ul className={styles.tabList}>
           <li className={styles.tabItem}>
             <button
-              className={`${styles.tabButton} ${activeTab === 'requests' ? styles.active : ''}`}
-              onClick={() => setActiveTab('requests')}
-            >
-              Return Requests
-            </button>
-          </li>
-          <li className={styles.tabItem}>
-            <button
-              className={`${styles.tabButton} ${activeTab === 'refunds' ? styles.active : ''}`}
-              onClick={() => setActiveTab('refunds')}
-            >
-              Refund Management
-            </button>
-          </li>
-          <li className={styles.tabItem}>
-            <button
               className={`${styles.tabButton} ${activeTab === 'reports' ? styles.active : ''}`}
               onClick={() => setActiveTab('reports')}
             >
@@ -320,12 +304,30 @@ const ReturnsHome = ({ initialTab }) => {
           </li>
           <li className={styles.tabItem}>
             <button
-              className={`${styles.tabButton} ${activeTab === 'test' ? styles.active : ''}`}
-              onClick={() => setActiveTab('test')}
+              className={`${styles.tabButton} ${activeTab === 'requests' ? styles.active : ''}`}
+              onClick={() => setActiveTab('requests')}
             >
-              System Test
+              Return Requests
             </button>
           </li>
+          <li className={styles.tabItem}>
+            <button
+              className={`${styles.tabButton} ${activeTab === 'refunds' ? styles.active : ''}`}
+              onClick={() => setActiveTab('refunds')}
+            >
+              Refund Management
+            </button>
+          </li>
+          {false && (
+            <li className={styles.tabItem}>
+              <button
+                className={`${styles.tabButton} ${activeTab === 'test' ? styles.active : ''}`}
+                onClick={() => setActiveTab('test')}
+              >
+                System Test
+              </button>
+            </li>
+          )}
         </ul>
 
         <div className={styles.tabContent}>
@@ -354,7 +356,7 @@ const ReturnsHome = ({ initialTab }) => {
               onRefresh={loadReturnsData}
             />
           )}
-          {activeTab === 'test' && (
+          {false && activeTab === 'test' && (
             <ReturnsSystemTest />
           )}
         </div>

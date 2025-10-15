@@ -37,28 +37,28 @@ function ReportsModal({ report }) {
                 <h5 className={styles.headmdl}>Order Details</h5>
                 <div className={`col-4 ${styles.longformmdl}`}>
                     <label htmlFor="">Order Number :</label>
-                    <input type="text" value={report.orderNumber} readOnly />
+                    <input type="text" value={report.orderNumber || ""} readOnly />
                 </div>
                 <div className={`col-4 ${styles.longformmdl}`}>
                     <label htmlFor="">Customer Name :</label>
-                    <input type="text" value={report.customer?.name} readOnly />
+                    <input type="text" value={report.customer?.name || ""} readOnly />
                 </div>
                 <div className={`col-4 ${styles.longformmdl}`}>
                     <label htmlFor="">SE Name :</label>
-                    <input type="text" value={report.salesExecutive?.name} readOnly />
+                    <input type="text" value={report.salesExecutive?.name || ""} readOnly />
                 </div>
                 <div className={`col-4 ${styles.longformmdl}`}>
                     <label htmlFor="">Warehouse Name :</label>
-                    <input type="text" value={report.warehouse?.name} readOnly />
+                    <input type="text" value={report.warehouse?.name || ""} readOnly />
                 </div>
                 {/* We can calculate the total amount from all payments */}
                 <div className={`col-4 ${styles.longformmdl}`}>
                     <label htmlFor="">Total Amount :</label>
                     <input
                         type="text"
-                        value={report.paymentRequests
+                        value={(report.paymentRequests
                             .reduce((sum, pr) => sum + (pr.netAmount || 0), 0)
-                            .toFixed(2)}
+                            .toFixed(2)) || ""}
                         readOnly
                     />
                 </div>
@@ -71,23 +71,23 @@ function ReportsModal({ report }) {
                     <div className="row m-0 p-0">
                         <div className={`col-4 ${styles.longformmdl}`}>
                             <label htmlFor="">Date :</label>
-                            <input type="date" value={payment.transactionDate} readOnly />
+                            <input type="date" value={payment.transactionDate ? String(payment.transactionDate).slice(0,10) : ""} readOnly />
                         </div>
                         <div className={`col-4 ${styles.longformmdl}`}>
                             <label htmlFor="">Net Amount :</label>
-                            <input type="text" value={payment.netAmount} readOnly />
+                            <input type="text" value={payment.netAmount ?? ""} readOnly />
                         </div>
                         <div className={`col-4 ${styles.longformmdl}`}>
                             <label htmlFor="">Txn ID :</label>
-                            <input type="text" value={payment.transactionReference} readOnly />
+                            <input type="text" value={payment.transactionReference || ""} readOnly />
                         </div>
                         <div className={`col-4 ${styles.longformmdl}`}>
                             <label htmlFor="">Payment ID :</label>
-                            <input type="text" value={payment.paymentId} readOnly />
+                            <input type="text" value={payment.paymentId || ""} readOnly />
                         </div>
                         <div className={`col-4 ${styles.longformmdl}`}>
                             <label htmlFor="">Payment Mode :</label>
-                            <input type="text" value={payment.paymentMode} readOnly />
+                            <input type="text" value={payment.paymentMode || ""} readOnly />
                         </div>
                     </div>
                     <div className="row m-0 p-0 pt-3">

@@ -6,8 +6,9 @@ import {
   DialogContent,
   DialogRoot,
 } from "@/components/ui/dialog";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Sales.module.css";
+import ComplementryModal from "./ComplementryModal";
 
 function DispatchForm({
   actionLoading,
@@ -24,11 +25,19 @@ function DispatchForm({
   const [driverName, setDriverName] = useState("");
   const [driverMobile, setDriverMobile] = useState("");
   const [isPartialDispatch, setIsPartialDispatch] = useState(false);
+  const [isComplementryAdded, setIsComplementryAdded] = useState(false);
   const [destinations, setDestinations] = useState([
-    { productId: "", quantity: "" }
+    { productId: "", quantity: "" },
   ]);
-
+  const [complimentries, setComplimentries] = useState([]);
   const { axiosAPI } = useAuth();
+
+  const [openComplementryModal, setOpenComplementryModal] = useState(false);
+
+  const onIsComplementryChange = (e) => {
+    setIsComplementryAdded(e.target.checked);
+    if (e.target.checked) setOpenComplementryModal(true);
+  };
 
   // Helper functions for managing destinations
   const addDestination = () => {
@@ -42,11 +51,29 @@ function DispatchForm({
   };
 
   const updateDestination = (index, field, value) => {
-    const updated = destinations.map((dest, i) => 
+    const updated = destinations.map((dest, i) =>
       i === index ? { ...dest, [field]: value } : dest
     );
     setDestinations(updated);
   };
+
+ 
+
+  const [products, setProducts] = useState();
+
+  useEffect(() => {
+    async function fetch(params) {
+      try {
+        const res = await axiosAPI.get("/products?showAll=true");
+        console.log(res);
+        setProducts(res.data.products);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    fetch();
+  }, []);
 
   const onSubmitBtn = async () => {
     if (!truckNumber || !driverName || !driverMobile) {
@@ -57,11 +84,13 @@ function DispatchForm({
 
     // Validate partial dispatch destinations if enabled
     if (isPartialDispatch) {
-      const hasEmptyDestinations = destinations.some(dest => 
-        !dest.productId.trim() || !dest.quantity.trim()
+      const hasEmptyDestinations = destinations.some(
+        (dest) => !dest.productId.trim() || !dest.quantity.trim()
       );
       if (hasEmptyDestinations) {
-        setError("All product and quantity fields are required for partial dispatch");
+        setError(
+          "All product and quantity fields are required for partial dispatch"
+        );
         setIsModalOpen(true);
         return;
       }
@@ -83,10 +112,17 @@ function DispatchForm({
         driverName,
         driverMobile,
         isPartialDispatch,
-        ...(isPartialDispatch && { destinations })
+        addComplementaryAttribute: isComplementryAdded,
+        complementaryItems: isComplementryAdded ? complimentries : [],
+        ...(isPartialDispatch && { destinations }),
       };
 
-      const res = await axiosAPI.put(`/sales-orders/${orderId}/dispatch`, dispatchData);
+      console.log(dispatchData);
+
+      const res = await axiosAPI.put(
+        `/sales-orders/${orderId}/dispatch`,
+        dispatchData
+      );
       setOrder({
         ...order,
         orderStatus: res.data.orderStatus,
@@ -146,7 +182,7 @@ function DispatchForm({
                 placeholder="Enter driver mobile"
               />
             </div>
-            
+
             {/* Partial Dispatch Checkbox */}
             <div className={`mb-3 ${styles.dispatchForm}`}>
               <div className="d-flex align-items-center">
@@ -161,7 +197,46 @@ function DispatchForm({
                   Partial Dispatch
                 </label>
               </div>
+              <div className="d-flex align-items-center">
+                <input
+                  type="checkbox"
+                  id="isComplementryAdded"
+                  checked={isComplementryAdded}
+                  onChange={(e) => onIsComplementryChange(e)}
+                  className="me-2"
+                />
+                <label htmlFor="isComplementryAdded" className="mb-0">
+                  Add Complementry
+                </label>
+              </div>
             </div>
+            {isComplementryAdded && (
+              <div className={styles.compDetails}>
+                <h6>Complementry Details</h6>
+                {complimentries.map((comp) => {
+                  const product = products.find(
+                    (p) => String(p.id) === String(comp.productId)
+                  );
+                  return (
+                    <p>
+                      <span>{product?.name || comp.productId} : </span>
+                      {comp.bags} Bags
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+
+            <ComplementryModal
+              openComplementryModal={openComplementryModal}
+              setOpenComplementryModal={setOpenComplementryModal}
+              isComplementryAdded={isComplementryAdded}
+              setIsComplementryAdded={setIsComplementryAdded}
+              products={products}
+              complimentries={complimentries}
+              setComplimentries={setComplimentries}
+              orderId={orderId}
+            />
 
             {/* Partial Dispatch Destinations */}
             {isPartialDispatch && (
@@ -184,13 +259,19 @@ function DispatchForm({
                       <label>Product</label>
                       <select
                         value={destination.productId}
-                        onChange={(e) => updateDestination(index, 'productId', e.target.value)}
+                        onChange={(e) =>
+                          updateDestination(index, "productId", e.target.value)
+                        }
                         className={styles.dispatchFormSelect}
                       >
                         <option value="">Select Product</option>
                         {order?.items?.map((item, itemIndex) => (
-                          <option key={itemIndex} value={item.productId || item.id}>
-                            {item.productName || item.name} - Qty: {item.quantity} {item.unit && `(${item.unit})`}
+                          <option
+                            key={itemIndex}
+                            value={item.productId || item.id}
+                          >
+                            {item.productName || item.name} - Qty:{" "}
+                            {item.quantity} {item.unit && `(${item.unit})`}
                           </option>
                         ))}
                       </select>
@@ -200,7 +281,9 @@ function DispatchForm({
                       <input
                         type="number"
                         value={destination.quantity}
-                        onChange={(e) => updateDestination(index, 'quantity', e.target.value)}
+                        onChange={(e) =>
+                          updateDestination(index, "quantity", e.target.value)
+                        }
                         placeholder="Enter quantity"
                         min="1"
                       />

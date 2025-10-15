@@ -7,6 +7,7 @@ import PageSkeleton from "../../SkeletonLoaders/PageSkeleton";
 // Lazy-loaded components
 const CreditNote = lazy(() => import("./CreditNote"));
 const GenerateMonthly = lazy(() => import("./GenerateMonthly"));
+const CreateCreditNote = lazy(() => import("./CreateCreditNote"))
 
 function PaymentRoutes() {
   const navigate = useNavigate();
@@ -25,6 +26,12 @@ function PaymentRoutes() {
               <div className="col">
                 <button
                   className="homebtn"
+                  onClick={() => navigate("/payments/credit-notes/create")}
+                >
+                  Create Credit-Note
+                </button>
+                <button
+                  className="homebtn"
                   onClick={() => navigate("/payments/credit-notes/list")}
                 >
                   Credit-Notes
@@ -39,6 +46,14 @@ function PaymentRoutes() {
                 </button>
               </div>
             </div>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/create"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CreateCreditNote navigate={navigate} />
           </Suspense>
         }
       />

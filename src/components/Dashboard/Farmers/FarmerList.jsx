@@ -5,6 +5,7 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function FarmerList({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -26,7 +27,11 @@ function FarmerList({ navigate, isAdmin }) {
   const [totalPages, setTotalPages] = useState(0);
   const [updatingFarmerId, setUpdatingFarmerId] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [showConfirmation, setShowConfirmation] = useState({ show: false, farmerId: null, action: null });
+  const [showConfirmation, setShowConfirmation] = useState({
+    show: false,
+    farmerId: null,
+    action: null,
+  });
   const [activationFilter, setActivationFilter] = useState("all");
   const [isActivationEnabled, setIsActivationEnabled] = useState(true); // Feature flag
 
@@ -34,10 +39,10 @@ function FarmerList({ navigate, isAdmin }) {
 
   // Function to load persisted activation status from localStorage
   const loadPersistedActivationStatus = (farmers) => {
-    return farmers.map(farmer => {
+    return farmers.map((farmer) => {
       const activationKey = `farmer_activation_${farmer.id}`;
       const persistedStatus = localStorage.getItem(activationKey);
-      
+
       if (persistedStatus) {
         return { ...farmer, status: persistedStatus };
       }
@@ -53,44 +58,45 @@ function FarmerList({ navigate, isAdmin }) {
       setFarmers(null);
       setFilteredFarmers(null);
       setAllFarmers([]);
-      
+
       // Reset filters
       setSearchTerm("");
       setWarehouse(null);
       setSe(null);
       setActivationFilter("all");
       setPageNo(1);
-      
+
       // Get division ID from localStorage for division filtering
-      const currentDivisionId = localStorage.getItem('currentDivisionId');
-      
+      const currentDivisionId = localStorage.getItem("currentDivisionId");
+
       let query = "/farmers";
-      
+
       // Add division parameters to prevent wrong division data
-      if (currentDivisionId && currentDivisionId !== '1') {
+      if (currentDivisionId && currentDivisionId !== "1") {
         query += `?divisionId=${currentDivisionId}`;
-      } else if (currentDivisionId === '1') {
+      } else if (currentDivisionId === "1") {
         query += `?showAllDivisions=true`;
       }
-      
-      console.log('🔄 Refreshing farmer data with query:', query);
-      
+
+      console.log("🔄 Refreshing farmer data with query:", query);
+
       const res = await axiosAPI.get(query);
-      console.log('🔄 Refresh response:', res);
-      
+      console.log("🔄 Refresh response:", res);
+
       const allItems = res.data.farmers;
-      console.log('🔄 Refreshed farmers:', allItems);
-      
+      console.log("🔄 Refreshed farmers:", allItems);
+
       // Load persisted activation status
-      const farmersWithPersistedStatus = loadPersistedActivationStatus(allItems);
-      
+      const farmersWithPersistedStatus =
+        loadPersistedActivationStatus(allItems);
+
       setAllFarmers(farmersWithPersistedStatus);
       updatePagination(farmersWithPersistedStatus, 1, limit);
-      
+
       setSuccessMessage("Farmer data refreshed successfully!");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (e) {
-      console.error('Refresh error:', e);
+      console.error("Refresh error:", e);
       setError(e.response?.data?.message || "Failed to refresh farmer data.");
       setIsModalOpen(true);
     } finally {
@@ -103,7 +109,7 @@ function FarmerList({ navigate, isAdmin }) {
     const startIndex = (page - 1) * pageLimit;
     const endIndex = startIndex + pageLimit;
     const paginatedData = data.slice(startIndex, endIndex);
-    
+
     setFarmers(paginatedData);
     setFilteredFarmers(paginatedData);
     setTotalPages(Math.ceil(data.length / pageLimit));
@@ -112,12 +118,13 @@ function FarmerList({ navigate, isAdmin }) {
   // Function to handle search
   const handleSearch = (searchValue) => {
     setSearchTerm(searchValue);
-    const filtered = allFarmers.filter(farmer => 
-      farmer.fullName?.toLowerCase().includes(searchValue.toLowerCase()) ||
-      farmer.mobile?.includes(searchValue) ||
-      farmer.farmerId?.toLowerCase().includes(searchValue.toLowerCase())
+    const filtered = allFarmers.filter(
+      (farmer) =>
+        farmer.fullName?.toLowerCase().includes(searchValue.toLowerCase()) ||
+        farmer.mobile?.includes(searchValue) ||
+        farmer.farmerId?.toLowerCase().includes(searchValue.toLowerCase())
     );
-    
+
     setFilteredFarmers(filtered);
     updatePagination(filtered, 1, limit);
     setPageNo(1);
@@ -127,19 +134,21 @@ function FarmerList({ navigate, isAdmin }) {
   const handleWarehouseFilter = (warehouseId) => {
     setWarehouse(warehouseId);
     let filtered = allFarmers;
-    
+
     if (warehouseId) {
-      filtered = filtered.filter(farmer => farmer.divisionId === warehouseId);
+      filtered = filtered.filter((farmer) => farmer.divisionId === warehouseId);
     }
-    
+
     if (se) {
-      filtered = filtered.filter(farmer => farmer.addedBy === se);
+      filtered = filtered.filter((farmer) => farmer.addedBy === se);
     }
-    
+
     if (activationFilter !== "all") {
-      filtered = filtered.filter(farmer => farmer.status === activationFilter);
+      filtered = filtered.filter(
+        (farmer) => farmer.status === activationFilter
+      );
     }
-    
+
     setFilteredFarmers(filtered);
     updatePagination(filtered, 1, limit);
     setPageNo(1);
@@ -149,19 +158,21 @@ function FarmerList({ navigate, isAdmin }) {
   const handleSEFilter = (seId) => {
     setSe(seId);
     let filtered = allFarmers;
-    
+
     if (warehouse) {
-      filtered = filtered.filter(farmer => farmer.divisionId === warehouse);
+      filtered = filtered.filter((farmer) => farmer.divisionId === warehouse);
     }
-    
+
     if (seId) {
-      filtered = filtered.filter(farmer => farmer.addedBy === seId);
+      filtered = filtered.filter((farmer) => farmer.addedBy === seId);
     }
-    
+
     if (activationFilter !== "all") {
-      filtered = filtered.filter(farmer => farmer.status === activationFilter);
+      filtered = filtered.filter(
+        (farmer) => farmer.status === activationFilter
+      );
     }
-    
+
     setFilteredFarmers(filtered);
     updatePagination(filtered, 1, limit);
     setPageNo(1);
@@ -171,19 +182,19 @@ function FarmerList({ navigate, isAdmin }) {
   const handleActivationFilter = (status) => {
     setActivationFilter(status);
     let filtered = allFarmers;
-    
+
     if (warehouse) {
-      filtered = filtered.filter(farmer => farmer.divisionId === warehouse);
+      filtered = filtered.filter((farmer) => farmer.divisionId === warehouse);
     }
-    
+
     if (se) {
-      filtered = filtered.filter(farmer => farmer.addedBy === se);
+      filtered = filtered.filter((farmer) => farmer.addedBy === se);
     }
-    
+
     if (status !== "all") {
-      filtered = filtered.filter(farmer => farmer.status === status);
+      filtered = filtered.filter((farmer) => farmer.status === status);
     }
-    
+
     setFilteredFarmers(filtered);
     updatePagination(filtered, 1, limit);
     setPageNo(1);
@@ -202,44 +213,56 @@ function FarmerList({ navigate, isAdmin }) {
     setPageNo(1);
   };
 
-    // Function to handle farmer activation/deactivation
+  // Function to handle farmer activation/deactivation
   const handleActivationToggle = async (farmerId, currentStatus) => {
     try {
       setUpdatingFarmerId(farmerId);
       const newStatus = currentStatus === "active" ? "inactive" : "active";
-      
-      console.log('🔄 Attempting to toggle farmer status:', { farmerId, currentStatus, newStatus });
-      
+
+      console.log("🔄 Attempting to toggle farmer status:", {
+        farmerId,
+        currentStatus,
+        newStatus,
+      });
+
       // For now, just update local state since the API might not support status updates yet
       // const res = await axiosAPI.patch(`/farmers/${farmerId}`, {
       //   status: newStatus
       // });
-      
+
       // console.log('Activation toggle response:', res.data);
-      
+
       // Update local state
-      const updatedFarmers = allFarmers.map(farmer => {
+      const updatedFarmers = allFarmers.map((farmer) => {
         if (farmer.id === farmerId) {
           const updatedFarmer = { ...farmer, status: newStatus };
           // Persist to localStorage
           localStorage.setItem(`farmer_activation_${farmerId}`, newStatus);
-          console.log('🔄 Updated farmer status:', { farmerId, oldStatus: farmer.status, newStatus });
+          console.log("🔄 Updated farmer status:", {
+            farmerId,
+            oldStatus: farmer.status,
+            newStatus,
+          });
           return updatedFarmer;
         }
         return farmer;
       });
-      
+
       setAllFarmers(updatedFarmers);
-      
+
       // Update filtered and paginated data
-      const currentFiltered = updatedFarmers.filter(farmer => {
+      const currentFiltered = updatedFarmers.filter((farmer) => {
         let matches = true;
         if (searchTerm) {
-          matches = matches && (
-            farmer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            farmer.mobile?.includes(searchTerm) ||
-            farmer.farmerId?.toLowerCase().includes(searchTerm.toLowerCase())
-          );
+          matches =
+            matches &&
+            (farmer.fullName
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+              farmer.mobile?.includes(searchTerm) ||
+              farmer.farmerId
+                ?.toLowerCase()
+                .includes(searchTerm.toLowerCase()));
         }
         if (warehouse) {
           matches = matches && farmer.warehouseId === warehouse;
@@ -252,15 +275,16 @@ function FarmerList({ navigate, isAdmin }) {
         }
         return matches;
       });
-      
+
       setFilteredFarmers(currentFiltered);
       updatePagination(currentFiltered, pageNo, limit);
-      
-      setSuccessMessage(`Farmer ${newStatus === "active" ? "activated" : "deactivated"} successfully!`);
+
+      setSuccessMessage(
+        `Farmer ${newStatus === "active" ? "activated" : "deactivated"} successfully!`
+      );
       setTimeout(() => setSuccessMessage(""), 3000);
-      
     } catch (e) {
-      console.error('Activation toggle error:', e);
+      console.error("Activation toggle error:", e);
       setError(e.response?.data?.message || "Failed to update farmer status.");
       setIsModalOpen(true);
     } finally {
@@ -273,20 +297,26 @@ function FarmerList({ navigate, isAdmin }) {
     try {
       setLoading(true);
       await axiosAPI.delete(`/farmers/${farmerId}`);
-      
+
       // Remove from local state
-      const updatedFarmers = allFarmers.filter(farmer => farmer.id !== farmerId);
+      const updatedFarmers = allFarmers.filter(
+        (farmer) => farmer.id !== farmerId
+      );
       setAllFarmers(updatedFarmers);
-      
+
       // Update filtered and paginated data
-      const currentFiltered = updatedFarmers.filter(farmer => {
+      const currentFiltered = updatedFarmers.filter((farmer) => {
         let matches = true;
         if (searchTerm) {
-          matches = matches && (
-            farmer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            farmer.mobile?.includes(searchTerm) ||
-            farmer.farmerId?.toLowerCase().includes(searchTerm.toLowerCase())
-          );
+          matches =
+            matches &&
+            (farmer.fullName
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+              farmer.mobile?.includes(searchTerm) ||
+              farmer.farmerId
+                ?.toLowerCase()
+                .includes(searchTerm.toLowerCase()));
         }
         if (warehouse) {
           matches = matches && farmer.warehouseId === warehouse;
@@ -299,15 +329,14 @@ function FarmerList({ navigate, isAdmin }) {
         }
         return matches;
       });
-      
+
       setFilteredFarmers(currentFiltered);
       updatePagination(currentFiltered, pageNo, limit);
-      
+
       setSuccessMessage("Farmer deleted successfully!");
       setTimeout(() => setSuccessMessage(""), 3000);
-      
     } catch (e) {
-      console.error('Delete error:', e);
+      console.error("Delete error:", e);
       setError(e.response?.data?.message || "Failed to delete farmer.");
       setIsModalOpen(true);
     } finally {
@@ -321,51 +350,51 @@ function FarmerList({ navigate, isAdmin }) {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
+
         let query = "/farmers";
-        
+
         // Add division parameters to prevent wrong division data
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           query += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        } else if (currentDivisionId === "1") {
           query += `?showAllDivisions=true`;
         }
-        
-        console.log('Fetching farmers with query:', query);
-        
+
+        console.log("Fetching farmers with query:", query);
+
         const [farmersRes, warehousesRes, executivesRes] = await Promise.all([
           axiosAPI.get(query),
           axiosAPI.get("/warehouses"),
-          axiosAPI.get("/employees/role/Business Officer")
+          axiosAPI.get("/employees/role/Business Officer"),
         ]);
-        
-        console.log('Farmers response:', farmersRes.data);
-        console.log('Warehouses response:', warehousesRes.data);
-        console.log('Executives response:', executivesRes.data);
-        
+
+        console.log("Farmers response:", farmersRes.data);
+        console.log("Warehouses response:", warehousesRes.data);
+        console.log("Executives response:", executivesRes.data);
+
         const allItems = farmersRes.data.farmers;
-        
+
         // Load persisted activation status
-        const farmersWithPersistedStatus = loadPersistedActivationStatus(allItems);
-        
+        const farmersWithPersistedStatus =
+          loadPersistedActivationStatus(allItems);
+
         setAllFarmers(farmersWithPersistedStatus);
         setWarehouses(warehousesRes.data.warehouses);
         setSalesExecutives(executivesRes.data.employees);
-        
+
         updatePagination(farmersWithPersistedStatus, 1, limit);
-        
       } catch (e) {
-        console.error('Fetch error:', e);
+        console.error("Fetch error:", e);
         setError(e.response?.data?.message || "Failed to load farmers.");
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
@@ -390,7 +419,9 @@ function FarmerList({ navigate, isAdmin }) {
             <label>Division:</label>
             <select
               value={warehouse || ""}
-              onChange={(e) => setWarehouse(e.target.value === "null" ? "" : e.target.value)}
+              onChange={(e) =>
+                setWarehouse(e.target.value === "null" ? "" : e.target.value)
+              }
             >
               <option value="null">--select--</option>
               <option value="all">All Divisions</option>
@@ -401,20 +432,15 @@ function FarmerList({ navigate, isAdmin }) {
               ))}
             </select>
           </div>
-          <div className="col-3 formcontent">
-            <label>Sales Executive:</label>
-            <select
-              value={se || ""}
-              onChange={(e) => setSe(e.target.value === "null" ? "" : e.target.value)}
-            >
-              <option value="null">--select--</option>
-              {salesExecutives.map((se) => (
-                <option key={se.id} value={se.id}>
-                  {se.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomSearchDropdown
+            label="Sales Executive"
+            onSelect={setSe}
+            options={salesExecutives?.map((se) => ({
+              value: se.id,
+              label: se.name,
+            }))}
+          />
+
           <div className="col-3 formcontent">
             <label>Activation Status:</label>
             <select
@@ -441,11 +467,20 @@ function FarmerList({ navigate, isAdmin }) {
           {!isActivationEnabled && (
             <div className="row m-0 p-3">
               <div className="col">
-                <div className="alert alert-warning alert-dismissible fade show" role="alert">
+                <div
+                  className="alert alert-warning alert-dismissible fade show"
+                  role="alert"
+                >
                   <i className="bi bi-exclamation-triangle me-2"></i>
-                  <strong>Farmer Activation Feature Not Available:</strong> The backend API endpoint for farmer activation is not yet implemented. 
-                  You can view the activation status, but cannot modify it. Contact your administrator to enable this feature.
-                  <button type="button" className="btn-close" onClick={() => setIsActivationEnabled(true)}></button>
+                  <strong>Farmer Activation Feature Not Available:</strong> The
+                  backend API endpoint for farmer activation is not yet
+                  implemented. You can view the activation status, but cannot
+                  modify it. Contact your administrator to enable this feature.
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setIsActivationEnabled(true)}
+                  ></button>
                 </div>
               </div>
             </div>
@@ -454,17 +489,23 @@ function FarmerList({ navigate, isAdmin }) {
           {successMessage && (
             <div className="row m-0 p-3">
               <div className="col">
-                <div className="alert alert-success alert-dismissible fade show" role="alert">
+                <div
+                  className="alert alert-success alert-dismissible fade show"
+                  role="alert"
+                >
                   {successMessage}
-                  <button type="button" className="btn-close" onClick={() => setSuccessMessage("")}></button>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setSuccessMessage("")}
+                  ></button>
                 </div>
               </div>
             </div>
           )}
 
           <div className="row m-0 p-3 justify-content-between">
-            <div className="col-md-3">
-            </div>
+            <div className="col-md-3"></div>
             <div className={`col-md-5 ${styles.search}`}>
               <input
                 type="text"
@@ -491,19 +532,23 @@ function FarmerList({ navigate, isAdmin }) {
             <div className="row m-0 p-3 justify-content-center">
               {/* Activation Status Summary */}
               <div className="col-lg-10 mb-3">
-                <div className={`d-flex justify-content-between align-items-center ${styles['activation-summary']}`}>
+                <div
+                  className={`d-flex justify-content-between align-items-center ${styles["activation-summary"]}`}
+                >
                   <div className="d-flex gap-3">
-                                         <span className="badge bg-success">
-                       <i className="bi bi-check-circle me-1"></i>
-                       Active: {allFarmers.filter(f => f.status === "active").length}
-                     </span>
-                     <span className="badge bg-danger">
-                       <i className="bi bi-x-circle me-1"></i>
-                       Inactive: {allFarmers.filter(f => f.status === "inactive").length}
-                     </span>
+                    <span className="badge bg-success">
+                      <i className="bi bi-check-circle me-1"></i>
+                      Active:{" "}
+                      {allFarmers.filter((f) => f.status === "active").length}
+                    </span>
+                    <span className="badge bg-danger">
+                      <i className="bi bi-x-circle me-1"></i>
+                      Inactive:{" "}
+                      {allFarmers.filter((f) => f.status === "inactive").length}
+                    </span>
                     {isAdmin && (
                       <>
-                        <button 
+                        <button
                           className="btn btn-sm btn-outline-primary me-2"
                           onClick={() => refreshFarmerData()}
                           title="Refresh farmer data"
@@ -520,8 +565,14 @@ function FarmerList({ navigate, isAdmin }) {
                       value={limit}
                       onChange={(e) => {
                         const newLimit = Number(e.target.value);
-                        console.log('🔄 Entity selection changed:', { oldLimit: limit, newLimit });
-                        console.log('🔄 Current allFarmers length:', allFarmers.length);
+                        console.log("🔄 Entity selection changed:", {
+                          oldLimit: limit,
+                          newLimit,
+                        });
+                        console.log(
+                          "🔄 Current allFarmers length:",
+                          allFarmers.length
+                        );
                         setLimit(newLimit);
                       }}
                     >
@@ -540,7 +591,18 @@ function FarmerList({ navigate, isAdmin }) {
                 <div className="row m-0 p-0 mb-3 justify-content-between">
                   <div className="col-lg-6">
                     <p className="text-muted mb-0">
-                      Showing {filteredFarmers && filteredFarmers.length > 0 ? ((pageNo - 1) * limit) + 1 : 0} to {filteredFarmers && filteredFarmers.length > 0 ? Math.min(pageNo * limit, ((pageNo - 1) * limit) + filteredFarmers.length) : 0} of {allFarmers ? allFarmers.length : 0} entries
+                      Showing{" "}
+                      {filteredFarmers && filteredFarmers.length > 0
+                        ? (pageNo - 1) * limit + 1
+                        : 0}{" "}
+                      to{" "}
+                      {filteredFarmers && filteredFarmers.length > 0
+                        ? Math.min(
+                            pageNo * limit,
+                            (pageNo - 1) * limit + filteredFarmers.length
+                          )
+                        : 0}{" "}
+                      of {allFarmers ? allFarmers.length : 0} entries
                       {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
                     </p>
                   </div>
@@ -554,9 +616,7 @@ function FarmerList({ navigate, isAdmin }) {
                       <th>Farmer Name</th>
                       <th>Division</th>
                       <th>Farmer Type</th>
-                      <th>
-                        Activation
-                      </th>
+                      <th>Activation</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -572,21 +632,28 @@ function FarmerList({ navigate, isAdmin }) {
                         className="animated-row"
                         style={{ animationDelay: `${index * 0.1}s` }}
                       >
-                        <td>{((pageNo - 1) * limit) + index + 1}</td>
+                        <td>{(pageNo - 1) * limit + index + 1}</td>
                         <td>{farmer.farmerId}</td>
                         <td>
                           <div>
                             <strong>{farmer.fullName}</strong>
                             {farmer.salesExecutive?.name && (
-                              <div className="text-muted" style={{ fontSize: '12px', marginTop: '2px' }}>
+                              <div
+                                className="text-muted"
+                                style={{ fontSize: "12px", marginTop: "2px" }}
+                              >
                                 SE: {farmer.salesExecutive.name}
                               </div>
                             )}
                           </div>
                         </td>
                         <td>{farmer.division?.name || "-"}</td>
-                        <td>{farmer.farmerType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || "-"}</td>
-                        <td className={styles['activation-column']}>
+                        <td>
+                          {farmer.farmerType
+                            ?.replace(/_/g, " ")
+                            .replace(/\b\w/g, (l) => l.toUpperCase()) || "-"}
+                        </td>
+                        <td className={styles["activation-column"]}>
                           {isAdmin && isActivationEnabled ? (
                             <div className="form-check form-switch">
                               <input
@@ -596,46 +663,62 @@ function FarmerList({ navigate, isAdmin }) {
                                 onChange={() => {
                                   if (farmer.status === "active") {
                                     // Show confirmation for deactivation
-                                    setShowConfirmation({ 
-                                      show: true, 
-                                      farmerId: farmer.id, 
+                                    setShowConfirmation({
+                                      show: true,
+                                      farmerId: farmer.id,
                                       action: "deactivate",
-                                      farmerName: farmer.fullName
+                                      farmerName: farmer.fullName,
                                     });
                                   } else {
                                     // Direct activation
-                                    handleActivationToggle(farmer.id, farmer.status === "active");
+                                    handleActivationToggle(
+                                      farmer.id,
+                                      farmer.status === "active"
+                                    );
                                   }
                                 }}
                                 disabled={updatingFarmerId === farmer.id}
                                 style={{
-                                  opacity: updatingFarmerId === farmer.id ? 0.6 : 1,
-                                  cursor: updatingFarmerId === farmer.id ? 'not-allowed' : 'pointer'
+                                  opacity:
+                                    updatingFarmerId === farmer.id ? 0.6 : 1,
+                                  cursor:
+                                    updatingFarmerId === farmer.id
+                                      ? "not-allowed"
+                                      : "pointer",
                                 }}
                               />
                               <label className="form-check-label">
                                 {updatingFarmerId === farmer.id ? (
                                   <span className="badge bg-secondary">
-                                    <i className="bi bi-arrow-clockwise me-1" style={{ animation: 'spin 1s linear infinite' }}></i>
+                                    <i
+                                      className="bi bi-arrow-clockwise me-1"
+                                      style={{
+                                        animation: "spin 1s linear infinite",
+                                      }}
+                                    ></i>
                                     Updating...
                                   </span>
                                 ) : (
-                                  <span 
-                                    className={`badge ${farmer.status === "active" ? 'bg-success' : 'bg-danger'}`}
-                                    title={`Farmer is currently ${farmer.status === "active" ? 'active' : 'inactive'}`}
+                                  <span
+                                    className={`badge ${farmer.status === "active" ? "bg-success" : "bg-danger"}`}
+                                    title={`Farmer is currently ${farmer.status === "active" ? "active" : "inactive"}`}
                                   >
-                                    <i className={`bi ${farmer.status === "active" ? 'bi-check-circle' : 'bi-x-circle'} me-1`}></i>
+                                    <i
+                                      className={`bi ${farmer.status === "active" ? "bi-check-circle" : "bi-x-circle"} me-1`}
+                                    ></i>
                                     {farmer.status || "Unknown"}
                                   </span>
                                 )}
                               </label>
                             </div>
                           ) : (
-                            <span 
-                              className={`badge ${farmer.status === "active" ? 'bg-success' : 'bg-danger'}`}
-                              title={`Farmer is currently ${farmer.status === "active" ? 'active' : 'inactive'}`}
+                            <span
+                              className={`badge ${farmer.status === "active" ? "bg-success" : "bg-danger"}`}
+                              title={`Farmer is currently ${farmer.status === "active" ? "active" : "inactive"}`}
                             >
-                              <i className={`bi ${farmer.status === "active" ? 'bi-check-circle' : 'bi-x-circle'} me-1`}></i>
+                              <i
+                                className={`bi ${farmer.status === "active" ? "bi-check-circle" : "bi-x-circle"} me-1`}
+                              ></i>
                               {farmer.status || "Unknown"}
                             </span>
                           )}
@@ -702,12 +785,7 @@ function FarmerList({ navigate, isAdmin }) {
       )}
 
       {/* Error Modal */}
-      {isModalOpen && (
-        <ErrorModal
-          message={error}
-          onClose={closeModal}
-        />
-      )}
+      {isModalOpen && <ErrorModal message={error} onClose={closeModal} />}
 
       {/* Confirmation Modal */}
       {showConfirmation.show && (
@@ -715,12 +793,11 @@ function FarmerList({ navigate, isAdmin }) {
           <div className={styles.confirmationContent}>
             <h3>Confirm Action</h3>
             <p>
-              {showConfirmation.action === "delete" 
+              {showConfirmation.action === "delete"
                 ? "Are you sure you want to delete this farmer? This action cannot be undone."
                 : showConfirmation.action === "deactivate"
-                ? `Are you sure you want to deactivate ${showConfirmation.farmerName}? This will disable their access to the system.`
-                : "Are you sure you want to perform this action?"
-              }
+                  ? `Are you sure you want to deactivate ${showConfirmation.farmerName}? This will disable their access to the system.`
+                  : "Are you sure you want to perform this action?"}
             </p>
             <div className={styles.confirmationButtons}>
               <button
@@ -728,17 +805,27 @@ function FarmerList({ navigate, isAdmin }) {
                 onClick={() => {
                   if (showConfirmation.action === "delete") {
                     handleDeleteFarmer(showConfirmation.farmerId);
-                                     } else if (showConfirmation.action === "deactivate") {
-                     handleActivationToggle(showConfirmation.farmerId, "active");
-                     setShowConfirmation({ show: false, farmerId: null, action: null });
-                   }
+                  } else if (showConfirmation.action === "deactivate") {
+                    handleActivationToggle(showConfirmation.farmerId, "active");
+                    setShowConfirmation({
+                      show: false,
+                      farmerId: null,
+                      action: null,
+                    });
+                  }
                 }}
               >
                 Yes
               </button>
               <button
                 className={`${styles.confirmBtn} ${styles.confirmNo}`}
-                onClick={() => setShowConfirmation({ show: false, farmerId: null, action: null })}
+                onClick={() =>
+                  setShowConfirmation({
+                    show: false,
+                    farmerId: null,
+                    action: null,
+                  })
+                }
               >
                 No
               </button>

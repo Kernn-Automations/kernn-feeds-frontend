@@ -2,6 +2,26 @@
   text-align: right;
   margin-bottom: 0;
 }
+
+/* Fix z-index issues for alert messages */
+.alert {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* Ensure alert containers don't overlay on modals/popups */
+.container-fluid .alert,
+.row .alert,
+.col .alert {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* Fix for division alert messages */
+.divisionAlert .alert {
+  position: relative;
+  z-index: 1 !important;
+}
 .mdlclose {
   background-color: transparent !important;
   color: white;
@@ -126,12 +146,185 @@ textarea {
 .mdl {
   background-color: var(--primary-light);
   padding: 20px;
-  z-index: 1600;
+  /* z-index handled by global hierarchy system */
+}
+
+/* ========================================
+   COMPREHENSIVE Z-INDEX HIERARCHY SYSTEM
+   ======================================== */
+
+/* Z-Index Hierarchy:
+   - Toasts/Notifications: 999999
+   - Modals/Dialogs: 100000-199999
+   - Overlays/Backdrops: 50000-99999
+   - Dropdowns/Popovers: 10000-49999
+   - Fixed elements: 1000-9999
+*/
+
+/* BOOTSTRAP MODALS - Highest Priority */
+.modal {
+  z-index: 150000 !important;
+}
+
+.modal-dialog {
+  z-index: 150001 !important;
+}
+
+.modal-content {
+  z-index: 150002 !important;
+}
+
+.modal-backdrop {
+  z-index: 149999 !important;
+}
+
+.modal-backdrop.fade.show {
+  z-index: 149999 !important;
+}
+
+/* CHAKRA UI DIALOGS - High Priority */
+[data-chakra-component="DialogRoot"],
+[data-scope="dialog"][data-part="root"] {
+  z-index: 140000 !important;
+}
+
+[data-chakra-component="DialogPositioner"],
+[data-scope="dialog"][data-part="positioner"] {
+  z-index: 140001 !important;
+}
+
+[data-chakra-component="DialogContent"],
+[data-scope="dialog"][data-part="content"] {
+  z-index: 140002 !important;
+  position: relative;
+}
+
+[data-chakra-component="DialogBackdrop"],
+[data-scope="dialog"][data-part="backdrop"] {
+  z-index: 139999 !important;
+  background-color: rgba(0, 0, 0, 0.6) !important; /* Dark backdrop like logout modal */
+}
+
+/* Target the portal container */
+#chakra-portal,
+[data-chakra-portal],
+[data-portal] {
+  z-index: 140000 !important;
+}
+
+.chakra-portal,
+[class*="chakra-portal"] {
+  z-index: 140000 !important;
+}
+
+/* CUSTOM MODAL CLASSES */
+.mdl {
+  z-index: 140003 !important;
+}
+
+/* POPOVER AND DROPDOWN ELEMENTS */
+[data-chakra-component="PopoverContent"],
+[data-chakra-component="PopoverPositioner"] {
+  z-index: 120000 !important;
+}
+
+.dropdown-menu {
+  z-index: 110000 !important;
+}
+
+/* OVERLAYS AND BACKDROPS - Lower than modals */
+div[style*="background-color: rgba(0, 0, 0, 0.5)"],
+div[style*="background-color: rgba(0, 0, 0, 0.7)"],
+div[style*="background-color: rgba(0, 0, 0, 0.4)"],
+div[style*="background: rgba(0, 0, 0, 0.5)"],
+div[style*="background: rgba(0, 0, 0, 0.7)"],
+div[style*="background: rgba(0, 0, 0, 0.4)"] {
+  z-index: 50000 !important;
+}
+
+/* Target any fixed positioned overlay */
+div[style*="position: fixed"][style*="background"]:not([role="dialog"]):not([data-chakra-component]) {
+  z-index: 50000 !important;
+}
+
+/* SPECIFIC DIALOG ROLES */
+div[role="dialog"] {
+  z-index: 140000 !important;
+}
+
+/* ENSURE MODAL BUTTONS AND CONTENT ARE CLICKABLE */
+.modal-header,
+.modal-body,
+.modal-footer,
+.modal button,
+[data-chakra-component="DialogContent"] *,
+.mdl * {
+  position: relative;
+  z-index: inherit;
+}
+
+/* TOAST AND NOTIFICATION OVERRIDES */
+.toast,
+.alert {
+  z-index: 200000 !important;
+}
+
+/* SPECIFIC COMPONENT OVERRIDES */
+.role-choice-overlay {
+  z-index: 160000 !important;
+}
+
+.error-modal-override {
+  z-index: 180000 !important;
 }
 
 .inputcolumn-mdl {
   width: 500px !important;
   margin-bottom: 3px;
+}
+
+/* Targets Create Modal - shrink field widths */
+.targets-create-modal {
+  padding: 12px;
+}
+.targets-create-modal [data-scope="dialog"][data-part="content"],
+.targets-create-modal.mdl {
+  max-height: 70vh;
+  overflow: auto;
+  width: 90vw;
+  max-width: 700px;
+}
+.targets-create-modal .inputcolumn-mdl {
+  width: 100% !important;
+  margin-bottom: 8px;
+}
+.targets-create-modal .inputcolumn-mdl label {
+  display: block;
+  text-align: left;
+  width: auto;
+  padding-right: 0;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.targets-create-modal .inputcolumn-mdl input,
+.targets-create-modal .inputcolumn-mdl select,
+.targets-create-modal .inputcolumn-mdl textarea {
+  height: 32px;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.targets-create-modal .inputcolumn-mdl textarea {
+  height: 60px;
+  resize: vertical;
+}
+
+/* Prevent overflow by stacking to one column on narrower modals */
+@media (max-width: 992px) {
+  .targets-create-modal .col-6 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
 }
 
 .inputcolumn-mdl label {
@@ -148,7 +341,7 @@ textarea {
 .inputcolumn-mdl input,
 .inputcolumn-mdl select,
 .inputcolumn-mdl textarea {
-  width: 210px;
+  width: 100%;
   height: 24px;
   font-size: 15px;
   padding-left: 4px;
@@ -320,7 +513,7 @@ a {
   background-color: #2fa924;
 }
 .cancelbtn {
-  background-color: #fd3b3b;
+  background-color: #fd3b3b !important;
 }
 .generatebtn {
   background-color: #2fa924;

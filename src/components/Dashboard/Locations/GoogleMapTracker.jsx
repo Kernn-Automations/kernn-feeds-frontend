@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, MarkerF } from "@react-google-maps/api";
 
 const containerStyle = {
   width: "100%",
@@ -12,12 +12,7 @@ const center = {
 };
 
 function GoogleMapTracker() {
-  // Load Google Maps JS API with your key
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-  });
-
-  if (loadError) return <div>Error loading maps</div>;
+  const isLoaded = typeof window !== "undefined" && !!window.google;
   if (!isLoaded) return <div>Loading Maps...</div>;
 
   return (
