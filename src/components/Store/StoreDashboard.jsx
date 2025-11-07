@@ -9,9 +9,12 @@ const StoreHome = lazy(() => import("./StoreHome"));
 const StoreSales = lazy(() => import("./sales/StoreSales"));
 const StoreDamaged = lazy(() => import("./damaged/StoreDamaged"));
 const StoreInventory = lazy(() => import("./inventory/StoreInventory"));
-const StoreIndents = lazy(() => import("./indents/StoreIndents"));
-const StoreCustomers = lazy(() => import("./customers/StoreCustomers"));
-const StoreEmployees = lazy(() => import("./employees/StoreEmployees"));
+const StoreCurrentStock = lazy(() => import("./inventory/StoreCurrentStock"));
+const StoreStockSummary = lazy(() => import("./inventory/StoreStockSummary"));
+const StoreDamagedStock = lazy(() => import("./inventory/StoreDamagedStock"));
+const IndentRoutes = lazy(() => import("./indents/IndentRoutes"));
+const CustomerRoutes = lazy(() => import("./customers/CustomerRoutes"));
+const EmployeeRoutes = lazy(() => import("./employees/EmployeeRoutes"));
 const StoreProducts = lazy(() => import("./products/StoreProducts"));
 const StoreDiscounts = lazy(() => import("./discounts/StoreDiscounts"));
 
@@ -29,7 +32,19 @@ export default function StoreDashboard() {
     setStyle("navcont");
   };
 
-  const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+  let storedUser = {};
+  try {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      storedUser = JSON.parse(userData);
+      // Handle nested user structure (user.user)
+      if (storedUser.user && !storedUser.roles) {
+        storedUser = storedUser.user;
+      }
+    }
+  } catch (e) {
+    console.error("Error parsing user from localStorage:", e);
+  }
 
   return (
     <div className="container-fluid py-0 my-0">
@@ -43,7 +58,7 @@ export default function StoreDashboard() {
         </div>
 
         <div className="col p-0">
-          <div className={`row p-0 ${styles.headline}`} style={{ left: hover ? 250 : 80.5, transition: 'left .2s ease' }}>
+          <div className={`row p-0 ${styles.headline}`}>
             <StoreDashHeader
               notifications={null}
               user={storedUser}
@@ -53,15 +68,18 @@ export default function StoreDashboard() {
             />
           </div>
 
-          <div className={`col ${styles.tabs}`} style={{ marginLeft: hover ? 240 : 70, transition: 'margin-left .2s ease' }}>
+          <div className={`col ${styles.tabs}`}>
             <Routes>
           <Route index element={<Suspense fallback={<div>Loading...</div>}><StoreHome /></Suspense>} />
           <Route path="sales" element={<Suspense fallback={<div>Loading...</div>}><StoreSales /></Suspense>} />
           <Route path="damaged" element={<Suspense fallback={<div>Loading...</div>}><StoreDamaged /></Suspense>} />
           <Route path="inventory" element={<Suspense fallback={<div>Loading...</div>}><StoreInventory /></Suspense>} />
-          <Route path="indents" element={<Suspense fallback={<div>Loading...</div>}><StoreIndents /></Suspense>} />
-          <Route path="customers" element={<Suspense fallback={<div>Loading...</div>}><StoreCustomers /></Suspense>} />
-          <Route path="employees" element={<Suspense fallback={<div>Loading...</div>}><StoreEmployees /></Suspense>} />
+          <Route path="current-stock" element={<Suspense fallback={<div>Loading...</div>}><StoreCurrentStock /></Suspense>} />
+          <Route path="stock-summary" element={<Suspense fallback={<div>Loading...</div>}><StoreStockSummary /></Suspense>} />
+          <Route path="damaged-stock" element={<Suspense fallback={<div>Loading...</div>}><StoreDamagedStock /></Suspense>} />
+          <Route path="indents/*" element={<Suspense fallback={<div>Loading...</div>}><IndentRoutes /></Suspense>} />
+          <Route path="customers/*" element={<Suspense fallback={<div>Loading...</div>}><CustomerRoutes /></Suspense>} />
+          <Route path="employees/*" element={<Suspense fallback={<div>Loading...</div>}><EmployeeRoutes /></Suspense>} />
           <Route path="products" element={<Suspense fallback={<div>Loading...</div>}><StoreProducts /></Suspense>} />
           <Route path="discounts" element={<Suspense fallback={<div>Loading...</div>}><StoreDiscounts /></Suspense>} />
           <Route path="*" element={<Navigate to="/store" replace />} />

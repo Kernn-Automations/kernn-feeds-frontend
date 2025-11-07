@@ -70,21 +70,6 @@ function LowStockAlerts({ lowStockNotifications }) {
     <div className={`col-6 ${styles.bigbox}`}>
       <div className={styles.alertHeader}>
         <h4>Low Stock Alerts</h4>
-        <div style={{ 
-          background: '#ef4444', 
-          color: 'white', 
-          borderRadius: '50%', 
-          width: '24px', 
-          height: '24px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          fontSize: '12px', 
-          fontWeight: '600', 
-          fontFamily: 'Poppins' 
-        }}>
-          {lowStockNotifications.length}
-        </div>
       </div>
       
       <div className={styles.alertContainer}>

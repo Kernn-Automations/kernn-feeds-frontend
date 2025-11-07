@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/Auth";
-import CustomSearchDropdown from "../CustomSearchDropDown";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 import styles from "./../Reports.module.css";
 import xls from "@/images/xls-png.png";
 import pdf from "@/images/pdf-png.png";

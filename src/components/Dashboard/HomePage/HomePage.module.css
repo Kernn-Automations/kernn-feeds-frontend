@@ -123,7 +123,7 @@
 }
 
 .statCard:hover {
-  transform: translateY(-5px);
+  /* Removed transform to keep cards fixed in position */
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
@@ -545,19 +545,19 @@
 .performerList {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* match customers list spacing */
+  gap: 10px; /* reduced spacing for less tight fit */
   width: 100%;
 }
 
 .performerItem {
   display: flex;
   align-items: center;
-  gap: 12px; /* match customers */
-  padding: 12px; /* match customers */
-  background: white; /* match customers */
-  border-radius: 10px; /* match customers */
-  border: 1px solid #E5E7EB; /* match customers */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* match customers */
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
   width: 100%;
   box-sizing: border-box;
@@ -1661,9 +1661,7 @@
 
 /* Fix heading positioning for all cards to match Order Status Overview and Customers */
 .orderStatusCard h4,
-.performanceCard h4,
-.enhancedProductCard h4,
-.secondRow .bigbox h4 {
+.enhancedProductCard h4 {
   font-family: Poppins;
   font-weight: 600;
   font-size: 20px;
@@ -1676,27 +1674,55 @@
   width: 100%;
 }
 
+/* Remove border from bigbox h4 to prevent double underline with alertHeader */
+.secondRow .bigbox h4 {
+  font-family: Poppins;
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--primary-color);
+  margin: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+  border-bottom: none;
+  text-align: left;
+  width: auto;
+}
+
+/* Remove border from performanceCard h4 to prevent double underline with performanceHeader */
+.performanceCard h4 {
+  font-family: Poppins;
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--primary-color);
+  margin: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+  border-bottom: none;
+  text-align: left;
+  width: auto;
+}
+
 /* Style headers with badges (Low Stock Alerts and Top Performers) */
 .alertHeader,
 .performanceHeader {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   margin-left: 0;
-  padding-bottom: 0;
+  padding-bottom: 12px;
   padding-left: 0;
-  border-bottom: none;
+  border-bottom: 2px solid var(--primary-color);
   width: 100%;
 }
 
 .alertHeader h4,
 .performanceHeader h4 {
-  margin: 0 0 0 0;
-  padding-bottom: 12px;
+  margin: 0;
+  padding-bottom: 0;
   padding-left: 0;
-  border-bottom: 2px solid var(--primary-color);
-  width: auto;
+  border-bottom: none;
+  text-align: left;
 }
 
 /* Ensure consistent padding for all card headers */
@@ -1708,8 +1734,9 @@
 
 /* Add left space to Top Performers card */
 .performanceCard {
-  padding: 24px;
-  margin-left: 0;
+  padding: 20px;
+  margin-top: 20px;
+  margin-left: 10px;
 }
 
 /* Fix product header to match other headings */

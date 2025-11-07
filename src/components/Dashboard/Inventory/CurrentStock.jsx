@@ -19,6 +19,7 @@ function CurrentStock({ navigate }) {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [filteredStock, setFilteredStock] = useState([]);
+  const [limit, setLimit] = useState(10);
 
   // Add search state variables for searchable fields
   const [productNameSearchTerm, setProductNameSearchTerm] = useState("");
@@ -715,8 +716,8 @@ function CurrentStock({ navigate }) {
           {/* Stock Table - Only show when there's data */}
           {currentStock.length > 0 && (
             <div className="row m-0 p-3 justify-content-around">
-              
-              <div className="col-lg-5">
+
+              <div className="col-lg-7">
                 <button className={styles.xls} onClick={() => onExport("XLS")}>
                   <p>Export to </p>
                   <img src={xls} alt="" />
@@ -725,6 +726,21 @@ function CurrentStock({ navigate }) {
                   <p>Export to </p>
                   <img src={pdf} alt="" />
                 </button>
+              </div>
+              <div className={`col-lg-2 ${styles.entity}`}>
+                <label htmlFor="">Entity :</label>
+                <select
+                  name=""
+                  id=""
+                  value={limit}
+                  onChange={(e) => setLimit(parseInt(e.target.value))}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={30}>30</option>
+                  <option value={40}>40</option>
+                  <option value={50}>50</option>
+                </select>
               </div>
               <div className="col-lg-10">
                 <table className="table table-hover table-bordered borderedtable">
@@ -922,7 +938,7 @@ function CurrentStock({ navigate }) {
                         <td colSpan={9}>NO DATA FOUND</td>
                       </tr>
                     ) : (
-                      filteredStock.map((item, index) => (
+                      filteredStock.slice(0, limit).map((item, index) => (
                         <tr key={item.id || index} className="animated-row">
                           <td>{index + 1}</td>
                           <td>{item.productName}</td>

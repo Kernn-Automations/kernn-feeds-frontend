@@ -54,6 +54,13 @@ export default function App() {
 
       <Route path="/divs" element={<Divs />} />
       
+      {/* Store Routes */}
+      <Route path="/store/*" element={
+        <Suspense fallback={<DashboardSkeleton />}>
+          <StoreDashboard />
+        </Suspense>
+      } />
+      
       {/* Protected Routes */}
       <Route element={<ProtectedRoute token={token} />}>
         {/* Dashboard with nested routes */}

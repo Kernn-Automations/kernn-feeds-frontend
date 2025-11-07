@@ -1,5 +1,6 @@
 import React from 'react'
 import { Modal, Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import styles from "../Login.module.css"
 import {
   DialogActionTrigger,
@@ -16,9 +17,15 @@ import { useAuth } from '@/Auth';
 
 function LogoutModal({isOpen, onClose}) {
     const { removeLogin } = useAuth();
+    const navigate = useNavigate();
     const onLogout = () => {
         onClose();
-        removeLogin()
+        removeLogin();
+        // Navigate to login page after logout
+        setTimeout(() => {
+            navigate('/login');
+            window.location.reload(); // Force reload to clear any cached state
+        }, 100);
     }
   return (
     <>
