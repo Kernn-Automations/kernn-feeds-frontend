@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import styles from "./WarehouseStockSummaryTab.module.css";
 
 function WarehouseStockSummaryTab({ warehouse }) {
   const { axiosAPI } = useAuth();
+  const { id: routeWarehouseId } = useParams();
   const [stockSummary, setStockSummary] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -23,13 +25,14 @@ function WarehouseStockSummaryTab({ warehouse }) {
 
   // Fetch stock summary data
   const fetchStockSummary = async () => {
-    if (!warehouse?.id || !fromDate || !toDate) return;
+    const effectiveWarehouseId = warehouse?.id || routeWarehouseId;
+    if (!effectiveWarehouseId || !fromDate || !toDate) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const query = `/warehouse/stock-summary?fromDate=${fromDate}&toDate=${toDate}&warehouseId=${warehouse.id}`;
+      const query = `/warehouse/stock-summary?fromDate=${fromDate}&toDate=${toDate}&warehouseId=${effectiveWarehouseId}`;
       console.log("Fetching stock summary:", query);
       
       const res = await axiosAPI.get(query);
@@ -65,30 +68,35 @@ function WarehouseStockSummaryTab({ warehouse }) {
 
     // Check if stockSummary is an array (new format) or object (old format)
     if (Array.isArray(stockSummary)) {
-      // New format: flat array from backend
+      // New format: flat array from backend (fields like productName, productType, opening, inward, outward, closing, packageWeight)
       stockSummary.forEach(item => {
-        const productId = item.productId;
-        const product = item.product;
-        const warehouse = item.warehouse;
-        
-        if (!product || !product.name) return;
+        const productId = String(item.productId ?? "unknown");
+        const productName = item.productName || item.product?.name;
+        if (!productId || !productName) return;
+
+        const isPacked = (item.productType || "").toLowerCase() === "packed";
+        // Convert package weight (e.g., 50 kg) into tons per packet for conversion math
+        const tonsPerPacket = isPacked
+          ? (item.packageWeight ? Number(item.packageWeight) : 0) / 1000 // kg -> tons
+          : 0;
 
         if (!map[productId]) {
           map[productId] = {
-            productName: product.name,
-            productType: item.productType || "loose",
-            primaryUnit: item.unit || "kg",
-            packetsPerUnit: 1,
+            productName: productName,
+            productType: isPacked ? "packed" : "loose",
+            primaryUnit: (item.packageWeightUnit || "kg"),
+            packetsPerUnit: isPacked && tonsPerPacket > 0 ? tonsPerPacket : 1,
             summary: [],
           };
         }
 
         map[productId].summary.push({
-          date: item.date,
-          opening: item.openingStock,
-          inward: item.inwardStock,
-          outward: item.outwardStock,
-          closing: item.closingStock,
+          // Use the selected toDate as the representative date for the range
+          date: item.date || (typeof toDate === 'string' ? toDate : ''),
+          opening: item.opening ?? item.openingStock ?? null,
+          inward: item.inward ?? item.inwardStock ?? null,
+          outward: item.outward ?? item.outwardStock ?? null,
+          closing: item.closing ?? item.closingStock ?? null,
         });
       });
     } else {

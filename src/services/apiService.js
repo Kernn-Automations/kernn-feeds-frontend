@@ -44,10 +44,24 @@ class ApiService {
       
       // Handle 401 Unauthorized
       if (response.status === 401) {
-        const errorData = await response.json();
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = {};
+        }
         
         // Check if it's a token missing error
-        if (errorData.error === 'TOKEN_MISSING' || errorData.requiresLogin) {
+        const message = (errorData.message || errorData.error || '').toString().toLowerCase();
+        const tokenInvalidOrExpired =
+          message.includes('invalid or expired token') ||
+          message.includes('token expired') ||
+          message.includes('expired token') ||
+          message.includes('invalid token') ||
+          errorData.errorCode === 'TOKEN_EXPIRED' ||
+          errorData.errorCode === 'TOKEN_INVALID';
+
+        if (errorData.error === 'TOKEN_MISSING' || errorData.requiresLogin || tokenInvalidOrExpired) {
           console.log('🔑 Token missing, redirecting to login');
           authService.clearTokens();
           this.redirectToLogin();

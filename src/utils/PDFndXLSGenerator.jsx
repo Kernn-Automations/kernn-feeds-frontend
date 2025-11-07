@@ -27,7 +27,11 @@ export const handleExportPDF = async (columns, data, title, grandTotal = null) =
 
   // Prepare table data
   const modifiedColumns = [...columns];
-  const modifiedData = data.map((row) => columns.map((col) => row[col] ?? ""));
+  // Support both array-based rows (e.g., AoA) and object-based rows keyed by column header
+  const isArrayRows = Array.isArray(data[0]);
+  const modifiedData = isArrayRows
+    ? data
+    : data.map((row) => columns.map((col) => (row && Object.prototype.hasOwnProperty.call(row, col) ? row[col] : "")));
 
   // Add grand total row if applicable
   if (grandTotal !== null) {
@@ -108,10 +112,10 @@ export const handleExportExcel = (columns, data, title) => {
   if (!data || data.length === 0) return;
 
   // Step 1: Prepare 2D array (rows)
-  const worksheetData = [
-    columns,
-    ...data.map((row) => columns.map((col) => row[col] ?? "")),
-  ];
+  const isArrayRows = Array.isArray(data[0]);
+  const worksheetData = isArrayRows
+    ? [columns, ...data]
+    : [columns, ...data.map((row) => columns.map((col) => (row && Object.prototype.hasOwnProperty.call(row, col) ? row[col] : "")))];
 
   // Step 2: Create worksheet
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);

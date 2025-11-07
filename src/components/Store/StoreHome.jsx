@@ -59,142 +59,149 @@ export default function StoreHome() {
   }, []);
 
   return (
-    <>
-      {/* Quick Actions */}
-      <div style={{ marginBottom: '20px' }}>
-        <h4 style={{ marginBottom: '12px', color: '#374151' }}>Quick Actions</h4>
-        <button 
-          className="btn btn-success" 
-          onClick={() => navigate("/store/sales?mode=create")}>
-          Create Sale
-        </button>
-      </div>
-
-      {/* Statistics Cards Row (distinct store style) */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-        {[{
-          title: 'Today Orders', value: dashboardData.totalOrders, color: '#2563eb', bg: 'rgba(37,99,235,0.1)', icon: <FaShoppingCart />
-        }, {
-          title: 'Today Sales', value: `₹${dashboardData.totalSales.toLocaleString()}`, color: '#059669', bg: 'rgba(5,150,105,0.1)', icon: <FaRupeeSign />
-        }, {
-          title: 'Low Stock', value: dashboardData.lowStockProducts, color: '#d97706', bg: 'rgba(217,119,6,0.1)', icon: <FaBoxes />
-        }, {
-          title: 'Customers', value: dashboardData.customers.total, color: '#7c3aed', bg: 'rgba(124,58,237,0.1)', icon: <FaUsers />
-        }].map((kpi, i) => (
-          <div key={i} style={{
-            flex: '1 1 220px',
-            minWidth: 220,
-            background: '#fff',
-            borderRadius: 12,
-            padding: 16,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600 }}>{kpi.title}</div>
-              <div style={{ background: kpi.bg, color: kpi.color, width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{kpi.icon}</div>
-            </div>
-            <div style={{ marginTop: 8, fontSize: 22, fontWeight: 700, color: '#111827' }}>{kpi.value}</div>
+    <div style={{ padding: '20px' }}>
+      {/* Statistics Cards Row */}
+      <div className={styles.statsRow}>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <FaShoppingCart />
           </div>
-        ))}
-      </div>
-
-      {/* Two-column main panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12, marginBottom: 12 }}>
-        {/* Sales Activity timeline */}
-        <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <h5 style={{ margin: 0, color: '#111827' }}>Sales Activity</h5>
-            <button className="btn btn-sm btn-outline-primary" onClick={() => navigate('/store/sales')}>Open Sales</button>
-          </div>
-          <div>
-            {[{ customer: 'Rajesh Kumar', amount: 2500, time: '2h ago' }, { customer: 'Priya Sharma', amount: 1800, time: '4h ago' }, { customer: 'Amit Singh', amount: 3200, time: '6h ago' }].map((s, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: idx < 2 ? '1px solid #f1f5f9' : 'none' }}>
-                <div>
-                  <div style={{ fontWeight: 600, color: '#111827' }}>{s.customer}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{s.time}</div>
-                </div>
-                <div style={{ fontWeight: 700, color: '#059669' }}>₹{s.amount.toLocaleString()}</div>
-              </div>
-            ))}
+          <div className={styles.statContent}>
+            <h3>{dashboardData.totalOrders?.toLocaleString() || 0}</h3>
+            <p>Today Orders</p>
           </div>
         </div>
-
-        {/* Pending Indents */}
-        <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <h5 style={{ margin: 0, color: '#111827' }}>Pending Indents</h5>
-            <button className="btn btn-sm btn-outline-secondary" onClick={() => navigate('/store/indents')}>Open Indents</button>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <FaRupeeSign />
           </div>
-          {[{ code: 'IND000123', value: 15000, status: 'Awaiting Approval' }, { code: 'IND000124', value: 9800, status: 'Awaiting Approval' }, { code: 'IND000125', value: 21000, status: 'Waiting for Stock' }].map((ind, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < 2 ? '1px solid #f1f5f9' : 'none' }}>
+          <div className={styles.statContent}>
+            <h3>₹{dashboardData.totalSales?.toLocaleString() || 0}</h3>
+            <p>Today Sales</p>
+          </div>
+        </div>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <FaBoxes />
+          </div>
+          <div className={styles.statContent}>
+            <h3>{dashboardData.lowStockProducts?.toLocaleString() || 0}</h3>
+            <p>Low Stock Alerts</p>
+            <span className={styles.alertIndicator}>
+              {dashboardData.lowStockProducts || 0} items need attention
+            </span>
+          </div>
+        </div>
+        
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <FaUsers />
+          </div>
+          <div className={styles.statContent}>
+            <h3>{dashboardData.customers?.total?.toLocaleString() || 0}</h3>
+            <p>Total Customers</p>
+            <span className={styles.statusIndicator}>
+              {dashboardData.customers?.active || 0} active
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Dashboard Content */}
+      <div className={styles.dashboardContainer}>
+        <div className={styles.dashboardGrid}>
+          {/* Row 1: Sales Activity + Pending Indents */}
+          <div className={styles.firstRow}>
+            {/* Sales Activity Card */}
+            <div className={styles.orderStatusCard}>
+              <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Sales Activity</h4>
               <div>
-                <div style={{ fontWeight: 600, color: '#111827' }}>{ind.code}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>{ind.status}</div>
-              </div>
-              <div style={{ fontWeight: 600 }}>₹{ind.value.toLocaleString()}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Second row: Low stock table + Quick insights */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {/* Low Stock Table */}
-        <div style={{ background: '#fff', borderRadius: 12, padding: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h5 style={{ margin: 0, color: '#111827' }}>Low Stock Products</h5>
-            <button className="btn btn-sm btn-outline-primary" onClick={() => navigate('/store/inventory')}>Open Inventory</button>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ marginBottom: 0 }}>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Current</th>
-                  <th>Threshold</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboardData.lowStockAlerts.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.productName}</td>
-                    <td>{p.currentStock}</td>
-                    <td>{p.threshold}</td>
-                    <td>
-                      <span className="badge bg-warning">Low</span>
-                    </td>
-                  </tr>
+                {[{ customer: 'Rajesh Kumar', amount: 2500, time: '2h ago' }, { customer: 'Priya Sharma', amount: 1800, time: '4h ago' }, { customer: 'Amit Singh', amount: 3200, time: '6h ago' }].map((s, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: idx % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{s.customer}</div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>{s.time}</div>
+                    </div>
+                    <div style={{ fontWeight: 700, color: '#059669', fontFamily: 'Poppins', fontSize: '16px' }}>₹{s.amount.toLocaleString()}</div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </div>
+            </div>
 
-        {/* Quick Insights */}
-        <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <h5 style={{ marginBottom: 12, color: '#111827' }}>Quick Insights</h5>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ background: 'rgba(8,145,178,0.08)', borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, color: '#0e7490' }}>Pending Returns</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{dashboardData.orderStatuses?.pendingPaymentApprovals || 0}</div>
+            {/* Pending Indents Card */}
+            <div className={styles.orderStatusCard}>
+              <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Pending Indents</h4>
+              {[{ code: 'IND000123', value: 15000, status: 'Awaiting Approval' }, { code: 'IND000124', value: 9800, status: 'Awaiting Approval' }, { code: 'IND000125', value: 21000, status: 'Waiting for Stock' }].map((ind, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{ind.code}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>{ind.status}</div>
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--primary-color)', fontFamily: 'Poppins', fontSize: '16px' }}>₹{ind.value.toLocaleString()}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ background: 'rgba(124,58,237,0.08)', borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, color: '#6d28d9' }}>Active Customers</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{dashboardData.customers?.active || 0}</div>
+          </div>
+
+          {/* Row 2: Low Stock Products + Quick Insights */}
+          <div className={styles.secondRow}>
+            {/* Low Stock Products Card */}
+            <div className={styles.orderStatusCard}>
+              <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Low Stock Products</h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Current</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Threshold</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboardData.lowStockAlerts.map((p, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
+                        <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.productName}</td>
+                        <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.currentStock}</td>
+                        <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.threshold}</td>
+                        <td>
+                          <span className="badge bg-warning" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>Low</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div style={{ background: 'rgba(217,119,6,0.08)', borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, color: '#b45309' }}>Avg. Order Value</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>₹{Math.round((dashboardData.totalSales || 0) / Math.max(dashboardData.totalOrders || 1, 1)).toLocaleString()}</div>
-            </div>
-            <div style={{ background: 'rgba(5,150,105,0.08)', borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 12, color: '#047857' }}>Delivered Today</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{dashboardData.orderStatuses?.delivered || 0}</div>
+
+            {/* Quick Insights Card */}
+            <div className={styles.orderStatusCard}>
+              <h4 style={{ marginBottom: '20px', paddingBottom: '12px', borderBottom: '2px solid var(--primary-color)', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Quick Insights</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ background: 'rgba(8,145,178,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(8,145,178,0.1)' }}>
+                  <div style={{ fontSize: 12, color: '#0e7490', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Pending Returns</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#0e7490', fontFamily: 'Poppins' }}>{dashboardData.orderStatuses?.pendingPaymentApprovals || 0}</div>
+                </div>
+                <div style={{ background: 'rgba(124,58,237,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(124,58,237,0.1)' }}>
+                  <div style={{ fontSize: 12, color: '#6d28d9', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Active Customers</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#6d28d9', fontFamily: 'Poppins' }}>{dashboardData.customers?.active || 0}</div>
+                </div>
+                <div style={{ background: 'rgba(217,119,6,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(217,119,6,0.1)' }}>
+                  <div style={{ fontSize: 12, color: '#b45309', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Avg. Order Value</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#b45309', fontFamily: 'Poppins' }}>₹{Math.round((dashboardData.totalSales || 0) / Math.max(dashboardData.totalOrders || 1, 1)).toLocaleString()}</div>
+                </div>
+                <div style={{ background: 'rgba(5,150,105,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(5,150,105,0.1)' }}>
+                  <div style={{ fontSize: 12, color: '#047857', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Delivered Today</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#047857', fontFamily: 'Poppins' }}>{dashboardData.orderStatuses?.delivered || 0}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

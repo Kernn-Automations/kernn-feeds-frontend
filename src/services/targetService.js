@@ -94,7 +94,7 @@ class TargetService {
     try {
       // New dropdown endpoint
       const response = await axiosInstance.get('/targets/dropdowns/teams');
-      const data = response.data;
+      const data = await response.json();
       console.log('Teams dropdown API response:', data);
       
       // Accept several possible shapes robustly
@@ -122,7 +122,7 @@ class TargetService {
     try {
       // New dropdown endpoint
       const response = await axiosInstance.get('/targets/dropdowns/employees');
-      const data = response.data;
+      const data = await response.json();
       console.log('Employees dropdown API response:', data);
       
       // Accept several possible shapes robustly

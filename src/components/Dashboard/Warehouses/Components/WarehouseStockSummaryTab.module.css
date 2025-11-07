@@ -44,14 +44,14 @@
 }
 
 .activeFilter {
-  background-color: #007bff;
+  background-color: #003176;
   color: white;
-  border-color: #007bff;
+  border-color: #003176;
 }
 
 .activeFilter:hover {
-  background-color: #0056b3;
-  border-color: #0056b3;
+  background-color: #00285a;
+  border-color: #00285a;
 }
 
 /* Date Range Section */
@@ -169,7 +169,7 @@
 
 /* Product Info Banner */
 .productInfoBanner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #003176;
   color: white;
   padding: 16px 20px;
   border-radius: 8px;
@@ -220,12 +220,13 @@
 }
 
 .tab {
-  background: #eee;
-  border: none;
+  background: #fff;
+  border: 1px solid #003176;
+  color: #003176;
   padding: 10px 20px;
   border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
   transition: all 0.2s ease;
   font-size: 14px;
@@ -235,16 +236,18 @@
 }
 
 .tab:hover {
-  background-color: #e9ecef;
+  background-color: #f1f4f9;
 }
 
 .active {
-  background-color: #007bff;
+  background-color: #003176;
   color: white;
+  border-color: #003176;
 }
 
 .active:hover {
-  background-color: #0056b3;
+  background-color: #00285a;
+  border-color: #00285a;
 }
 
 .productTypeBadge {

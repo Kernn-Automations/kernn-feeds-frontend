@@ -533,52 +533,33 @@ function HomePage() {
           {/* Row 2: Low Stock Alerts + Top Performers */}
           <div className={styles.secondRow}>
             <LowStockAlerts lowStockNotifications={dashboardData.lowStockAlerts} />
-            <div className={styles.performanceCard}>
-              <div className={styles.performanceHeader}>
-                <h4>Top Performers</h4>
-                <div style={{ 
-                  background: '#ef4444', 
-                  color: 'white', 
-                  borderRadius: '50%', 
-                  width: '24px', 
-                  height: '24px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  fontSize: '12px', 
-                  fontWeight: '600', 
-                  fontFamily: 'Poppins' 
-                }}>
-                  {dashboardData.topPerformingBOs?.length || 0}
-                </div>
-              </div>
+            <div className={styles.orderStatusCard}>
+              <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Top Performers</h4>
               {dashboardData.topPerformingBOs?.length === 0 ? (
-                <div className={styles.noDataMessage}>
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '20px', 
-                    color: '#6b7280',
-                    fontSize: '14px'
-                  }}>
-                    <FaUsers style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }} />
-                    <p>No sales activity yet</p>
-                    <small>Start generating sales to see top performers here</small>
-                  </div>
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '20px', 
+                  color: '#6b7280',
+                  fontSize: '14px',
+                  fontFamily: 'Poppins'
+                }}>
+                  <FaUsers style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.5 }} />
+                  <p>No sales activity yet</p>
+                  <small>Start generating sales to see top performers here</small>
                 </div>
               ) : (
-                <div className={styles.performerList}>
+                <div>
                   {dashboardData.topPerformingBOs?.slice(0, 5).map((bo, index) => (
-                    <div key={index} className={styles.performerItem}>
-                      <div className={styles.rankBadge}>{index + 1}</div>
-                      <div className={styles.performerInfo}>
-                        <h6>{bo.name}</h6>
-                        <p>₹{bo.sales?.toLocaleString()}</p>
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--primary-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600, fontFamily: 'Poppins', flexShrink: 0 }}>{index + 1}</div>
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{bo.name}</div>
+                          <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>₹{bo.sales?.toLocaleString()}</div>
+                        </div>
                       </div>
-                      <div className={styles.performanceBar}>
-                        <div 
-                          className={styles.barFill} 
-                          style={{ width: `${(bo.sales / (dashboardData.topPerformingBOs[0]?.sales || 1)) * 100}%` }}
-                        ></div>
+                      <div style={{ width: '60px', height: '6px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ height: '100%', background: 'var(--primary-color)', borderRadius: '4px', width: `${(bo.sales / (dashboardData.topPerformingBOs[0]?.sales || 1)) * 100}%` }}></div>
                       </div>
                     </div>
                   ))}

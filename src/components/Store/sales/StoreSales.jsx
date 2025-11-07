@@ -1,14 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
+import { isStaffEmployee } from "../../../utils/roleUtils";
 import storeService from "../../../services/storeService";
+const StoreCreateSale = lazy(() => import("./StoreCreateSale"));
 
 export default function StoreSales() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode = searchParams.get("mode");
   const [payload, setPayload] = useState({ storeId: "", customerId: "", items: [], payments: [], notes: "" });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const user = JSON.parse(localStorage.getItem("user")) || {};
+  const isEmployee = isStaffEmployee(user);
 
   const onCreate = async () => {
+    if (isEmployee) {
+      setSearchParams({ mode: "create" });
+      return;
+    }
     setLoading(true);
     try {
       const resp = await storeService.createSale(payload);
@@ -20,18 +31,32 @@ export default function StoreSales() {
     }
   };
 
+  if (isEmployee && mode === "create") {
+    return (
+      <Suspense fallback={<div>Loading Create Sale...</div>}>
+        <StoreCreateSale />
+      </Suspense>
+    );
+  }
+
   return (
     <div>
-      <h4>Sales</h4>
-
-      {/* Buttons (Sales-style) */}
-      <div className="row m-0 p-2">
-        <div className="col">
-          <button className="homebtn">Sales Orders</button>
-          <button className="homebtn">Returned Orders</button>
-          <button className="homebtn" disabled={loading} onClick={onCreate}>Create Sale</button>
+      {/* Buttons: show only Create Sale for staff employees; show all for others */}
+      {isEmployee ? (
+        <div className="row m-0 p-2">
+          <div className="col">
+            <button className="homebtn" disabled={loading} onClick={onCreate}>Create Sale</button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="row m-0 p-2">
+          <div className="col">
+            <button className="homebtn">Sales Orders</button>
+            <button className="homebtn">Returned Orders</button>
+            <button className="homebtn" disabled={loading} onClick={onCreate}>Create Sale</button>
+          </div>
+        </div>
+      )}
 
       {/* Mini Dashboards */}
       <Flex wrap="wrap" justify="space-between" px={2}>

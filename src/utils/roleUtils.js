@@ -41,4 +41,22 @@ export const hasBothAdminAndStaff = (userLike) => {
   return isAdmin(user) && isStaffManager(user);
 };
 
+export const isStaffEmployee = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "employee" || n === "staff_employee" || n === "staff employee" || n.includes("employee");
+  });
+};
+
+export const isSuperAdmin = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "super admin" || n === "super_admin" || n === "superadmin";
+  });
+};
+
 

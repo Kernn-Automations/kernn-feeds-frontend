@@ -1,8 +1,40 @@
 import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import styles from "../Dashboard/navs/NavContainer.module.css";
+import { isStaffEmployee } from "../../utils/roleUtils";
 
 function StoreNavBg({ hover, setTab, tab }) {
   const location = useLocation();
+  const [isEmployee, setIsEmployee] = useState(false);
+  
+  useEffect(() => {
+    // Re-check user role whenever component mounts or location changes
+    let user = {};
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        user = JSON.parse(storedUser);
+        // Handle case where user might be nested (user.user)
+        if (user.user && !user.roles) {
+          user = user.user;
+        }
+      }
+      const employeeCheck = isStaffEmployee(user);
+      setIsEmployee(employeeCheck);
+      
+      // Debug logging
+      console.log("StoreNavBg - User check:", {
+        user,
+        roles: user?.roles,
+        isEmployee: employeeCheck,
+        roleNames: user?.roles?.map(r => typeof r === 'object' ? r.name : r)
+      });
+    } catch (e) {
+      console.error("Error parsing user from localStorage:", e);
+      setIsEmployee(false);
+    }
+  }, [location.pathname]);
+  
   return (
     <>
       <div className={styles.navicons}>
@@ -15,25 +47,27 @@ function StoreNavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
-        <div className={`${location.pathname.includes("inventory") ? styles.active : ""} `} onClick={() => setTab("inventory")}>
-          <Link to="/store/inventory">
-            <svg
-              width="38"
-              height="33"
-              viewBox="0 0 38 33"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <g>
-                <path
-                  d="M36.9444 18.5625H31.6667V24.75L29.5556 23.3771L27.4444 24.75V18.5625H22.1667C21.5861 18.5625 21.1111 19.0266 21.1111 19.5938V31.9688C21.1111 32.5359 21.5861 33 22.1667 33H36.9444C37.525 33 38 32.5359 38 31.9688V19.5938C38 19.0266 37.525 18.5625 36.9444 18.5625ZM11.6111 14.4375H26.3889C26.9694 14.4375 27.4444 13.9734 27.4444 13.4062V1.03125C27.4444 0.464062 26.9694 0 26.3889 0H21.1111V6.1875L19 4.81465L16.8889 6.1875V0H11.6111C11.0306 0 10.5556 0.464062 10.5556 1.03125V13.4062C10.5556 13.9734 11.0306 14.4375 11.6111 14.4375ZM15.8333 18.5625H10.5556V24.75L8.44444 23.3771L6.33333 24.75V18.5625H1.05556C0.475 18.5625 0 19.0266 0 19.5938V31.9688C0 32.5359 0.475 33 1.05556 33H15.8333C16.4139 33 16.8889 32.5359 16.8889 31.9688V19.5938C16.8889 19.0266 16.4139 18.5625 15.8333 18.5625Z"
-                  fill="black"
-                />
-              </g>
-            </svg>
-            {hover && <p>Inventory</p>}
-          </Link>
-        </div>
+        {!isEmployee && (
+          <div className={`${location.pathname.includes("inventory") ? styles.active : ""} `} onClick={() => setTab("inventory")}>
+            <Link to="/store/inventory">
+              <svg
+                width="38"
+                height="33"
+                viewBox="0 0 38 33"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g>
+                  <path
+                    d="M36.9444 18.5625H31.6667V24.75L29.5556 23.3771L27.4444 24.75V18.5625H22.1667C21.5861 18.5625 21.1111 19.0266 21.1111 19.5938V31.9688C21.1111 32.5359 21.5861 33 22.1667 33H36.9444C37.525 33 38 32.5359 38 31.9688V19.5938C38 19.0266 37.525 18.5625 36.9444 18.5625ZM11.6111 14.4375H26.3889C26.9694 14.4375 27.4444 13.9734 27.4444 13.4062V1.03125C27.4444 0.464062 26.9694 0 26.3889 0H21.1111V6.1875L19 4.81465L16.8889 6.1875V0H11.6111C11.0306 0 10.5556 0.464062 10.5556 1.03125V13.4062C10.5556 13.9734 11.0306 14.4375 11.6111 14.4375ZM15.8333 18.5625H10.5556V24.75L8.44444 23.3771L6.33333 24.75V18.5625H1.05556C0.475 18.5625 0 19.0266 0 19.5938V31.9688C0 32.5359 0.475 33 1.05556 33H15.8333C16.4139 33 16.8889 32.5359 16.8889 31.9688V19.5938C16.8889 19.0266 16.4139 18.5625 15.8333 18.5625Z"
+                    fill="black"
+                  />
+                </g>
+              </svg>
+              {hover && <p>Inventory</p>}
+            </Link>
+          </div>
+        )}
 
         <div className={`${location.pathname.includes("sales") ? styles.active : ""} `} onClick={() => setTab("sales")}>
           <Link to="/store/sales">
@@ -56,62 +90,69 @@ function StoreNavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
-        <div className={`${location.pathname.includes("indents") ? styles.active : ""} `} onClick={() => setTab("indents")}>
-          <Link to="/store/indents">
-            <svg width="38" height="37" viewBox="0 0 38 37" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 2H31V33H7V2Z" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13 10H25" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13 18H25" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13 26H21" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {hover && <p>Indents</p>}
-          </Link>
-        </div>
+        {!isEmployee && (
+          <div className={`${location.pathname.includes("indents") ? styles.active : ""} `} onClick={() => setTab("indents")}>
+            <Link to="/store/indents">
+              <svg width="38" height="37" viewBox="0 0 38 37" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 2H31V33H7V2Z" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13 10H25" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13 18H25" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13 26H21" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {hover && <p>Indents</p>}
+            </Link>
+          </div>
+        )}
 
-        <div className={`${location.pathname.includes("customers") ? styles.active : ""} `} onClick={() => setTab("customers")}>
-          <Link to="/store/customers">
-            <svg
-              width="38"
-              height="37"
-              viewBox="0 0 38 37"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <g>
-                <path
-                  d="M14.1232 22.889C18.3905 22.889 21.8499 18.3528 21.8499 12.757C21.8499 7.16126 18.3905 2.625 14.1232 2.625C9.85584 2.625 6.39648 7.16126 6.39648 12.757C6.39648 18.3528 9.85584 22.889 14.1232 22.889Z"
-                  fill="black"
-                />
-                <path
-                  d="M21.2801 24.0907C19.3167 26.1921 16.8467 27.468 14.1234 27.468C11.4 27.468 8.86669 26.1921 6.96669 24.0156C3.48334 25.8919 0 28.2936 0 32.0462V33.6223C0 35.4986 1.26667 36.9996 2.85001 36.9996H25.4601C27.0434 36.9996 28.3101 35.4986 28.3101 33.6223V32.0462C28.2467 28.2936 24.8267 25.967 21.2801 24.0907Z"
-                  fill="black"
-                />
-              </g>
-            </svg>
-            {hover && <p>Customers</p>}
-          </Link>
-        </div>
+        {!isEmployee && (
+          <div className={`${location.pathname.includes("customers") ? styles.active : ""} `} onClick={() => setTab("customers")}>
+            <Link to="/store/customers">
+              <svg
+                width="38"
+                height="37"
+                viewBox="0 0 38 37"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g>
+                  <path
+                    d="M14.1232 22.889C18.3905 22.889 21.8499 18.3528 21.8499 12.757C21.8499 7.16126 18.3905 2.625 14.1232 2.625C9.85584 2.625 6.39648 7.16126 6.39648 12.757C6.39648 18.3528 9.85584 22.889 14.1232 22.889Z"
+                    fill="black"
+                  />
+                  <path
+                    d="M21.2801 24.0907C19.3167 26.1921 16.8467 27.468 14.1234 27.468C11.4 27.468 8.86669 26.1921 6.96669 24.0156C3.48334 25.8919 0 28.2936 0 32.0462V33.6223C0 35.4986 1.26667 36.9996 2.85001 36.9996H25.4601C27.0434 36.9996 28.3101 35.4986 28.3101 33.6223V32.0462C28.2467 28.2936 24.8267 25.967 21.2801 24.0907Z"
+                    fill="black"
+                  />
+                </g>
+              </svg>
+              {hover && <p>Customers</p>}
+            </Link>
+          </div>
+        )}
 
-        <div className={`${location.pathname.includes("employees") ? styles.active : ""} `} onClick={() => setTab("employees")}>
-          <Link to="/store/employees">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 32 32"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M29.3333 28V25.3333C29.3333 22.8483 27.6336 20.7601 25.3333 20.168M20.6667 4.38768C22.6212 5.17887 24 7.09508 24 9.33333C24 11.5716 22.6212 13.4879 20.6667 14.2789M22.6667 28C22.6667 25.5149 22.6667 24.2725 22.2607 23.2924C21.7193 21.9856 20.6811 20.9473 19.3743 20.406C18.3941 20 17.1517 20 14.6667 20H10.6667C8.18164 20 6.93913 20 5.95903 20.406C4.6522 20.9473 3.61395 21.9856 3.07264 23.2924C2.66667 24.2725 2.66667 25.5149 2.66667 28M18 9.33333C18 12.2789 15.6121 14.6667 12.6667 14.6667C9.72115 14.6667 7.33333 12.2789 7.33333 9.33333C7.33333 6.38781 9.72115 4 12.6667 4C15.6121 4 18 6.38781 18 9.33333Z"
-                stroke="black"
-                strokeWidth="3.33"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {hover && <p>Employees</p>}
-          </Link>
-        </div>
+        {/* Hide Employees section for staff employees */}
+        {!isEmployee && (
+          <div className={`${location.pathname.includes("employees") ? styles.active : ""} `} onClick={() => setTab("employees")}>
+            <Link to="/store/employees">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 32 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M29.3333 28V25.3333C29.3333 22.8483 27.6336 20.7601 25.3333 20.168M20.6667 4.38768C22.6212 5.17887 24 7.09508 24 9.33333C24 11.5716 22.6212 13.4879 20.6667 14.2789M22.6667 28C22.6667 25.5149 22.6667 24.2725 22.2607 23.2924C21.7193 21.9856 20.6811 20.9473 19.3743 20.406C18.3941 20 17.1517 20 14.6667 20H10.6667C8.18164 20 6.93913 20 5.95903 20.406C4.6522 20.9473 3.61395 21.9856 3.07264 23.2924C2.66667 24.2725 2.66667 25.5149 2.66667 28M18 9.33333C18 12.2789 15.6121 14.6667 12.6667 14.6667C9.72115 14.6667 7.33333 12.2789 7.33333 9.33333C7.33333 6.38781 9.72115 4 12.6667 4C15.6121 4 18 6.38781 18 9.33333Z"
+                  stroke="black"
+                  strokeWidth="3.33"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {hover && <p>Employees</p>}
+            </Link>
+          </div>
+        )}
 
         <div className={`${location.pathname.includes("products") ? styles.active : ""} `} onClick={() => setTab("products")}>
           <Link to="/store/products">
@@ -134,22 +175,25 @@ function StoreNavBg({ hover, setTab, tab }) {
           </Link>
         </div>
 
-        <div className={`${location.pathname.includes("discounts") ? styles.active : ""} `} onClick={() => setTab("discounts")}>
-          <Link to="/store/discounts">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="32"
-              viewBox="0 -960 960 960"
-              width="32"
-              fill="black"
-            >
-              <g>
-                <path d="M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z" />
-              </g>
-            </svg>
-            {hover && <p>Discounts</p>}
-          </Link>
-        </div>
+        {/* Hide Discounts section for staff employees */}
+        {!isEmployee && (
+          <div className={`${location.pathname.includes("discounts") ? styles.active : ""} `} onClick={() => setTab("discounts")}>
+            <Link to="/store/discounts">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="32"
+                viewBox="0 -960 960 960"
+                width="32"
+                fill="black"
+              >
+                <g>
+                  <path d="M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z" />
+                </g>
+              </svg>
+              {hover && <p>Discounts</p>}
+            </Link>
+          </div>
+        )}
       </div>
     </>
   );
