@@ -3,9 +3,14 @@ import { useNavigate } from "react-router-dom";
 import Footer from "./Footer";
 import Header from "./Header";
 import Input from "./Input";
-import WelcomePage from "./WelComePage";
 import styles from "./Login.module.css";
-import { isAdmin, isStaffManager, hasBothAdminAndStaff, isStaffEmployee, isSuperAdmin } from "../utils/roleUtils";
+import {
+  isAdmin,
+  isStaffManager,
+  hasBothAdminAndStaff,
+  isStaffEmployee,
+  isSuperAdmin,
+} from "../utils/roleUtils";
 
 function Login() {
   const [login, setLogin] = useState(false);
@@ -138,11 +143,38 @@ function Login() {
         {/* {login && !user.user?.showDivisions && <WelcomePage data={user} />} */}
 
         {showRoleChoice && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }} className="role-choice-overlay">
-            <div style={{ background: "#fff", borderRadius: 8, padding: 24, width: "90%", maxWidth: 420, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            className="role-choice-overlay"
+          >
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 8,
+                padding: 24,
+                width: "90%",
+                maxWidth: 420,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              }}
+            >
               <h4 style={{ marginBottom: 12 }}>Choose a view</h4>
-              <p style={{ marginBottom: 20 }}>You have admin privileges. Select how you want to continue:</p>
-              <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
+              <p style={{ marginBottom: 20 }}>
+                You have admin privileges. Select how you want to continue:
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  justifyContent: "space-between",
+                }}
+              >
                 <button
                   className="btn btn-primary"
                   onClick={() => {
