@@ -79,14 +79,37 @@ function CreateTargetModal({ onCreated }) {
 				
 				// Load teams for team assignment
 				if (assignmentType === "team") {
-					console.log('Loading teams...');
-					const res = await targetService.getTeams(currentDivisionId);
-					console.log('Teams response:', res);
-					const list = res?.teams || [];
-					console.log('Teams list:', list);
-					setTeams(Array.isArray(list) ? list : []);
-					setEmployees([]);
-					setSelectedEmployeeId("");
+					console.log('Loading teams from /targets/dropdowns/teams...');
+					try {
+						// Use axiosAPI directly to match the API response format
+						let endpoint = '/targets/dropdowns/teams';
+						if (currentDivisionId && currentDivisionId !== '1') {
+							endpoint += `?divisionId=${currentDivisionId}`;
+						}
+						
+						const response = await axiosAPI.get(endpoint);
+						const data = response.data;
+						console.log('Teams API response:', data);
+						
+						// Parse response according to API documentation:
+						// { "success": true, "teams": [...] }
+						let teamsList = [];
+						if (data?.success === true && data?.teams && Array.isArray(data.teams)) {
+							teamsList = data.teams;
+						} else if (data?.teams && Array.isArray(data.teams)) {
+							teamsList = data.teams;
+						} else if (Array.isArray(data)) {
+							teamsList = data;
+						}
+						
+						console.log('Extracted teams list:', teamsList);
+						setTeams(teamsList);
+						setEmployees([]);
+						setSelectedEmployeeId("");
+					} catch (error) {
+						console.error('Error loading teams:', error);
+						setTeams([]);
+					}
 				}
 				// Load employees for employee assignment
 				if (assignmentType === "employee") {

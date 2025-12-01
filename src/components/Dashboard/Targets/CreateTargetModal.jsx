@@ -28,13 +28,20 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
     startDate: '',
     endDate: '',
     description: '',
+    priority: 'medium',
+    notes: '',
+    divisionId: null,
     teamIds: [],
-    employeeIds: []
+    employeeIds: [],
+    teamMemberAssignments: [] // Array of {employeeId, individualBudgetNumber, teamId}
   });
 
   // Dropdown options
   const [teams, setTeams] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamMembersByTeam, setTeamMembersByTeam] = useState({});
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState({}); // {employeeId: {budget, teamId}}
 
   // UI states
   const [loading, setLoading] = useState(false);
@@ -42,66 +49,135 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Load dropdown data
+  // Load data when modal opens or assignment type changes
   useEffect(() => {
     if (isOpen) {
-      console.log('Modal opened, loading dropdown data...');
-      console.log('Initial assignment type:', formData.assignmentType);
-      loadDropdownData();
-    }
-  }, [isOpen]);
-
-  // Load appropriate data when assignment type changes
-  useEffect(() => {
-    console.log('Assignment type changed to:', formData.assignmentType);
-    if (formData.assignmentType === 'team') {
-      console.log('Loading teams...');
-      loadTeams();
-    } else if (formData.assignmentType === 'employee') {
-      console.log('Loading employees...');
-      loadEmployees();
-    }
-  }, [formData.assignmentType]);
-
-  // Load initial data when component mounts
-  useEffect(() => {
-    console.log('Component mounted, loading initial data...');
-    console.log('Initial assignment type:', formData.assignmentType);
-    if (formData.assignmentType === 'team') {
-      loadTeams();
-    } else if (formData.assignmentType === 'employee') {
-      loadEmployees();
-    }
-  }, []);
-
-  // Also load data when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      console.log('Modal opened, loading data for assignment type:', formData.assignmentType);
+      console.log('Modal opened or assignment type changed. Loading data for:', formData.assignmentType);
       if (formData.assignmentType === 'team') {
         loadTeams();
       } else if (formData.assignmentType === 'employee') {
         loadEmployees();
       }
     }
-  }, [isOpen]);
+  }, [isOpen, formData.assignmentType]);
+
+  // Debug: Log teams state changes
+  useEffect(() => {
+    console.log('Teams state changed. Current teams:', teams);
+    console.log('Teams length:', teams.length);
+    if (teams.length > 0) {
+      console.log('First team:', teams[0]);
+    }
+  }, [teams]);
+
+  // Load team members when teams are selected
+  useEffect(() => {
+    if (isOpen && formData.assignmentType === 'team') {
+      if (formData.teamIds.length > 0) {
+        console.log('Teams selected, loading team members for:', formData.teamIds);
+        loadTeamMembers(formData.teamIds);
+      } else {
+        // Clear team members when no teams are selected
+        setTeamMembers([]);
+        setTeamMembersByTeam({});
+        setSelectedTeamMembers({});
+      }
+    }
+  }, [formData.teamIds, formData.assignmentType, isOpen]);
+
 
   /**
-   * Load dropdown data (teams and employees)
+   * Load teams for current division - Step 1
    */
-  const loadDropdownData = async () => {
+  const loadTeams = async () => {
     try {
       setLoading(true);
-      const currentDivisionId = localStorage.getItem('currentDivisionId') || '1';
-      console.log('Loading dropdown data for division:', currentDivisionId);
+      console.log('Step 1: Loading teams from /targets/dropdowns/teams...');
       
-      // Load teams by default
-      const teamsResponse = await targetService.getTeams(currentDivisionId);
-      console.log('Teams response in loadDropdownData:', teamsResponse);
-      setTeams(teamsResponse.teams || []);
+      // Get current division ID if available
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      let endpoint = '/targets/dropdowns/teams';
+      
+      // Add divisionId as query parameter if available and not "1" (all divisions)
+      if (currentDivisionId && currentDivisionId !== '1') {
+        endpoint += `?divisionId=${currentDivisionId}`;
+      }
+      
+      console.log('Calling endpoint:', endpoint);
+      const response = await axiosAPI.get(endpoint);
+      console.log('Full response object:', response);
+      console.log('Response status:', response.status);
+      console.log('Response data:', response.data);
+      
+      const data = response.data;
+      
+      // Check if API returned an error
+      if (data?.success === false) {
+        console.error('API returned success: false', data);
+        setError(data?.message || "Failed to load teams from API");
+        setIsErrorModalOpen(true);
+        setTeams([]);
+        return;
+      }
+      
+      // Parse response according to API documentation:
+      // { "success": true, "teams": [...] }
+      let teamsList = [];
+      
+      // Check for the exact API format first
+      if (data?.success === true && data?.teams && Array.isArray(data.teams)) {
+        teamsList = data.teams;
+      } 
+      // Fallback to other possible formats
+      else if (data?.teams && Array.isArray(data.teams)) {
+        teamsList = data.teams;
+      } else if (Array.isArray(data)) {
+        teamsList = data;
+      } else if (data?.data?.teams && Array.isArray(data.data.teams)) {
+        teamsList = data.data.teams;
+      } else if (data?.data && Array.isArray(data.data)) {
+        teamsList = data.data;
+      }
+      
+      console.log('Extracted teams list:', teamsList);
+      console.log('Teams count:', teamsList.length);
+      console.log('About to set teams state with:', teamsList);
+      
+      if (teamsList.length === 0) {
+        console.warn('No teams found in response. Full response:', JSON.stringify(data, null, 2));
+        console.warn('Response structure:', {
+          isArray: Array.isArray(data),
+          hasTeams: !!data?.teams,
+          hasDataTeams: !!data?.data?.teams,
+          hasData: !!data?.data,
+          hasSuccess: data?.success,
+          successValue: data?.success,
+          keys: data ? Object.keys(data) : 'data is null/undefined'
+        });
+      }
+      
+      // Set teams state
+      setTeams(teamsList);
+      console.log('Teams state set. Current teams state will be:', teamsList);
     } catch (error) {
-      console.error("Error loading dropdown data:", error);
-      setError("Failed to load dropdown data");
+      console.error("Error loading teams:", error);
+      console.error("Error response:", error.response);
+      console.error("Error data:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      
+      // Try to provide more helpful error message
+      let errorMessage = "Failed to load teams";
+      if (error.response?.status === 404) {
+        errorMessage = "Teams endpoint not found. Please check the API configuration.";
+      } else if (error.response?.status === 403) {
+        errorMessage = "You don't have permission to view teams.";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
@@ -109,21 +185,47 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
   };
 
   /**
-   * Load teams for current division
+   * Load team members for selected teams - Step 2
    */
-  const loadTeams = async () => {
+  const loadTeamMembers = async (teamIds) => {
+    if (!teamIds || teamIds.length === 0) {
+      setTeamMembers([]);
+      setTeamMembersByTeam({});
+      setSelectedTeamMembers({});
+      return;
+    }
+
     try {
       setLoading(true);
-      const currentDivisionId = localStorage.getItem('currentDivisionId') || '1';
-      console.log('Loading teams for division:', currentDivisionId);
-      const teamsResponse = await targetService.getTeams(currentDivisionId);
-      console.log('Teams response:', teamsResponse);
-      const teamsList = teamsResponse.teams || [];
-      console.log('Teams list:', teamsList);
-      setTeams(teamsList);
+      console.log('Step 2: Loading team members for teams:', teamIds);
+      
+      // Format teamIds as [5,6,7] for the API
+      const teamIdsParam = teamIds.join(',');
+      const response = await axiosAPI.get(`/targets/dropdowns/team-members?teamIds=[${teamIdsParam}]`);
+      const data = response.data;
+      console.log('Team members API response:', data);
+      
+      // Parse response according to API documentation:
+      // { "success": true, "teams": [...], "teamMembers": [...], "teamMembersByTeam": {...} }
+      const members = data?.teamMembers || [];
+      const byTeam = data?.teamMembersByTeam || {};
+      const teamsData = data?.teams || [];
+      
+      setTeamMembers(members);
+      setTeamMembersByTeam(byTeam);
+      
+      // Initialize selected team members with empty budgets
+      const initialSelections = {};
+      members.forEach(member => {
+        initialSelections[member.employeeId] = {
+          budget: '',
+          teamId: member.team?.id || member.teamId
+        };
+      });
+      setSelectedTeamMembers(initialSelections);
     } catch (error) {
-      console.error("Error loading teams:", error);
-      setError("Failed to load teams");
+      console.error("Error loading team members:", error);
+      setError("Failed to load team members");
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
@@ -196,6 +298,21 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
         [field]: false
       }));
     }
+
+    // Note: Team members are automatically loaded via useEffect when teamIds changes
+  };
+
+  /**
+   * Handle team member budget change
+   */
+  const handleTeamMemberBudgetChange = (employeeId, budget, teamId) => {
+    setSelectedTeamMembers(prev => ({
+      ...prev,
+      [employeeId]: {
+        budget: budget,
+        teamId: teamId
+      }
+    }));
   };
 
   /**
@@ -211,8 +328,18 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
     if (!formData.endDate) newErrors.endDate = true;
     
     // Validate assignment selection
-    if (formData.assignmentType === 'team' && formData.teamIds.length === 0) {
-      newErrors.teamIds = true;
+    if (formData.assignmentType === 'team') {
+      if (formData.teamIds.length === 0) {
+        newErrors.teamIds = true;
+      }
+      // Validate team member assignments
+      const validAssignments = Object.keys(selectedTeamMembers).filter(empId => {
+        const assignment = selectedTeamMembers[empId];
+        return assignment.budget && parseFloat(assignment.budget) > 0;
+      });
+      if (validAssignments.length === 0) {
+        newErrors.teamMemberAssignments = true;
+      }
     }
     if (formData.assignmentType === 'employee' && formData.employeeIds.length === 0) {
       newErrors.employeeIds = true;
@@ -228,7 +355,7 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
   };
 
   /**
-   * Handle form submission
+   * Handle form submission - Step 3
    */
   const handleSubmit = async () => {
     if (!validateForm()) {
@@ -239,6 +366,8 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
 
     try {
       setLoading(true);
+      
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
       
       // Prepare data for API
       const targetData = {
@@ -251,16 +380,39 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
         timeFrameValue: parseInt(formData.timeFrameValue),
         startDate: formData.startDate,
         endDate: formData.endDate,
-        description: formData.description.trim()
+        description: formData.description.trim(),
+        priority: formData.priority,
+        notes: formData.notes.trim()
       };
 
-      // Add assignment IDs
+      // Add division ID if available
+      if (currentDivisionId) {
+        targetData.divisionId = parseInt(currentDivisionId);
+      }
+
+      // Add assignment data based on type
       if (formData.assignmentType === 'team') {
         targetData.teamIds = formData.teamIds;
+        
+        // Build teamMemberAssignments array
+        const teamMemberAssignments = [];
+        Object.keys(selectedTeamMembers).forEach(employeeId => {
+          const assignment = selectedTeamMembers[employeeId];
+          if (assignment.budget && parseFloat(assignment.budget) > 0) {
+            teamMemberAssignments.push({
+              employeeId: parseInt(employeeId),
+              individualBudgetNumber: parseFloat(assignment.budget),
+              teamId: parseInt(assignment.teamId)
+            });
+          }
+        });
+        
+        targetData.teamMemberAssignments = teamMemberAssignments;
       } else {
         targetData.employeeIds = formData.employeeIds;
       }
 
+      console.log('Step 3: Submitting target data:', targetData);
       await targetService.createTarget(targetData);
       
       // Reset form
@@ -275,9 +427,16 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
         startDate: '',
         endDate: '',
         description: '',
+        priority: 'medium',
+        notes: '',
+        divisionId: null,
         teamIds: [],
-        employeeIds: []
+        employeeIds: [],
+        teamMemberAssignments: []
       });
+      setSelectedTeamMembers({});
+      setTeamMembers([]);
+      setTeamMembersByTeam({});
       
       onSuccess();
     } catch (error) {
@@ -364,21 +523,31 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                         className={errors.teamIds ? styles.errorField : ''}
                         style={{ minHeight: '120px' }}
                       >
-                        {console.log('Teams state:', teams, 'Length:', teams.length)}
-                        {teams.length === 0 && <option disabled>No teams available</option>}
-                        {teams
-                          .filter(team => team.isActive === true)
-                          .map(team => {
-                            console.log('Rendering team:', team);
-                            const teamHeadName = team.teamHead?.name || 'No Head';
-                            return (
-                              <option key={team.id} value={team.id}>
-                                {team.name} (Head: {teamHeadName})
-                              </option>
-                            );
-                          })}
+                        {(() => {
+                          console.log('Rendering teams dropdown. Teams state:', teams);
+                          console.log('Teams length in render:', teams.length);
+                          console.log('Loading state:', loading);
+                          
+                          if (loading && teams.length === 0) {
+                            return <option disabled>Loading teams...</option>;
+                          } else if (teams.length === 0) {
+                            return <option disabled>No teams available</option>;
+                          } else {
+                            return teams.map(team => {
+                              const teamInfo = team.name || team.teamId || `Team ${team.id}`;
+                              const zoneInfo = team.zone ? ` - ${team.zone}` : '';
+                              const subZoneInfo = team.subZone ? ` (${team.subZone})` : '';
+                              return (
+                                <option key={team.id} value={team.id}>
+                                  {teamInfo}{zoneInfo}{subZoneInfo}
+                                </option>
+                              );
+                            });
+                          }
+                        })()}
                       </select>
                       <small className="text-muted">Hold Ctrl/Cmd to select multiple teams</small>
+                      {errors.teamIds && <small className="text-danger d-block mt-1">Please select at least one team</small>}
                     </div>
                   ) : (
                     <div className="inputcolumn-mdl">
@@ -408,10 +577,131 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                           })}
                       </select>
                       <small className="text-muted">Hold Ctrl/Cmd to select multiple employees</small>
+                      {errors.employeeIds && <small className="text-danger d-block mt-1">Please select at least one employee</small>}
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Team Members Assignment (Step 2) - Only show when teams are selected */}
+              {formData.assignmentType === 'team' && formData.teamIds.length > 0 && (
+                <div className="row mt-3">
+                  <div className="col-12">
+                    <div className="inputcolumn-mdl">
+                      <label>Assign Budget to Team Members *</label>
+                      {loading && teamMembers.length === 0 ? (
+                        <div className="text-center py-3">
+                          <Loading />
+                          <small className="d-block mt-2">Loading team members...</small>
+                        </div>
+                      ) : teamMembers.length === 0 ? (
+                        <div className="alert alert-info">
+                          No team members found for selected teams.
+                        </div>
+                      ) : (
+                        <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '4px' }}>
+                          {Object.keys(teamMembersByTeam).length > 0 ? (
+                            Object.keys(teamMembersByTeam).map(teamId => {
+                              const teamData = teamMembersByTeam[teamId];
+                              const team = teams.find(t => t.id === parseInt(teamId));
+                              return (
+                                <div key={teamId} className="mb-4 pb-3 border-bottom">
+                                  <h6 className="mb-3 text-primary">
+                                    <strong>{team?.name || teamData?.name || `Team ${teamId}`}</strong>
+                                  </h6>
+                                  {teamData?.members && teamData.members.length > 0 ? (
+                                    <div className="table-responsive">
+                                      <table className="table table-sm table-bordered">
+                                        <thead>
+                                          <tr>
+                                            <th>Employee Name</th>
+                                            <th>Employee ID</th>
+                                            <th>Individual Budget ({formData.budgetUnit}) *</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {teamData.members.map(member => {
+                                            const employee = member.employee || member;
+                                            const employeeId = employee.id || member.employeeId;
+                                            const assignment = selectedTeamMembers[employeeId] || { budget: '', teamId: parseInt(teamId) };
+                                            return (
+                                              <tr key={employeeId}>
+                                                <td>{employee.name || 'N/A'}</td>
+                                                <td>{employee.employeeId || 'N/A'}</td>
+                                                <td>
+                                                  <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={assignment.budget}
+                                                    onChange={(e) => handleTeamMemberBudgetChange(employeeId, e.target.value, parseInt(teamId))}
+                                                    placeholder="Enter budget"
+                                                    className="form-control form-control-sm"
+                                                    style={{ minWidth: '150px' }}
+                                                  />
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <p className="text-muted">No members in this team</p>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="table-responsive">
+                              <table className="table table-sm table-bordered">
+                                <thead>
+                                  <tr>
+                                    <th>Employee Name</th>
+                                    <th>Employee ID</th>
+                                    <th>Team</th>
+                                    <th>Individual Budget ({formData.budgetUnit}) *</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {teamMembers.map(member => {
+                                    const employee = member.employee || member;
+                                    const employeeId = employee.id || member.employeeId;
+                                    const team = member.team || {};
+                                    const assignment = selectedTeamMembers[employeeId] || { budget: '', teamId: team.id || member.teamId };
+                                    return (
+                                      <tr key={employeeId}>
+                                        <td>{employee.name || 'N/A'}</td>
+                                        <td>{employee.employeeId || 'N/A'}</td>
+                                        <td>{team.name || 'N/A'}</td>
+                                        <td>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={assignment.budget}
+                                            onChange={(e) => handleTeamMemberBudgetChange(employeeId, e.target.value, assignment.teamId)}
+                                            placeholder="Enter budget"
+                                            className="form-control form-control-sm"
+                                            style={{ minWidth: '150px' }}
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          {errors.teamMemberAssignments && (
+                            <small className="text-danger d-block mt-2">Please assign budget to at least one team member</small>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Budget Information */}
               <div className="row">
@@ -495,6 +785,34 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                       value={formData.endDate}
                       onChange={(e) => handleInputChange('endDate', e.target.value)}
                       className={errors.endDate ? styles.errorField : ''}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Priority and Notes */}
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="inputcolumn-mdl">
+                    <label>Priority</label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => handleInputChange('priority', e.target.value)}
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="inputcolumn-mdl">
+                    <label>Notes</label>
+                    <input
+                      type="text"
+                      value={formData.notes}
+                      onChange={(e) => handleInputChange('notes', e.target.value)}
+                      placeholder="Enter notes (optional)"
                     />
                   </div>
                 </div>

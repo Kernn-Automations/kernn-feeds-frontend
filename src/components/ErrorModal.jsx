@@ -31,11 +31,11 @@ function ErrorModal({isOpen, message, onClose}) {
   useEffect(() => {
     if (isOpen && isTokenError) {
       console.log('Token-related error detected, automatically logging out...');
-      // 5 second delay as requested
+      // 1 second delay for immediate logout
       const timeoutId = setTimeout(() => {
         onClose(); // Close the modal first
         removeLogin(); // Then logout
-      }, 5000); // 5 second delay
+      }, 1000); // 1 second delay
       
       return () => clearTimeout(timeoutId);
     }
@@ -51,7 +51,7 @@ function ErrorModal({isOpen, message, onClose}) {
         <p className={styles.error}>{message || "Unknown Error, Please contact Admin"}</p>
         {isTokenError && (
           <p className={styles.error} style={{marginTop: '10px', fontSize: '14px', color: '#ff6b6b'}}>
-            You will be automatically logged out in 5 seconds...
+            You will be automatically logged out 
           </p>
         )}
       </Modal.Body>

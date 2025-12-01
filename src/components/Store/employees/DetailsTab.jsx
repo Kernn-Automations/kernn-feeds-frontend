@@ -177,3 +177,17 @@ function DetailsTab({ employee }) {
 
 export default DetailsTab;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

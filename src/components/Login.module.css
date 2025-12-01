@@ -186,36 +186,161 @@
 
 /* Media Queries */
 @media (max-width: 768px) {
+  .cont {
+    height: 100vh;
+    padding: 0;
+    justify-content: center;
+    overflow-y: auto;
+  }
+
+  .logincontainer {
+    width: 100%;
+    padding: 20px 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   .input {
-    width: 90%;
+    width: 100%;
+    max-width: 100%;
+    font-size: 18px;
+    padding: 12px 8px;
+    height: 45px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
   }
 
   .button {
-    width: 90%;
+    width: 100%;
+    max-width: 100%;
   }
 
   .formWrapper {
     max-width: 100%;
-    margin: 0 15px;
+    width: 100%;
+    margin: 0;
+    padding: 0 10px;
+  }
+
+  .inputContainer {
+    width: 100%;
+    padding: 0;
   }
 
   .wel h1 {
     font-size: 32px;
+    margin-bottom: 24px;
   }
 
   .p {
     font-size: 18px;
   }
 
+  .otps {
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .otps input {
-    width: 30px;
-    height: auto;
+    width: 45px;
+    height: 50px;
+    font-size: 20px;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .sendbutton,
+  .verifybutton {
+    width: 100%;
+    max-width: 100%;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    touch-action: manipulation;
+  }
+
+  .sendbutton {
+    margin-bottom: 30px;
+  }
+
+  .loadingdiv {
+    margin-bottom: 30px;
+  }
+
+  .logo {
+    max-width: 200px !important;
+    min-width: 150px !important;
+    max-height: 100px;
+    margin: 15px auto;
+  }
+
+  .logocol {
+    max-width: 200px !important;
+    min-width: 150px !important;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .error,
+  .success {
+    font-size: 16px;
+    padding: 10px;
+    margin: 10px 0;
+  }
+
+  .resend {
+    font-size: 14px;
+    padding: 8px 16px;
+    margin-top: 10px;
+  }
+
+  /* Role choice modal mobile styles */
+  .role-choice-overlay {
+    padding: 20px !important;
+  }
+
+  .role-choice-overlay > div {
+    width: 95% !important;
+    max-width: 95% !important;
+    padding: 20px !important;
+  }
+
+  .role-choice-overlay h4 {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  .role-choice-overlay p {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .role-choice-overlay button {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    margin: 5px 0;
   }
 }
 
 @media (max-width: 480px) {
+  .cont {
+    padding: 0;
+  }
+
+  .logincontainer {
+    padding: 15px 10px;
+  }
+
   .wel h1 {
     font-size: 28px;
+    margin-bottom: 20px;
   }
 
   .p {
@@ -223,18 +348,78 @@
   }
 
   .input {
-    font-size: 18px;
+    font-size: 16px;
+    height: 42px;
+    padding: 10px 8px;
+    letter-spacing: 0.5px;
   }
 
   .button {
-    width: 90%;
+    width: 100%;
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .sendbutton,
+  .verifybutton {
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .otps input {
+    width: 40px;
+    height: 45px;
+    font-size: 18px;
   }
 
   .resend {
-    font-size: 14px;
+    font-size: 13px;
+    padding: 6px 12px;
   }
 
   .footer {
     font-size: 10px;
+    padding: 10px;
+  }
+
+  .logo {
+    max-width: 180px !important;
+    min-width: 120px !important;
+    max-height: 90px;
+  }
+
+  .logocol {
+    max-width: 180px !important;
+    min-width: 120px !important;
+  }
+
+  /* Better touch targets for mobile */
+  button,
+  input[type="submit"],
+  input[type="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  .cont {
+    padding: 10px 0;
+  }
+
+  .logincontainer {
+    padding: 15px;
+    min-height: auto;
+  }
+
+  .wel h1 {
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+
+  .logo {
+    max-height: 80px;
+    margin: 10px auto;
   }
 }

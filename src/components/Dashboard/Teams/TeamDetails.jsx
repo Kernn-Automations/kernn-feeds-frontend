@@ -64,7 +64,44 @@ function TeamDetails() {
     const load = async () => {
       try {
         setLoading(true);
-        const data = await teamsService.getTeam(teamId);
+        
+        // Try to get team using teamsService first
+        let data;
+        try {
+          data = await teamsService.getTeam(teamId);
+        } catch (serviceError) {
+          // If teamsService fails, try using axiosAPI directly
+          console.log("teamsService failed, trying axiosAPI directly:", serviceError);
+          try {
+            const res = await axiosAPI.get(`/teams/${teamId}`);
+            data = res.data;
+          } catch (axiosError) {
+            // If that also fails, try query parameter approach
+            try {
+              const res = await axiosAPI.get(`/teams?teamId=${teamId}`);
+              const teamsList = res.data?.teams || res.data?.data?.teams || res.data?.data || res.data || [];
+              if (Array.isArray(teamsList) && teamsList.length > 0) {
+                const foundTeam = teamsList.find(t => 
+                  t.id === parseInt(teamId) || 
+                  t.teamId === parseInt(teamId) ||
+                  String(t.id) === String(teamId) ||
+                  String(t.teamId) === String(teamId)
+                );
+                if (foundTeam) {
+                  data = { team: foundTeam, data: { team: foundTeam } };
+                } else {
+                  throw new Error(`Team with ID ${teamId} not found in teams list`);
+                }
+              } else {
+                throw axiosError;
+              }
+            } catch (queryError) {
+              // If all attempts fail, throw the original error
+              throw serviceError;
+            }
+          }
+        }
+        
         const teamData = data?.data?.team || data?.team || data?.data || data;
         setTeam(teamData);
 
@@ -98,7 +135,10 @@ function TeamDetails() {
         setProducts(mergedProducts);
       } catch (e) {
         console.error(e);
-        setError("Failed to load team details");
+        const errorMessage = e?.message || "Failed to load team details";
+        setError(errorMessage.includes("HTML") || errorMessage.includes("not found") 
+          ? `Team not found. The team with ID ${teamId} may not exist or the endpoint is not available.`
+          : errorMessage);
         setIsModalOpen(true);
       } finally {
         setLoading(false);

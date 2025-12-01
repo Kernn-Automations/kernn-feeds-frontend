@@ -37,3 +37,17 @@ function EmployeeTabSection({ employee }) {
 
 export default EmployeeTabSection;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

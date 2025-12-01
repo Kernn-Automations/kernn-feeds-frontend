@@ -61,6 +61,97 @@ export const AuthProvider = ({ children }) => {
     return config;
   });
 
+  // Define removeLogin before interceptors so it can be used in them
+  const removeLogin = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("selectedDivision");
+    localStorage.removeItem("showDivisions");
+    setIslogin(false);
+    token = null;
+    reftoken = null;
+  };
+
+  // Helper function to check if error is token-related
+  const isTokenError = (error) => {
+    if (!error?.response) return false;
+    
+    const status = error.response.status;
+    const errorData = error.response.data || {};
+    const errorMessage = (errorData.message || errorData.error || '').toString().toLowerCase();
+    
+    // Check for 401 status or token-related error messages
+    if (status === 401) return true;
+    
+    return (
+      errorMessage.includes('invalid or expired token') ||
+      errorMessage.includes('authentication failed') ||
+      errorMessage.includes('unauthorized') ||
+      errorMessage.includes('token may be expired') ||
+      errorMessage.includes('token expired') ||
+      errorMessage.includes('expired token') ||
+      errorMessage.includes('invalid token') ||
+      errorMessage.includes('please log in again') ||
+      errorMessage.includes('please login again') ||
+      errorData.errorCode === 'TOKEN_EXPIRED' ||
+      errorData.errorCode === 'TOKEN_INVALID' ||
+      errorData.error === 'TOKEN_MISSING'
+    );
+  };
+
+  // Response interceptor for api instance - handles token errors globally
+  api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (isTokenError(error)) {
+        console.log('Token-related error detected in API response, automatically logging out...');
+        removeLogin();
+        // Optionally redirect to login page
+        if (window.location.pathname !== '/login') {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor for formApi instance
+  formApi.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (isTokenError(error)) {
+        console.log('Token-related error detected in FormAPI response, automatically logging out...');
+        removeLogin();
+        if (window.location.pathname !== '/login') {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor for getPdf instance
+  getPdf.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (isTokenError(error)) {
+        console.log('Token-related error detected in PDF API response, automatically logging out...');
+        removeLogin();
+        if (window.location.pathname !== '/login') {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+
   const axiosAPI = {
     get: (url, params = {}) => api.get(url, { params }),
     post: (url, data) => api.post(url, data),
@@ -71,20 +162,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Remove the old useEffect - we now use startRefreshCycle() when tokens are saved
-
-  const removeLogin = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    localStorage.removeItem("selectedDivision");
-    localStorage.removeItem("showDivisions");
-    setIslogin(false);
-    token = null;
-    reftoken = null;
-
-    // setReftoken(null)
-    // setToken(null)
-  };
 
   const saveToken = (newToken) => {
     localStorage.setItem("accessToken", newToken);

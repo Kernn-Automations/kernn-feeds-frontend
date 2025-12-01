@@ -14,6 +14,35 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
   const [error, setError]           = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const VITE_API = import.meta.env.VITE_API_URL;
+
+  const persistActiveStore = (storeInfo, fallbackId) => {
+    if (!storeInfo && !fallbackId) {
+      localStorage.removeItem("activeStore");
+      return;
+    }
+
+    const resolvedId =
+      storeInfo?.id ||
+      storeInfo?.storeId ||
+      storeInfo?.store_id ||
+      storeInfo?.assignedStoreId ||
+      fallbackId ||
+      null;
+
+    if (!resolvedId) {
+      localStorage.removeItem("activeStore");
+      return;
+    }
+
+    const payload = {
+      id: resolvedId,
+      name: storeInfo?.name || storeInfo?.storeName || storeInfo?.title || "",
+      code: storeInfo?.storeCode || storeInfo?.code || "",
+      type: storeInfo?.storeType || storeInfo?.type || "",
+    };
+
+    localStorage.setItem("activeStore", JSON.stringify(payload));
+  };
   
   // Add ref for auto-focus functionality
   const otpInputRef = useRef(null);
@@ -49,10 +78,22 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    // Detect if running on mobile device
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobileBrowser = window.innerWidth <= 768 || isMobileDevice;
+    
     try {
       const res = await axios.post(`${VITE_API}/auth/verify`, {
         mobile: email,
         otp,
+        allowMobile: true, // Explicitly allow mobile login
+        deviceType: isMobileBrowser ? 'mobile' : 'web',
+      }, {
+        headers: {
+          'X-Allow-Mobile': 'true', // Header to indicate mobile access should be allowed
+          'X-Device-Type': isMobileBrowser ? 'mobile' : 'web',
+        }
       });
 
       if (res.status === 200) {
@@ -62,15 +103,70 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
         // Store both tokens using Auth context
         saveTokens(res.data.accessToken, res.data.refreshToken);
 
-        // 2) persist the user object and flags for your Login.jsx
-        const userPayload = {
-          ...res.data.data,
-          roles:         res.data.roles,
-          showDivisions: res.data.showDivisions,
-          userDivision:  res.data.userDivision,
+        const baseUserData = res.data.data?.user || res.data.data || {};
+        let userPayload = {
+          ...baseUserData,
+          roles:         res.data.roles || baseUserData.roles,
+          showDivisions: res.data.showDivisions ?? baseUserData.showDivisions,
+          userDivision:  res.data.userDivision || baseUserData.userDivision,
         };
         console.log('OTP.jsx - Created userPayload:', userPayload);
         console.log('OTP.jsx - showDivisions flag:', userPayload.showDivisions);
+
+        try {
+          const profileResponse = await axios.get(`${VITE_API}/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${res.data.accessToken}`,
+            },
+          });
+
+          const profileData = profileResponse.data?.data || profileResponse.data;
+          if (profileData && typeof profileData === "object") {
+            const normalizedProfile = profileData.user || profileData;
+            const resolvedStore =
+              normalizedProfile.store ||
+              normalizedProfile.storeDetails ||
+              normalizedProfile.assignedStore ||
+              normalizedProfile.employeeStore ||
+              (Array.isArray(normalizedProfile.stores) ? normalizedProfile.stores[0] : null);
+
+            const resolvedStoreId =
+              normalizedProfile.storeId ||
+              normalizedProfile.store_id ||
+              normalizedProfile.assignedStoreId ||
+              resolvedStore?.id ||
+              resolvedStore?.storeId ||
+              resolvedStore?.store_id;
+
+            userPayload = {
+              ...userPayload,
+              ...normalizedProfile,
+              roles: normalizedProfile.roles || userPayload.roles,
+              showDivisions:
+                typeof normalizedProfile.showDivisions === "boolean"
+                  ? normalizedProfile.showDivisions
+                  : userPayload.showDivisions,
+              userDivision: normalizedProfile.userDivision || userPayload.userDivision,
+              store: resolvedStore || normalizedProfile.store || userPayload.store,
+              storeId: resolvedStoreId || userPayload.storeId,
+            };
+
+            if (resolvedStore || resolvedStoreId) {
+              persistActiveStore(resolvedStore || userPayload.store, resolvedStoreId);
+            } else if (userPayload.storeId) {
+              persistActiveStore(userPayload.store, userPayload.storeId);
+            } else {
+              persistActiveStore(null, null);
+            }
+          }
+        } catch (profileError) {
+          console.error("Failed to fetch extended user profile:", profileError);
+          if (userPayload.store || userPayload.storeId) {
+            persistActiveStore(userPayload.store, userPayload.storeId);
+          } else {
+            persistActiveStore(null, null);
+          }
+        }
         
         localStorage.setItem("user", JSON.stringify(userPayload));
 

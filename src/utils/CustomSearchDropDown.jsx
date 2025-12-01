@@ -6,6 +6,7 @@ const CustomSearchDropdown = ({
   onSelect,
   labelKey = "label",
   valueKey = "value",
+  showSelectAll = true,
 }) => {
   const [search, setSearch] = useState("");
   const [showOptions, setShowOptions] = useState(false);
@@ -20,16 +21,18 @@ const CustomSearchDropdown = ({
           .localeCompare(String(b[labelKey]).toLowerCase())
       );
 
-      // Always keep "Select All" at the top
-      const combined = [
-        { [labelKey]: "Select All", [valueKey]: null },
-        ...sorted,
-      ];
+      // Add "Select All" option at the top if showSelectAll is true
+      const combined = showSelectAll
+        ? [
+            { [labelKey]: "Select All", [valueKey]: null },
+            ...sorted,
+          ]
+        : sorted;
       setFinalOptions(combined);
     } else {
       setFinalOptions([]);
     }
-  }, [options, labelKey, valueKey]);
+  }, [options, labelKey, valueKey, showSelectAll]);
 
   // Filter based on search
   const filtered = finalOptions.filter((opt) =>

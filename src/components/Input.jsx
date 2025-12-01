@@ -28,9 +28,20 @@ function Input({ setLogin, setUser, setRole }) {
 
     const VITE_API = import.meta.env.VITE_API_URL;
 
+    // Detect if running on mobile device
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobileBrowser = window.innerWidth <= 768 || isMobileDevice;
+
     try {
       const response = await axios.post(`${VITE_API}/auth/login`, {
         mobile: email,
+        allowMobile: true, // Explicitly allow mobile login
+        deviceType: isMobileBrowser ? 'mobile' : 'web',
+      }, {
+        headers: {
+          'X-Allow-Mobile': 'true', // Header to indicate mobile access should be allowed
+          'X-Device-Type': isMobileBrowser ? 'mobile' : 'web',
+        }
       });
 
       setRes(response.data);

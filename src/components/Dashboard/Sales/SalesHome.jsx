@@ -8,7 +8,7 @@ import styles from "../Dashboard.module.css";
 import SalesPieChart from "./SalesPieChart";
 
 function SalesHome({ navigate }) {
-  const { axiosAPI } = useAuth();
+  const { axiosAPI, removeLogin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [salesData, setSalesData] = useState(null);
   const [error, setError] = useState(null);
@@ -120,6 +120,32 @@ function SalesHome({ navigate }) {
     };
   }, [salesData?.salesByProduct]);
 
+  // Check if error is token-related
+  const isTokenError = error && (() => {
+    const errorMessage = error.toString().toLowerCase();
+    return (
+      errorMessage.includes('invalid or expired token') ||
+      errorMessage.includes('authentication failed') ||
+      errorMessage.includes('unauthorized') ||
+      errorMessage.includes('token may be expired') ||
+      errorMessage.includes('please log in again') ||
+      errorMessage.includes('please login again')
+    );
+  })();
+
+  // Auto-logout when token error is detected
+  useEffect(() => {
+    if (error && isTokenError) {
+      console.log('Token-related error detected in sales dashboard, automatically logging out...');
+      // Delay logout slightly to show the error message
+      const timeoutId = setTimeout(() => {
+        removeLogin();
+      }, 1000); // 1 second delay
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [error, isTokenError, removeLogin]);
+
   return (
     <>
       {/* Error Display */}
@@ -131,6 +157,11 @@ function SalesHome({ navigate }) {
                 <strong>Error loading sales dashboard</strong>
                 <br />
                 <small>{error}</small>
+                {isTokenError && (
+                  <div style={{ marginTop: '10px', fontSize: '14px', color: '#ff6b6b', fontWeight: 'bold' }}>
+                    You will be automatically logged out...
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -160,6 +191,12 @@ function SalesHome({ navigate }) {
             onClick={() => navigate("/sales/cancelled-order")}
           >
             Cancelled Orders
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/sales/partial-dispatch-requests")}
+          >
+            Partial Dispatch Requests
           </button>
         </div>
       </div>

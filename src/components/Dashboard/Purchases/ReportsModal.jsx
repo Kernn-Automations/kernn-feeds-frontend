@@ -19,7 +19,7 @@ function getDamageColor(damagePercent) {
   return "inherit";
 }
 
-function ReportsModal({ pdetails, warehouses, setWarehouses }) {
+function ReportsModal({ pdetails, warehouses, setWarehouses, onStockInSuccess }) {
   const { axiosAPI } = useAuth();
   const token = localStorage.getItem("accessToken");
 
@@ -180,11 +180,25 @@ function ReportsModal({ pdetails, warehouses, setWarehouses }) {
 
 
   // Check if stock-in action is allowed based on purchase order status
-  const canStockIn =
-    ["Received", "received", "Pending", "pending"].includes(
-      (pdetails?.status || "").trim()
-    ) &&
-    !["Stocked In", "stocked_in"].includes((pdetails?.status || "").trim());
+  const status = (pdetails?.status || "").trim();
+  const statusLower = status.toLowerCase();
+  
+  // Allow stock-in unless status explicitly says "Stocked In" or "stocked_in"
+  // Be lenient - let backend be the final authority on whether it can be stocked
+  const canStockIn = !(
+    statusLower === "stocked in" || 
+    statusLower === "stocked_in" || 
+    statusLower === "stockedin"
+  );
+  
+  // Debug logging
+  console.log("Stock-In Check:", {
+    status,
+    statusLower,
+    canStockIn,
+    purchaseOrderId: pdetails?.id,
+    fullPDetails: pdetails
+  });
 
   // Handler for "Confirm Stock In" button click (backend integration to follow)
 // 1. Fix the validation check in handleStockIn:
@@ -195,6 +209,11 @@ const handleStockIn = async () => {
   console.log("Damaged Rows:", damagedRows);
   console.log("PDetails:", pdetails);
   console.log("Token:", token ? "Present" : "Missing");
+  
+  // Remove frontend blocking - let backend handle validation
+  // Backend will return clear error if already stocked
+  console.log("Attempting stock-in for purchase order:", pdetails?.id, "Status:", pdetails?.status);
+  
   if (!deliveryChallanFile) {
     setError("Please upload the Delivery Challan image");
     setIsModalOpen(true);
@@ -255,11 +274,42 @@ const handleStockIn = async () => {
     setDeliveryChallanFile(null);
     setDeliveryChallanPreview(null);
     
+    // Refresh the purchase orders list in the parent component
+    if (onStockInSuccess) {
+      onStockInSuccess();
+    } else if (window.refreshPurchaseOrders) {
+      // Fallback to global refresh function
+      window.refreshPurchaseOrders();
+    }
+    
   } catch (err) {
     console.error("API Error:", err);
     console.error("Error Response:", err.response?.data);
-    setError(`❌ Stock IN failed: ${err.response?.data?.message || err.message || 'Please try again.'}`);
+    
+    // Extract error message from response
+    const errorMessage = err.response?.data?.message || err.message || 'Please try again.';
+    const errorMessageLower = errorMessage.toLowerCase();
+    
+    // Handle specific error cases with clear messages
+    let userFriendlyMessage;
+    if (errorMessageLower.includes('already been stocked') || 
+        errorMessageLower.includes('already stocked') ||
+        errorMessageLower.includes('stocked in')) {
+      userFriendlyMessage = `⚠️ This purchase order has already been stocked in. You cannot stock it again.\n\nPurchase Order ID: ${pdetails?.id || 'N/A'}\nStatus: ${pdetails?.status || 'Unknown'}`;
+    } else if (errorMessageLower.includes('not found')) {
+      userFriendlyMessage = `⚠️ Purchase order not found. It may have been deleted or does not exist.`;
+    } else if (err.response?.status === 400) {
+      userFriendlyMessage = `❌ ${errorMessage}`;
+    } else {
+      userFriendlyMessage = `❌ Stock IN failed: ${errorMessage}`;
+    }
+    
+    console.log("Setting error message:", userFriendlyMessage);
+    setError(userFriendlyMessage);
     setIsModalOpen(true);
+    
+    // Also show alert for immediate feedback
+    alert(userFriendlyMessage);
   } finally {
     setConfirmLoading(false);
   }

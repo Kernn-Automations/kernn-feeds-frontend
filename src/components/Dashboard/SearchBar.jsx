@@ -16,6 +16,7 @@ const options = [
   { name: "Sales - Orders", path: "/sales/orders" },
   { name: "Sales - Dispatches", path: "/sales/dispatches" },
   { name: "Sales - Deliveries", path: "/sales/deliveries" },
+  { name: "Sales - Partial Dispatch Requests", path: "/sales/partial-dispatch-requests" },
   { name: "Customers", path: "/customers" },
   { name: "Customers - List", path: "/customers/customer-list" },
   { name: "Customers - KYC Approvals", path: "/customers/kyc-approvals" },
@@ -74,7 +75,7 @@ const SearchBar = () => {
   };
 
   return (
-    <div className={`col-8 ${styles.searchbar}`}>
+    <div className={styles.searchbar}>
       <input
         type="text"
         placeholder="Search..."

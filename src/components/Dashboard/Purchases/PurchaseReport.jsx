@@ -153,12 +153,15 @@ function PurchaseReport({ navigate }) {
   }, [limit]);
 
   // Global refresh function for purchase orders
-  const refreshPurchaseOrders = async () => {
+  const refreshPurchaseOrders = React.useCallback(async () => {
     try {
       setPurchases(null);
       setLoading(true);
 
-      // Build query with optional date filters
+      // ✅ Get division ID from localStorage for division filtering
+      const currentDivisionId = localStorage.getItem("currentDivisionId");
+
+      // Build query with optional date filters and division parameters
       let query = `/purchases`;
       const params = [];
 
@@ -168,6 +171,13 @@ function PurchaseReport({ navigate }) {
 
       if (warehouse && warehouse !== "null") {
         params.push(`warehouseId=${warehouse}`);
+      }
+
+      // ✅ Add division parameters
+      if (currentDivisionId && currentDivisionId !== "1") {
+        params.push(`divisionId=${currentDivisionId}`);
+      } else if (currentDivisionId === "1") {
+        params.push(`showAllDivisions=true`);
       }
 
       if (params.length > 0) {
@@ -194,7 +204,7 @@ function PurchaseReport({ navigate }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [from, to, warehouse, pageNo, limit, axiosAPI]);
 
   // Set global function for other components to use
   React.useEffect(() => {
@@ -202,7 +212,7 @@ function PurchaseReport({ navigate }) {
     return () => {
       delete window.refreshPurchaseOrders;
     };
-  }, [from, to, warehouse, pageNo, limit]);
+  }, [refreshPurchaseOrders]);
 
   useEffect(() => {
     async function fetch() {
@@ -726,6 +736,7 @@ function PurchaseReport({ navigate }) {
                           order={order}
                           warehouses={warehouses}
                           setWarehouses={setWarehouses}
+                          onStockInSuccess={refreshPurchaseOrders}
                         />
                       </td>
                     </tr>

@@ -60,6 +60,7 @@ function DispatchForm({
  
 
   const [products, setProducts] = useState();
+  const [partialStatus, setPartialStatus] = useState(null);
 
   useEffect(() => {
     async function fetch(params) {
@@ -73,7 +74,136 @@ function DispatchForm({
     }
 
     fetch();
-  }, []);
+  }, [axiosAPI]);
+
+  useEffect(() => {
+    async function fetchPartialStatus() {
+      try {
+        const res = await axiosAPI.get(
+          `/sales-orders/${orderId}/partial-dispatch-status`
+        );
+        console.log("Partial dispatch status:", res.data);
+        setPartialStatus(res.data);
+      } catch (statusError) {
+        console.error("Failed to fetch partial dispatch status:", statusError);
+      }
+    }
+
+    fetchPartialStatus();
+  }, [axiosAPI, orderId]);
+
+  const findProductById = (productId) =>
+    order?.items?.find(
+      (item) => String(item.productId || item.id) === String(productId)
+    );
+
+  const getStatusCandidates = () => {
+    if (!partialStatus) return [];
+    const candidates = [];
+    if (Array.isArray(partialStatus)) candidates.push(partialStatus);
+    if (Array.isArray(partialStatus?.items)) candidates.push(partialStatus.items);
+    if (Array.isArray(partialStatus?.data?.items))
+      candidates.push(partialStatus.data.items);
+    if (Array.isArray(partialStatus?.data)) candidates.push(partialStatus.data);
+    return candidates;
+  };
+
+  const getStatusItem = (productId) => {
+    const candidates = getStatusCandidates();
+    for (const list of candidates) {
+      const found = list.find(
+        (item) => String(item.productId || item.id) === String(productId)
+      );
+      if (found) return found;
+    }
+    return undefined;
+  };
+
+  const normalizeNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : undefined;
+  };
+
+  const getFirstAvailableNumber = (source, fields = []) => {
+    if (!source) return undefined;
+    for (const field of fields) {
+      if (source[field] !== undefined && source[field] !== null) {
+        const num = normalizeNumber(source[field]);
+        if (num !== undefined) return num;
+      }
+    }
+    return undefined;
+  };
+
+  const getAvailableQuantity = (productId) => {
+    const statusValue = getFirstAvailableNumber(
+      getStatusItem(productId),
+      [
+        "availableQuantity",
+        "availableQty",
+        "availableStock",
+        "available",
+        "currentQuantity",
+        "currentStock",
+        "balanceQuantity",
+        "remainingQuantity",
+        "stock",
+      ]
+    );
+    if (statusValue !== undefined) return statusValue;
+
+    const product = findProductById(productId);
+    const productValue = getFirstAvailableNumber(product, [
+      "availableQuantity",
+      "availableQty",
+      "availableStock",
+      "available",
+      "remainingQuantity",
+      "balanceQuantity",
+      "quantity",
+    ]);
+    return productValue !== undefined ? productValue : Infinity;
+  };
+
+  const getNeedQuantity = (productId) => {
+    const statusValue = getFirstAvailableNumber(
+      getStatusItem(productId),
+      [
+        "needQuantity",
+        "requiredQuantity",
+        "requiredQty",
+        "remainingQuantity",
+        "quantityNeeded",
+        "pendingQuantity",
+      ]
+    );
+    if (statusValue !== undefined) return statusValue;
+
+    const product = findProductById(productId);
+    const productValue = getFirstAvailableNumber(product, [
+      "needQuantity",
+      "requiredQuantity",
+      "remainingQuantity",
+      "quantity",
+    ]);
+    return productValue !== undefined ? productValue : undefined;
+  };
+
+  const getOrderedQuantity = (productId) => {
+    const statusValue = getFirstAvailableNumber(
+      getStatusItem(productId),
+      ["orderedQuantity", "orderQuantity", "orderedQty", "orderQty", "quantity"]
+    );
+    if (statusValue !== undefined) return statusValue;
+
+    const product = findProductById(productId);
+    const productValue = getFirstAvailableNumber(product, [
+      "orderedQuantity",
+      "orderQuantity",
+      "quantity",
+    ]);
+    return productValue !== undefined ? productValue : undefined;
+  };
 
   const onSubmitBtn = async () => {
     if (!truckNumber || !driverName || !driverMobile) {
@@ -83,9 +213,11 @@ function DispatchForm({
     }
 
     // Validate partial dispatch destinations if enabled
+    let payloadDestinations = [];
+
     if (isPartialDispatch) {
       const hasEmptyDestinations = destinations.some(
-        (dest) => !dest.productId.trim() || !dest.quantity.trim()
+        (dest) => !String(dest.productId).trim() || String(dest.quantity).trim() === ""
       );
       if (hasEmptyDestinations) {
         setError(
@@ -94,17 +226,92 @@ function DispatchForm({
         setIsModalOpen(true);
         return;
       }
+
+      payloadDestinations = destinations.map((dest) => {
+        const qty = Number(dest.quantity);
+        const product = findProductById(dest.productId) || {};
+        const statusItem = getStatusItem(dest.productId);
+        const available = getAvailableQuantity(dest.productId);
+        const needQty = getNeedQuantity(dest.productId);
+        const orderedQty = getOrderedQuantity(dest.productId) ?? product.quantity;
+        return {
+          productId: dest.productId,
+          quantity: qty,
+          dispatchQuantity: qty,
+          dispatchedQuantity: qty,
+          requiredQuantity: needQty ?? qty,
+          needQuantity: needQty ?? qty,
+          availableQuantity: Number.isFinite(available) ? available : undefined,
+          availableStock: Number.isFinite(available) ? available : undefined,
+          remainingQuantity: statusItem?.remainingQuantity,
+          orderedQuantity: orderedQty,
+          orderQuantity: orderedQty,
+          itemId: statusItem?.itemId ?? product?.id,
+        };
+      });
+
+      const invalidQuantity = payloadDestinations.some(
+        (dest) => Number.isNaN(dest.quantity) || dest.quantity <= 0
+      );
+      if (invalidQuantity) {
+        setError("Please enter a valid quantity greater than 0 for partial dispatch.");
+        setIsModalOpen(true);
+        return;
+      }
+
+      const exceedsAvailable = payloadDestinations.some((dest) => {
+        const available = getAvailableQuantity(dest.productId);
+        return Number.isFinite(available) && dest.quantity > available;
+      });
+
+      if (exceedsAvailable) {
+        setError("Partial dispatch quantity cannot exceed available quantity for the selected product.");
+        setIsModalOpen(true);
+        return;
+      }
     }
 
     try {
       setActionLoading(true);
-      const eligibility = await axiosAPI.get(
-        `/sales-orders/${orderId}/dispatch/eligibility`
-      );
-      if (!eligibility.data.eligible) {
-        setError(eligibility.data.reason || "Not eligible for dispatch");
-        setIsModalOpen(true);
-        return;
+      if (!isPartialDispatch) {
+        const eligibility = await axiosAPI.get(
+          `/sales-orders/${orderId}/dispatch/eligibility`
+        );
+        if (!eligibility.data.eligible) {
+          setError(eligibility.data.reason || "Not eligible for dispatch");
+          setIsModalOpen(true);
+          return;
+        }
+      }
+
+      let dispatchItems = null;
+      if (isPartialDispatch && order?.items?.length) {
+        dispatchItems = order.items.map((item) => {
+          const productId = item.productId || item.id;
+          const match = payloadDestinations.find(
+            (dest) => String(dest.productId) === String(productId)
+          );
+          const qty = match ? match.quantity : 0;
+          const available = Number.isFinite(match?.availableQuantity)
+            ? match.availableQuantity
+            : getAvailableQuantity(productId);
+          const needQty = getNeedQuantity(productId);
+          const orderedQty = getOrderedQuantity(productId) ?? item.quantity;
+          return {
+            productId,
+            quantity: qty,
+            dispatchQuantity: qty,
+            dispatchedQuantity: qty,
+            requiredQuantity: needQty ?? qty,
+            needQuantity: needQty ?? qty,
+            availableQuantity: Number.isFinite(available) ? available : undefined,
+            availableStock: Number.isFinite(available) ? available : undefined,
+            remainingQuantity: getStatusItem(productId)?.remainingQuantity,
+            orderedQuantity: orderedQty,
+            orderQuantity: orderedQty,
+            itemId: getStatusItem(productId)?.itemId ?? item.id,
+          };
+        });
       }
 
       const dispatchData = {
@@ -114,7 +321,8 @@ function DispatchForm({
         isPartialDispatch,
         addComplementaryAttribute: isComplementryAdded,
         complementaryItems: isComplementryAdded ? complimentries : [],
-        ...(isPartialDispatch && { destinations }),
+        ...(isPartialDispatch && { destinations: payloadDestinations }),
+        ...(dispatchItems ? { items: dispatchItems, dispatchItems } : {}),
       };
 
       console.log(dispatchData);
@@ -129,7 +337,25 @@ function DispatchForm({
       });
       setShowDispatchModal(false);
     } catch (err) {
-      setError(err.response?.data?.message || "Dispatch failed");
+      console.error("Dispatch API error:", err);
+      console.error("Dispatch API response:", err?.response?.data);
+      
+      // Handle network errors (connection refused, network error, etc.)
+      let errorMessage = "Dispatch failed";
+      
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        errorMessage = "Unable to connect to the server. Please check if the backend server is running and try again.";
+      } else if (err.code === 'ERR_CONNECTION_REFUSED') {
+        errorMessage = "Connection refused. The backend server at http://localhost:8080 is not running. Please start the server and try again.";
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setIsModalOpen(true);
     } finally {
       setActionLoading(false);
@@ -285,8 +511,33 @@ function DispatchForm({
                           updateDestination(index, "quantity", e.target.value)
                         }
                         placeholder="Enter quantity"
-                        min="1"
+                        min="0.01"
+                        step="any"
+                        max={
+                          destination.productId
+                            ? (() => {
+                                const available = getAvailableQuantity(destination.productId);
+                                return Number.isFinite(available) ? available : undefined;
+                              })()
+                            : undefined
+                        }
                       />
+                      {destination.productId && (() => {
+                        const available = getAvailableQuantity(destination.productId);
+                        const needQty = getNeedQuantity(destination.productId);
+                        if (!Number.isFinite(available) && !Number.isFinite(needQty)) return null;
+                        return (
+                          <small className="text-muted">
+                            {Number.isFinite(available) && <>Available: {available}</>}
+                            {Number.isFinite(needQty) && (
+                              <>
+                                {Number.isFinite(available) ? " | " : ""}
+                                Needed: {needQty}
+                              </>
+                            )}
+                          </small>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}

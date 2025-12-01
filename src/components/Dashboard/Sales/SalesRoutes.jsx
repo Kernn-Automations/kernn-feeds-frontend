@@ -13,6 +13,9 @@ const Dispaches = lazy(() => import("./Dispaches"));
 const Deliveries = lazy(() => import("./Deliveries"));
 const CancelledOrders = lazy(() => import("./CancelledOrders")); 
 const NewSalesOrder = lazy(() => import("./NewSalesOrder"));
+const PartialDispatchRequests = lazy(() => import("./PartialDispatchRequests"));
+const CreatePartialDispatchRequest = lazy(() => import("./CreatePartialDispatchRequest"));
+const PartialDispatchRequestDetail = lazy(() => import("./PartialDispatchRequestDetail"));
 
 function SalesRoutes() {
   const navigate = useNavigate();
@@ -126,6 +129,30 @@ function SalesRoutes() {
               to={to}
               setTo={setTo}
             />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/partial-dispatch-requests"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <PartialDispatchRequests />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/partial-dispatch-requests/create"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CreatePartialDispatchRequest />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/partial-dispatch-requests/:id"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <PartialDispatchRequestDetail />
           </Suspense>
         }
       />
