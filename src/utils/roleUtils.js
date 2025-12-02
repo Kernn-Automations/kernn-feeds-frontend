@@ -27,7 +27,7 @@ export const isAdmin = (userLike) => {
   });
 };
 
-export const isStaffManager = (userLike) => {
+export const isStoreManager = (userLike) => {
   const user = userLike || getUserFromStorage();
   const roles = user?.roles || [];
   return roles.some((r) => {
@@ -38,10 +38,10 @@ export const isStaffManager = (userLike) => {
 
 export const hasBothAdminAndStaff = (userLike) => {
   const user = userLike || getUserFromStorage();
-  return isAdmin(user) && isStaffManager(user);
+  return isAdmin(user) && isStoreManager(user);
 };
 
-export const isStaffEmployee = (userLike) => {
+export const isStoreEmployee = (userLike) => {
   const user = userLike || getUserFromStorage();
   const roles = user?.roles || [];
   return roles.some((r) => {

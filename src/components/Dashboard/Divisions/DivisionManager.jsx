@@ -282,8 +282,8 @@ function DivisionManager() {
       
       console.log("Sending division data:", divisionData);
       
-      // Use the new create-division endpoint
-      const response = await axiosAPI.post("/create-division", divisionData);
+      // Use the correct divisions endpoint
+      const response = await axiosAPI.post("/divisions", divisionData);
       console.log("Create division response:", response);
       
       if (response.status === 201 || response.status === 200) {

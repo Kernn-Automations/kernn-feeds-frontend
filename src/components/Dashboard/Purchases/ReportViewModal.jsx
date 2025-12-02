@@ -11,7 +11,7 @@ import ReportsModal from "./ReportsModal";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 
-function ReportViewModal({ order, warehouses , setWarehouses }) {
+function ReportViewModal({ order, warehouses , setWarehouses, onStockInSuccess }) {
   const [pdetails, setPdetails] = useState();
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
@@ -47,7 +47,12 @@ function ReportViewModal({ order, warehouses , setWarehouses }) {
           </DialogTrigger>
           <DialogContent className="mdl">
             <DialogBody>
-              <ReportsModal pdetails={pdetails} warehouses={warehouses} setWarehouses={setWarehouses}/>
+              <ReportsModal 
+                pdetails={pdetails} 
+                warehouses={warehouses} 
+                setWarehouses={setWarehouses}
+                onStockInSuccess={onStockInSuccess}
+              />
             </DialogBody>
             <DialogCloseTrigger className="inputcolumn-mdl-close" />
           </DialogContent>

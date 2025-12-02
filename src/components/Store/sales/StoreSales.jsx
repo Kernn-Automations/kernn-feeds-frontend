@@ -1,9 +1,10 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
-import { isStaffEmployee } from "../../../utils/roleUtils";
+import { isStoreEmployee, isStoreManager, isAdmin } from "../../../utils/roleUtils";
 import storeService from "../../../services/storeService";
+import StoreSalesOrders from "./StoreSalesOrders";
 const StoreCreateSale = lazy(() => import("./StoreCreateSale"));
 
 export default function StoreSales() {
@@ -12,11 +13,24 @@ export default function StoreSales() {
   const [payload, setPayload] = useState({ storeId: "", customerId: "", items: [], payments: [], notes: "" });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const user = JSON.parse(localStorage.getItem("user")) || {};
-  const isEmployee = isStaffEmployee(user);
+  const isEmployee = isStoreEmployee(user);
+  const isManager = isStoreManager(user);
+  const isAdminUser = isAdmin(user);
+  const canUseCreateFlow = isEmployee || isManager || isAdminUser;
 
-  const onCreate = async () => {
-    if (isEmployee) {
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const handleOpenCreate = async () => {
+    if (canUseCreateFlow) {
       setSearchParams({ mode: "create" });
       return;
     }
@@ -31,7 +45,19 @@ export default function StoreSales() {
     }
   };
 
-  if (isEmployee && mode === "create") {
+  const handleOpenOrders = () => {
+    setSearchParams({ mode: "orders" });
+  };
+
+  const handleBackToOverview = () => {
+    setSearchParams({});
+  };
+
+  if (mode === "orders") {
+    return <StoreSalesOrders onBack={handleBackToOverview} />;
+  }
+
+  if (canUseCreateFlow && mode === "create") {
     return (
       <Suspense fallback={<div>Loading Create Sale...</div>}>
         <StoreCreateSale />
@@ -40,20 +66,198 @@ export default function StoreSales() {
   }
 
   return (
-    <div>
-      {/* Buttons: show only Create Sale for staff employees; show all for others */}
-      {isEmployee ? (
-        <div className="row m-0 p-2">
-          <div className="col">
-            <button className="homebtn" disabled={loading} onClick={onCreate}>Create Sale</button>
+    <div style={{ padding: isMobile ? '12px 8px' : undefined }}>
+      {/* Buttons: show only Create Sale for store employees; show all for others */}
+      {canUseCreateFlow ? (
+        <div className="row m-0 p-2" style={{ marginBottom: '24px' }}>
+          <div
+            className="col"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              ...(isMobile && {
+                flexDirection: 'row',
+                gap: '6px',
+                paddingLeft: '8px',
+                paddingRight: '8px',
+                marginLeft: '0',
+                width: '100%'
+              }),
+              ...(!isMobile && {
+                gap: '10px'
+              })
+            }}
+          >
+            <button 
+              className="homebtn" 
+              onClick={handleOpenOrders}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(33.333% - 4px)',
+                  maxWidth: 'calc(33.333% - 4px)',
+                  width: 'calc(33.333% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Sales Orders
+            </button>
+            <button 
+              className="homebtn" 
+              disabled={loading} 
+              onClick={handleOpenCreate}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(33.333% - 4px)',
+                  maxWidth: 'calc(33.333% - 4px)',
+                  width: 'calc(33.333% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Create Sale
+            </button>
           </div>
         </div>
       ) : (
-        <div className="row m-0 p-2">
-          <div className="col">
-            <button className="homebtn">Sales Orders</button>
-            <button className="homebtn">Returned Orders</button>
-            <button className="homebtn" disabled={loading} onClick={onCreate}>Create Sale</button>
+        <div className="row m-0 p-2" style={{ marginBottom: '24px' }}>
+          <div
+            className="col"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              ...(isMobile && {
+                flexDirection: 'row',
+                gap: '6px',
+                paddingLeft: '8px',
+                paddingRight: '8px',
+                marginLeft: '0',
+                width: '100%'
+              }),
+              ...(!isMobile && {
+                gap: '10px'
+              })
+            }}
+          >
+            <button 
+              className="homebtn" 
+              onClick={handleOpenOrders}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(33.333% - 4px)',
+                  maxWidth: 'calc(33.333% - 4px)',
+                  width: 'calc(33.333% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Sales Orders
+            </button>
+            <button 
+              className="homebtn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(33.333% - 4px)',
+                  maxWidth: 'calc(33.333% - 4px)',
+                  width: 'calc(33.333% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Returned Orders
+            </button>
+            <button 
+              className="homebtn" 
+              disabled={loading} 
+              onClick={handleOpenCreate}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(33.333% - 4px)',
+                  maxWidth: 'calc(33.333% - 4px)',
+                  width: 'calc(33.333% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Create Sale
+            </button>
           </div>
         </div>
       )}

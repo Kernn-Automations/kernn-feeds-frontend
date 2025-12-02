@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
@@ -7,6 +7,16 @@ import { FaBoxes, FaExclamationTriangle, FaArrowDown, FaChartLine } from "react-
 
 export default function StoreInventory() {
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const mockInventoryData = {
     lowStockItems: 7,
@@ -27,13 +37,13 @@ export default function StoreInventory() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: isMobile ? '12px 8px' : '20px' }}>
       {/* Page Header */}
       <div style={{ marginBottom: '24px' }}>
         <h2 style={{ 
           fontFamily: 'Poppins', 
           fontWeight: 700, 
-          fontSize: '28px', 
+          fontSize: isMobile ? '22px' : '28px', 
           color: 'var(--primary-color)',
           margin: 0,
           marginBottom: '8px'
@@ -42,28 +52,62 @@ export default function StoreInventory() {
 
       {/* Action Buttons */}
       <div className="row m-0 p-2" style={{ marginBottom: '24px' }}>
-        <div className="col" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div
+          className="col"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            ...(isMobile && {
+              flexDirection: 'row',
+              gap: '6px',
+              paddingLeft: '8px',
+              paddingRight: '8px',
+              marginLeft: '0',
+              width: '100%'
+            }),
+            ...(!isMobile && {
+              gap: '10px'
+            })
+          }}
+        >
+          {[
+            { label: 'Current Stock', path: '/store/current-stock' },
+            { label: 'Stock Summary', path: '/store/stock-summary' },
+            { label: 'Damaged Stock', path: '/store/damaged-stock' },
+            { label: 'Stock Transfer', path: '/store/stock-transfer' }
+          ].map(({ label, path }) => (
           <button 
             className="homebtn"
-            onClick={() => navigate('/store/current-stock')}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1' }}
+            key={label}
+            onClick={() => navigate(path)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: '1',
+              ...(isMobile ? {
+                padding: '6px 8px',
+                fontSize: '11px',
+                borderRadius: '6px',
+                flex: '0 0 calc(33.333% - 4px)',
+                maxWidth: 'calc(33.333% - 4px)',
+                width: 'calc(33.333% - 4px)',
+                minHeight: '32px',
+                boxSizing: 'border-box',
+                whiteSpace: 'normal',
+                margin: 0
+              } : {
+                padding: '12px 24px',
+                fontSize: '14px',
+                borderRadius: '8px',
+                whiteSpace: 'nowrap'
+              })
+            }}
           >
-            Current Stock
+            {label}
           </button>
-          <button 
-            className="homebtn"
-            onClick={() => navigate('/store/stock-summary')}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1' }}
-          >
-            Stock Summary
-          </button>
-          <button 
-            className="homebtn"
-            onClick={() => navigate('/store/damaged-stock')}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1' }}
-          >
-            Damaged Stock
-          </button>
+          ))}
         </div>
       </div>
 

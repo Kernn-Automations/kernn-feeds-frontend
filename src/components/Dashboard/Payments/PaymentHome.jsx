@@ -99,12 +99,12 @@ function PaymentHome({ navigate }) {
           >
             Credit Notes
           </button>
-          <button
+          {/* <button
             className="homebtn"
             onClick={() => navigate("/payments/generate-monthly")}
           >
             Generate Monthly
-          </button>
+          </button> */}
         </div>
       </div>
 

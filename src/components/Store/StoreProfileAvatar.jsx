@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import LogoutModal from "../Dashboard/LogoutModal";
 import { Link, useNavigate } from "react-router-dom";
-import { isAdmin, isStaffEmployee } from "../../utils/roleUtils";
+import { isAdmin, isStoreEmployee } from "../../utils/roleUtils";
 
 function StoreProfileAvatar({ user, setTab }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,17 +27,17 @@ function StoreProfileAvatar({ user, setTab }) {
 
   // Check if user has admin role - only admins should see divisions in staff view
   const userIsAdmin = isAdmin(actualUser);
-  const isEmployee = isStaffEmployee(actualUser);
+  const isEmployee = isStoreEmployee(actualUser);
   const showDivisionsOption = userIsAdmin;
 
   const handleProfileClick = (e) => {
     e.preventDefault();
-    // For staff employees, navigate to store home instead of admin profile
+    // For store employees, navigate to store home instead of admin profile
     if (isEmployee) {
       navigate('/store');
       setTab("home");
     } else {
-      // For staff managers/admins, navigate to admin profile
+      // For store managers/admins, navigate to admin profile
       navigate('/profile');
     }
   };
@@ -79,7 +79,7 @@ function StoreProfileAvatar({ user, setTab }) {
               </p>
             </div>
 
-            {/* Divisions option - only show for admin and staff manager roles */}
+            {/* Divisions option - only show for admin and store manager roles */}
             {showDivisionsOption && (
               <div onClick={() => navigate('/divs')}>
                 <p>

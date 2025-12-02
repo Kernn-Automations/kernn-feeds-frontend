@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Employees.module.css";
 import { useAuth } from "@/Auth";
+import { useDivision } from "@/components/context/DivisionContext";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 
 function CreateEmployee({ navigate }) {
   const { axiosAPI } = useAuth();
+  const { selectedDivision } = useDivision();
 
   const [form, setForm] = useState({
     name: "",
@@ -118,6 +120,33 @@ function CreateEmployee({ navigate }) {
       return;
     }
 
+    // Get divisionId from context - required for non-admin roles
+    let divisionId = null;
+    if (selectedDivision?.id && selectedDivision.id !== "all") {
+      divisionId = parseInt(selectedDivision.id);
+    } else {
+      // Try to get divisionId from user data as fallback
+      try {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        if (user?.divisionId) {
+          divisionId = parseInt(user.divisionId);
+        } else if (user?.division?.id) {
+          divisionId = parseInt(user.division.id);
+        }
+      } catch (e) {
+        console.error("Error parsing user data:", e);
+      }
+    }
+
+    // For non-admin roles, divisionId is required by backend
+    // If still not available, show error
+    if (!isAdminSelected && !divisionId) {
+      setError("Division is required for non-admin roles. Please select a division first.");
+      setIsModalOpen(true);
+      return;
+    }
+
     const payload = {
       ...form,
       roleIds: selectedRoles,
@@ -128,12 +157,34 @@ function CreateEmployee({ navigate }) {
         : null,
     };
 
+    // Include divisionId - required for non-admin roles, optional for admin
+    if (divisionId) {
+      payload.divisionId = divisionId;
+    } else if (!isAdminSelected) {
+      // This shouldn't happen due to validation above, but just in case
+      setError("Division is required for non-admin roles.");
+      setIsModalOpen(true);
+      return;
+    }
+
+    // Log payload for debugging
+    console.log("Create Employee Payload:", payload);
+    console.log("Selected Division:", selectedDivision);
+    console.log("Division ID:", divisionId);
+    console.log("Is Admin Selected:", isAdminSelected);
+
     try {
       setLoading(true);
       const res = await axiosAPI.post("/employees/add", payload);
       setSuccessful(res.data.message);
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to create employee.");
+      console.error("Create Employee Error:", err);
+      console.error("Error Response:", err?.response?.data);
+      const errorMessage = err?.response?.data?.message 
+        || err?.response?.data?.error 
+        || err?.message 
+        || "Failed to create employee.";
+      setError(errorMessage);
       setIsModalOpen(true);
     } finally {
       setLoading(false);

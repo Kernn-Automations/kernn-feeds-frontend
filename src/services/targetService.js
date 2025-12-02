@@ -94,7 +94,7 @@ class TargetService {
     try {
       // New dropdown endpoint
       const response = await axiosInstance.get('/targets/dropdowns/teams');
-      const data = await response.json();
+      const data = response.data || response;
       console.log('Teams dropdown API response:', data);
       
       // Accept several possible shapes robustly
@@ -114,15 +114,52 @@ class TargetService {
   }
 
   /**
+   * Get team members for selected teams
+   * @param {Array<number>} teamIds - Array of team IDs
+   * @returns {Promise} API response with teams, teamMembers, and teamMembersByTeam
+   */
+  async getTeamMembers(teamIds) {
+    try {
+      if (!teamIds || teamIds.length === 0) {
+        return { teams: [], teamMembers: [], teamMembersByTeam: {} };
+      }
+
+      // Format teamIds as query parameter (can be array or comma-separated)
+      const teamIdsParam = Array.isArray(teamIds) ? teamIds.join(',') : teamIds;
+      const response = await axiosInstance.get(`/targets/dropdowns/team-members?teamIds=[${teamIdsParam}]`);
+      const data = response.data || response;
+      
+      console.log('Team members API response:', data);
+      
+      return {
+        teams: data?.teams || [],
+        teamMembers: data?.teamMembers || [],
+        teamMembersByTeam: data?.teamMembersByTeam || {}
+      };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Get employees for dropdown
    * @param {string|number} divisionId - Division ID (optional)
+   * @param {number} teamId - Team ID (optional)
    * @returns {Promise} API response
    */
-  async getEmployees(divisionId = null) {
+  async getEmployees(divisionId = null, teamId = null) {
     try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (divisionId) params.append('divisionId', divisionId);
+      if (teamId) params.append('teamId', teamId);
+      
+      const queryString = params.toString();
+      const url = `/targets/dropdowns/employees${queryString ? `?${queryString}` : ''}`;
+      
       // New dropdown endpoint
-      const response = await axiosInstance.get('/targets/dropdowns/employees');
-      const data = await response.json();
+      const response = await axiosInstance.get(url);
+      const data = response.data || response;
       console.log('Employees dropdown API response:', data);
       
       // Accept several possible shapes robustly

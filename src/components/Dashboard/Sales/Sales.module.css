@@ -96,6 +96,28 @@
   cursor: not-allowed;
 }
 
+/* Status Filter Links - Text-only clickable links */
+.statusFilterLink {
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.statusFilterLink:hover span {
+  text-decoration: underline !important;
+}
+
+.statusFilterLink:hover {
+  opacity: 0.8;
+}
+
+.statusFilterLink.active span {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
 .longformmdl label {
   width: 145px;
   font-weight: 600;

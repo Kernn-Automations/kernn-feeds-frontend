@@ -24,13 +24,138 @@ const createTeam = async (subZoneId, payload) => {
 };
 
 const getTeam = async (teamId) => {
-  const res = await api.get(`/teams/${teamId}`);
-  return res.json ? res.json() : res;
+  // Try multiple endpoint patterns since teams are nested under sub-zones
+  const endpoints = [
+    `/teams/${teamId}`,
+    `/teams?id=${teamId}`,
+    `/teams?teamId=${teamId}`,
+  ];
+  
+  let lastError = null;
+  
+  for (const endpoint of endpoints) {
+    try {
+      const res = await api.get(endpoint);
+      
+      // Check if response is a fetch Response object
+      if (res.json) {
+        // Check if response is OK
+        if (!res.ok) {
+          // Check content-type
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            try {
+              const errorData = await res.json();
+              lastError = new Error(errorData?.message || errorData?.error || `HTTP ${res.status}`);
+            } catch (e) {
+              if (e.message && !e.message.includes('HTTP')) {
+                lastError = e;
+              } else {
+                lastError = new Error(`Failed to load team (${res.status})`);
+              }
+            }
+          } else {
+            // Response is HTML (like a 404 page), not JSON - try next endpoint
+            lastError = new Error(`Team not found. The endpoint ${endpoint} does not exist.`);
+            continue;
+          }
+          continue; // Try next endpoint
+        }
+        
+        // Check content-type before parsing
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          // Handle different response structures
+          if (data.team) return data;
+          if (data.data?.team) return data.data;
+          if (Array.isArray(data.teams) && data.teams.length > 0) {
+            // If it's a list, find the team by ID
+            const team = data.teams.find(t => t.id === parseInt(teamId) || t.teamId === parseInt(teamId));
+            if (team) return { team, data: { team } };
+          }
+          if (Array.isArray(data) && data.length > 0) {
+            const team = data.find(t => t.id === parseInt(teamId) || t.teamId === parseInt(teamId));
+            if (team) return { team, data: { team } };
+          }
+          // If it's already a team object
+          if (data.id || data.teamId) return { team: data, data: { team: data } };
+          return data;
+        } else {
+          // Response is not JSON - try next endpoint
+          lastError = new Error(`Invalid response format from ${endpoint}. Expected JSON but received ${contentType || 'unknown'}.`);
+          continue;
+        }
+      }
+      
+      // Assume it's already parsed (axios-like response)
+      if (res?.status && res.status >= 400) {
+        const msg = res?.data?.message || res?.statusText || 'Request failed';
+        lastError = new Error(msg);
+        continue;
+      }
+      
+      // Handle different response structures for axios-like responses
+      if (res.data) {
+        if (res.data.team) return res.data;
+        if (res.data.data?.team) return res.data.data;
+        if (Array.isArray(res.data.teams) && res.data.teams.length > 0) {
+          const team = res.data.teams.find(t => t.id === parseInt(teamId) || t.teamId === parseInt(teamId));
+          if (team) return { team, data: { team } };
+        }
+        if (res.data.id || res.data.teamId) return { team: res.data, data: { team: res.data } };
+      }
+      
+      return res;
+    } catch (error) {
+      lastError = error;
+      // Continue to try next endpoint
+      continue;
+    }
+  }
+  
+  // All endpoints failed
+  if (lastError && (lastError.message.includes('HTML') || lastError.message.includes('text/html'))) {
+    throw new Error(`Team not found. The team with ID ${teamId} may not exist, or the endpoint /teams/${teamId} is not available on the server.`);
+  }
+  throw lastError || new Error(`Failed to load team. Team ID: ${teamId}`);
 };
 
 const listTeams = async (subZoneId) => {
   const res = await api.get(`/sub-zones/${subZoneId}/teams`);
-  return res.json ? res.json() : res;
+  
+  // Check if response is a fetch Response object
+  if (res.json) {
+    if (!res.ok) {
+      let errorMessage = `HTTP ${res.status}`;
+      try {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          errorMessage = errorData?.message || errorData?.error || errorMessage;
+        } else {
+          errorMessage = `Failed to load teams (${res.status})`;
+        }
+      } catch (e) {
+        errorMessage = `Failed to load teams (${res.status})`;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await res.json();
+    } else {
+      throw new Error(`Invalid response format. Expected JSON but received ${contentType || 'unknown'}`);
+    }
+  }
+  
+  if (res?.status && res.status >= 400) {
+    const msg = res?.data?.message || res?.statusText || 'Request failed';
+    throw new Error(msg);
+  }
+  
+  return res;
 };
 
 const assignWarehouse = async (teamId, warehouseId) => {

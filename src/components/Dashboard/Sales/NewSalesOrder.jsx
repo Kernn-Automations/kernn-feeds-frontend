@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 //import axios from "axios";
 import ApiService from "../../../services/apiService";
 import { useAuth } from "@/Auth";
 import { useDivision } from "../../context/DivisionContext";
 import MapPicker from "./MapPicker";
 import customerStyles from "../Customers/Customer.module.css";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 
 
@@ -613,6 +614,7 @@ export default function SalesOrderWizard() {
   }
 
   // Step state
+  // Step 0: Products, Step 1: Overview, Step 2: Payment
   const [step, setStep] = useState(0);
 
   // Step 1: Customer select
@@ -635,6 +637,20 @@ export default function SalesOrderWizard() {
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [loadingProductIds, setLoadingProductIds] = useState(new Set());
 
+  // Step 2: Delivery Details and Drop-off Locations
+  const [selectedDeliveryWarehouse, setSelectedDeliveryWarehouse] = useState("local");
+  const [deliveryDropOffs, setDeliveryDropOffs] = useState([
+    {
+      order: 1,
+      receiverName: "",
+      receiverMobile: "",
+      plot: "",
+      street: "",
+      area: "",
+      city: "",
+      pincode: "",
+    }
+  ]);
 
   // Step 3: Logistics
   const [selectedWarehouseType, setSelectedWarehouseType] = useState("");
@@ -653,15 +669,25 @@ export default function SalesOrderWizard() {
   const [reviewData, setReviewData] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
 
-  // Step 5: Payment
+  // Step 2: Payment
+  const [mobileNumber, setMobileNumber] = useState("");
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   const [payments, setPayments] = useState([
     {
-      transactionDate: "",
-      paymentMode: "UPI",
+      transactionDate: getTodayDate(),
+      paymentMethod: "cash", // "cash" or "bank"
+      paymentMode: "", // "UPI", "Card", or "Bank Transfer" (only when paymentMethod is "bank")
       amount: "",
       reference: "",
-      transactionStatus: "Completed",
       remark: "",
+      utrNumber: "", // UTR number for bank payments
       proofFile: null,
       proofPreviewUrl: null,
     },
@@ -671,8 +697,8 @@ export default function SalesOrderWizard() {
 
   // Debug step changes and data preservation
   useEffect(() => {
-    console.log(`Step changed to: ${step}`);
-    console.log('Data preservation check:', {
+    console.log(`🔴 [STEP] Step changed to: ${step}`);
+    console.log('🔴 [STEP] Data preservation check:', {
       selectedCustomer,
       customerDetails: !!customerDetails,
       cartItems: Object.keys(cartItems).length,
@@ -680,9 +706,22 @@ export default function SalesOrderWizard() {
       selectedWarehouseType,
       dropOffs: dropOffs.length,
       reviewData: !!reviewData,
-      payments: payments.length
+      payments: payments.length,
+      deliveryDropOffs: deliveryDropOffs.length,
+      selectedDeliveryWarehouse
     });
-  }, [step, selectedCustomer, customerDetails, cartItems, cartId, selectedWarehouseType, dropOffs, reviewData, payments]);
+  }, [step, selectedCustomer, customerDetails, cartItems, cartId, selectedWarehouseType, dropOffs, reviewData, payments, deliveryDropOffs, selectedDeliveryWarehouse]);
+  
+  // Debug deliveryDropOffs changes
+  useEffect(() => {
+    console.log('🟠 [STATE] deliveryDropOffs state changed:', JSON.parse(JSON.stringify(deliveryDropOffs)));
+    console.log('🟠 [STATE] deliveryDropOffs length:', deliveryDropOffs.length);
+  }, [deliveryDropOffs]);
+  
+  // Debug selectedDeliveryWarehouse changes
+  useEffect(() => {
+    console.log('🟠 [STATE] selectedDeliveryWarehouse changed:', selectedDeliveryWarehouse);
+  }, [selectedDeliveryWarehouse]);
 
   // === Step 1: Customer Load & Select ===
   useEffect(() => {
@@ -856,14 +895,37 @@ export default function SalesOrderWizard() {
       res.data.cart.items.forEach((it) => {
         console.log('Individual cart item:', it);
         const pid = Number(it.productId);
+        const priceBreakup = priceBreakupByProduct[pid]?.[0];
+        
+        // Extract base amount - check multiple sources (priceBreakup.amount is base, totalCost might include tax)
+        const baseAmount = it.baseAmount || it.basePrice || priceBreakup?.amount || (it.price * it.quantity) || 0;
+        
+        // Extract total amount - check multiple sources
+        const totalAmount = it.totalAmount || it.total || priceBreakup?.totalAmount || (priceBreakup?.totalCost && priceBreakup?.taxAmount ? priceBreakup.totalCost + priceBreakup.taxAmount : null) || (it.price * it.quantity) || 0;
+        
+        // Extract tax amount - try multiple sources and calculate if needed
+        let taxAmount = 0;
+        if (it.taxAmount !== undefined && it.taxAmount !== null) {
+          taxAmount = it.taxAmount;
+        } else if (it.tax !== undefined && it.tax !== null) {
+          taxAmount = it.tax;
+        } else if (priceBreakup?.taxAmount !== undefined && priceBreakup?.taxAmount !== null) {
+          taxAmount = priceBreakup.taxAmount;
+        } else if (priceBreakup?.tax !== undefined && priceBreakup?.tax !== null) {
+          taxAmount = priceBreakup.tax;
+        } else if (totalAmount > 0 && baseAmount > 0 && totalAmount > baseAmount) {
+          // Calculate tax as difference between total and base (only if total > base)
+          taxAmount = totalAmount - baseAmount;
+        }
+        
         itemsMap[pid] = {
           ...it,
           productId: pid,
           totalPrice: it.price * it.quantity,
           // Include tax information if available in cart response
-          cartTaxAmount: it.taxAmount || it.tax || (priceBreakupByProduct[pid]?.[0]?.taxAmount) || 0,
-          cartBaseAmount: it.baseAmount || it.price * it.quantity,
-          cartTotalAmount: it.totalAmount || it.total || (priceBreakupByProduct[pid]?.[0]?.totalAmount) || (it.price * it.quantity),
+          cartTaxAmount: taxAmount,
+          cartBaseAmount: baseAmount,
+          cartTotalAmount: totalAmount,
           // Attach priceBreakup from header response for UI
           priceBreakup: priceBreakupByProduct[pid] || undefined,
         };
@@ -946,14 +1008,37 @@ export default function SalesOrderWizard() {
       }
       res.data.cart.items.forEach((it) => {
         const pid = Number(it.productId);
+        const priceBreakup = priceBreakupByProduct[pid]?.[0];
+        
+        // Extract base amount - check multiple sources (priceBreakup.amount is base, totalCost might include tax)
+        const baseAmount = it.baseAmount || it.basePrice || priceBreakup?.amount || (it.price * it.quantity) || 0;
+        
+        // Extract total amount - check multiple sources
+        const totalAmount = it.totalAmount || it.total || priceBreakup?.totalAmount || (priceBreakup?.totalCost && priceBreakup?.taxAmount ? priceBreakup.totalCost + priceBreakup.taxAmount : null) || (it.price * it.quantity) || 0;
+        
+        // Extract tax amount - try multiple sources and calculate if needed
+        let taxAmount = 0;
+        if (it.taxAmount !== undefined && it.taxAmount !== null) {
+          taxAmount = it.taxAmount;
+        } else if (it.tax !== undefined && it.tax !== null) {
+          taxAmount = it.tax;
+        } else if (priceBreakup?.taxAmount !== undefined && priceBreakup?.taxAmount !== null) {
+          taxAmount = priceBreakup.taxAmount;
+        } else if (priceBreakup?.tax !== undefined && priceBreakup?.tax !== null) {
+          taxAmount = priceBreakup.tax;
+        } else if (totalAmount > 0 && baseAmount > 0 && totalAmount > baseAmount) {
+          // Calculate tax as difference between total and base (only if total > base)
+          taxAmount = totalAmount - baseAmount;
+        }
+        
         itemsMap[pid] = {
           ...it,
           productId: pid,
           totalPrice: it.price * it.quantity,
           // Include tax information if available in cart response
-          cartTaxAmount: it.taxAmount || it.tax || (priceBreakupByProduct[pid]?.[0]?.taxAmount) || 0,
-          cartBaseAmount: it.baseAmount || it.price * it.quantity,
-          cartTotalAmount: it.totalAmount || it.total || (priceBreakupByProduct[pid]?.[0]?.totalAmount) || (it.price * it.quantity),
+          cartTaxAmount: taxAmount,
+          cartBaseAmount: baseAmount,
+          cartTotalAmount: totalAmount,
           priceBreakup: priceBreakupByProduct[pid] || undefined,
         };
       });
@@ -999,13 +1084,36 @@ export default function SalesOrderWizard() {
         }
         res.data.cart.items.forEach((it) => {
           const pid = Number(it.productId);
+          const priceBreakup = priceBreakupByProduct[pid]?.[0];
+          
+          // Extract base amount
+          const baseAmount = it.baseAmount || it.basePrice || (it.price * it.quantity) || 0;
+          
+          // Extract total amount
+          const totalAmount = it.totalAmount || it.total || priceBreakup?.totalAmount || priceBreakup?.totalCost || (it.price * it.quantity) || 0;
+          
+          // Extract tax amount - try multiple sources and calculate if needed
+          let taxAmount = 0;
+          if (it.taxAmount !== undefined && it.taxAmount !== null) {
+            taxAmount = it.taxAmount;
+          } else if (it.tax !== undefined && it.tax !== null) {
+            taxAmount = it.tax;
+          } else if (priceBreakup?.taxAmount !== undefined && priceBreakup?.taxAmount !== null) {
+            taxAmount = priceBreakup.taxAmount;
+          } else if (priceBreakup?.tax !== undefined && priceBreakup?.tax !== null) {
+            taxAmount = priceBreakup.tax;
+          } else if (totalAmount > 0 && baseAmount > 0) {
+            // Calculate tax as difference between total and base
+            taxAmount = totalAmount - baseAmount;
+          }
+          
           itemsMap[pid] = {
             ...it,
             productId: pid,
             totalPrice: it.price * it.quantity,
-            cartTaxAmount: it.taxAmount || it.tax || (priceBreakupByProduct[pid]?.[0]?.taxAmount) || 0,
-            cartBaseAmount: it.baseAmount || it.price * it.quantity,
-            cartTotalAmount: it.totalAmount || it.total || (priceBreakupByProduct[pid]?.[0]?.totalAmount) || (it.price * it.quantity),
+            cartTaxAmount: taxAmount,
+            cartBaseAmount: baseAmount,
+            cartTotalAmount: totalAmount,
             priceBreakup: priceBreakupByProduct[pid] || undefined,
           };
         });
@@ -1025,7 +1133,7 @@ export default function SalesOrderWizard() {
     }
   }
 
-  // Confirm step 2 to go to step 3 (logistics)
+  // Confirm step 0 (Products) to go to step 1 (Overview)
   function confirmProductsStep() {
     if (Object.keys(cartItems).length === 0) {
       showToast({
@@ -1036,8 +1144,9 @@ export default function SalesOrderWizard() {
       return;
     }
     
-    setDropCount(1);
-    setDropOffs([
+    // Initialize delivery details
+    setSelectedDeliveryWarehouse("local");
+    setDeliveryDropOffs([
       {
         order: 1,
         receiverName: "",
@@ -1047,6 +1156,71 @@ export default function SalesOrderWizard() {
         area: "",
         city: "",
         pincode: "",
+      }
+    ]);
+    
+    setStep(1);
+  }
+
+  // Handle delivery drop-off field changes
+  const handleDeliveryDropOffChange = useCallback((index, field, value) => {
+    console.log('🔵 [DELIVERY] handleDeliveryDropOffChange called:', { index, field, value, timestamp: new Date().toISOString() });
+    
+    setDeliveryDropOffs((prev) => {
+      console.log('🔵 [DELIVERY] setDeliveryDropOffs callback - prev state:', JSON.parse(JSON.stringify(prev)));
+      const updated = [...prev];
+      if (updated[index]) {
+        const oldValue = updated[index][field];
+        updated[index] = { ...updated[index], [field]: value };
+        console.log('🔵 [DELIVERY] Updated existing drop-off:', { index, field, oldValue, newValue: value });
+      } else {
+        // If index doesn't exist, create it
+        updated[index] = {
+          order: index + 1,
+          receiverName: "",
+          receiverMobile: "",
+          plot: "",
+          street: "",
+          area: "",
+          city: "",
+          pincode: "",
+          [field]: value
+        };
+        console.log('🔵 [DELIVERY] Created new drop-off:', { index, field, value });
+      }
+      console.log('🔵 [DELIVERY] Returning updated state:', JSON.parse(JSON.stringify(updated)));
+      return updated;
+    });
+  }, []); // Empty deps - callback should be stable
+
+  // Confirm step 2 (Delivery Details) to go to step 3 (Logistics)
+  function confirmDeliveryDetailsStep() {
+    // Validate required fields
+    if (!selectedDeliveryWarehouse) {
+      showToast({
+        title: "Please select a warehouse",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+
+    const dropOff = deliveryDropOffs[0];
+    if (!dropOff.receiverName || !dropOff.receiverMobile || !dropOff.pincode) {
+      showToast({
+        title: "Please fill in all required drop-off fields",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Pass delivery details to logistics step
+    setSelectedWarehouseType(selectedDeliveryWarehouse);
+    setDropCount(1);
+    setDropOffs([
+      {
+        ...dropOff,
         items: Object.entries(cartItems).map(([pid, item]) => ({
           productId: pid,
           productName: item.name,
@@ -1061,7 +1235,7 @@ export default function SalesOrderWizard() {
     setIsDropValid([false]);
     setDropValidationErrors([null]);
     setDistanceSummary(null);
-    setStep(2);
+    setStep(3);
   }
 
   // === Step 3: Logistics Step ===
@@ -1075,14 +1249,15 @@ export default function SalesOrderWizard() {
   }
 
   // Handle drop-off field changes - exactly like CreateCustomer handleChange
-  function handleDropOffChange(index, field, value) {
-    setDropOffs((old) => {
-      const updated = old.map((d, i) => 
-        i === index ? { ...d, [field]: value } : d
-      );
+  const handleDropOffChange = useCallback((index, field, value) => {
+    setDropOffs((prev) => {
+      const updated = [...prev];
+      if (updated[index]) {
+        updated[index] = { ...updated[index], [field]: value };
+      }
       return updated;
     });
-  }
+  }, []);
 
   function updateDropItemQuantity(dropIndex, productId, quantity) {
     setDropOffs((old) => {
@@ -1216,7 +1391,7 @@ export default function SalesOrderWizard() {
       });
       return;
     }
-    setStep(3);
+    setStep(4);
     fetchReviewData();
   }
 
@@ -1263,7 +1438,7 @@ export default function SalesOrderWizard() {
         })),
         selectedWarehouseType,
         dropOffs,
-        paymentMethod: payments.length > 0 ? payments[0].paymentMode : "UPI",
+        paymentMethod: payments.length > 0 ? (payments[0].paymentMethod === "bank" ? payments[0].paymentMode : payments[0].paymentMethod) : "cash",
       };
       
       console.log("Finalize order payload:", payload);
@@ -1287,7 +1462,7 @@ export default function SalesOrderWizard() {
           status: "success",
           duration: 3000,
         });
-        setStep(4);
+        setStep(2);
       } else {
         showToast({
           title: "Failed to finalize order",
@@ -1323,12 +1498,13 @@ export default function SalesOrderWizard() {
     setPayments((old) => [
       ...old,
       {
-        transactionDate: "",
-        paymentMode: "UPI",
+        transactionDate: getTodayDate(),
+        paymentMethod: "cash",
+        paymentMode: "",
         amount: "",
         reference: "",
-        transactionStatus: "Completed",
         remark: "",
+        utrNumber: "",
         proofFile: null,
         proofPreviewUrl: null,
       },
@@ -1366,18 +1542,6 @@ export default function SalesOrderWizard() {
         showToast({ title: `Select date for payment #${i + 1}`, status: "error", duration: 3000 });
         return false;
       }
-      if (!p.reference.trim()) {
-        showToast({ title: `Enter reference for payment #${i + 1}`, status: "error", duration: 3000 });
-        return false;
-      }
-      if (!p.proofFile) {
-        showToast({ title: `Upload proof for payment #${i + 1}`, status: "error", duration: 3000 });
-        return false;
-      }
-      if ((p.transactionStatus === "Processing" || p.transactionStatus === "Failed") && !p.remark.trim()) {
-        showToast({ title: `Add remark for payment #${i + 1}`, status: "error", duration: 3000 });
-        return false;
-      }
     }
     return true;
   }
@@ -1388,16 +1552,20 @@ export default function SalesOrderWizard() {
 
     const payload = new FormData();
     const paymentsPayload = payments.map((p) => ({
-      transactionDate: p.transactionDate,
-      paymentMode: p.paymentMode,
+      transactionDate: p.transactionDate || getTodayDate(),
+      paymentMethod: p.paymentMethod || "cash",
+      paymentMode: p.paymentMethod === "bank" ? (p.paymentMode || "UPI") : p.paymentMethod,
       amount: parseFloat(p.amount),
       reference: p.reference.trim(),
-      transactionStatus: p.transactionStatus,
       remark: p.remark.trim(),
+      utrNumber: p.utrNumber || "",
     }));
     payload.append("payments", JSON.stringify(paymentsPayload));
     payload.append("orderId", reviewData?.orderId || "");
     payload.append("paymentId", reviewData?.paymentId || "");
+    if (mobileNumber) {
+      payload.append("mobileNumber", mobileNumber);
+    }
 
     payments.forEach((p, idx) => {
       if (p.proofFile) {
@@ -1465,11 +1633,9 @@ export default function SalesOrderWizard() {
 
   const StepIndicator = () => {
     const steps = [
-      { number: 1, title: 'Customer', description: 'Select customer' },
-      { number: 2, title: 'Products', description: 'Add products to cart' },
-      { number: 3, title: 'Logistics', description: 'Configure delivery' },
-      { number: 4, title: 'Review', description: 'Review order details' },
-      { number: 5, title: 'Payment', description: 'Payment information' }
+      { title: 'Products', description: 'Add products to cart' },
+      { title: 'Overview', description: 'Review order details' },
+      { title: 'Payment', description: 'Payment information' }
     ];
 
     return (
@@ -1524,7 +1690,7 @@ export default function SalesOrderWizard() {
               title={index < step ? `Click to go back to ${stepItem.title}` : ''}
             >
               <div style={styles.stepNumber}>
-                {index < step ? '✓' : stepItem.number}
+                {index < step ? '✓' : index + 1}
               </div>
               <div>
                 <div style={{ fontWeight: '600', fontSize: '12px' }}>{stepItem.title}</div>
@@ -1748,6 +1914,7 @@ export default function SalesOrderWizard() {
     );
   };
 
+
   // Step 1: Customer Selection
   function renderCustomerStep() {
     if (customerLoading) return <Loader />;
@@ -1755,27 +1922,48 @@ export default function SalesOrderWizard() {
     return (
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Select Customer</h2>
-        <p style={styles.sectionSubtitle}>Choose a customer to create a new sales order</p>
         
-        <Card>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: 'var(--primary-color)', fontSize: '14px' }}>
-              Customer
-            </label>
-            <Select
-              value={selectedCustomer || ""}
-              onChange={(e) => setSelectedCustomer(e.target.value)}
-              style={{ marginBottom: '16px' }}
-            >
-              <option value="">Choose a customer...</option>
-              {(Array.isArray(customers) ? customers : []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+        <div style={{ marginBottom: '20px' }}>
+          <div className="row m-0 p-3">
+            <div className="customer-filter-wrapper" style={{ width: '100%', maxWidth: '600px' }}>
+              <CustomSearchDropdown
+                label="Customers"
+                onSelect={(customerId) => {
+                  setSelectedCustomer(customerId);
+                }}
+                options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+                showSelectAll={false}
+              />
+            </div>
           </div>
-        </Card>
+          <style>{`
+            .customer-filter-wrapper .formcontent {
+              max-width: 600px !important;
+              width: 100% !important;
+              display: flex !important;
+              align-items: center !important;
+              gap: 15px !important;
+            }
+            .customer-filter-wrapper .formcontent label {
+              width: auto !important;
+              min-width: 120px !important;
+              margin-bottom: 0 !important;
+              flex-shrink: 0 !important;
+            }
+            .customer-filter-wrapper .formcontent input {
+              width: 100% !important;
+              max-width: 500px !important;
+              min-width: 400px !important;
+              flex: 1 !important;
+            }
+            .customer-filter-wrapper .formcontent ul {
+              width: 500px !important;
+              max-width: 500px !important;
+              left: 135px !important;
+              top: 40px !important;
+            }
+          `}</style>
+        </div>
 
         {customerDetails && (
           <Card>
@@ -1825,7 +2013,7 @@ export default function SalesOrderWizard() {
     );
   }
 
-  // Step 2: Products + Cart
+  // Step 0: Products + Cart (with customer selection)
   function renderProductStep() {
     const cartItemsCount = Object.keys(cartItems).length;
     const totalCartValue = Object.values(cartItems).reduce((sum, item) => sum + (item.totalPrice || 0), 0);
@@ -1833,7 +2021,67 @@ export default function SalesOrderWizard() {
     return (
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Add Products</h2>
-        <p style={styles.sectionSubtitle}>Select products and quantities for this order</p>
+        <p style={styles.sectionSubtitle}>Select customer and products for this order</p>
+        
+        {/* Customer Selection */}
+        {!selectedCustomer && (
+          <Card style={{ marginBottom: '20px', backgroundColor: '#f8f9fa' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontWeight: '600', fontSize: '16px', color: '#555' }}>
+              Select Customer
+            </h3>
+            <div className="row m-0 p-3">
+              <div className="customer-filter-wrapper" style={{ width: '100%', maxWidth: '600px' }}>
+                <CustomSearchDropdown
+                  label="Customers"
+                  onSelect={(customerId) => {
+                    setSelectedCustomer(customerId);
+                  }}
+                  options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+                  showSelectAll={false}
+                />
+              </div>
+            </div>
+            <style>{`
+              .customer-filter-wrapper .formcontent {
+                max-width: 600px !important;
+                width: 100% !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 15px !important;
+              }
+              .customer-filter-wrapper .formcontent label {
+                width: auto !important;
+                min-width: 120px !important;
+                margin-bottom: 0 !important;
+                flex-shrink: 0 !important;
+              }
+              .customer-filter-wrapper .formcontent input {
+                width: 100% !important;
+                max-width: 500px !important;
+                min-width: 400px !important;
+                flex: 1 !important;
+              }
+              .customer-filter-wrapper .formcontent ul {
+                width: 500px !important;
+                max-width: 500px !important;
+                left: 135px !important;
+                top: 40px !important;
+              }
+            `}</style>
+            {customerDetails && (
+              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'white', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span style={{ fontWeight: '600', color: 'var(--primary-color)', fontSize: '14px' }}>Name:</span>
+                  <span style={{ color: '#555', fontSize: '14px' }}>{customerDetails.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span style={{ fontWeight: '600', color: 'var(--primary-color)', fontSize: '14px' }}>Phone:</span>
+                  <span style={{ color: '#555', fontSize: '14px' }}>{customerDetails.mobile}</span>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
         
         {/* Cart Summary */}
         {cartItemsCount > 0 && (
@@ -2088,21 +2336,214 @@ export default function SalesOrderWizard() {
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
               <Button
-                variant="secondary"
-                onClick={() => setStep(0)}
-              >
-                ← Back to Customer
-              </Button>
-              <Button
                 variant="primary"
                 onClick={confirmProductsStep}
-                disabled={cartItemsCount === 0}
+                disabled={cartItemsCount === 0 || !selectedCustomer}
               >
-                Continue to Logistics →
+                Continue to Overview →
               </Button>
             </div>
           </>
         )}
+      </div>
+    );
+  }
+
+  // Step 2: Delivery Details and Drop-off Locations
+  function renderDeliveryDetailsStep() {
+    console.log('🟢 [DELIVERY] renderDeliveryDetailsStep called - timestamp:', new Date().toISOString());
+    console.log('🟢 [DELIVERY] Current deliveryDropOffs state:', JSON.parse(JSON.stringify(deliveryDropOffs)));
+    console.log('🟢 [DELIVERY] Current selectedDeliveryWarehouse:', selectedDeliveryWarehouse);
+    console.log('🟢 [DELIVERY] Current step:', step);
+    
+    // Get drop-off directly from state
+    const dropOff = deliveryDropOffs[0] || {
+      order: 1,
+      receiverName: "",
+      receiverMobile: "",
+      plot: "",
+      street: "",
+      area: "",
+      city: "",
+      pincode: "",
+    };
+    
+    console.log('🟢 [DELIVERY] dropOff object being used:', JSON.parse(JSON.stringify(dropOff)));
+    console.log('🟢 [DELIVERY] dropOff reference check:', dropOff === deliveryDropOffs[0] ? 'SAME' : 'DIFFERENT');
+
+    return (
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>Delivery Details and Drop-off Locations</h2>
+        <p style={{ color: '#666', marginBottom: '20px' }}>
+          Configure delivery details and drop-off locations for this order.
+        </p>
+        
+        {/* Select Warehouse */}
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ margin: '0 0 10px 0', fontWeight: '600', color: '#555', fontSize: '14px' }}>Select Warehouse</h3>
+          <div style={styles.radioGroup}>
+            <label 
+              style={{
+                ...styles.radioItem,
+                ...(selectedDeliveryWarehouse === "local" ? styles.radioItemSelected : {})
+              }}
+            >
+              <input
+                type="radio"
+                name="deliveryWarehouseType"
+                style={styles.radio}
+                value="local"
+                checked={selectedDeliveryWarehouse === "local"}
+                onChange={e => setSelectedDeliveryWarehouse(e.target.value)}
+              />
+              <span style={{ fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '12px' }}>
+                local
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Number of Drop-offs */}
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ margin: '0 0 8px 0', fontWeight: '600', color: '#555', fontSize: '14px' }}>
+            Number of Drop-offs
+          </h3>
+          <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>
+            Maximum allowed: 1
+          </p>
+          <div style={{ 
+            padding: '10px 15px', 
+            backgroundColor: '#f8f9fa', 
+            borderRadius: '4px',
+            border: '1px solid #dee2e6',
+            display: 'inline-block'
+          }}>
+            <span style={{ fontWeight: '500', color: '#2d3748' }}>1 Drop-off</span>
+          </div>
+        </div>
+
+        {/* Drop-off Form Card */}
+        <Card style={{ marginBottom: '20px' }}>
+          <div style={{ fontWeight: '600', marginBottom: '15px', fontSize: '16px', color: '#2d3748' }}>
+            Drop-off #1
+          </div>
+          
+          <div className="row m-0 p-3">
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>Receiver Name :</label>
+              <input
+                key="delivery-receiverName"
+                type="text"
+                value={dropOff.receiverName || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] Receiver Name onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "receiverName", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] Receiver Name onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] Receiver Name onBlur at', new Date().toISOString())}
+              />
+            </div>
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>Receiver Mobile :</label>
+              <input
+                key="delivery-receiverMobile"
+                type="text"
+                value={dropOff.receiverMobile || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] Receiver Mobile onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "receiverMobile", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] Receiver Mobile onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] Receiver Mobile onBlur at', new Date().toISOString())}
+              />
+            </div>
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>Plot :</label>
+              <input
+                key="delivery-plot"
+                type="text"
+                value={dropOff.plot || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] Plot onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "plot", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] Plot onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] Plot onBlur at', new Date().toISOString())}
+              />
+            </div>
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>Street :</label>
+              <input
+                key="delivery-street"
+                type="text"
+                value={dropOff.street || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] Street onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "street", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] Street onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] Street onBlur at', new Date().toISOString())}
+              />
+            </div>
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>Area :</label>
+              <input
+                key="delivery-area"
+                type="text"
+                value={dropOff.area || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] Area onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "area", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] Area onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] Area onBlur at', new Date().toISOString())}
+              />
+            </div>
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>City :</label>
+              <input
+                key="delivery-city"
+                type="text"
+                value={dropOff.city || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] City onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "city", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] City onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] City onBlur at', new Date().toISOString())}
+              />
+            </div>
+            <div className={`col-3 ${customerStyles.longform}`}>
+              <label>Pincode :</label>
+              <input
+                key="delivery-pincode"
+                type="text"
+                value={dropOff.pincode || ''}
+                onChange={(e) => {
+                  console.log('🟡 [INPUT] Pincode onChange triggered:', e.target.value, 'at', new Date().toISOString());
+                  handleDeliveryDropOffChange(0, "pincode", e.target.value);
+                }}
+                onFocus={(e) => console.log('🟡 [INPUT] Pincode onFocus at', new Date().toISOString())}
+                onBlur={(e) => console.log('🟡 [INPUT] Pincode onBlur at', new Date().toISOString())}
+              />
+            </div>
+          </div>
+        </Card>
+
+        <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
+          <Button
+            variant="secondary"
+            onClick={() => setStep(1)}
+          >
+            ← Back to Products
+          </Button>
+          <Button
+            variant="primary"
+            onClick={confirmDeliveryDetailsStep}
+          >
+            Continue to Logistics →
+          </Button>
+        </div>
       </div>
     );
   }
@@ -2120,87 +2561,66 @@ export default function SalesOrderWizard() {
         }
         style={{ marginBottom: '16px', width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}
       >
-        <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+        <div style={{ fontWeight: '600', marginBottom: '15px', fontSize: '16px', color: '#2d3748' }}>
           Drop-off #{index + 1}
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(180px, 1fr))', gap: '12px', padding: '12px' }}>
-          <div style={{ minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Receiver Name :</label>
-              <input
-                type="text"
-                defaultValue={drop.receiverName}
-                onBlur={(e) => handleDropOffChange(index, "receiverName", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+        <div className="row m-0 p-3">
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>Receiver Name :</label>
+            <input
+              type="text"
+              value={drop.receiverName || ''}
+              onChange={(e) => handleDropOffChange(index, "receiverName", e.target.value)}
+            />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Receiver Mobile :</label>
-              <input
-                type="text"
-                defaultValue={drop.receiverMobile}
-                onBlur={(e) => handleDropOffChange(index, "receiverMobile", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>Receiver Mobile :</label>
+            <input
+              type="text"
+              value={drop.receiverMobile || ''}
+              onChange={(e) => handleDropOffChange(index, "receiverMobile", e.target.value)}
+            />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Plot :</label>
-              <input
-                type="text"
-                defaultValue={drop.plot}
-                onBlur={(e) => handleDropOffChange(index, "plot", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>Plot :</label>
+            <input
+              type="text"
+              value={drop.plot || ''}
+              onChange={(e) => handleDropOffChange(index, "plot", e.target.value)}
+            />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Street :</label>
-              <input
-                type="text"
-                defaultValue={drop.street}
-                onBlur={(e) => handleDropOffChange(index, "street", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>Street :</label>
+            <input
+              type="text"
+              value={drop.street || ''}
+              onChange={(e) => handleDropOffChange(index, "street", e.target.value)}
+            />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%' }}>Area :</label>
-              <input
-                type="text"
-                defaultValue={drop.area}
-                onBlur={(e) => handleDropOffChange(index, "area", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>Area :</label>
+            <input
+              type="text"
+              value={drop.area || ''}
+              onChange={(e) => handleDropOffChange(index, "area", e.target.value)}
+            />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%', display: 'block' }}>City :</label>
-              <input
-                type="text"
-                defaultValue={drop.city}
-                onBlur={(e) => handleDropOffChange(index, "city", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>City :</label>
+            <input
+              type="text"
+              value={drop.city || ''}
+              onChange={(e) => handleDropOffChange(index, "city", e.target.value)}
+            />
           </div>
-          <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
-            <div className={customerStyles.longform} style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', textAlign: 'left', width: '70%', display: 'block' }}>Pincode :</label>
-              <input
-                type="text"
-                defaultValue={drop.pincode}
-                onBlur={(e) => handleDropOffChange(index, "pincode", e.target.value)}
-                style={{ width: '70%', height: '32px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d9e0', boxShadow: 'none', fontWeight: '500', fontSize: '13px' }}
-              />
-            </div>
+          <div className={`col-3 ${customerStyles.longform}`}>
+            <label>Pincode :</label>
+            <input
+              type="text"
+              value={drop.pincode || ''}
+              onChange={(e) => handleDropOffChange(index, "pincode", e.target.value)}
+            />
           </div>
         </div>
         <div style={{ marginTop: '15px' }}>
@@ -2387,9 +2807,156 @@ export default function SalesOrderWizard() {
         {dropOffs.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(320px, 1fr))', gap: '15px', alignItems: 'stretch' }}>
             {dropOffs.map((drop, idx) => (
-              <div key={`dropoff-${idx}`} style={{ width: '100%' }}>
-                {renderDropOffCard(idx, drop)}
-              </div>
+                <Card
+                  key={`dropoff-${idx}`}
+                  variant={
+                    isDropValid[idx]
+                      ? "valid"
+                      : dropValidationErrors[idx]
+                      ? "invalid"
+                      : undefined
+                  }
+                  style={{ marginBottom: '16px', width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}
+                >
+                  <div style={{ fontWeight: '600', marginBottom: '15px', fontSize: '16px', color: '#2d3748' }}>
+                    Drop-off #{idx + 1}
+                  </div>
+                  
+                  <div className="row m-0 p-3">
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>Receiver Name :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.receiverName || ''}
+                        onChange={(e) => handleDropOffChange(idx, "receiverName", e.target.value)}
+                      />
+                    </div>
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>Receiver Mobile :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.receiverMobile || ''}
+                        onChange={(e) => handleDropOffChange(idx, "receiverMobile", e.target.value)}
+                      />
+                    </div>
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>Plot :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.plot || ''}
+                        onChange={(e) => handleDropOffChange(idx, "plot", e.target.value)}
+                      />
+                    </div>
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>Street :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.street || ''}
+                        onChange={(e) => handleDropOffChange(idx, "street", e.target.value)}
+                      />
+                    </div>
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>Area :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.area || ''}
+                        onChange={(e) => handleDropOffChange(idx, "area", e.target.value)}
+                      />
+                    </div>
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>City :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.city || ''}
+                        onChange={(e) => handleDropOffChange(idx, "city", e.target.value)}
+                      />
+                    </div>
+                    <div className={`col-3 ${customerStyles.longform}`}>
+                      <label>Pincode :</label>
+                      <input
+                        type="text"
+                        value={dropOffs[idx]?.pincode || ''}
+                        onChange={(e) => handleDropOffChange(idx, "pincode", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '15px' }}>
+                    <MapPicker
+                      lat={dropOffs[idx]?.latitude}
+                      lng={dropOffs[idx]?.longitude}
+                      onChange={({ lat, lng }) => updateDropOff(idx, { latitude: lat, longitude: lng })}
+                    />
+                  </div>
+                  <hr style={styles.divider} />
+                  <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+                    Product Assignment
+                  </div>
+                  {(dropOffs[idx]?.items || []).map(item => (
+                    <div style={styles.flexRow} key={item.productId}>
+                      <div style={{ flex: 1 }}>
+                        {item.productName} ({item.quantity} {item.unit})
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={cartItems[item.productId]?.quantity}
+                        value={item.quantity}
+                        style={{ width: '100px' }}
+                        onChange={e => {
+                          let val = Number(e.target.value);
+                          if (val > cartItems[item.productId]?.quantity) val = cartItems[item.productId]?.quantity;
+                          if (val < 0) val = 0;
+                          updateDropItemQuantity(idx, item.productId, val);
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                    <Button
+                      variant="primary"
+                      disabled={logisticsLoading}
+                      onClick={() => validateDropOff(idx)}
+                    >
+                      Validate Dropoff
+                    </Button>
+                    {dropValidationErrors[idx] && dropValidationErrors[idx].includes("permission") && (
+                      <Button
+                        variant="secondary"
+                        disabled={logisticsLoading}
+                        onClick={() => {
+                          setIsDropValid((old) => {
+                            const newArr = [...old];
+                            newArr[idx] = true;
+                            return newArr;
+                          });
+                          setDropValidationErrors((old) => {
+                            const newArr = [...old];
+                            newArr[idx] = null;
+                            return newArr;
+                          });
+                          showToast({
+                            title: "Drop-off marked as valid (validation bypassed)",
+                            status: "warning",
+                            duration: 3000,
+                          });
+                        }}
+                        style={{ fontSize: '12px' }}
+                      >
+                        Skip Validation
+                      </Button>
+                    )}
+                  </div>
+                  {dropValidationErrors[idx] && (
+                    <div style={styles.errorText}>
+                      {dropValidationErrors[idx]}
+                      {dropValidationErrors[idx].includes("permission") && (
+                        <div style={{ fontSize: '12px', marginTop: '4px', color: '#ffc107' }}>
+                          You can use "Skip Validation" to proceed without validation.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
             ))}
           </div>
         ) : (
@@ -2405,9 +2972,9 @@ export default function SalesOrderWizard() {
         <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
           <Button
             variant="secondary"
-            onClick={() => setStep(1)}
+            onClick={() => setStep(2)}
           >
-            ← Back to Products
+            ← Back to Delivery Details
           </Button>
           <Button
             variant="primary"
@@ -2449,81 +3016,95 @@ export default function SalesOrderWizard() {
         <h2 style={styles.sectionTitle}>Review Order</h2>
         <p style={styles.sectionSubtitle}>Please review all order details before proceeding to payment</p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-          {/* Customer Information */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Customer</h3>
-                <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Order recipient</p>
+        {/* Order Information */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            {/* Customer Information */}
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#f7fafc', 
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontWeight: '700', color: '#2d3748', marginBottom: '8px' }}>
+                Customer
               </div>
-            </div>
-            <div style={styles.flexColumn}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
+              <p style={{ margin: '0 0 12px 0', color: '#718096', fontSize: '12px' }}>Order recipient</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span style={{ fontWeight: '600', color: '#4a5568' }}>Name:</span>
                 <span style={{ color: '#2d3748' }}>{c.name}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span style={{ fontWeight: '600', color: '#4a5568' }}>Phone:</span>
                 <span style={{ color: '#2d3748' }}>{c.mobile}</span>
               </div>
               {c.address && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: '600', color: '#4a5568' }}>Address:</span>
                   <span style={{ color: '#2d3748', textAlign: 'right', maxWidth: '60%' }}>{c.address}</span>
                 </div>
               )}
             </div>
-          </Card>
 
-          {/* Sales Executive */}
-          {s.name && (
-            <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div>
-                  <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Sales Executive</h3>
-                  <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Account manager</p>
-                </div>
+            {/* Sales Executive */}
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#f7fafc', 
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontWeight: '700', color: '#2d3748', marginBottom: '8px' }}>
+                Sales Executive
               </div>
-              <div style={styles.flexColumn}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
-                  <span style={{ fontWeight: '600', color: '#4a5568' }}>Name:</span>
-                  <span style={{ color: '#2d3748' }}>{s.name}</span>
+              <p style={{ margin: '0 0 12px 0', color: '#718096', fontSize: '12px' }}>Account manager</p>
+              {s.name ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', color: '#4a5568' }}>Name:</span>
+                    <span style={{ color: '#2d3748' }}>{s.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', color: '#4a5568' }}>Phone:</span>
+                    <span style={{ color: '#2d3748' }}>{s.mobile}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: '600', color: '#4a5568' }}>Email:</span>
+                    <span style={{ color: '#2d3748' }}>{s.email}</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: '#718096', fontSize: '14px' }}>
+                  Not assigned
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
-                  <span style={{ fontWeight: '600', color: '#4a5568' }}>Phone:</span>
-                  <span style={{ color: '#2d3748' }}>{s.mobile}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                  <span style={{ fontWeight: '600', color: '#4a5568' }}>Email:</span>
-                  <span style={{ color: '#2d3748' }}>{s.email}</span>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Warehouse */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Warehouse</h3>
-                <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Fulfillment center</p>
-              </div>
+              )}
             </div>
-            <div style={styles.flexColumn}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
+
+            {/* Warehouse */}
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#f7fafc', 
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ fontWeight: '700', color: '#2d3748', marginBottom: '8px' }}>
+                Warehouse
+              </div>
+              <p style={{ margin: '0 0 12px 0', color: '#718096', fontSize: '12px' }}>Fulfillment center</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span style={{ fontWeight: '600', color: '#4a5568' }}>Name:</span>
                 <span style={{ color: '#2d3748' }}>{w.name || "Warehouse"}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: '600', color: '#4a5568' }}>Address:</span>
                 <span style={{ color: '#2d3748', textAlign: 'right', maxWidth: '60%' }}>
                   {[w.street, w.area, w.city, w.pincode].filter(Boolean).join(", ") || "Address not available"}
                 </span>
               </div>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
 
         {/* Drop-off Points */}
         <Card>
@@ -2613,6 +3194,33 @@ export default function SalesOrderWizard() {
               </div>
             ))}
           </div>
+          
+          {/* Total Quantity and Subtotal */}
+          {items.length > 0 && (() => {
+            const totalQuantity = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+            const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.totalAmount) || 0), 0);
+            
+            return (
+              <div style={{ 
+                marginTop: '20px', 
+                paddingTop: '20px', 
+                borderTop: '2px solid #e2e8f0' 
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontWeight: '600', color: '#4a5568', fontSize: '15px' }}>Total Quantity:</span>
+                  <span style={{ color: '#2d3748', fontWeight: '600', fontSize: '15px' }}>
+                    {totalQuantity.toLocaleString('en-IN')} {items[0]?.unit || 'units'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: '700', color: '#2d3748', fontSize: '16px' }}>Subtotal:</span>
+                  <span style={{ color: '#2d3748', fontWeight: '700', fontSize: '18px' }}>
+                    ₹{subtotal.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </Card>
 
         {/* Order Totals */}
@@ -2643,9 +3251,9 @@ export default function SalesOrderWizard() {
         <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
           <Button
             variant="secondary"
-            onClick={() => setStep(2)}
+            onClick={() => setStep(0)}
           >
-            ← Back to Logistics
+            ← Back to Products
           </Button>
           <Button
             onClick={finalizeOrder}
@@ -2659,7 +3267,7 @@ export default function SalesOrderWizard() {
     );
   }
 
-  // Step 5: Payment Step
+  // Step 2: Payment Step
   function renderPaymentStep() {
     function handleFileUpload(e, idx) {
       const file = e.target.files[0];
@@ -2684,6 +3292,29 @@ export default function SalesOrderWizard() {
         <h2 style={styles.sectionTitle}>Payment Details</h2>
         <p style={styles.sectionSubtitle}>Complete payment information to finalize the order</p>
         
+        {/* Mobile Number (Optional) */}
+        <Card style={{ marginBottom: '20px' }}>
+          <h3 style={{ margin: '0 0 16px 0', fontWeight: '700', color: '#2d3748' }}>Mobile Number</h3>
+          <p style={{ margin: '0 0 12px 0', color: '#718096', fontSize: '14px' }}>Optional - Enter mobile number for payment notifications</p>
+          <input
+            type="tel"
+            placeholder="Enter mobile number (optional)"
+            value={mobileNumber}
+            onChange={e => setMobileNumber(e.target.value)}
+            style={{ 
+              width: '100%', 
+              maxWidth: '400px',
+              height: '40px', 
+              paddingLeft: '12px', 
+              borderRadius: '8px', 
+              border: '1px solid #d9d9d9', 
+              boxShadow: '1px 1px 3px #333', 
+              fontWeight: '500', 
+              fontSize: '14px' 
+            }}
+          />
+        </Card>
+        
         {/* Order Summary */}
         <Card style={{ backgroundColor: 'rgba(102, 126, 234, 0.05)', borderColor: '#667eea' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -2702,99 +3333,13 @@ export default function SalesOrderWizard() {
           </div>
         </Card>
 
-        {/* Payment Method Selection */}
-        <Card>
-          <h3 style={{ margin: '0 0 16px 0', fontWeight: '700', color: '#2d3748' }}>Payment Method</h3>
-          <div style={styles.tabs}>
-            <button
-              style={{
-                ...styles.tab,
-                ...(activePaymentTab === 0 ? styles.tabActive : {})
-              }}
-              onClick={() => setActivePaymentTab(0)}
-              type='button'
-            >
-              UPI Payment
-            </button>
-            <button
-              style={{
-                ...styles.tab,
-                ...(activePaymentTab === 1 ? styles.tabActive : {})
-              }}
-              onClick={() => setActivePaymentTab(1)}
-              type='button'
-            >
-              Bank Transfer
-            </button>
-          </div>
+        {/* Payment Info */}
+        <Card style={{ marginBottom: '20px' }}>
+          <h3 style={{ margin: '0 0 16px 0', fontWeight: '700', color: '#2d3748' }}>Payment Info</h3>
           
-          {activePaymentTab === 0 && (
-            <div style={{ padding: '20px', backgroundColor: '#f7fafc', borderRadius: '12px' }}>
-              <div style={{ marginBottom: '12px' }}>
-                <div>
-                  <h4 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>UPI Payment Details</h4>
-                  <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Use the following UPI ID for payment</p>
-                </div>
-              </div>
-              <div style={{ 
-                padding: '12px 16px', 
-                backgroundColor: 'white', 
-                borderRadius: '8px',
-                border: '2px solid #e2e8f0',
-                fontFamily: 'monospace',
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#2d3748',
-                textAlign: 'center'
-              }}>
-                {reviewData?.upiId || "UPI ID not available"}
-              </div>
-            </div>
-          )}
-          
-          {activePaymentTab === 1 && (
-            <div style={{ padding: '20px', backgroundColor: '#f7fafc', borderRadius: '12px' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <div>
-                  <h4 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Bank Transfer Details</h4>
-                  <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Use the following bank details for transfer</p>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div style={{ 
-                  padding: '12px 16px', 
-                  backgroundColor: 'white', 
-                  borderRadius: '8px',
-                  border: '2px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between'
-                }}>
-                  <span style={{ fontWeight: '600', color: '#4a5568' }}>Account Number:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2d3748' }}>
-                    {reviewData?.bankDetails?.accountNumber || "Not available"}
-                  </span>
-                </div>
-                <div style={{ 
-                  padding: '12px 16px', 
-                  backgroundColor: 'white', 
-                  borderRadius: '8px',
-                  border: '2px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between'
-                }}>
-                  <span style={{ fontWeight: '600', color: '#4a5568' }}>IFSC Code:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: '600', color: '#2d3748' }}>
-                    {reviewData?.bankDetails?.ifsc || "Not available"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* Payment Records */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Payment Records</h3>
+          {/* Payment Records */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h4 style={{ margin: '0', fontWeight: '600', color: '#4a5568', fontSize: '16px' }}>Payment Records</h4>
           <Button
             onClick={addPayment}
             variant="success"
@@ -2836,6 +3381,75 @@ export default function SalesOrderWizard() {
                 )}
               </div>
               
+              {/* Payment Method Buttons - First */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '12px', color: '#4a5568' }}>
+                  Payment Method
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => updatePaymentFieldLocal(i, "paymentMethod", "cash")}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: '2px solid',
+                      borderColor: (payment.paymentMethod || "cash") === "cash" ? 'var(--primary-color)' : '#e2e8f0',
+                      backgroundColor: (payment.paymentMethod || "cash") === "cash" ? 'var(--primary-color)' : '#fff',
+                      color: (payment.paymentMethod || "cash") === "cash" ? '#fff' : '#4a5568',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if ((payment.paymentMethod || "cash") !== "cash") {
+                        e.target.style.borderColor = 'var(--primary-color)';
+                        e.target.style.backgroundColor = '#f0f4ff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if ((payment.paymentMethod || "cash") !== "cash") {
+                        e.target.style.borderColor = '#e2e8f0';
+                        e.target.style.backgroundColor = '#fff';
+                      }
+                    }}
+                  >
+                    Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePaymentFieldLocal(i, "paymentMethod", "bank")}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: '8px',
+                      border: '2px solid',
+                      borderColor: payment.paymentMethod === "bank" ? 'var(--primary-color)' : '#e2e8f0',
+                      backgroundColor: payment.paymentMethod === "bank" ? 'var(--primary-color)' : '#fff',
+                      color: payment.paymentMethod === "bank" ? '#fff' : '#4a5568',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (payment.paymentMethod !== "bank") {
+                        e.target.style.borderColor = 'var(--primary-color)';
+                        e.target.style.backgroundColor = '#f0f4ff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (payment.paymentMethod !== "bank") {
+                        e.target.style.borderColor = '#e2e8f0';
+                        e.target.style.backgroundColor = '#fff';
+                      }
+                    }}
+                  >
+                    Bank
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
@@ -2843,24 +3457,10 @@ export default function SalesOrderWizard() {
                   </label>
                   <input
                     type="date"
-                    defaultValue={payment.transactionDate}
-                    onBlur={e => updatePaymentFieldLocal(i, "transactionDate", e.target.value)}
+                    value={payment.transactionDate || getTodayDate()}
+                    onChange={e => updatePaymentFieldLocal(i, "transactionDate", e.target.value)}
                     style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
                   />
-                </div>
-                
-                <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
-                    Payment Mode
-                  </label>
-                  <Select
-                    value={payment.paymentMode}
-                    onChange={e => updatePaymentFieldLocal(i, "paymentMode", e.target.value)}
-                  >
-                    <option value="UPI">UPI</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Other">Other</option>
-                  </Select>
                 </div>
                 
                 <div>
@@ -2878,32 +3478,21 @@ export default function SalesOrderWizard() {
                   />
                 </div>
                 
-                <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
-                    Transaction Reference
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Reference ID/UTR"
-                    defaultValue={payment.reference || ''}
-                    onBlur={e => updatePaymentFieldLocal(i, "reference", e.target.value)}
-                    style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
-                  />
-                </div>
+                {payment.paymentMethod === "bank" && (
+                  <div>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
+                      UTR Number (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter UTR number"
+                      defaultValue={payment.utrNumber || ''}
+                      onBlur={e => updatePaymentFieldLocal(i, "utrNumber", e.target.value)}
+                      style={{ width: '150px', height: '27px', paddingLeft: '4px', borderRadius: '4px', border: '1px solid #d9d9d9', boxShadow: '1px 1px 3px #333', fontWeight: '500', fontSize: '14px' }}
+                    />
+                  </div>
+                )}
                 
-                <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
-                    Transaction Status
-                  </label>
-                  <Select
-                    value={payment.transactionStatus}
-                    onChange={e => updatePaymentFieldLocal(i, "transactionStatus", e.target.value)}
-                  >
-                    <option value="Completed">Completed</option>
-                    <option value="Processing">Processing</option>
-                    <option value="Failed">Failed</option>
-                  </Select>
-                </div>
               </div>
               
               <div style={{ marginTop: '16px' }}>
@@ -2931,69 +3520,112 @@ export default function SalesOrderWizard() {
               />
               </div>
               
-              <div style={{ marginTop: '16px' }}>
-                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
-                  Payment Proof
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                  <label 
+              {payment.paymentMethod === "cash" && (
+                <div style={{ marginTop: '16px' }}>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#4a5568' }}>
+                    Payment Proof (Optional)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                    <label 
+                      style={{
+                        ...styles.fileButton,
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        Object.assign(e.target.style, styles.fileButtonHover);
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.borderColor = '#e2e8f0';
+                        e.target.style.backgroundColor = '#f7fafc';
+                      }}
+                    >
+                      📎 Upload Proof
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        style={styles.fileInput}
+                        onChange={e => handleFileUpload(e, i)}
+                      />
+                    </label>
+                    {payment.proofPreviewUrl && (
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={payment.proofPreviewUrl}
+                          alt={`Payment proof #${i + 1}`}
+                          style={styles.previewImage}
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          width: '20px',
+                          height: '20px',
+                          backgroundColor: '#10b981',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '12px'
+                        }}>
+                          ✓
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {payment.paymentMethod === "bank" && (
+                <div style={{ marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Generate QR code functionality
+                      showToast({
+                        title: "QR code generation feature coming soon",
+                        status: "info",
+                        duration: 3000,
+                      });
+                    }}
                     style={{
-                      ...styles.fileButton,
-                      cursor: 'pointer'
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      border: '2px solid var(--primary-color)',
+                      backgroundColor: '#fff',
+                      color: 'var(--primary-color)',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}
                     onMouseEnter={(e) => {
-                      Object.assign(e.target.style, styles.fileButtonHover);
+                      e.target.style.backgroundColor = 'var(--primary-color)';
+                      e.target.style.color = '#fff';
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.borderColor = '#e2e8f0';
-                      e.target.style.backgroundColor = '#f7fafc';
+                      e.target.style.backgroundColor = '#fff';
+                      e.target.style.color = 'var(--primary-color)';
                     }}
                   >
-                    📎 Upload Proof
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      style={styles.fileInput}
-                      onChange={e => handleFileUpload(e, i)}
-                    />
-                  </label>
-                  {payment.proofPreviewUrl && (
-                    <div style={{ position: 'relative' }}>
-                      <img
-                        src={payment.proofPreviewUrl}
-                        alt={`Payment proof #${i + 1}`}
-                        style={styles.previewImage}
-                      />
-                      <div style={{
-                        position: 'absolute',
-                        top: '-8px',
-                        right: '-8px',
-                        width: '20px',
-                        height: '20px',
-                        backgroundColor: '#10b981',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '12px'
-                      }}>
-                        ✓
-                      </div>
-                    </div>
-                  )}
+                    📱 Generate QR
+                  </button>
                 </div>
-              </div>
+              )}
             </Card>
           ))}
-        </div>
+          </div>
+        </Card>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
           <Button
             variant="secondary"
-            onClick={() => setStep(3)}
+            onClick={() => setStep(1)}
           >
-            ← Back to Review
+            ← Back to Overview
           </Button>
           <Button
             variant="primary"
@@ -3016,11 +3648,9 @@ export default function SalesOrderWizard() {
       <div style={styles.container} className="container">
         <div style={styles.title} className="title">Create New Sales Order</div>
         <StepIndicator />
-        {step === 0 && renderCustomerStep()}
-        {step === 1 && renderProductStep()}
-        {step === 2 && renderLogisticsStep()}
-        {step === 3 && renderReviewStep()}
-        {step === 4 && renderPaymentStep()}
+        {step === 0 && renderProductStep()}
+        {step === 1 && renderReviewStep()}
+        {step === 2 && renderPaymentStep()}
         
         {/* Quantity Modal */}
         <QuantityModal />

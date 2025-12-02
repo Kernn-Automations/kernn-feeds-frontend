@@ -38,13 +38,24 @@ function StoreStockSummary() {
         return;
       }
 
-      const query = `/stores/${storeId}/stock-summary?fromDate=${from}&toDate=${to}`;
+      // Use the store stock summary API endpoint
+      const query = `/store-stock-summary/summary?fromDate=${from}&toDate=${to}&storeId=${storeId}`;
       console.log('StoreStockSummary - Fetching stock with query:', query);
       
       const res = await axiosAPI.get(query);
       console.log('StoreStockSummary - Response data:', res.data);
       
-      setStockData(res.data.data || []);
+      // Map API response to match table structure
+      const mappedData = (res.data.data || []).map(item => ({
+        productName: item.product?.name || item.productName || '-',
+        stockIn: item.inwardStock || 0,
+        opening: item.openingStock || 0,
+        purchases: item.inwardStock || 0, // Assuming purchases = inward stock
+        closing: item.closingStock || 0,
+        sale: item.outwardStock || 0
+      }));
+      
+      setStockData(mappedData);
     } catch (err) {
       console.error('StoreStockSummary - Error:', err);
       setError(err.response?.data?.message || "Failed to fetch stock data.");
@@ -60,31 +71,31 @@ function StoreStockSummary() {
       <thead className="table-light">
         <tr>
           <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
-          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Opening</th>
-          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Inward</th>
-          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Outward</th>
           <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock In</th>
-          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock Out</th>
-          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Closing</th>
-          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Type</th>
+          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Opening Stock</th>
+          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Purchases</th>
+          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Closing Stock</th>
+          <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Sale</th>
         </tr>
       </thead>
       <tbody>
         {dataArray.map((item, index) => (
           <tr key={index} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
             <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{item.productName || '-'}</td>
-            <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.opening?.toFixed(2) || '0.00'}</td>
-            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669' }}>+{item.inward?.toFixed(2) || '0.00'}</td>
-            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#ef4444' }}>-{item.outward?.toFixed(2) || '0.00'}</td>
-            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669' }}>+{item.stockIn?.toFixed(2) || '0.00'}</td>
-            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#ef4444' }}>-{item.stockOut?.toFixed(2) || '0.00'}</td>
-            <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-              {item.closing?.toFixed(2) || '0.00'}
+            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669' }}>
+              {(item.stockIn || item.inward || 0).toFixed(2)}
             </td>
             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-              <span className="badge bg-secondary" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                {item.productType || 'N/A'}
-              </span>
+              {(item.opening || item.openingStock || 0).toFixed(2)}
+            </td>
+            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669' }}>
+              {(item.purchases || item.inward || 0).toFixed(2)}
+            </td>
+            <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
+              {(item.closing || item.closingStock || 0).toFixed(2)}
+            </td>
+            <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#ef4444' }}>
+              {(item.sale || item.outward || item.stockOut || 0).toFixed(2)}
             </td>
           </tr>
         ))}

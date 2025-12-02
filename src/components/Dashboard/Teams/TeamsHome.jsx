@@ -10,7 +10,7 @@ import styles from "./Teams.module.css";
 function TeamsHome({ navigate, isAdmin }) {
   const [teams, setTeams] = useState([]);
   const { axiosAPI } = useAuth();
-  const { selectedDivision, getCurrentDivisionId, isAllDivisionsSelected } = useDivision();
+  const { selectedDivision, showAllDivisions } = useDivision();
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState();
   const [loading, setLoading] = useState(true);
@@ -35,14 +35,18 @@ function TeamsHome({ navigate, isAdmin }) {
           const list = data?.data?.teams || data?.teams || data?.data || data || [];
           setTeams(Array.isArray(list) ? list : []);
         } else {
-          // Fallback: use legacy division-based endpoint
-          const currentDivisionId = localStorage.getItem('currentDivisionId');
+          // Use DivisionContext for division-based endpoint
+          const divisionId = selectedDivision?.id;
           let endpoint = "/teams";
-          if (currentDivisionId && currentDivisionId !== '1') {
-            endpoint += `?divisionId=${currentDivisionId}`;
-          } else if (currentDivisionId === '1') {
+          
+          // Use showAllDivisions from context if available, otherwise check division ID
+          if (showAllDivisions || divisionId === "all" || selectedDivision?.isAllDivisions === true) {
             endpoint += `?showAllDivisions=true`;
+          } else if (divisionId && divisionId !== "all" && divisionId !== "1") {
+            endpoint += `?divisionId=${divisionId}`;
           }
+          // If no division is selected, don't add query params (let backend handle default)
+          
           const res = await axiosAPI.get(endpoint);
           const list =
             res?.data?.data?.teams ||
@@ -57,14 +61,36 @@ function TeamsHome({ navigate, isAdmin }) {
         localStorage.removeItem('teamsDataUpdated');
       } catch (err) {
         console.error("Failed to load teams:", err);
-        setError("Failed to load teams data.");
-        setIsModalOpen(true);
+        // If 403 error, try without showAllDivisions
+        if (err.response?.status === 403) {
+          try {
+            const divisionId = selectedDivision?.id;
+            let endpoint = "/teams";
+            if (divisionId && divisionId !== "all" && divisionId !== "1") {
+              endpoint += `?divisionId=${divisionId}`;
+            }
+            const res = await axiosAPI.get(endpoint);
+            const list =
+              res?.data?.data?.teams ||
+              res?.data?.teams ||
+              (Array.isArray(res?.data?.data) ? res.data.data : null) ||
+              (Array.isArray(res?.data) ? res.data : null) ||
+              [];
+            setTeams(Array.isArray(list) ? list : []);
+          } catch (retryErr) {
+            setError("Failed to load teams data. You may not have permission to view teams.");
+            setIsModalOpen(true);
+          }
+        } else {
+          setError("Failed to load teams data.");
+          setIsModalOpen(true);
+        }
       } finally {
         setLoading(false);
       }
     }
     fetchTeams();
-  }, [trigger, axiosAPI]);
+  }, [trigger, axiosAPI, selectedDivision, showAllDivisions]);
 
   // Check for data updates when component mounts or becomes visible
   useEffect(() => {
@@ -101,13 +127,17 @@ function TeamsHome({ navigate, isAdmin }) {
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const divisionId = selectedDivision?.id;
         let endpoint = '/employees';
-        if (currentDivisionId && currentDivisionId !== '1') {
-          endpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
+        
+        // Use showAllDivisions from context if available, otherwise check division ID
+        if (showAllDivisions || divisionId === "all" || selectedDivision?.isAllDivisions === true) {
           endpoint += `?showAllDivisions=true`;
+        } else if (divisionId && divisionId !== "all" && divisionId !== "1") {
+          endpoint += `?divisionId=${divisionId}`;
         }
+        // If no division is selected, don't add query params (let backend handle default)
+        
         const res = await axiosAPI.get(endpoint);
         let employeeData = [];
         if (res.data && res.data.success && Array.isArray(res.data.data)) {
@@ -119,11 +149,36 @@ function TeamsHome({ navigate, isAdmin }) {
         }
         setEmployees(employeeData);
       } catch (e) {
-        setEmployees([]);
+        // If 403 error, try without showAllDivisions
+        if (e.response?.status === 403) {
+          try {
+            const divisionId = selectedDivision?.id;
+            let endpoint = '/employees';
+            if (divisionId && divisionId !== "all" && divisionId !== "1") {
+              endpoint += `?divisionId=${divisionId}`;
+            }
+            const res = await axiosAPI.get(endpoint);
+            let employeeData = [];
+            if (res.data && res.data.success && Array.isArray(res.data.data)) {
+              employeeData = res.data.data;
+            } else if (res.data && Array.isArray(res.data.employees)) {
+              employeeData = res.data.employees;
+            } else if (Array.isArray(res.data)) {
+              employeeData = res.data;
+            }
+            setEmployees(employeeData);
+          } catch (retryErr) {
+            console.error("Failed to load employees:", retryErr);
+            setEmployees([]);
+          }
+        } else {
+          console.error("Failed to load employees:", e);
+          setEmployees([]);
+        }
       }
     }
     fetchEmployees();
-  }, [axiosAPI]);
+  }, [axiosAPI, selectedDivision, showAllDivisions]);
 
   let index = 1;
   

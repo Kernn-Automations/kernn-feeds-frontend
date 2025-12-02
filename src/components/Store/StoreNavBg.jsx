@@ -1,54 +1,97 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import styles from "../Dashboard/navs/NavContainer.module.css";
-import { isStaffEmployee } from "../../utils/roleUtils";
+import { isStoreEmployee, isAdmin } from "../../utils/roleUtils";
+import LogoutModal from "../Dashboard/LogoutModal";
 
-function StoreNavBg({ hover, setTab, tab }) {
+function StoreNavBg({ hover, setTab, tab, user, closeMobileMenu }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isEmployee, setIsEmployee] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Handler to close mobile menu when menu item is clicked
+  const handleMenuItemClick = () => {
+    if (isMobile && closeMobileMenu) {
+      closeMobileMenu();
+    }
+  };
   
   useEffect(() => {
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     // Re-check user role whenever component mounts or location changes
-    let user = {};
+    let currentUser = user || {};
     try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        user = JSON.parse(storedUser);
+      if (!currentUser || Object.keys(currentUser).length === 0) {
+        const storedUserData = localStorage.getItem("user");
+        if (storedUserData) {
+          currentUser = JSON.parse(storedUserData);
+          // Handle case where user might be nested (user.user)
+          if (currentUser.user && !currentUser.roles) {
+            currentUser = currentUser.user;
+          }
+        }
+      } else {
         // Handle case where user might be nested (user.user)
-        if (user.user && !user.roles) {
-          user = user.user;
+        if (currentUser.user && !currentUser.roles) {
+          currentUser = currentUser.user;
         }
       }
-      const employeeCheck = isStaffEmployee(user);
+      const employeeCheck = isStoreEmployee(currentUser);
       setIsEmployee(employeeCheck);
-      
-      // Debug logging
-      console.log("StoreNavBg - User check:", {
-        user,
-        roles: user?.roles,
-        isEmployee: employeeCheck,
-        roleNames: user?.roles?.map(r => typeof r === 'object' ? r.name : r)
-      });
     } catch (e) {
       console.error("Error parsing user from localStorage:", e);
       setIsEmployee(false);
     }
-  }, [location.pathname]);
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, [location.pathname, user]);
+
+  // Handle user object structure
+  const actualUser = user?.user || user || {};
+  const userIsAdmin = isAdmin(actualUser);
+  const showDivisionsOption = userIsAdmin;
+
+  const handleProfileClick = (e) => {
+    e.preventDefault();
+    // For store employees, navigate to store home instead of admin profile
+    if (isEmployee) {
+      navigate('/store');
+      setTab("home");
+    } else {
+      // For store managers/admins, navigate to admin profile
+      navigate('/profile');
+    }
+    handleMenuItemClick();
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
   
   return (
     <>
       <div className={styles.navicons}>
-        <div className={`${(location.pathname === "/store" || location.pathname === "/store/") ? styles.active : ""} `} onClick={() => setTab("home")}>
+        <div className={`${(location.pathname === "/store" || location.pathname === "/store/") ? styles.active : ""} `} onClick={() => { setTab("home"); handleMenuItemClick(); }}>
           <Link to="/store">
             <svg width="34" height="35" viewBox="0 0 34 35" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2 15.8303C2 14.8731 2 14.3945 2.12338 13.9537C2.23267 13.5632 2.41228 13.196 2.65338 12.87C2.92556 12.502 3.30337 12.2082 4.05898 11.6205L15.3628 2.82859C15.9484 2.37317 16.2411 2.14546 16.5644 2.05793C16.8497 1.98069 17.1503 1.98069 17.4356 2.05793C17.7589 2.14546 18.0516 2.37317 18.6372 2.82859L29.941 11.6205C30.6966 12.2082 31.0744 12.502 31.3466 12.87C31.5877 13.196 31.7673 13.5632 31.8766 13.9537C32 14.3945 32 14.8731 32 15.8303V27.8886C32 29.7554 32 30.6888 31.6367 31.4019C31.3171 32.0291 30.8072 32.539 30.18 32.8586C29.4669 33.2219 28.5335 33.2219 26.6667 33.2219H7.33333C5.46649 33.2219 4.53307 33.2219 3.82003 32.8586C3.19282 32.539 2.68289 32.0291 2.36331 31.4019C2 30.6888 2 29.7554 2 27.8886V15.8303Z" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {hover && <p>Home</p>}
+            {(hover || isMobile) && <p>Home</p>}
           </Link>
         </div>
 
         {!isEmployee && (
-          <div className={`${location.pathname.includes("inventory") ? styles.active : ""} `} onClick={() => setTab("inventory")}>
+          <div className={`${location.pathname.includes("inventory") ? styles.active : ""} `} onClick={() => { setTab("inventory"); handleMenuItemClick(); }}>
             <Link to="/store/inventory">
               <svg
                 width="38"
@@ -64,12 +107,12 @@ function StoreNavBg({ hover, setTab, tab }) {
                   />
                 </g>
               </svg>
-              {hover && <p>Inventory</p>}
+              {(hover || isMobile) && <p>Inventory</p>}
             </Link>
           </div>
         )}
 
-        <div className={`${location.pathname.includes("sales") ? styles.active : ""} `} onClick={() => setTab("sales")}>
+        <div className={`${location.pathname.includes("sales") ? styles.active : ""} `} onClick={() => { setTab("sales"); handleMenuItemClick(); }}>
           <Link to="/store/sales">
             <svg
               width="37"
@@ -86,12 +129,12 @@ function StoreNavBg({ hover, setTab, tab }) {
                 strokeLinejoin="round"
               />
             </svg>
-            {hover && <p>Sales</p>}
+            {(hover || isMobile) && <p>Sales</p>}
           </Link>
         </div>
 
         {!isEmployee && (
-          <div className={`${location.pathname.includes("indents") ? styles.active : ""} `} onClick={() => setTab("indents")}>
+          <div className={`${location.pathname.includes("indents") ? styles.active : ""} `} onClick={() => { setTab("indents"); handleMenuItemClick(); }}>
             <Link to="/store/indents">
               <svg width="38" height="37" viewBox="0 0 38 37" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 2H31V33H7V2Z" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
@@ -99,13 +142,13 @@ function StoreNavBg({ hover, setTab, tab }) {
                 <path d="M13 18H25" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M13 26H21" stroke="black" strokeWidth="3.33333" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              {hover && <p>Indents</p>}
+              {(hover || isMobile) && <p>Indents</p>}
             </Link>
           </div>
         )}
 
         {!isEmployee && (
-          <div className={`${location.pathname.includes("customers") ? styles.active : ""} `} onClick={() => setTab("customers")}>
+          <div className={`${location.pathname.includes("customers") ? styles.active : ""} `} onClick={() => { setTab("customers"); handleMenuItemClick(); }}>
             <Link to="/store/customers">
               <svg
                 width="38"
@@ -125,14 +168,14 @@ function StoreNavBg({ hover, setTab, tab }) {
                   />
                 </g>
               </svg>
-              {hover && <p>Customers</p>}
+              {(hover || isMobile) && <p>Customers</p>}
             </Link>
           </div>
         )}
 
-        {/* Hide Employees section for staff employees */}
+        {/* Hide Employees section for store employees */}
         {!isEmployee && (
-          <div className={`${location.pathname.includes("employees") ? styles.active : ""} `} onClick={() => setTab("employees")}>
+          <div className={`${location.pathname.includes("employees") ? styles.active : ""} `} onClick={() => { setTab("employees"); handleMenuItemClick(); }}>
             <Link to="/store/employees">
               <svg
                 width="32"
@@ -149,12 +192,12 @@ function StoreNavBg({ hover, setTab, tab }) {
                   strokeLinejoin="round"
                 />
               </svg>
-              {hover && <p>Employees</p>}
+              {(hover || isMobile) && <p>Employees</p>}
             </Link>
           </div>
         )}
 
-        <div className={`${location.pathname.includes("products") ? styles.active : ""} `} onClick={() => setTab("products")}>
+        <div className={`${location.pathname.includes("products") ? styles.active : ""} `} onClick={() => { setTab("products"); handleMenuItemClick(); }}>
           <Link to="/store/products">
             <svg
               width="38"
@@ -171,13 +214,13 @@ function StoreNavBg({ hover, setTab, tab }) {
                 <path d="M260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z" />
               </g>
             </svg>
-            {hover && <p>Products</p>}
+            {(hover || isMobile) && <p>Products</p>}
           </Link>
         </div>
 
-        {/* Hide Discounts section for staff employees */}
+        {/* Hide Discounts section for store employees */}
         {!isEmployee && (
-          <div className={`${location.pathname.includes("discounts") ? styles.active : ""} `} onClick={() => setTab("discounts")}>
+          <div className={`${location.pathname.includes("discounts") ? styles.active : ""} `} onClick={() => { setTab("discounts"); handleMenuItemClick(); }}>
             <Link to="/store/discounts">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -190,11 +233,153 @@ function StoreNavBg({ hover, setTab, tab }) {
                   <path d="M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z" />
                 </g>
               </svg>
-              {hover && <p>Discounts</p>}
+              {(hover || isMobile) && <p>Discounts</p>}
             </Link>
           </div>
         )}
+
+        {/* Expenditures section - available for all users */}
+        <div className={`${location.pathname.includes("expenditures") ? styles.active : ""} `} onClick={() => { setTab("expenditures"); handleMenuItemClick(); }}>
+          <Link to="/store/expenditures">
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 38 38"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M19 2L2 10V19C2 27.2843 8.71573 34 17 34C25.2843 34 32 27.2843 32 19V10L19 2Z"
+                stroke="black"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M19 19V9"
+                stroke="black"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 16L19 19L26 16"
+                stroke="black"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {(hover || isMobile) && <p>Expenditures</p>}
+          </Link>
+        </div>
+
+        <div className={`${location.pathname.includes("assets") ? styles.active : ""} `} onClick={() => { setTab("assets"); handleMenuItemClick(); }}>
+          <Link to="/store/assets">
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 36 36"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect x="4" y="7" width="28" height="22" rx="4" stroke="black" strokeWidth="3" />
+              <path d="M4 14H32" stroke="black" strokeWidth="3" />
+              <path d="M12 21H24" stroke="black" strokeWidth="3" strokeLinecap="round" />
+              <path d="M12 26H20" stroke="black" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            {(hover || isMobile) && <p>Assets</p>}
+          </Link>
+        </div>
+
+        {/* Profile and Logout menu items - only show on mobile */}
+        {isMobile && (
+          <>
+            <div className={styles.navDivider}></div>
+            <div onClick={handleProfileClick} className={`${styles.navMenuItem} ${styles.mobileNavItem}`}>
+              <svg
+                width="34"
+                height="35"
+                viewBox="0 0 37 37"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6.88155 30.4518L12.7741 24.5592M24.5592 24.5592L30.4518 30.4517M35.3333 18.6667C35.3333 27.8714 27.8714 35.3333 18.6667 35.3333C9.46192 35.3333 2 27.8714 2 18.6667C2 9.46192 9.46192 2 18.6667 2C27.8714 2 35.3333 9.46192 35.3333 18.6667ZM27 18.6667C27 23.269 23.269 27 18.6667 27C14.0643 27 10.3333 23.269 10.3333 18.6667C10.3333 14.0643 14.0643 10.3333 18.6667 10.3333C23.269 10.3333 27 14.0643 27 18.6667Z"
+                  stroke="black"
+                  strokeWidth="3.33333"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <p>Profile</p>
+            </div>
+
+            {/* Divisions option - only show for admin on mobile */}
+            {isMobile && showDivisionsOption && (
+              <div onClick={() => { navigate('/divs'); handleMenuItemClick(); }} className={`${styles.navMenuItem} ${styles.mobileNavItem}`}>
+                <svg
+                  width="34"
+                  height="35"
+                  viewBox="0 0 37 37"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M18.5 2L24.5 8H30.5C31.6 8 32.5 8.9 32.5 10V28C32.5 29.1 31.6 30 30.5 30H6.5C5.4 30 4.5 29.1 4.5 28V10C4.5 8.9 5.4 8 6.5 8H12.5L18.5 2Z"
+                    stroke="black"
+                    strokeWidth="3.33333"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M18.5 2V8H24.5"
+                    stroke="black"
+                    strokeWidth="3.33333"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12.5 18H24.5"
+                    stroke="black"
+                    strokeWidth="3.33333"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12.5 22H20.5"
+                    stroke="black"
+                    strokeWidth="3.33333"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <p>Divisions</p>
+              </div>
+            )}
+
+            <div onClick={() => { setIsModalOpen(true); handleMenuItemClick(); }} className={`${styles.navMenuItem} ${styles.mobileNavItem}`}>
+              <svg
+                width="34"
+                height="35"
+                viewBox="0 0 37 37"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M4.20751 10.25C7.06043 5.31813 12.3927 2 18.5001 2C27.6127 2 35 9.38728 35 18.4999C35 27.6126 27.6127 34.9999 18.5001 34.9999C12.3927 34.9999 7.06043 31.6818 4.20751 26.7499M18.4999 25.0999L25.0999 18.4999M25.0999 18.4999L18.4999 11.9M25.0999 18.4999H2"
+                  stroke="black"
+                  strokeWidth="3.33333"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <p>Logout</p>
+            </div>
+          </>
+        )}
       </div>
+      {isModalOpen && <LogoutModal isOpen={isModalOpen} onClose={closeModal} />}
     </>
   );
 }

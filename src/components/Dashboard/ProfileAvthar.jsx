@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styles from "./Dashboard.module.css";
-import { Avatar} from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import {
   PopoverArrow,
   PopoverBody,
@@ -10,10 +10,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import LogoutModal from "./LogoutModal";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { isAdmin } from "../../utils/roleUtils";
 
 function ProfileAvthar({ user, setTab }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const actualUser = user?.user || user || {};
+  const userName = actualUser.name || actualUser.user?.name || user?.name || "";
+  const userIsAdmin = isAdmin(actualUser);
+
   const closeModal = () => {
     setIsModalOpen(false);
   };
@@ -34,7 +41,7 @@ function ProfileAvthar({ user, setTab }) {
           <button>
             <Avatar
               className={styles.avatar}
-              name={user && user?.name}
+              name={userName}
               colorPalette="var(--primary-color)"
             />
           </button>
@@ -65,6 +72,45 @@ function ProfileAvthar({ user, setTab }) {
                 </p>
               </div>
             </Link>
+
+            {userIsAdmin && (
+              <div onClick={() => navigate("/store")}>
+                <p>
+                  <span>
+                    <svg
+                      width="37"
+                      height="37"
+                      viewBox="0 0 37 37"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M6.5 12.3333L10.3333 2H26.6667L30.5 12.3333"
+                        stroke="black"
+                        stroke-width="3.33333"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M5.16675 12.3332H31.8334V31.1665C31.8334 32.8173 30.4842 34.1665 28.8334 34.1665H8.16675C6.51592 34.1665 5.16675 32.8173 5.16675 31.1665V12.3332Z"
+                        stroke="black"
+                        stroke-width="3.33333"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M21.5835 17.25H26.5002"
+                        stroke="black"
+                        stroke-width="3.33333"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  Store
+                </p>
+              </div>
+            )}
 
             <div onClick={() => setIsModalOpen(true)}>
               <p>

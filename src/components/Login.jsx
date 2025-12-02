@@ -4,6 +4,7 @@ import Footer from "./Footer";
 import Header from "./Header";
 import Input from "./Input";
 import styles from "./Login.module.css";
+
 import {
   isAdmin,
   isStaffManager,
@@ -11,6 +12,7 @@ import {
   isStaffEmployee,
   isSuperAdmin,
 } from "../utils/roleUtils";
+
 
 function Login() {
   const [login, setLogin] = useState(false);
@@ -25,27 +27,36 @@ function Login() {
       showDivisions: user.user?.showDivisions,
     });
 
-    const currentUser = user.user;
+    const currentUser = user.user || user; // Handle both user.user and direct user
+    if (!currentUser || !currentUser.id) return; // Don't proceed if no user data
+    
     const wantsDivision = currentUser?.showDivisions || isAdmin(currentUser);
-    const onlyStaff = isStaffManager(currentUser) && !isAdmin(currentUser);
+    const isStoreManagerUser = isStoreManager(currentUser);
+    const onlyStaff = isStoreManagerUser && !isAdmin(currentUser);
     const bothRoles = hasBothAdminAndStaff(currentUser);
     const isAdminUser = isAdmin(currentUser);
     const isSuperAdminUser = isSuperAdmin(currentUser);
-    const isStaffEmployeeUser = isStaffEmployee(currentUser);
+    const isStoreEmployeeUser = isStoreEmployee(currentUser);
 
-    // Show popup for admins and superadmins (so they can choose store management or admin view)
-    if (login && (isAdminUser || isSuperAdminUser)) {
-      // Show chooser popup
-      setShowRoleChoice(true);
-      return;
-    }
+    console.log("Login.jsx - Role detection:", {
+      isStoreManagerUser,
+      isAdminUser,
+      isSuperAdminUser,
+      isStoreEmployeeUser,
+      onlyStaff,
+      bothRoles,
+      roles: currentUser?.roles
+    });
 
-    // Staff managers get store management access
-    if (login && onlyStaff) {
+    // Store managers ALWAYS get store management access - navigate to /store
+    // This should be checked FIRST, before any other role checks
+    if (login && isStoreManagerUser) {
+      console.log("Login.jsx - Store manager detected, redirecting to /store");
       const token = localStorage.getItem("accessToken");
       if (token) {
         localStorage.setItem("activeView", "staff");
         navigate("/store");
+        return; // Important: return early to prevent other logic from running
       } else {
         const timer = setTimeout(() => {
           const tokenCheck = localStorage.getItem("accessToken");
@@ -58,12 +69,14 @@ function Login() {
       }
     }
 
-    // Staff employees get limited store access
-    if (login && isStaffEmployeeUser) {
+    // Store employees get limited store access - navigate to /store
+    if (login && isStoreEmployeeUser) {
+      console.log("Login.jsx - Store employee detected, redirecting to /store");
       const token = localStorage.getItem("accessToken");
       if (token) {
         localStorage.setItem("activeView", "employee");
         navigate("/store");
+        return; // Important: return early
       } else {
         const timer = setTimeout(() => {
           const tokenCheck = localStorage.getItem("accessToken");
@@ -76,53 +89,64 @@ function Login() {
       }
     }
 
-    // Original logic commented out - now all users go to /divs
-    // if (login && wantsDivision) {
-    //   console.log(
-    //     "Login.jsx - User needs division selection, redirecting to /divs"
-    //   );
-    //   console.log(
-    //     "Login.jsx - Reason: showDivisions=",
-    //     currentUser?.showDivisions,
-    //     "roles=",
-    //     currentUser?.roles
-    //   );
-    //   // Wait for token to be available before redirecting
-    //   const token = localStorage.getItem("accessToken");
-    //   if (token) {
-    //     console.log("Login.jsx - Token found, navigating to /divs");
-    //     navigate("/divs");
-    //   } else {
-    //     console.log("Login.jsx - Token not found, waiting...");
-    //     // Wait a bit for token to be stored
-    //     const timer = setTimeout(() => {
-    //       const tokenCheck = localStorage.getItem("accessToken");
-    //       if (tokenCheck) {
-    //         console.log(
-    //           "Login.jsx - Token found after delay, navigating to /divs"
-    //         );
-    //         navigate("/divs");
-    //       }
-    //     }, 100);
-    //     return () => clearTimeout(timer);
-    //   }
-    // } else if (login && !currentUser?.showDivisions) {
-    //   console.log(
-    //     "Login.jsx - User does not need division selection, redirecting to /dashboard"
-    //   );
-    //   // User doesn't need division selection, go to dashboard
-    //   // Add a small delay to ensure state is properly set
-    //   const timer = setTimeout(() => {
-    //     navigate("/");
-    //   }, 200);
-    //   return () => clearTimeout(timer);
-    // } else {
-    //   console.log("Login.jsx - No action taken:", {
-    //     login,
-    //     hasUser: !!currentUser,
-    //     showDivisions: currentUser?.showDivisions,
-    //   });
-    // }
+    // Show popup for admins and superadmins (so they can choose store management or admin view)
+    // Only show this if they are NOT store managers
+    if (login && (isAdminUser || isSuperAdminUser) && !isStoreManagerUser) {
+      console.log("Login.jsx - Admin/SuperAdmin detected (not store manager), showing role choice");
+      // Show chooser popup
+      setShowRoleChoice(true);
+      return;
+    }
+
+    // Handle regular users who don't match special role conditions
+    // IMPORTANT: Exclude store managers and employees from this check
+    if (login && currentUser && !isAdminUser && !isSuperAdminUser && !isStoreManagerUser && !isStoreEmployeeUser) {
+      const token = localStorage.getItem("accessToken");
+      
+      if (wantsDivision) {
+        console.log(
+          "Login.jsx - User needs division selection, redirecting to /divs"
+        );
+        console.log(
+          "Login.jsx - Reason: showDivisions=",
+          currentUser?.showDivisions,
+          "roles=",
+          currentUser?.roles
+        );
+        if (token) {
+          console.log("Login.jsx - Token found, navigating to /divs");
+          navigate("/divs");
+        } else {
+          console.log("Login.jsx - Token not found, waiting...");
+          const timer = setTimeout(() => {
+            const tokenCheck = localStorage.getItem("accessToken");
+            if (tokenCheck) {
+              console.log(
+                "Login.jsx - Token found after delay, navigating to /divs"
+              );
+              navigate("/divs");
+            }
+          }, 100);
+          return () => clearTimeout(timer);
+        }
+      } else {
+        console.log(
+          "Login.jsx - User does not need division selection, redirecting to /dashboard"
+        );
+        // User doesn't need division selection, go to dashboard
+        if (token) {
+          navigate("/");
+        } else {
+          const timer = setTimeout(() => {
+            const tokenCheck = localStorage.getItem("accessToken");
+            if (tokenCheck) {
+              navigate("/");
+            }
+          }, 100);
+          return () => clearTimeout(timer);
+        }
+      }
+    }
   }, [login, user, navigate]);
 
   return (
