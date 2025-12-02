@@ -1,24 +1,69 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "./Footer";
 import Header from "./Header";
 import Input from "./Input";
 import styles from "./Login.module.css";
-
-import {
-  isAdmin,
-  isStaffManager,
-  hasBothAdminAndStaff,
-  isStaffEmployee,
-  isSuperAdmin,
-} from "../utils/roleUtils";
-
+import { isAdmin, isStoreManager, hasBothAdminAndStaff, isStoreEmployee, isSuperAdmin, isDivisionHead } from "../utils/roleUtils";
+import { useAuth } from "../Auth";
 
 function Login() {
   const [login, setLogin] = useState(false);
   const [user, setUser] = useState({});
   const [showRoleChoice, setShowRoleChoice] = useState(false);
   const navigate = useNavigate();
+  const { axiosAPI } = useAuth();
+
+  // Helper function to check for multiple stores and redirect accordingly
+  const checkAndRedirectToStoreSelector = useCallback(async (token, fallbackRoute) => {
+    try {
+      console.log("Login.jsx - Checking available stores...");
+      const response = await axiosAPI.get("/auth/available-stores");
+      const data = response.data;
+
+      if (data.success && Array.isArray(data.data)) {
+        const stores = data.data;
+        console.log("Login.jsx - Available stores count:", stores.length);
+
+        // If more than one store, redirect to selector
+        if (stores.length > 1) {
+          console.log("Login.jsx - Multiple stores found, redirecting to store selector");
+          navigate("/store-selector");
+        } else if (stores.length === 1) {
+          // Auto-select the single store
+          console.log("Login.jsx - Single store found, auto-selecting");
+          try {
+            await axiosAPI.post("/auth/select-store", { storeId: stores[0].id });
+            const storeData = {
+              id: stores[0].id,
+              name: stores[0].name,
+              address: stores[0].address,
+              isActive: stores[0].isActive,
+            };
+            localStorage.setItem("selectedStore", JSON.stringify(storeData));
+            localStorage.setItem("currentStoreId", stores[0].id.toString());
+            localStorage.setItem("currentStoreName", stores[0].name);
+            navigate(fallbackRoute);
+          } catch (error) {
+            console.error("Login.jsx - Error auto-selecting store:", error);
+            navigate(fallbackRoute);
+          }
+        } else {
+          // No stores available, go to fallback route
+          console.log("Login.jsx - No stores available");
+          navigate(fallbackRoute);
+        }
+      } else {
+        // API error, go to fallback route
+        console.log("Login.jsx - Failed to fetch stores, using fallback route");
+        navigate(fallbackRoute);
+      }
+    } catch (error) {
+      console.error("Login.jsx - Error checking stores:", error);
+      // On error, go to fallback route
+      navigate(fallbackRoute);
+    }
+  }, [axiosAPI, navigate]);
 
   useEffect(() => {
     console.log("Login.jsx - useEffect triggered:", {
@@ -30,8 +75,31 @@ function Login() {
     const currentUser = user.user || user; // Handle both user.user and direct user
     if (!currentUser || !currentUser.id) return; // Don't proceed if no user data
     
+    // Check for requiresStoreSelection flag from /auth/me response
+    const requiresStoreSelection = currentUser?.requiresStoreSelection === true || 
+                                   currentUser?.storeSelectionRequired === true;
+    const assignedStores = currentUser?.assignedStores || [];
+    const defaultStore = currentUser?.defaultStore;
+    
+    // Get authMeData from localStorage as fallback
+    let authMeData = null;
+    try {
+      const stored = localStorage.getItem("authMeData");
+      if (stored) {
+        authMeData = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Error parsing authMeData:", e);
+    }
+    
+    const finalRequiresStoreSelection = requiresStoreSelection || 
+                                        (authMeData?.requiresStoreSelection === true) ||
+                                        (authMeData?.storeSelectionRequired === true);
+    const finalAssignedStores = assignedStores.length > 0 ? assignedStores : (authMeData?.assignedStores || []);
+    const finalDefaultStore = defaultStore || authMeData?.defaultStore;
+    
     const wantsDivision = currentUser?.showDivisions || isAdmin(currentUser);
-    const isStoreManagerUser = isStoreManager(currentUser);
+    const isStoreManagerUser = isStoreManager(currentUser) || currentUser?.isStoreManager === true || authMeData?.isStoreManager === true;
     const onlyStaff = isStoreManagerUser && !isAdmin(currentUser);
     const bothRoles = hasBothAdminAndStaff(currentUser);
     const isAdminUser = isAdmin(currentUser);
@@ -45,13 +113,37 @@ function Login() {
       isStoreEmployeeUser,
       onlyStaff,
       bothRoles,
-      roles: currentUser?.roles
+      roles: currentUser?.roles,
+      requiresStoreSelection: finalRequiresStoreSelection,
+      assignedStoresCount: finalAssignedStores.length,
+      hasDefaultStore: !!finalDefaultStore
     });
 
-    // Store managers ALWAYS get store management access - navigate to /store
+    // Check if store selection is required (from /auth/me response)
     // This should be checked FIRST, before any other role checks
-    if (login && isStoreManagerUser) {
-      console.log("Login.jsx - Store manager detected, redirecting to /store");
+    if (login && finalRequiresStoreSelection) {
+      console.log("Login.jsx - Store selection required, redirecting to /store-selector");
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        localStorage.setItem("activeView", "staff");
+        navigate("/store-selector");
+        return; // Important: return early to prevent other logic from running
+      } else {
+        const timer = setTimeout(() => {
+          const tokenCheck = localStorage.getItem("accessToken");
+          if (tokenCheck) {
+            localStorage.setItem("activeView", "staff");
+            navigate("/store-selector");
+          }
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+
+    // Store managers ALWAYS get store management access - but only if store is already selected
+    // This should be checked AFTER requiresStoreSelection check
+    if (login && isStoreManagerUser && !finalRequiresStoreSelection) {
+      console.log("Login.jsx - Store manager detected, store already selected, redirecting to /store");
       const token = localStorage.getItem("accessToken");
       if (token) {
         localStorage.setItem("activeView", "staff");
@@ -89,10 +181,11 @@ function Login() {
       }
     }
 
-    // Show popup for admins and superadmins (so they can choose store management or admin view)
+    // Show popup for admins, superadmins, and division heads (so they can choose store management or admin view)
     // Only show this if they are NOT store managers
-    if (login && (isAdminUser || isSuperAdminUser) && !isStoreManagerUser) {
-      console.log("Login.jsx - Admin/SuperAdmin detected (not store manager), showing role choice");
+    const isDivisionHeadUser = isDivisionHead(currentUser);
+    if (login && (isAdminUser || isSuperAdminUser || isDivisionHeadUser) && !isStoreManagerUser) {
+      console.log("Login.jsx - Admin/SuperAdmin/DivisionHead detected (not store manager), showing role choice");
       // Show chooser popup
       setShowRoleChoice(true);
       return;
@@ -147,7 +240,7 @@ function Login() {
         }
       }
     }
-  }, [login, user, navigate]);
+  }, [login, user, navigate, axiosAPI, checkAndRedirectToStoreSelector]);
 
   return (
     <>
@@ -201,10 +294,80 @@ function Login() {
               >
                 <button
                   className="btn btn-primary"
-                  onClick={() => {
+                  onClick={async () => {
                     localStorage.setItem("activeView", "staff");
                     setShowRoleChoice(false);
-                    navigate("/store");
+                    
+                    // Check if store selection is required
+                    const currentUser = user.user || user;
+                    const requiresStoreSelection = currentUser?.requiresStoreSelection === true || 
+                                                   currentUser?.storeSelectionRequired === true;
+                    
+                    // Get authMeData from localStorage as fallback
+                    let authMeData = null;
+                    try {
+                      const stored = localStorage.getItem("authMeData");
+                      if (stored) {
+                        authMeData = JSON.parse(stored);
+                      }
+                    } catch (e) {
+                      console.error("Error parsing authMeData:", e);
+                    }
+                    
+                    const finalRequiresStoreSelection = requiresStoreSelection || 
+                                                        (authMeData?.requiresStoreSelection === true) ||
+                                                        (authMeData?.storeSelectionRequired === true);
+                    
+                    // For admin/division head, also check available stores
+                    if (finalRequiresStoreSelection) {
+                      navigate("/store-selector");
+                    } else {
+                      // Check available stores for admin/division head
+                      try {
+                        const response = await axiosAPI.get("/auth/available-stores");
+                        const data = response.data;
+                        
+                        if (data.success && Array.isArray(data.data)) {
+                          const stores = data.data;
+                          console.log("Login.jsx - Admin/Division Head available stores count:", stores.length);
+                          
+                          if (stores.length > 1) {
+                            // Multiple stores - redirect to selector
+                            console.log("Login.jsx - Multiple stores found for admin/division head, redirecting to selector");
+                            navigate("/store-selector");
+                          } else if (stores.length === 1) {
+                            // Single store - auto-select
+                            console.log("Login.jsx - Single store found for admin/division head, auto-selecting");
+                            try {
+                              await axiosAPI.post("/auth/select-store", { storeId: stores[0].id });
+                              const storeData = {
+                                id: stores[0].id,
+                                name: stores[0].name,
+                                address: stores[0].address,
+                                isActive: stores[0].isActive,
+                              };
+                              localStorage.setItem("selectedStore", JSON.stringify(storeData));
+                              localStorage.setItem("currentStoreId", stores[0].id.toString());
+                              localStorage.setItem("currentStoreName", stores[0].name);
+                              navigate("/store");
+                            } catch (error) {
+                              console.error("Login.jsx - Error auto-selecting store:", error);
+                              navigate("/store");
+                            }
+                          } else {
+                            // No stores available
+                            console.log("Login.jsx - No stores available for admin/division head");
+                            navigate("/store");
+                          }
+                        } else {
+                          // API error, go to store
+                          navigate("/store");
+                        }
+                      } catch (error) {
+                        console.error("Login.jsx - Error checking available stores for admin/division head:", error);
+                        navigate("/store");
+                      }
+                    }
                   }}
                   style={{ flex: 1 }}
                 >

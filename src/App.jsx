@@ -13,6 +13,7 @@ const Dashboard = lazy(() => import("./components/Dashboard/Dashboard"));
 const Login = lazy(() => import("./components/Login"));
 const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
 const Divs = lazy(() => import("./pages/Divs"));
+const StoreSelector = lazy(() => import("./pages/StoreSelector"));
 const StoreDashboard = lazy(() => import("./components/Store/StoreDashboard"));
 
 const getNormalizedUser = () => {
@@ -110,6 +111,13 @@ export default function App() {
       />
 
       <Route path="/divs" element={<Divs />} />
+      
+      {/* Store Selector Route */}
+      <Route path="/store-selector" element={
+        <Suspense fallback={<DashboardSkeleton />}>
+          <StoreSelector />
+        </Suspense>
+      } />
       
       {/* Store Routes */}
       <Route path="/store/*" element={
