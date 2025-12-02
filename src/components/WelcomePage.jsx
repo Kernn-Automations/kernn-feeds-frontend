@@ -17,7 +17,10 @@ function WelcomePage({ data }) {
     localStorage.setItem("user", JSON.stringify(user));
 
     if (user?.userDivision) {
-      localStorage.setItem("selectedDivision", JSON.stringify(user.userDivision));
+      localStorage.setItem(
+        "selectedDivision",
+        JSON.stringify(user.userDivision)
+      );
       localStorage.setItem("showDivisions", "false");
     }
   }
@@ -31,7 +34,11 @@ function WelcomePage({ data }) {
             Welcome <span>{name}</span>
           </p>
           <p className="text-center">
-            <button onClick={onClick} className={styles.get} onKeyDown={onClick}>
+            <button
+              onClick={onClick}
+              className={styles.get}
+              onKeyDown={onClick}
+            >
               Get Started
             </button>
           </p>
