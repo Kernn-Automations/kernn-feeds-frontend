@@ -236,10 +236,85 @@ export default function StoreHome() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  // Get user and store information for welcome message
+  const [username, setUsername] = useState("");
+  const [storeName, setStoreName] = useState("");
+  
+  useEffect(() => {
+    // Get username from user data
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const user = userData.user || userData;
+      const name = user?.name || user?.employee_name || user?.username || user?.fullName || "User";
+      setUsername(name);
+    } catch (e) {
+      console.error("Error parsing user data:", e);
+      setUsername("User");
+    }
+
+    // Get store name from selectedStore
+    try {
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        const store = JSON.parse(selectedStore);
+        setStoreName(store.name || "");
+      } else {
+        // Fallback to currentStoreName
+        const currentStoreName = localStorage.getItem("currentStoreName");
+        setStoreName(currentStoreName || "");
+      }
+    } catch (e) {
+      console.error("Error parsing store data:", e);
+      const currentStoreName = localStorage.getItem("currentStoreName");
+      setStoreName(currentStoreName || "");
+    }
+  }, []);
+
+  // Get greeting based on time
+  const hour = new Date().getHours();
+  let greeting;
+  if (hour < 12) {
+    greeting = "Good Morning";
+  } else if (hour < 18) {
+    greeting = "Good Afternoon";
+  } else {
+    greeting = "Good Evening";
+  }
+
+  // Format current date
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
   return (
     <>
       {error && <ErrorModal message={error} isOpen={isModalOpen} onClose={closeModal} />}
       <div className={`${storeHomeStyles['store-home-container']} ${isMobile ? storeHomeStyles.mobile : ''}`} style={{ padding: isMobile ? '12px' : '20px' }}>
+        {/* Welcome Message Section */}
+        <div className={styles.dashboardHeader} style={{ marginBottom: '24px' }}>
+          <div className={styles.welcomeSection}>
+            <div className={styles.welcomeText}>
+              <h2 className={styles.wish}>
+                Hello, {greeting} {username} !! 👋
+              </h2>
+              <p className={styles.subtitle}>
+                Welcome back to {storeName} store ! Here's what's happening with your business today.
+              </p>
+            </div>
+          </div>
+          <div className={styles.dateTime}>
+            <div className={styles.dateIcon}>
+              <FaClock />
+            </div>
+            <div className={styles.currentDate}>
+              {currentDate}
+            </div>
+          </div>
+        </div>
+
         {/* Statistics Cards Row */}
         <div className={styles.statsRow}>
         <div className={styles.statCard}>

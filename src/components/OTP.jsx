@@ -128,6 +128,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
               normalizedProfile.storeDetails ||
               normalizedProfile.assignedStore ||
               normalizedProfile.employeeStore ||
+              profileData.defaultStore ||
               (Array.isArray(normalizedProfile.stores) ? normalizedProfile.stores[0] : null);
 
             const resolvedStoreId =
@@ -137,6 +138,11 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
               resolvedStore?.id ||
               resolvedStore?.storeId ||
               resolvedStore?.store_id;
+
+            // Store requiresStoreSelection and assignedStores from /auth/me response
+            const requiresStoreSelection = profileData.requiresStoreSelection === true || profileData.storeSelectionRequired === true;
+            const assignedStores = profileData.assignedStores || [];
+            const defaultStore = profileData.defaultStore;
 
             userPayload = {
               ...userPayload,
@@ -149,7 +155,19 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
               userDivision: normalizedProfile.userDivision || userPayload.userDivision,
               store: resolvedStore || normalizedProfile.store || userPayload.store,
               storeId: resolvedStoreId || userPayload.storeId,
+              requiresStoreSelection: requiresStoreSelection,
+              assignedStores: assignedStores,
+              defaultStore: defaultStore,
+              isStoreManager: profileData.isStoreManager || false,
             };
+
+            // Store the full profile data for later use
+            localStorage.setItem("authMeData", JSON.stringify({
+              requiresStoreSelection: requiresStoreSelection,
+              assignedStores: assignedStores,
+              defaultStore: defaultStore,
+              isStoreManager: profileData.isStoreManager || false,
+            }));
 
             if (resolvedStore || resolvedStoreId) {
               persistActiveStore(resolvedStore || userPayload.store, resolvedStoreId);

@@ -1,9 +1,11 @@
 import React, { lazy, Suspense, useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import styles from "../Dashboard/Dashboard.module.css";
 import StoreDashHeader from "./StoreDashHeader";
 import StoreNavContainer from "./StoreNavContainer";
 import FootLink from "../Dashboard/FootLink";
+import { useAuth } from "../../Auth";
+import { isStoreManager, isAdmin, isDivisionHead } from "../../utils/roleUtils";
 
 const StoreHome = lazy(() => import("./StoreHome"));
 const StoreSales = lazy(() => import("./sales/StoreSales"));
@@ -28,6 +30,9 @@ export default function StoreDashboard() {
   const [tab, setTab] = useState("home");
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [checkingStore, setCheckingStore] = useState(true);
+  const navigate = useNavigate();
+  const { axiosAPI } = useAuth();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -41,6 +46,73 @@ export default function StoreDashboard() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Check if store is selected, and if user has multiple stores, redirect to selector
+  useEffect(() => {
+    const checkStoreSelection = () => {
+      try {
+        const selectedStore = localStorage.getItem("selectedStore");
+        const currentStoreId = localStorage.getItem("currentStoreId");
+
+        // If store is already selected, proceed
+        if (selectedStore && currentStoreId) {
+          console.log("StoreDashboard - Store already selected:", JSON.parse(selectedStore));
+          setCheckingStore(false);
+          return;
+        }
+
+        // Get user to check role and requiresStoreSelection
+        let storedUser = {};
+        try {
+          const userData = localStorage.getItem("user");
+          if (userData) {
+            storedUser = JSON.parse(userData);
+            if (storedUser.user && !storedUser.roles) {
+              storedUser = storedUser.user;
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing user from localStorage:", e);
+        }
+
+        // Get authMeData from localStorage
+        let authMeData = null;
+        try {
+          const stored = localStorage.getItem("authMeData");
+          if (stored) {
+            authMeData = JSON.parse(stored);
+          }
+        } catch (e) {
+          console.error("Error parsing authMeData:", e);
+        }
+
+        // Check requiresStoreSelection flag from /auth/me response
+        const requiresStoreSelection = storedUser?.requiresStoreSelection === true || 
+                                       storedUser?.storeSelectionRequired === true ||
+                                       (authMeData?.requiresStoreSelection === true) ||
+                                       (authMeData?.storeSelectionRequired === true);
+
+        const isStoreManagerUser = isStoreManager(storedUser) || storedUser?.isStoreManager === true || authMeData?.isStoreManager === true;
+        const isAdminUser = isAdmin(storedUser);
+        const isDivisionHeadUser = isDivisionHead(storedUser);
+
+        // Check if store selection is required
+        if (requiresStoreSelection && (isStoreManagerUser || isAdminUser || isDivisionHeadUser)) {
+          console.log("StoreDashboard - Store selection required, redirecting to selector");
+          navigate("/store-selector", { replace: true });
+          return;
+        }
+
+        // If no store selection required, proceed normally
+        setCheckingStore(false);
+      } catch (error) {
+        console.error("StoreDashboard - Error checking store selection:", error);
+        setCheckingStore(false);
+      }
+    };
+
+    checkStoreSelection();
+  }, [navigate]);
 
   const onmouseover = () => {
     if (!isMobile) {
@@ -81,6 +153,15 @@ export default function StoreDashboard() {
     }
   } catch (e) {
     console.error("Error parsing user from localStorage:", e);
+  }
+
+  // Show loading while checking store selection
+  if (checkingStore) {
+    return (
+      <div className="container-fluid py-0 my-0" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div>Loading...</div>
+      </div>
+    );
   }
 
   return (

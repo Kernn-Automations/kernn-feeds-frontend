@@ -59,4 +59,13 @@ export const isSuperAdmin = (userLike) => {
   });
 };
 
+export const isDivisionHead = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "division head" || n === "division_head" || n === "divisionhead" || n.includes("division") && n.includes("head");
+  });
+};
+
 
