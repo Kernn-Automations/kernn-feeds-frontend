@@ -18,6 +18,14 @@ function CustomerTransfer({ navigate }) {
   const [singleResult, setSingleResult] = useState(null);
   const [salesExecutives, setSalesExecutives] = useState([]);
   const [selectedSalesExecutiveId, setSelectedSalesExecutiveId] = useState("");
+  
+  // Search states for single transfer fields
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [salesExecutiveSearch, setSalesExecutiveSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [showSalesExecutiveDropdown, setShowSalesExecutiveDropdown] = useState(false);
 
   // Bulk transfer state
   const [customersList, setCustomersList] = useState([]);
@@ -105,19 +113,22 @@ function CustomerTransfer({ navigate }) {
     const id = selectedCustomerId;
     if (id) {
       fetchAvailableEmployees(id);
-      // Load basic customer details using bulk endpoint search
+      // Fetch customer details directly using customer ID endpoint
       (async () => {
         try {
-          const params = new URLSearchParams({
-            page: '1',
-            limit: '10',
-            search: String(id)
-          });
+          const currentDivisionId = localStorage.getItem('currentDivisionId');
+          let customerUrl = `/customers/${id}`;
           
-          const res = await axiosAPI.get(`/customer-transfers/customers/for-bulk-transfer?${params.toString()}`);
-          const data = res?.data?.data || res?.data;
-          const match = (data?.customers || []).find((c) => Number(c.id) === Number(id)) || (data?.customers || [])[0];
-          setCustomerDetails(match || null);
+          // Add division context if needed
+          if (currentDivisionId && currentDivisionId !== '1') {
+            customerUrl += `?divisionId=${currentDivisionId}`;
+          } else if (currentDivisionId === '1') {
+            customerUrl += `?showAllDivisions=true`;
+          }
+          
+          const res = await axiosAPI.get(customerUrl);
+          const customer = res?.data?.customer || res?.data?.data?.customer || res?.data;
+          setCustomerDetails(customer || null);
         } catch (_) {
           setCustomerDetails(null);
         }
@@ -150,6 +161,9 @@ function CustomerTransfer({ navigate }) {
         setTransferReason("");
         setCustomerDetails(null);
         setAvailableEmployees([]);
+        setCustomerSearch("");
+        setEmployeeSearch("");
+        setSalesExecutiveSearch("");
       }
     } catch (e) {
       setError(e?.response?.data?.message || "Transfer failed");
@@ -191,6 +205,70 @@ function CustomerTransfer({ navigate }) {
     setBulkSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
+  // Filtered lists based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customersList;
+    const searchLower = customerSearch.toLowerCase();
+    return customersList.filter(c => 
+      c.name?.toLowerCase().includes(searchLower) ||
+      c.mobile?.includes(customerSearch) ||
+      String(c.id).includes(customerSearch)
+    );
+  }, [customersList, customerSearch]);
+
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearch.trim()) return availableEmployees;
+    const searchLower = employeeSearch.toLowerCase();
+    return availableEmployees.filter(emp => 
+      emp.name?.toLowerCase().includes(searchLower) ||
+      String(emp.id).includes(employeeSearch) ||
+      (emp.team?.name || emp.team || emp.teamName)?.toLowerCase().includes(searchLower)
+    );
+  }, [availableEmployees, employeeSearch]);
+
+  const filteredSalesExecutives = useMemo(() => {
+    if (!salesExecutiveSearch.trim()) return salesExecutives;
+    const searchLower = salesExecutiveSearch.toLowerCase();
+    return salesExecutives.filter(se => 
+      se.name?.toLowerCase().includes(searchLower) ||
+      String(se.id).includes(salesExecutiveSearch) ||
+      (se.team?.name || se.team)?.toLowerCase().includes(searchLower)
+    );
+  }, [salesExecutives, salesExecutiveSearch]);
+
+  // Handle customer selection
+  const handleCustomerSelect = (customerId) => {
+    setSelectedCustomerId(customerId);
+    const customer = customersList.find(c => c.id === Number(customerId));
+    if (customer) {
+      setCustomerSearch(`${customer.name}${customer.mobile ? ` - ${customer.mobile}` : ""} (#${customer.id})`);
+    }
+    setShowCustomerDropdown(false);
+  };
+
+  // Handle employee selection
+  const handleEmployeeSelect = (employeeId) => {
+    setToEmployeeId(employeeId);
+    const emp = availableEmployees.find(e => e.id === Number(employeeId));
+    if (emp) {
+      const teamText = (emp.team?.name || emp.team || emp.teamName) ? `(${(emp.team?.name || emp.team || emp.teamName)})` : '';
+      setEmployeeSearch(`${emp.name} ${teamText}`);
+    }
+    setShowEmployeeDropdown(false);
+  };
+
+  // Handle sales executive selection
+  const handleSalesExecutiveSelect = (salesExecutiveId) => {
+    setSelectedSalesExecutiveId(salesExecutiveId);
+    const se = salesExecutives.find(s => s.id === Number(salesExecutiveId));
+    if (se) {
+      const teamText = (se.team?.name || se.team) ? `(${(se.team?.name || se.team)})` : '';
+      setSalesExecutiveSearch(`${se.name} ${teamText}`);
+    }
+    setShowSalesExecutiveDropdown(false);
+  };
+
+
   return (
     <div className="container-fluid">
       <div className="row m-0 p-3">
@@ -210,19 +288,58 @@ function CustomerTransfer({ navigate }) {
       <div className="row m-0 p-3">
         {/* Single Transfer - styled like Create Customer */}
         <h5 className={styles.head}>Single Customer Transfer</h5>
-        <div className={`col-3 ${styles.longform}`}>
+        <div className={`col-3 ${styles.longform}`} style={{ position: "relative" }}>
           <label>Customers :</label>
-          <select
-            value={selectedCustomerId}
-            onChange={(e) => setSelectedCustomerId(e.target.value)}
-          >
-            <option value="">--select--</option>
-            {customersList.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}{c.mobile ? ` - ${c.mobile}` : ""} {`(#${c.id})`}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={customerSearch}
+            onChange={(e) => {
+              setCustomerSearch(e.target.value);
+              setShowCustomerDropdown(true);
+            }}
+            onFocus={() => setShowCustomerDropdown(true)}
+            onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+            placeholder="Search customer by name, mobile, or ID"
+          />
+          {showCustomerDropdown && filteredCustomers.length > 0 && (
+            <ul
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+                background: "white",
+                maxHeight: "200px",
+                overflowY: "auto",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                padding: "4px 0",
+                margin: "4px 0 0 0",
+                listStyle: "none",
+                border: "1px solid #ddd",
+              }}
+            >
+              {filteredCustomers.map((c) => (
+                <li
+                  key={c.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleCustomerSelect(c.id);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f1f1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  {c.name}{c.mobile ? ` - ${c.mobile}` : ""} (#{c.id})
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {customerDetails && (
@@ -267,23 +384,112 @@ function CustomerTransfer({ navigate }) {
           </>
         )}
 
-        <div className={`col-3 ${styles.longform}`}>
+        <div className={`col-3 ${styles.longform}`} style={{ position: "relative" }}>
           <label>Employees :</label>
-          <select value={toEmployeeId} onChange={(e) => setToEmployeeId(e.target.value)}>
-            <option value="">Select employee</option>
-            {availableEmployees.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.name} {(emp.team || emp.teamName) ? `(${(emp.team && emp.team.name) || emp.team || emp.teamName})` : ''}</option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={employeeSearch}
+            onChange={(e) => {
+              setEmployeeSearch(e.target.value);
+              setShowEmployeeDropdown(true);
+            }}
+            onFocus={() => setShowEmployeeDropdown(true)}
+            onBlur={() => setTimeout(() => setShowEmployeeDropdown(false), 200)}
+            placeholder="Search employee by name, ID, or team"
+            disabled={!selectedCustomerId}
+          />
+          {showEmployeeDropdown && filteredEmployees.length > 0 && (
+            <ul
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+                background: "white",
+                maxHeight: "200px",
+                overflowY: "auto",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                padding: "4px 0",
+                margin: "4px 0 0 0",
+                listStyle: "none",
+                border: "1px solid #ddd",
+              }}
+            >
+              {filteredEmployees.map((emp) => (
+                <li
+                  key={emp.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleEmployeeSelect(emp.id);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f1f1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  {emp.name} {(emp.team || emp.teamName) ? `(${(emp.team && emp.team.name) || emp.team || emp.teamName})` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div className={`col-3 ${styles.longform}`}>
+        <div className={`col-3 ${styles.longform}`} style={{ position: "relative" }}>
           <label>Sales Executive :</label>
-          <select value={selectedSalesExecutiveId} onChange={(e) => setSelectedSalesExecutiveId(e.target.value)}>
-            <option value="">Select sales executive</option>
-            {salesExecutives.map((se) => (
-              <option key={se.id} value={se.id}>{se.name} {se.team || (se.team && se.team.name) ? `(${(se.team && se.team.name) || se.team || 'N/A'})` : ''}</option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={salesExecutiveSearch}
+            onChange={(e) => {
+              setSalesExecutiveSearch(e.target.value);
+              setShowSalesExecutiveDropdown(true);
+            }}
+            onFocus={() => setShowSalesExecutiveDropdown(true)}
+            onBlur={() => setTimeout(() => setShowSalesExecutiveDropdown(false), 200)}
+            placeholder="Search sales executive by name, ID, or team"
+          />
+          {showSalesExecutiveDropdown && filteredSalesExecutives.length > 0 && (
+            <ul
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+                background: "white",
+                maxHeight: "200px",
+                overflowY: "auto",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                padding: "4px 0",
+                margin: "4px 0 0 0",
+                listStyle: "none",
+                border: "1px solid #ddd",
+              }}
+            >
+              {filteredSalesExecutives.map((se) => (
+                <li
+                  key={se.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSalesExecutiveSelect(se.id);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f1f1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  {se.name} {se.team || (se.team && se.team.name) ? `(${(se.team && se.team.name) || se.team || 'N/A'})` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className={`col-6 ${styles.textform}`}>
           <label>Reason :</label>
