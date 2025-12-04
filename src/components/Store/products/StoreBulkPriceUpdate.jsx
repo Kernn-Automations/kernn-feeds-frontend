@@ -23,41 +23,64 @@ export default function StoreBulkPriceUpdate({ navigate }) {
     setIsModalOpen(false);
   };
 
+  // Debounce search to avoid too many API calls
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchProducts();
+    }, 500); // Wait 500ms after user stops typing
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     calculatePriceChanges();
-  }, [updateType, updateValue, selectedProducts]);
+  }, [updateType, updateValue, selectedProducts, products]);
+
+  // Get current store ID from localStorage
+  const getStoreId = () => {
+    try {
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        const store = JSON.parse(selectedStore);
+        return store.id;
+      }
+      const currentStoreId = localStorage.getItem("currentStoreId");
+      return currentStoreId ? parseInt(currentStoreId) : null;
+    } catch (e) {
+      console.error("Error parsing store data:", e);
+      return null;
+    }
+  };
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Get store ID from user context
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
+      const storeId = getStoreId();
       
       if (!storeId) {
-        setError("Store ID not found. Please ensure you are assigned to a store.");
+        setError("Store not selected. Please select a store first.");
         setIsModalOpen(true);
         setLoading(false);
         return;
       }
       
-      const response = await storeService.getStoreProducts(storeId);
+      // Use the new bulk-update endpoint
+      const response = await storeService.getStoreProductsForBulkUpdate(storeId, searchTerm);
       
       if (response.success) {
-        // Map API response - API returns { id, product: { id, name }, stockQuantity, customPrice }
+        // Map API response - API returns { id, productId, productName, sku, currentPrice, basePrice, customPrice, unit, productType, isEnabled, isActive }
         const mappedProducts = (response.data || []).map((item) => ({
-          id: item.product?.id || item.id,
-          storeProductId: item.id,
-          name: item.product?.name || item.name || '-',
-          SKU: item.product?.SKU || item.product?.sku || item.SKU || '-',
-          basePrice: item.customPrice || item.product?.basePrice || item.product?.price || 0,
-          price: item.customPrice || item.product?.basePrice || item.product?.price || 0,
-          stockQuantity: item.stockQuantity || 0
+          id: item.id, // Store product ID (used for bulk update)
+          productId: item.productId, // Original product ID
+          name: item.productName || '-',
+          SKU: item.sku || '-',
+          currentPrice: parseFloat(item.currentPrice || 0),
+          basePrice: parseFloat(item.basePrice || 0),
+          customPrice: item.customPrice ? parseFloat(item.customPrice) : null,
+          unit: item.unit || 'kg',
+          productType: item.productType || 'packed',
+          isEnabled: item.isEnabled !== false,
+          isActive: item.isActive !== false
         }));
         setProducts(mappedProducts);
       } else {
@@ -67,7 +90,10 @@ export default function StoreBulkPriceUpdate({ navigate }) {
       }
     } catch (err) {
       console.error("Error fetching products:", err);
-      setError(err.response?.data?.message || "Failed to load products");
+      const errorMessage = err.response?.status === 403 
+        ? "You don't have permission to access products for this store. Please contact your administrator."
+        : err.response?.data?.message || err.message || "Failed to load products";
+      setError(errorMessage);
       setIsModalOpen(true);
       setProducts([]);
     } finally {
@@ -85,7 +111,7 @@ export default function StoreBulkPriceUpdate({ navigate }) {
     selectedProducts.forEach(productId => {
       const product = products.find(p => p.id === productId);
       if (product) {
-        const currentPrice = parseFloat(product.basePrice || product.price || 0);
+        const currentPrice = product.currentPrice || 0;
         let newPrice;
         
         if (updateType === "percentage") {
@@ -98,7 +124,7 @@ export default function StoreBulkPriceUpdate({ navigate }) {
         
         changes[productId] = {
           current: currentPrice,
-          new: Math.max(0, newPrice.toFixed(2))
+          new: Math.max(0, parseFloat(newPrice.toFixed(2)))
         };
       }
     });
@@ -139,49 +165,66 @@ export default function StoreBulkPriceUpdate({ navigate }) {
 
     try {
       setLoading(true);
-      
-      // Get store ID from user context
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
+      const storeId = getStoreId();
       
       if (!storeId) {
-        setError("Store ID not found");
+        setError("Store not selected. Please select a store first.");
         setIsModalOpen(true);
         setLoading(false);
         return;
       }
       
-      const updates = Array.from(selectedProducts).map(productId => ({
-        productId,
-        newPrice: parseFloat(priceChanges[productId]?.new || 0)
-      }));
+      // Get product IDs for bulk update (using the store product ID from API)
+      const productIds = Array.from(selectedProducts);
+      
+      // Prepare request body based on update type
+      const requestBody = {
+        productIds: productIds,
+        ...(updateType === "percentage" 
+          ? { updateType: "percentage", percentage: parseFloat(updateValue) }
+          : { updateType: "fixed", fixedAmount: parseFloat(updateValue) }
+        )
+      };
 
-      // Update products using store products pricing endpoint
-      for (const update of updates) {
-        await storeService.updateStoreProductPricing(storeId, {
-          productId: update.productId,
-          customPrice: update.newPrice
-        });
+      console.log("Bulk update request:", requestBody);
+
+      // Use the new bulk update endpoint
+      const response = await storeService.bulkUpdateStoreProductPricing(storeId, requestBody);
+
+      console.log("Bulk update response:", response);
+      
+      if (response.success) {
+        const summary = response.data?.summary || {};
+        const updatedCount = summary.totalUpdated || 0;
+        const errorCount = summary.totalErrors || 0;
+        
+        if (errorCount === 0) {
+          setError(`✅ Successfully updated ${updatedCount} product(s)!`);
+        } else {
+          setError(`⚠️ Updated ${updatedCount} product(s), but ${errorCount} failed.`);
+        }
+        setIsModalOpen(true);
+        setSelectedProducts(new Set());
+        setUpdateValue("");
+        setPriceChanges({});
+        
+        // Refresh products list
+        await fetchProducts();
+      } else {
+        setError(response.message || "Failed to update prices");
+        setIsModalOpen(true);
       }
-
-      setError("✅ Prices updated successfully!");
-      setIsModalOpen(true);
-      setSelectedProducts(new Set());
-      setUpdateValue("");
-      await fetchProducts();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update prices");
+      console.error("Error updating prices:", err);
+      setError(err.message || err.response?.data?.message || "Failed to update prices. Please try again.");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredProducts = products.filter((product) =>
-    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.SKU?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Products are already filtered by API search, no need for client-side filtering
+  const filteredProducts = products;
 
   return (
     <div style={{ padding: '20px' }}>
@@ -365,12 +408,12 @@ export default function StoreBulkPriceUpdate({ navigate }) {
                         {product.SKU || product.sku || '-'}
                       </td>
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                        ₹{product.basePrice || product.price || '0.00'}
+                        ₹{product.currentPrice?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                       </td>
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
                         {priceChange ? (
                           <span style={{ color: priceChange.new > priceChange.current ? 'green' : priceChange.new < priceChange.current ? 'red' : 'inherit' }}>
-                            ₹{priceChange.new}
+                            ₹{priceChange.new.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         ) : (
                           <span style={{ color: '#999' }}>-</span>

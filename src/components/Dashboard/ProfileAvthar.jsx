@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import LogoutModal from "./LogoutModal";
 import { Link, useNavigate } from "react-router-dom";
-import { isAdmin } from "../../utils/roleUtils";
+import { isAdmin, isDivisionHead } from "../../utils/roleUtils";
 
 function ProfileAvthar({ user, setTab }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,6 +20,8 @@ function ProfileAvthar({ user, setTab }) {
   const actualUser = user?.user || user || {};
   const userName = actualUser.name || actualUser.user?.name || user?.name || "";
   const userIsAdmin = isAdmin(actualUser);
+  const userIsDivisionHead = isDivisionHead(actualUser);
+  const showStoreOption = userIsAdmin || userIsDivisionHead;
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -73,8 +75,8 @@ function ProfileAvthar({ user, setTab }) {
               </div>
             </Link>
 
-            {userIsAdmin && (
-              <div onClick={() => navigate("/store")}>
+            {showStoreOption && (
+              <div onClick={() => navigate("/store-selector")}>
                 <p>
                   <span>
                     <svg

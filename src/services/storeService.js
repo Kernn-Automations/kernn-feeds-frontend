@@ -166,6 +166,10 @@ const storeService = {
     const res = await api.request(`/stores/${storeId}/customers${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
     return res.json();
   },
+  async getStoreCustomerById(storeId, customerId) {
+    const res = await api.request(`/stores/${storeId}/customers/${customerId}`, { method: "GET" });
+    return res.json();
+  },
   async searchStoreCustomers(storeId, searchTerm) {
     const res = await api.request(`/stores/${storeId}/customers/search?search=${encodeURIComponent(searchTerm)}`, { method: "GET" });
     return res.json();
@@ -201,6 +205,23 @@ const storeService = {
   // Store Products operations
   async getStoreProducts(storeId) {
     const res = await api.request(`/stores/${storeId}/products`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreProductsForSale(storeId, searchTerm = "", productType = "") {
+    let queryParams = [];
+    if (searchTerm) queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
+    if (productType) queryParams.push(`productType=${encodeURIComponent(productType)}`);
+    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : "";
+    const res = await api.request(`/stores/${storeId}/products/for-sale${queryString}`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreProductsForBulkUpdate(storeId, searchTerm = "") {
+    const queryParams = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : "";
+    const res = await api.request(`/stores/${storeId}/products/bulk-update${queryParams}`, { method: "GET" });
+    return res.json();
+  },
+  async bulkUpdateStoreProductPricing(storeId, body) {
+    const res = await api.request(`/stores/${storeId}/products/bulk-update`, { method: "POST", body: JSON.stringify(body) });
     return res.json();
   },
   async updateStoreProductPricing(storeId, body) {

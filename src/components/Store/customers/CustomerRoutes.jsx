@@ -4,6 +4,7 @@ import PageSkeleton from "@/components/SkeletonLoaders/PageSkeleton";
 
 const StoreCustomersHome = lazy(() => import("./StoreCustomersHome"));
 const CustomersList = lazy(() => import("./CustomersList"));
+const CreateStoreCustomer = lazy(() => import("./CreateStoreCustomer"));
 const CustomerDetailsPage = lazy(() => import("./CustomerDetailsPage"));
 
 export default function CustomerRoutes() {
@@ -24,6 +25,14 @@ export default function CustomerRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <CustomersList />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/create"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CreateStoreCustomer />
           </Suspense>
         }
       />

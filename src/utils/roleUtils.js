@@ -32,7 +32,10 @@ export const isStoreManager = (userLike) => {
   const roles = user?.roles || [];
   return roles.some((r) => {
     const n = normalizeRoleName(r);
-    return n === "staff_manager" || n === "staff manager" || n.includes("staff");
+    return n === "staff_manager" || n === "staff manager" || 
+           n === "store_manager" || n === "store manager" ||
+           n === "manager" ||
+           n.includes("staff") || n.includes("manager");
   });
 };
 

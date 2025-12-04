@@ -1,57 +1,65 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "@/Auth";
 import CustomerTabSection from "./CustomerTabSection";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
+import storeService from "../../../services/storeService";
 
 function CustomerDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { axiosAPI } = useAuth();
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Get current store ID from localStorage
+  const getStoreId = () => {
+    try {
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        const store = JSON.parse(selectedStore);
+        return store.id;
+      }
+      const currentStoreId = localStorage.getItem("currentStoreId");
+      return currentStoreId ? parseInt(currentStoreId) : null;
+    } catch (e) {
+      console.error("Error parsing store data:", e);
+      return null;
+    }
+  };
 
   useEffect(() => {
     fetchCustomer();
   }, [id]);
 
   const fetchCustomer = async () => {
+    const storeId = getStoreId();
+    if (!storeId) {
+      setError("Store not selected. Please select a store first.");
+      setIsModalOpen(true);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      // Mock data for now - replace with actual API call
-      // const res = await axiosAPI.get(`/customers/${id}`);
-      // setCustomer(res.data);
-      
-      // Mock customer data
-      const mockCustomer = {
-        id: id,
-        name: "Rajesh Kumar",
-        mobile: "9876543210",
-        email: "rajesh.kumar@example.com",
-        area: "Downtown",
-        address: "123 Main Street, Downtown",
-        city: "Mumbai",
-        state: "Maharashtra",
-        pincode: "400001",
-        isActive: true,
-        totalOrders: 12,
-        totalSpent: 125000,
-        lastOrder: "15-01-2024",
-        orders: [
-          { id: "ORD001", date: "15-01-2024", amount: 15000, status: "Delivered", items: 5 },
-          { id: "ORD002", date: "10-01-2024", amount: 12000, status: "Delivered", items: 4 },
-          { id: "ORD003", date: "05-01-2024", amount: 18000, status: "Delivered", items: 6 },
-          { id: "ORD004", date: "28-12-2023", amount: 9500, status: "Delivered", items: 3 },
-          { id: "ORD005", date: "20-12-2023", amount: 22000, status: "Delivered", items: 8 }
-        ]
-      };
-      setCustomer(mockCustomer);
+      setError("");
+
+      const response = await storeService.getStoreCustomerById(storeId, id);
+
+      if (response.success && response.data) {
+        setCustomer(response.data);
+      } else {
+        setError(response.message || "Failed to load customer details");
+        setIsModalOpen(true);
+        setCustomer(null);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load customer details");
+      console.error("Error fetching customer:", err);
+      setError(err.message || "Failed to load customer details. Please try again.");
       setIsModalOpen(true);
+      setCustomer(null);
     } finally {
       setLoading(false);
     }
@@ -90,12 +98,36 @@ function CustomerDetailsPage() {
           marginBottom: '20px',
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
         }}>
-          <h4 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '10px', color: 'var(--primary-color)' }}>
-            {customer.name}
-          </h4>
-          <p style={{ fontFamily: 'Poppins', color: '#666', margin: 0 }}>
-            {customer.mobile} {customer.email ? `• ${customer.email}` : ''}
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+            <div>
+              <h4 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '8px', color: 'var(--primary-color)' }}>
+                {customer.name}
+              </h4>
+              <p style={{ fontFamily: 'Poppins', color: '#666', margin: 0, fontSize: '14px' }}>
+                {customer.mobile} {customer.email ? `• ${customer.email}` : ''}
+              </p>
+            </div>
+            {customer.customerCode && (
+              <div style={{ 
+                background: '#f3f4f6', 
+                padding: '8px 12px', 
+                borderRadius: '6px',
+                fontFamily: 'Poppins',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#374151'
+              }}>
+                {customer.customerCode}
+              </div>
+            )}
+          </div>
+          {customer.totalPurchases !== undefined && (
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+              <p style={{ fontFamily: 'Poppins', fontSize: '14px', margin: 0, color: '#666' }}>
+                <strong style={{ color: '#374151' }}>Total Purchases:</strong> ₹{customer.totalPurchases?.toLocaleString('en-IN') || '0'}
+              </p>
+            </div>
+          )}
         </div>
 
         <CustomerTabSection customer={customer} />

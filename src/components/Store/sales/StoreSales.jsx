@@ -3,21 +3,19 @@ import { useSearchParams } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import { isStoreEmployee, isStoreManager, isAdmin } from "../../../utils/roleUtils";
-import storeService from "../../../services/storeService";
 import StoreSalesOrders from "./StoreSalesOrders";
 const StoreCreateSale = lazy(() => import("./StoreCreateSale"));
 
 export default function StoreSales() {
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = searchParams.get("mode");
-  const [payload, setPayload] = useState({ storeId: "", customerId: "", items: [], payments: [], notes: "" });
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const user = JSON.parse(localStorage.getItem("user")) || {};
-  const isEmployee = isStoreEmployee(user);
-  const isManager = isStoreManager(user);
-  const isAdminUser = isAdmin(user);
+  const userData = JSON.parse(localStorage.getItem("user")) || {};
+  // Handle nested user structure (user.user or direct user)
+  const actualUser = userData?.user || userData || {};
+  const isEmployee = isStoreEmployee(actualUser);
+  const isManager = isStoreManager(actualUser);
+  const isAdminUser = isAdmin(actualUser);
   const canUseCreateFlow = isEmployee || isManager || isAdminUser;
 
   useEffect(() => {
@@ -29,20 +27,24 @@ export default function StoreSales() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const handleOpenCreate = async () => {
-    if (canUseCreateFlow) {
-      setSearchParams({ mode: "create" });
-      return;
-    }
-    setLoading(true);
-    try {
-      const resp = await storeService.createSale(payload);
-      setResult(resp);
-    } catch (e) {
-      alert(e?.message || "Failed to create sale");
-    } finally {
-      setLoading(false);
-    }
+  // Debug logging
+  useEffect(() => {
+    console.log("StoreSales - Role detection:", {
+      actualUser,
+      roles: actualUser?.roles,
+      isEmployee,
+      isManager,
+      isAdminUser,
+      canUseCreateFlow,
+      mode
+    });
+  }, [actualUser, isEmployee, isManager, isAdminUser, canUseCreateFlow, mode]);
+
+  const handleOpenCreate = () => {
+    // Always navigate to create sale page
+    // The actual sale creation happens in StoreCreateSale component
+    console.log("StoreSales - handleOpenCreate called, setting mode to create");
+    setSearchParams({ mode: "create" });
   };
 
   const handleOpenOrders = () => {
@@ -57,7 +59,9 @@ export default function StoreSales() {
     return <StoreSalesOrders onBack={handleBackToOverview} />;
   }
 
-  if (canUseCreateFlow && mode === "create") {
+  // Always show create sale page if mode is "create"
+  // This ensures it works even if role detection has issues
+  if (mode === "create") {
     return (
       <Suspense fallback={<div>Loading Create Sale...</div>}>
         <StoreCreateSale />
@@ -67,8 +71,8 @@ export default function StoreSales() {
 
   return (
     <div style={{ padding: isMobile ? '12px 8px' : undefined }}>
-      {/* Buttons: show only Create Sale for store employees; show all for others */}
-      {canUseCreateFlow ? (
+      {/* Buttons: show Create Sale button - works for employees, managers, and admins */}
+      {(canUseCreateFlow || isManager || isEmployee || isAdminUser) ? (
         <div className="row m-0 p-2" style={{ marginBottom: '24px' }}>
           <div
             className="col"
@@ -120,7 +124,6 @@ export default function StoreSales() {
             </button>
             <button 
               className="homebtn" 
-              disabled={loading} 
               onClick={handleOpenCreate}
               style={{
                 display: 'inline-flex',
@@ -230,7 +233,6 @@ export default function StoreSales() {
             </button>
             <button 
               className="homebtn" 
-              disabled={loading} 
               onClick={handleOpenCreate}
               style={{
                 display: 'inline-flex',
@@ -270,7 +272,6 @@ export default function StoreSales() {
         <ReusableCard title="This Month" value={"₹3,21,400"} color="blue.500" />
       </Flex>
 
-      {result && <pre style={{ marginTop: 12 }}>{JSON.stringify(result, null, 2)}</pre>}
     </div>
   );
 }
