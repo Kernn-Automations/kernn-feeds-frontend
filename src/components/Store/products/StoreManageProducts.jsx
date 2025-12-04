@@ -14,9 +14,15 @@ export default function StoreManageProducts() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [products, setProducts] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
-  const [editPrice, setEditPrice] = useState("");
+  const [editFormData, setEditFormData] = useState({
+    customPrice: "",
+    stockQuantity: "",
+    minStockLevel: "",
+    isEnabled: true
+  });
   const [visiblePrices, setVisiblePrices] = useState({});
   const [storeId, setStoreId] = useState(null);
 
@@ -25,16 +31,42 @@ export default function StoreManageProducts() {
   };
 
   useEffect(() => {
-    // Get store ID from user context
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    const user = userData.user || userData;
-    const id = user.storeId || user.store?.id;
-    setStoreId(id);
+    // Get store ID from user context - try multiple sources
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const user = userData.user || userData;
+      let id = user.storeId || user.store?.id;
+      
+      // Fallback to other localStorage keys
+      if (!id) {
+        const selectedStore = localStorage.getItem("selectedStore");
+        if (selectedStore) {
+          const store = JSON.parse(selectedStore);
+          id = store.id;
+        }
+      }
+      
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      console.log("Store ID retrieved:", id);
+      setStoreId(id);
+    } catch (err) {
+      console.error("Error getting store ID:", err);
+      setError("Failed to get store ID");
+      setIsModalOpen(true);
+    }
   }, []);
 
   useEffect(() => {
     if (storeId) {
       fetchProducts();
+    } else {
+      console.warn("Store ID not found, cannot fetch products");
+      setError("Store ID not found. Please ensure you are logged in and have a store assigned.");
+      setIsModalOpen(true);
     }
   }, [storeId]);
 
@@ -45,28 +77,46 @@ export default function StoreManageProducts() {
       setLoading(true);
       const response = await storeService.getStoreProducts(storeId);
       
-      if (response.success) {
-        // Map API response - API returns { id, product: { id, name }, stockQuantity, customPrice }
-        const mappedProducts = (response.data || []).map((item) => ({
-          id: item.product?.id || item.id,
+      console.log("Store products response:", response);
+      
+      if (response.success && Array.isArray(response.data)) {
+        // Map API response - GET /stores/:storeId/products returns full details with sales stats
+        const mappedProducts = response.data.map((item) => ({
+          id: item.productId || item.id, // Use productId for the product ID
           storeProductId: item.id, // Store the store product ID for updates
-          name: item.product?.name || item.name || '-',
-          SKU: item.product?.SKU || item.product?.sku || item.SKU || '-',
-          category: item.product?.category || item.category || null,
-          basePrice: item.customPrice || item.product?.basePrice || item.product?.price || 0,
-          price: item.customPrice || item.product?.basePrice || item.product?.price || 0,
-          stockQuantity: item.stockQuantity || 0,
-          status: item.product?.status || 'Active'
+          name: item.productName || '-',
+          SKU: item.sku || '-',
+          category: item.category || null,
+          basePrice: item.basePrice || 0,
+          customPrice: item.customPrice || null,
+          currentPrice: item.currentPrice || item.customPrice || item.basePrice || 0, // API uses 'currentPrice'
+          stockQuantity: item.stock || 0, // API uses 'stock' in GET response
+          minStockLevel: item.minStockLevel || null,
+          isEnabled: item.isEnabled !== undefined ? item.isEnabled : true,
+          isActive: item.isActive !== undefined ? item.isActive : true,
+          unit: item.unit || '-',
+          productType: item.productType || '-',
+          salesCount: item.salesCount || 0, // Sales statistics
+          totalSalesValue: item.totalSalesValue || 0, // Sales statistics
+          status: item.isEnabled === false ? 'Disabled' : (item.isActive === false ? 'Inactive' : 'Active')
         }));
+        console.log("Mapped products:", mappedProducts);
         setProducts(mappedProducts);
+        
+        // Store summary statistics if available
+        if (response.summary) {
+          setSummary(response.summary);
+        }
       } else {
-        setError(response.message || "Failed to load products");
+        const errorMsg = response.message || "Failed to load products";
+        console.error("Failed to load products:", errorMsg, response);
+        setError(errorMsg);
         setIsModalOpen(true);
         setProducts([]);
       }
     } catch (err) {
       console.error("Error fetching products:", err);
-      setError(err.response?.data?.message || "Failed to load products");
+      setError(err.response?.data?.message || err.message || "Failed to load products");
       setIsModalOpen(true);
       setProducts([]);
     } finally {
@@ -76,7 +126,19 @@ export default function StoreManageProducts() {
 
   const handleEditClick = (product) => {
     setEditingProduct(product.id);
-    setEditPrice(product.customPrice || product.basePrice || product.price || "");
+    setEditFormData({
+      customPrice: product.customPrice || product.currentPrice || product.basePrice || "",
+      stockQuantity: product.stockQuantity || "",
+      minStockLevel: product.minStockLevel || "",
+      isEnabled: product.isEnabled !== undefined ? product.isEnabled : true
+    });
+  };
+
+  const handleFormChange = (field, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: field === 'isEnabled' ? value : value
+    }));
   };
 
   const handleSavePrice = async (product) => {
@@ -88,16 +150,38 @@ export default function StoreManageProducts() {
     
     try {
       setLoading(true);
+      // Prepare request body for PUT /stores/:storeId/products/pricing
+      // product.id is the actual productId (e.g., 16), not the store product ID
+      const requestBody = {
+        productId: product.id // Actual product ID from mapping (item.productId)
+      };
+
+      // Only include fields that have been provided
+      if (editFormData.customPrice !== "" && editFormData.customPrice !== null) {
+        requestBody.customPrice = parseFloat(editFormData.customPrice);
+      }
+      if (editFormData.stockQuantity !== "" && editFormData.stockQuantity !== null) {
+        requestBody.stockQuantity = parseInt(editFormData.stockQuantity);
+      }
+      if (editFormData.minStockLevel !== "" && editFormData.minStockLevel !== null) {
+        requestBody.minStockLevel = parseInt(editFormData.minStockLevel);
+      }
+      if (editFormData.isEnabled !== undefined) {
+        requestBody.isEnabled = editFormData.isEnabled;
+      }
+
       // Use the store products pricing endpoint
-      await storeService.updateStoreProductPricing(storeId, {
-        productId: product.id,
-        customPrice: parseFloat(editPrice)
-      });
+      await storeService.updateStoreProductPricing(storeId, requestBody);
       await fetchProducts();
       setEditingProduct(null);
-      setEditPrice("");
+      setEditFormData({
+        customPrice: "",
+        stockQuantity: "",
+        minStockLevel: "",
+        isEnabled: true
+      });
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update price");
+      setError(err.response?.data?.message || "Failed to update product");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -106,7 +190,12 @@ export default function StoreManageProducts() {
 
   const handleCancelEdit = () => {
     setEditingProduct(null);
-    setEditPrice("");
+    setEditFormData({
+      customPrice: "",
+      stockQuantity: "",
+      minStockLevel: "",
+      isEnabled: true
+    });
   };
 
   const togglePriceVisibility = (productId) => {
@@ -183,6 +272,41 @@ export default function StoreManageProducts() {
         </div>
       </div>
 
+      {/* Summary Statistics */}
+      {summary && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '16px', 
+          marginBottom: '24px' 
+        }}>
+          <div className={styles.orderStatusCard} style={{ padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '4px' }}>
+              {summary.catalogSize || 0}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', fontFamily: 'Poppins' }}>Total Products</div>
+          </div>
+          <div className={styles.orderStatusCard} style={{ padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#28a745', marginBottom: '4px' }}>
+              {summary.priceUpdates30d || 0}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', fontFamily: 'Poppins' }}>Price Updates (30d)</div>
+          </div>
+          <div className={styles.orderStatusCard} style={{ padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#dc3545', marginBottom: '4px' }}>
+              {summary.outOfStock || 0}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', fontFamily: 'Poppins' }}>Out of Stock</div>
+          </div>
+          <div className={styles.orderStatusCard} style={{ padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: '#17a2b8', marginBottom: '4px' }}>
+              {summary.newProducts || 0}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', fontFamily: 'Poppins' }}>New Products</div>
+          </div>
+        </div>
+      )}
+
       {/* Products Table */}
       <div className={styles.orderStatusCard}>
         <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
@@ -195,7 +319,9 @@ export default function StoreManageProducts() {
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product Name</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>SKU</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Category</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Base Price</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Price</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Min Stock</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
               </tr>
@@ -203,32 +329,32 @@ export default function StoreManageProducts() {
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', fontFamily: 'Poppins', color: '#666' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px', fontFamily: 'Poppins', color: '#666' }}>
                     {loading ? 'Loading products...' : 'No products found'}
                   </td>
                 </tr>
               ) : (
                 filteredProducts.map((product, i) => (
                   <tr key={product.id} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
-                      {product.name}
-                    </td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-                      {product.SKU || product.sku || '-'}
-                    </td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-                      <span className="badge bg-secondary" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                        {product.category?.name || product.category || '-'}
-                      </span>
-                    </td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-                      {editingProduct === product.id ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
+                        {product.name}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {product.SKU || product.sku || '-'}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        <span className="badge bg-secondary" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
+                          {product.category?.name || product.category || '-'}
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {editingProduct === product.id ? (
                           <input
                             type="number"
                             step="0.01"
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
+                            value={editFormData.customPrice}
+                            onChange={(e) => handleFormChange('customPrice', e.target.value)}
+                            placeholder="Price"
                             style={{
                               width: '100px',
                               padding: '4px 8px',
@@ -238,54 +364,113 @@ export default function StoreManageProducts() {
                               fontSize: '13px'
                             }}
                           />
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleSavePrice(product)}
-                            style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '2px 8px' }}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={handleCancelEdit}
-                            style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '2px 8px' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
-                            ₹{visiblePrices[product.id] ? (product.basePrice || product.price || '0.00') : '••••'}
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
+                              ₹{visiblePrices[product.id] ? (product.currentPrice || product.customPrice || product.basePrice || '0.00') : '••••'}
+                            </span>
+                            <button
+                              className="btn btn-sm btn-link p-0"
+                              onClick={() => togglePriceVisibility(product.id)}
+                              style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '0', minWidth: 'auto' }}
+                            >
+                              {visiblePrices[product.id] ? <FaEyeSlash /> : <FaEye />}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {editingProduct === product.id ? (
+                          <input
+                            type="number"
+                            value={editFormData.stockQuantity}
+                            onChange={(e) => handleFormChange('stockQuantity', e.target.value)}
+                            placeholder="Stock"
+                            style={{
+                              width: '80px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #e5e7eb',
+                              fontFamily: 'Poppins',
+                              fontSize: '13px'
+                            }}
+                          />
+                        ) : (
+                          <span style={{ 
+                            color: product.stockQuantity <= (product.minStockLevel || 0) ? '#dc3545' : 'inherit',
+                            fontWeight: product.stockQuantity <= (product.minStockLevel || 0) ? 600 : 'normal'
+                          }}>
+                            {product.stockQuantity || 0} {product.unit ? product.unit : ''}
                           </span>
-                          <button
-                            className="btn btn-sm btn-link p-0"
-                            onClick={() => togglePriceVisibility(product.id)}
-                            style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '0', minWidth: 'auto' }}
+                        )}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {editingProduct === product.id ? (
+                          <input
+                            type="number"
+                            value={editFormData.minStockLevel}
+                            onChange={(e) => handleFormChange('minStockLevel', e.target.value)}
+                            placeholder="Min"
+                            style={{
+                              width: '80px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #e5e7eb',
+                              fontFamily: 'Poppins',
+                              fontSize: '13px'
+                            }}
+                          />
+                        ) : (
+                          <span>{product.minStockLevel || '-'}</span>
+                        )}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {editingProduct === product.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={editFormData.isEnabled}
+                              onChange={(e) => handleFormChange('isEnabled', e.target.checked)}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: '11px' }}>{editFormData.isEnabled ? 'Enabled' : 'Disabled'}</span>
+                          </div>
+                        ) : (
+                          <span className={`badge ${product.isEnabled && product.isActive ? 'bg-success' : 'bg-secondary'}`} style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
+                            {product.isEnabled === false ? 'Disabled' : (product.isActive === false ? 'Inactive' : 'Active')}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {editingProduct === product.id ? (
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => handleSavePrice(product)}
+                              style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={handleCancelEdit}
+                              style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => handleEditClick(product)}
+                            style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
                           >
-                            {visiblePrices[product.id] ? <FaEyeSlash /> : <FaEye />}
+                            <FaEdit style={{ fontSize: '12px', marginRight: '4px' }} />
+                            Edit
                           </button>
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-                      <span className={`badge ${product.status === 'Active' ? 'bg-success' : 'bg-secondary'}`} style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                        {product.status || 'Active'}
-                      </span>
-                    </td>
-                    <td>
-                      {editingProduct !== product.id && (
-                        <button 
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => handleEditClick(product)}
-                          style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
-                        >
-                          <FaEdit style={{ fontSize: '12px', marginRight: '4px' }} />
-                          Edit Price
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                        )}
+                      </td>
+                    </tr>
                 ))
               )}
             </tbody>

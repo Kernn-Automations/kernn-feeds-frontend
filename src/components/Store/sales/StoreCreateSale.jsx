@@ -1,5 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ApiService from "../../../services/apiService";
+import { QRCodeSVG } from "qrcode.react";
+import storeService from "../../../services/storeService";
+import Loading from "../../Loading";
+import ErrorModal from "../../ErrorModal";
 
 const styles = {
   stepIndicator: {
@@ -174,6 +179,7 @@ export default function StoreCreateSale() {
 
   // Step 2: Payment
   const [mobileNumber, setMobileNumber] = useState("");
+  const [notes, setNotes] = useState("");
   const [generatedOrderId] = useState(() => `STORE-${Date.now().toString().slice(-6)}`);
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -195,7 +201,28 @@ export default function StoreCreateSale() {
     proofPreviewUrl: null,
   }]);
   const [activePaymentTab, setActivePaymentTab] = useState(0);
+  const [qrCodeData, setQrCodeData] = useState({}); // Store QR code data for each payment: { paymentIndex: { upiId, amount, showQR } }
   const [successMessage, setSuccessMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Get current store ID from localStorage
+  const getStoreId = () => {
+    try {
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        const store = JSON.parse(selectedStore);
+        return store.id;
+      }
+      const currentStoreId = localStorage.getItem("currentStoreId");
+      return currentStoreId ? parseInt(currentStoreId) : null;
+    } catch (e) {
+      console.error("Error parsing store data:", e);
+      return null;
+    }
+  };
 
   const sanitizeMobile = (value = "") => String(value || "").replace(/[^0-9]/g, "").slice(-10);
 
@@ -267,21 +294,62 @@ export default function StoreCreateSale() {
     }
   };
 
-  const mockProducts = useMemo(() => ([
-    { id: 'prod-1', name: 'Layer Feed 50kg', sku: 'LF-50', quantity: 120, unit: 'kg', basePrice: 1450, productType: 'bulk' },
-    { id: 'prod-2', name: 'Broiler Starter', sku: 'BS-25', quantity: 60, unit: 'kg', basePrice: 980, productType: 'bulk' },
-    { id: 'prod-3', name: 'Finisher Crumble', sku: 'FC-30', quantity: 35, unit: 'kg', basePrice: 1125, productType: 'bulk' },
-    { id: 'prod-4', name: 'Packed Mineral Mix', sku: 'PMM-5', quantity: 200, unit: 'packet', basePrice: 350, productType: 'packed' }
-  ]), []);
-
+  // Fetch real products from store products API
   useEffect(() => {
-    setProductsLoading(true);
-    const timer = setTimeout(() => {
-      setProducts(mockProducts);
-      setProductsLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [mockProducts]);
+    const fetchProducts = async () => {
+      const storeId = getStoreId();
+      if (!storeId) {
+        console.warn("Store ID not found, cannot fetch products");
+        console.warn("Available localStorage keys:", {
+          selectedStore: localStorage.getItem("selectedStore"),
+          currentStoreId: localStorage.getItem("currentStoreId"),
+          user: localStorage.getItem("user")
+        });
+        setProductsLoading(false);
+        return;
+      }
+
+      try {
+        setProductsLoading(true);
+        console.log("Fetching products for store:", storeId);
+        
+        // Use the for-sale endpoint specifically for sale creation
+        const response = await storeService.getStoreProductsForSale(storeId);
+        
+        console.log("Store products for-sale response:", response);
+        
+        if (response.success && Array.isArray(response.data)) {
+          // Map API response - /stores/:storeId/products/for-sale returns simplified structure
+          const mappedProducts = response.data.map((item) => ({
+            id: item.id, // Store product ID (this is what we need for the sale)
+            storeProductId: item.id, // Store product ID
+            productId: item.productId, // Original product ID
+            name: item.productName || '-',
+            sku: item.sku || '-',
+            quantity: item.stock || 0, // Available stock
+            unit: item.unit || 'kg',
+            basePrice: item.basePrice || 0,
+            price: item.price || item.basePrice || 0, // Current price
+            isOutOfStock: item.isOutOfStock || false,
+          }));
+          console.log("Mapped products for sale:", mappedProducts);
+          setProducts(mappedProducts);
+        } else {
+          const errorMsg = response.message || "Failed to load products";
+          console.error("Failed to fetch products:", errorMsg, response);
+          setProducts([]);
+        }
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        console.error("Error details:", err.response?.data || err.message);
+        setProducts([]);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const cartItemsList = useMemo(() => Object.values(cartItems), [cartItems]);
   const cartItemsCount = cartItemsList.length;
@@ -361,7 +429,14 @@ export default function StoreCreateSale() {
     const quantity = parseInt(inputQuantity, 10);
     if (!quantity || quantity <= 0) return;
 
-    const productId = selectedProductForQty.id;
+    // Use storeProductId (which is the id from store products API) as the key
+    // The id field from store products API is the store product ID we need for the sale
+    const productId = selectedProductForQty.storeProductId || selectedProductForQty.id;
+    if (!productId) {
+      console.error("Product missing ID:", selectedProductForQty);
+      return;
+    }
+
     setProductLoadingState(productId, true);
 
     setCartItems((prev) => {
@@ -374,6 +449,8 @@ export default function StoreCreateSale() {
         ...prev,
         [productId]: {
           ...selectedProductForQty,
+          id: productId, // Ensure id is set to store product ID
+          storeProductId: productId, // Ensure storeProductId is set
           quantity: newQuantity,
           unit: selectedProductForQty.productType === "packed" ? "packs" : (selectedProductForQty.unit || "units"),
           price: unitPrice,
@@ -382,6 +459,7 @@ export default function StoreCreateSale() {
       };
     });
 
+    setProductLoadingState(productId, false);
     setShowQuantityModal(false);
     setSelectedProductForQty(null);
     setInputQuantity('');
@@ -423,6 +501,14 @@ export default function StoreCreateSale() {
       next[idx] = { ...next[idx], [field]: value };
       return next;
     });
+    
+    // If amount changes and QR is shown, hide it to force regeneration
+    if (field === "amount" && qrCodeData[idx]?.showQR) {
+      setQrCodeData(prev => ({
+        ...prev,
+        [idx]: { ...prev[idx], showQR: false }
+      }));
+    }
   };
 
   const handlePaymentProof = (idx, file) => {
@@ -435,9 +521,138 @@ export default function StoreCreateSale() {
     });
   };
 
-  const handleSubmitPayment = () => {
-    setSuccessMessage("Sale submitted successfully!");
-    setTimeout(() => setSuccessMessage(""), 3000);
+  const handleSubmitPayment = async () => {
+    // Validate required data
+    if (!reviewData || cartItemsCount === 0) {
+      setError("Please add products to cart before submitting");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
+    if (!customerForm.mobile || customerForm.mobile.length !== 10) {
+      setError("Please enter a valid 10-digit mobile number");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
+    if (!customerForm.name || customerForm.name.trim() === "") {
+      setError("Please enter customer name");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
+    // Validate payments
+    const totalPaymentAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    if (totalPaymentAmount <= 0) {
+      setError("Please enter payment amounts");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError("");
+      const storeId = getStoreId();
+
+      if (!storeId) {
+        setError("Store not selected. Please select a store first.");
+        setIsErrorModalOpen(true);
+        setSubmitting(false);
+        return;
+      }
+
+      // Step 1: Prepare customer object for sale API
+      // The sale API expects customer object with name and mobile, not customerId
+      const customerMobile = sanitizeMobile(customerForm.mobile);
+      const customer = {
+        name: customerForm.name.trim(),
+        mobile: customerMobile,
+      };
+      
+      // Add optional fields if provided
+      if (customerForm.email && customerForm.email.trim()) {
+        customer.email = customerForm.email.trim();
+      }
+
+      // Step 2: Format items for API (productId and quantity required)
+      // Note: productId should be the actual product ID (not store product ID)
+      const items = cartItemsList
+        .filter((item) => {
+          // Filter out items without valid productId
+          const productId = item.productId; // Actual product ID from for-sale endpoint
+          if (!productId) {
+            console.warn("Cart item missing productId:", item);
+            return false;
+          }
+          return true;
+        })
+        .map((item) => {
+          // Use actual product ID (productId from the for-sale endpoint response)
+          return {
+            productId: item.productId, // Actual product ID (e.g., 16), not store product ID
+            quantity: parseFloat(item.quantity) || 0,
+          };
+        });
+
+      if (items.length === 0) {
+        setError("No valid products in cart. Please add products to cart.");
+        setIsErrorModalOpen(true);
+        setSubmitting(false);
+        return;
+      }
+
+      console.log("Formatted items for API:", items);
+
+      // Step 3: Format payments for API (paymentMethod and amount required)
+      // Payment proof is handled separately via UTR endpoint if needed
+      const formattedPayments = payments
+        .filter((payment) => payment.amount && parseFloat(payment.amount) > 0)
+        .map((payment) => ({
+          paymentMethod: payment.paymentMethod || "cash",
+          amount: parseFloat(payment.amount) || 0,
+        }));
+
+      if (formattedPayments.length === 0) {
+        setError("Please enter at least one payment with a valid amount");
+        setIsErrorModalOpen(true);
+        setSubmitting(false);
+        return;
+      }
+
+      // Step 4: Prepare sale request body according to backend API
+      // API expects: { storeId, customer: { name, mobile }, items: [{ productId, quantity }], payments: [{ paymentMethod, amount }], notes? }
+      const saleData = {
+        storeId: storeId,
+        customer: customer, // Customer object with name and mobile
+        items: items, // Array of { productId, quantity }
+        payments: formattedPayments, // Array of { paymentMethod, amount }
+        ...(notes && notes.trim() && { notes: notes.trim() }), // Optional notes field
+      };
+
+      console.log("Creating sale with data:", saleData);
+
+      // Step 5: Create sale
+      const saleResponse = await storeService.createSale(saleData);
+
+      console.log("Sale creation response:", saleResponse);
+
+      if (saleResponse.success || saleResponse.data) {
+        setSuccessMessage("✅ Sale created successfully!");
+        setTimeout(() => {
+          // Navigate back to sales page
+          navigate("/store/sales");
+        }, 2000);
+      } else {
+        setError(saleResponse.message || "Failed to create sale");
+        setIsErrorModalOpen(true);
+      }
+    } catch (err) {
+      console.error("Error creating sale:", err);
+      setError(err.message || err.response?.data?.message || "Failed to create sale. Please try again.");
+      setIsErrorModalOpen(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderQuantityModal = () => {
@@ -484,8 +699,16 @@ export default function StoreCreateSale() {
             <div>{selectedProductForQty.name}</div>
           </div>
           <div style={{ marginBottom: '20px' }}>
-            <strong>Available:</strong>
-            <div>{selectedProductForQty.quantity} {selectedProductForQty.productType === "packed" ? "packs" : selectedProductForQty.unit}</div>
+            <strong>Available Stock:</strong>
+            <div>
+              {selectedProductForQty.quantity || 0} {selectedProductForQty.productType === "packed" ? "packs" : selectedProductForQty.unit || "units"}
+              {selectedProductForQty.isOutOfStock && (
+                <span style={{ color: '#dc2626', marginLeft: '8px', fontSize: '12px' }}>(Out of Stock)</span>
+              )}
+              {selectedProductForQty.isLowStock && !selectedProductForQty.isOutOfStock && (
+                <span style={{ color: '#f97316', marginLeft: '8px', fontSize: '12px' }}>(Low Stock)</span>
+              )}
+            </div>
           </div>
           <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>Quantity</label>
           <input
@@ -587,8 +810,10 @@ export default function StoreCreateSale() {
                       </div>
                       <div style={styles.productInfo}>
                         <span style={{ fontWeight: 600 }}>Stock</span>
-                        <span style={{ color: product.quantity > 10 ? '#16a34a' : product.quantity > 0 ? '#f97316' : '#dc2626' }}>
-                          {product.quantity > 0 ? product.quantity : 'Out of Stock'}
+                        <span style={{ 
+                          color: product.isOutOfStock ? '#dc2626' : product.isLowStock ? '#f97316' : '#16a34a'
+                        }}>
+                          {product.isOutOfStock ? 'Out of Stock' : `${product.quantity || 0}${product.isLowStock ? ' (Low)' : ''}`}
                         </span>
                       </div>
                       <div style={styles.productInfo}>
@@ -920,16 +1145,32 @@ export default function StoreCreateSale() {
                           <button
                             type="button"
                             onClick={() => {
-                              // Generate QR code functionality
-                              setSuccessMessage("QR code generation feature coming soon");
-                              setTimeout(() => setSuccessMessage(""), 3000);
+                              const amount = parseFloat(payment.amount) || 0;
+                              if (amount <= 0) {
+                                setSuccessMessage("Please enter a valid amount first");
+                                setTimeout(() => setSuccessMessage(""), 3000);
+                                return;
+                              }
+                              
+                              const upiId = reviewData?.upiId || "kernnfeeds@upi";
+                              const upiUrl = `upi://pay?pa=${upiId}&pn=Feed Bazaar Private Limited&am=${amount.toFixed(2)}&cu=INR`;
+                              
+                              setQrCodeData(prev => ({
+                                ...prev,
+                                [idx]: {
+                                  upiId: upiId,
+                                  amount: amount,
+                                  upiUrl: upiUrl,
+                                  showQR: !prev[idx]?.showQR
+                                }
+                              }));
                             }}
                             style={{
                               padding: '10px 20px',
                               borderRadius: '8px',
                               border: '2px solid var(--primary-color)',
-                              backgroundColor: '#fff',
-                              color: 'var(--primary-color)',
+                              backgroundColor: qrCodeData[idx]?.showQR ? 'var(--primary-color)' : '#fff',
+                              color: qrCodeData[idx]?.showQR ? '#fff' : 'var(--primary-color)',
                               fontWeight: '600',
                               fontSize: '14px',
                               cursor: 'pointer',
@@ -939,16 +1180,85 @@ export default function StoreCreateSale() {
                               gap: '8px'
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.backgroundColor = 'var(--primary-color)';
-                              e.target.style.color = '#fff';
+                              if (!qrCodeData[idx]?.showQR) {
+                                e.target.style.backgroundColor = 'var(--primary-color)';
+                                e.target.style.color = '#fff';
+                              }
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.backgroundColor = '#fff';
-                              e.target.style.color = 'var(--primary-color)';
+                              if (!qrCodeData[idx]?.showQR) {
+                                e.target.style.backgroundColor = '#fff';
+                                e.target.style.color = 'var(--primary-color)';
+                              }
                             }}
                           >
-                            Generate QR
+                            {qrCodeData[idx]?.showQR ? 'Hide QR' : 'Generate QR'}
                           </button>
+                          
+                          {qrCodeData[idx]?.showQR && (
+                            <div style={{
+                              marginTop: '20px',
+                              padding: '20px',
+                              backgroundColor: '#fff',
+                              borderRadius: '12px',
+                              border: '2px solid #e5e7eb',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '16px'
+                            }}>
+                              <div style={{
+                                padding: '20px',
+                                backgroundColor: '#fff',
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                minWidth: '250px',
+                                minHeight: '250px'
+                              }}>
+                                <QRCodeSVG
+                                  value={qrCodeData[idx].upiUrl}
+                                  size={250}
+                                  level="H"
+                                  includeMargin={true}
+                                />
+                              </div>
+                              
+                              <div style={{
+                                textAlign: 'center',
+                                width: '100%'
+                              }}>
+                                <div style={{
+                                  fontFamily: 'Poppins',
+                                  fontSize: '16px',
+                                  fontWeight: 600,
+                                  color: '#0f172a',
+                                  marginBottom: '8px'
+                                }}>
+                                  UPI ID: {qrCodeData[idx].upiId}
+                                </div>
+                                <div style={{
+                                  fontFamily: 'Poppins',
+                                  fontSize: '18px',
+                                  fontWeight: 700,
+                                  color: 'var(--primary-color)',
+                                  marginTop: '4px'
+                                }}>
+                                  Amount: ₹{qrCodeData[idx].amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <div style={{
+                                  fontFamily: 'Poppins',
+                                  fontSize: '12px',
+                                  color: '#6b7280',
+                                  marginTop: '8px'
+                                }}>
+                                  Scan with any UPI app to pay
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
           </div>
@@ -957,9 +1267,30 @@ export default function StoreCreateSale() {
               </div>
               </div>
 
+              {/* Notes field (optional) */}
+              <div style={{ marginTop: 16, marginBottom: 16 }}>
+                <label className="form-label" style={{ fontWeight: 600, marginBottom: 8 }}>Notes (Optional)</label>
+                <textarea
+                  className="form-control"
+                  placeholder="Enter any additional notes about this sale..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  style={{ fontSize: '14px' }}
+                />
+              </div>
+
               <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end', flexDirection: isMobile ? 'column' : 'row' }}>
                 <button className="btn btn-light" onClick={prev} style={{ minHeight: isMobile ? '44px' : 'auto', width: isMobile ? '100%' : 'auto' }}>Back to Overview</button>
-                <button className="btn btn-primary" type="button" onClick={handleSubmitPayment} style={{ minHeight: isMobile ? '44px' : 'auto', width: isMobile ? '100%' : 'auto' }}>Submit Payment</button>
+                <button 
+                  className="btn btn-primary" 
+                  type="button" 
+                  onClick={handleSubmitPayment} 
+                  disabled={submitting}
+                  style={{ minHeight: isMobile ? '44px' : 'auto', width: isMobile ? '100%' : 'auto' }}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Payment'}
+                </button>
               </div>
               {successMessage && (
                 <div style={{ marginTop: 12, padding: 12, borderRadius: 8, backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #86efac', textAlign: 'center', fontWeight: 600 }}>
@@ -971,6 +1302,20 @@ export default function StoreCreateSale() {
         </div>
       )}
       {renderQuantityModal()}
+      
+      {/* Loading overlay */}
+      {submitting && <Loading />}
+      
+      {/* Error Modal */}
+      {isErrorModalOpen && (
+        <ErrorModal
+          message={error}
+          onClose={() => {
+            setIsErrorModalOpen(false);
+            setError("");
+          }}
+        />
+      )}
     </div>
   );
 }
