@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import storeService from "../../../services/storeService";
 import Loading from "../../Loading";
 import ErrorModal from "../../ErrorModal";
+import SuccessModal from "../../SuccessModal";
 
 const styles = {
   stepIndicator: {
@@ -206,6 +207,9 @@ export default function StoreCreateSale() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [calculatedTotal, setCalculatedTotal] = useState(null); // { subtotal, tax, total }
+  const [calculatingTotal, setCalculatingTotal] = useState(false);
   const navigate = useNavigate();
 
   // Get current store ID from localStorage
@@ -355,6 +359,89 @@ export default function StoreCreateSale() {
   const cartItemsCount = cartItemsList.length;
   const totalCartValue = cartItemsList.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
 
+  // Calculate total with tax from backend when cart changes
+  useEffect(() => {
+    const calculateTotal = async () => {
+      if (cartItemsCount === 0) {
+        setCalculatedTotal(null);
+        return;
+      }
+
+      const storeId = getStoreId();
+      if (!storeId) {
+        return;
+      }
+
+      try {
+        setCalculatingTotal(true);
+        
+        // Prepare items for calculation
+        const items = cartItemsList
+          .filter((item) => item.productId)
+          .map((item) => ({
+            productId: item.productId,
+            quantity: parseFloat(item.quantity) || 0,
+          }));
+
+        if (items.length === 0) {
+          setCalculatedTotal(null);
+          return;
+        }
+
+        // Calculate subtotal from cart
+        const subtotal = totalCartValue;
+
+        // Try to calculate total using backend
+        // First, try the calculate endpoint
+        const calculateData = {
+          storeId: storeId,
+          items: items,
+        };
+
+        try {
+          const response = await storeService.calculateSaleTotal(calculateData);
+          
+          if (response && response.success && response.data) {
+            // Backend returned calculated total
+            setCalculatedTotal({
+              subtotal: response.data.subtotal || subtotal,
+              tax: response.data.tax || response.data.taxAmount || 0,
+              total: response.data.total || response.data.grandTotal || (subtotal + (response.data.tax || response.data.taxAmount || 0)),
+            });
+          } else {
+            // Calculate endpoint not available, use fallback
+            // Use 5% tax as default (backend will validate)
+            const tax = Math.round(subtotal * 0.05);
+            const total = subtotal + tax;
+            setCalculatedTotal({ subtotal, tax, total });
+          }
+        } catch (calcErr) {
+          // Calculate endpoint not available, use fallback
+          console.log("Calculate endpoint not available, using estimated tax (5%)");
+          const tax = Math.round(subtotal * 0.05);
+          const total = subtotal + tax;
+          setCalculatedTotal({ subtotal, tax, total });
+        }
+      } catch (err) {
+        console.error("Error calculating total:", err);
+        // Fallback to estimated tax
+        const subtotal = totalCartValue;
+        const tax = Math.round(subtotal * 0.05);
+        const total = subtotal + tax;
+        setCalculatedTotal({ subtotal, tax, total });
+      } finally {
+        setCalculatingTotal(false);
+      }
+    };
+
+    // Debounce calculation to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      calculateTotal();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [cartItemsList, cartItemsCount, totalCartValue]);
+
   const reviewData = useMemo(() => {
     if (!cartItemsCount) return null;
 
@@ -385,8 +472,10 @@ export default function StoreCreateSale() {
     }));
 
     const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
-    const tax = Math.round(subtotal * 0.05);
-    const total = subtotal + tax;
+    
+    // Use calculated total from backend if available, otherwise use subtotal
+    const tax = calculatedTotal?.tax || 0;
+    const total = calculatedTotal?.total || calculatedTotal?.subtotal || subtotal;
 
     return {
       orderId: generatedOrderId,
@@ -400,7 +489,7 @@ export default function StoreCreateSale() {
         bankName: "Kernn Bank",
       },
     };
-  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId]);
+  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal]);
 
   const canGoNext = () => {
     if (step === 0) return cartItemsCount > 0; // Products step - need at least one item
@@ -521,7 +610,16 @@ export default function StoreCreateSale() {
     });
   };
 
-  const handleSubmitPayment = async () => {
+  const handleSubmitPayment = async (e) => {
+    // Prevent any default form submission
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log("Submit Payment button clicked");
+    console.log("Current state:", { reviewData, cartItemsCount, customerForm, payments });
+    
     // Validate required data
     if (!reviewData || cartItemsCount === 0) {
       setError("Please add products to cart before submitting");
@@ -529,22 +627,28 @@ export default function StoreCreateSale() {
       return;
     }
 
-    if (!customerForm.mobile || customerForm.mobile.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number");
+    // Mobile number is optional, but if provided, it must be valid (10 digits)
+    if (customerForm.mobile && customerForm.mobile.trim() !== "" && customerForm.mobile.length !== 10) {
+      setError("Please enter a valid 10-digit mobile number or leave it empty");
       setIsErrorModalOpen(true);
       return;
     }
 
-    if (!customerForm.name || customerForm.name.trim() === "") {
-      setError("Please enter customer name");
-      setIsErrorModalOpen(true);
-      return;
-    }
+    // Customer details are optional - no validation needed
 
     // Validate payments
     const totalPaymentAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     if (totalPaymentAmount <= 0) {
       setError("Please enter payment amounts");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
+    // Validate payment amount matches calculated total (with tolerance for rounding)
+    const expectedTotal = calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
+    const paymentDifference = Math.abs(totalPaymentAmount - expectedTotal);
+    if (paymentDifference > 1) { // Allow 1 rupee difference for rounding
+      setError(`Payment amount (₹${totalPaymentAmount.toLocaleString('en-IN')}) does not match order total (₹${expectedTotal.toLocaleString('en-IN')}). Please enter the correct amount.`);
       setIsErrorModalOpen(true);
       return;
     }
@@ -563,16 +667,29 @@ export default function StoreCreateSale() {
 
       // Step 1: Prepare customer object for sale API
       // The sale API expects customer object with name and mobile, not customerId
-      const customerMobile = sanitizeMobile(customerForm.mobile);
-      const customer = {
-        name: customerForm.name.trim(),
-        mobile: customerMobile,
-      };
+      // Customer details are optional
+      const customer = {};
+      
+      // Add name if provided
+      if (customerForm.name && customerForm.name.trim()) {
+        customer.name = customerForm.name.trim();
+      }
+      
+      // Add mobile if provided
+      if (customerForm.mobile && customerForm.mobile.trim()) {
+        const customerMobile = sanitizeMobile(customerForm.mobile);
+        if (customerMobile && customerMobile.length === 10) {
+          customer.mobile = customerMobile;
+        }
+      }
       
       // Add optional fields if provided
       if (customerForm.email && customerForm.email.trim()) {
         customer.email = customerForm.email.trim();
       }
+      
+      // Only include customer object if it has at least one field
+      // If customer object is empty, backend should handle it or we can send null/undefined
 
       // Step 2: Format items for API (productId and quantity required)
       // Note: productId should be the actual product ID (not store product ID)
@@ -620,35 +737,92 @@ export default function StoreCreateSale() {
       }
 
       // Step 4: Prepare sale request body according to backend API
-      // API expects: { storeId, customer: { name, mobile }, items: [{ productId, quantity }], payments: [{ paymentMethod, amount }], notes? }
+      // API expects: { storeId, customer: { name?, mobile? } (optional), items: [{ productId, quantity }], payments: [{ paymentMethod, amount }], notes? }
       const saleData = {
         storeId: storeId,
-        customer: customer, // Customer object with name and mobile
         items: items, // Array of { productId, quantity }
         payments: formattedPayments, // Array of { paymentMethod, amount }
         ...(notes && notes.trim() && { notes: notes.trim() }), // Optional notes field
       };
+      
+      // Only include customer if it has at least one field
+      if (Object.keys(customer).length > 0) {
+        saleData.customer = customer;
+      }
 
       console.log("Creating sale with data:", saleData);
+      console.log("Sale data JSON:", JSON.stringify(saleData, null, 2));
 
       // Step 5: Create sale
-      const saleResponse = await storeService.createSale(saleData);
-
-      console.log("Sale creation response:", saleResponse);
+      let saleResponse;
+      try {
+        saleResponse = await storeService.createSale(saleData);
+        console.log("Sale creation response:", saleResponse);
+      } catch (apiErr) {
+        // If the API service throws an error, it might be in a different format
+        console.error("API Service error:", apiErr);
+        throw apiErr; // Re-throw to be caught by outer catch
+      }
 
       if (saleResponse.success || saleResponse.data) {
         setSuccessMessage("✅ Sale created successfully!");
-        setTimeout(() => {
-          // Navigate back to sales page
-          navigate("/store/sales");
-        }, 2000);
+        setIsSuccessModalOpen(true);
       } else {
-        setError(saleResponse.message || "Failed to create sale");
+        // Check if error is about payment amount mismatch
+        const errorMessage = saleResponse.message || "";
+        if (errorMessage.includes("Payment amount") && errorMessage.includes("does not match sale total")) {
+          // Extract the expected total from error message if possible
+          const totalMatch = errorMessage.match(/sale total \(([\d,]+)\)/);
+          if (totalMatch) {
+            const expectedTotal = totalMatch[1].replace(/,/g, '');
+            setError(`Payment amount mismatch. Backend calculated total (with tax): ₹${parseInt(expectedTotal).toLocaleString('en-IN')}. Please enter this amount as payment.`);
+          } else {
+            setError(errorMessage + " Please check the payment amount matches the backend calculated total (subtotal + tax).");
+          }
+        } else {
+          setError(errorMessage || "Failed to create sale");
+        }
         setIsErrorModalOpen(true);
       }
     } catch (err) {
       console.error("Error creating sale:", err);
-      setError(err.message || err.response?.data?.message || "Failed to create sale. Please try again.");
+      console.error("Error response:", err.response);
+      console.error("Error data:", err.response?.data);
+      
+      // Get detailed error message from backend
+      let errorMessage = "Failed to create sale. Please try again.";
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        // Try to get the most detailed error message
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorMessage = errorData.errors.map(e => e.message || e).join(', ');
+        } else if (errorData.errors && typeof errorData.errors === 'object') {
+          errorMessage = Object.values(errorData.errors).flat().join(', ');
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Check if error is about payment amount mismatch
+      if (errorMessage.includes("Payment amount") && errorMessage.includes("does not match sale total")) {
+        // Extract the expected total from error message if possible
+        const totalMatch = errorMessage.match(/sale total \(([\d,]+)\)/);
+        if (totalMatch) {
+          const expectedTotal = totalMatch[1].replace(/,/g, '');
+          setError(`Payment amount mismatch. Backend calculated total (with tax): ₹${parseInt(expectedTotal).toLocaleString('en-IN')}. Please enter this amount as payment.`);
+        } else {
+          setError(errorMessage + " Please check the payment amount matches the backend calculated total (subtotal + tax).");
+        }
+      } else {
+        setError(errorMessage);
+      }
       setIsErrorModalOpen(true);
     } finally {
       setSubmitting(false);
@@ -918,6 +1092,7 @@ export default function StoreCreateSale() {
                   <div style={{ fontSize: 13, color: '#475569' }}>
                     <div><strong>Items:</strong> {reviewData.items.length}</div>
                     <div><strong>Subtotal:</strong> ₹{reviewData.totals.subtotal.toLocaleString('en-IN')}</div>
+                    <div><strong>Tax:</strong> ₹{reviewData.totals.tax.toLocaleString('en-IN')}</div>
                     <div><strong>Total:</strong> ₹{reviewData.totals.total.toLocaleString('en-IN')}</div>
                   </div>
                 </div>
@@ -944,10 +1119,10 @@ export default function StoreCreateSale() {
                   <strong>₹{reviewData.totals.subtotal.toLocaleString('en-IN')}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                  <span>Estimated Tax (5%)</span>
+                  <span>Tax {calculatingTotal && <span style={{ fontSize: '11px', color: '#6b7280' }}>(calculating...)</span>}</span>
                   <strong>₹{reviewData.totals.tax.toLocaleString('en-IN')}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
                   <span style={{ fontWeight: 600 }}>Grand Total</span>
                   <strong style={{ fontSize: 18, color: '#0f172a' }}>₹{reviewData.totals.total.toLocaleString('en-IN')}</strong>
           </div>
@@ -999,6 +1174,9 @@ export default function StoreCreateSale() {
                   <div>
                     <div style={{ fontWeight: 600, color: '#312e81' }}>Order Total</div>
                     <div style={{ fontSize: 24, fontWeight: 700, color: '#1e1b4b' }}>₹{reviewData.totals.total.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: 12, color: '#4338ca', marginTop: '4px' }}>
+                      Subtotal: ₹{reviewData.totals.subtotal.toLocaleString('en-IN')} + Tax: ₹{reviewData.totals.tax.toLocaleString('en-IN')}
+                    </div>
                     <div style={{ fontSize: 12, color: '#4338ca' }}>Order ID: {reviewData.orderId}</div>
                   </div>
                 </div>
@@ -1108,9 +1286,19 @@ export default function StoreCreateSale() {
                       </div>
                       <div>
                         <label className="form-label">Amount (₹)</label>
-                        <input type="number" className="form-control" min="0" value={payment.amount}
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          min="0" 
+                          value={payment.amount}
                           onChange={(e) => updatePaymentField(idx, "amount", e.target.value)}
+                          placeholder={idx === 0 && reviewData ? `Enter ${reviewData.totals.total.toLocaleString('en-IN')} (Total with tax)` : "Enter amount"}
                         />
+                        {idx === 0 && reviewData && !payment.amount && (
+                          <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                            Total to pay: ₹{reviewData.totals.total.toLocaleString('en-IN')}
+                          </small>
+                        )}
                       </div>
                       {payment.paymentMethod === "bank" && (
                         <div>
@@ -1281,13 +1469,28 @@ export default function StoreCreateSale() {
               </div>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end', flexDirection: isMobile ? 'column' : 'row' }}>
-                <button className="btn btn-light" onClick={prev} style={{ minHeight: isMobile ? '44px' : 'auto', width: isMobile ? '100%' : 'auto' }}>Back to Overview</button>
+                <button 
+                  className="btn btn-light" 
+                  type="button"
+                  onClick={prev} 
+                  style={{ minHeight: isMobile ? '44px' : 'auto', width: isMobile ? '100%' : 'auto' }}
+                >
+                  Back to Overview
+                </button>
                 <button 
                   className="btn btn-primary" 
                   type="button" 
-                  onClick={handleSubmitPayment} 
-                  disabled={submitting}
-                  style={{ minHeight: isMobile ? '44px' : 'auto', width: isMobile ? '100%' : 'auto' }}
+                  onClick={(e) => {
+                    console.log("Button clicked, calling handleSubmitPayment");
+                    handleSubmitPayment(e);
+                  }}
+                  disabled={submitting || !reviewData}
+                  style={{ 
+                    minHeight: isMobile ? '44px' : 'auto', 
+                    width: isMobile ? '100%' : 'auto',
+                    cursor: (submitting || !reviewData) ? 'not-allowed' : 'pointer',
+                    opacity: (submitting || !reviewData) ? 0.6 : 1
+                  }}
                 >
                   {submitting ? 'Submitting...' : 'Submit Payment'}
                 </button>
@@ -1309,10 +1512,25 @@ export default function StoreCreateSale() {
       {/* Error Modal */}
       {isErrorModalOpen && (
         <ErrorModal
+          isOpen={isErrorModalOpen}
           message={error}
           onClose={() => {
             setIsErrorModalOpen(false);
             setError("");
+          }}
+        />
+      )}
+
+      {/* Success Modal */}
+      {isSuccessModalOpen && (
+        <SuccessModal
+          isOpen={isSuccessModalOpen}
+          message={successMessage || "Sale created successfully!"}
+          onClose={() => {
+            setIsSuccessModalOpen(false);
+            setSuccessMessage("");
+            // Navigate back to sales page after closing modal
+            navigate("/store/sales");
           }}
         />
       )}

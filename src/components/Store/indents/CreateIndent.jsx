@@ -13,13 +13,12 @@ function CreateIndent({ navigate }) {
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  const [stores, setStores] = useState([]);
+  const [currentStore, setCurrentStore] = useState(null);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
     storeId: "",
     notes: "",
-    priority: "normal",
-    expectedDate: ""
+    priority: "normal"
   });
   
   const [items, setItems] = useState([
@@ -27,17 +26,57 @@ function CreateIndent({ navigate }) {
   ]);
 
   useEffect(() => {
-    fetchStores();
+    fetchCurrentStore();
     fetchProducts();
   }, []);
 
-  const fetchStores = async () => {
+  const fetchCurrentStore = async () => {
     try {
       setLoading(true);
-      const res = await storeService.getStores();
-      setStores(res.stores || res.data || []);
+      
+      // Get store ID from multiple sources
+      let storeId = null;
+      
+      // Try from selectedStore in localStorage
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
+          const store = JSON.parse(selectedStore);
+          storeId = store.id;
+        } catch (e) {
+          console.error("Error parsing selectedStore:", e);
+        }
+      }
+      
+      // Fallback to currentStoreId
+      if (!storeId) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        storeId = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      // Fallback to user object
+      if (!storeId) {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        storeId = user?.storeId || user?.store?.id;
+      }
+      
+      if (!storeId) {
+        throw new Error("Store information missing. Please re-login to continue.");
+      }
+      
+      // Fetch store details from backend
+      const res = await storeService.getStoreById(storeId);
+      const store = res.store || res.data || res;
+      
+      if (store && store.id) {
+        setCurrentStore(store);
+        setForm(prev => ({ ...prev, storeId: store.id }));
+      } else {
+        throw new Error("Store not found");
+      }
     } catch (err) {
-      setError(err.response?.data?.message || "Error fetching stores");
+      setError(err.response?.data?.message || err.message || "Error fetching store information");
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -115,29 +154,47 @@ function CreateIndent({ navigate }) {
         throw new Error("Please select a store");
       }
       
-      if (items.length === 0 || items.some(item => !item.productId || !item.quantity)) {
+      // Filter out empty items first, then validate
+      const validItems = items.filter(item => {
+        const productId = String(item.productId || "").trim();
+        const quantity = String(item.quantity || "").trim();
+        return productId !== "" && quantity !== "";
+      });
+      
+      if (validItems.length === 0) {
         throw new Error("Please add at least one product with quantity");
       }
+      
+      // Validate that all valid items have numeric quantities > 0
+      const invalidItems = validItems.filter(item => {
+        const qty = parseFloat(item.quantity);
+        return isNaN(qty) || qty <= 0;
+      });
+      
+      if (invalidItems.length > 0) {
+        throw new Error("Please ensure all quantities are valid numbers greater than 0");
+      }
 
-      // Prepare items array
-      const indentItems = items
-        .filter(item => item.productId && item.quantity)
-        .map(item => ({
-          productId: item.productId,
-          quantity: parseFloat(item.quantity),
-          unit: item.unit || "units"
-        }));
+      // Prepare items array according to backend API format
+      const indentItems = validItems.map(item => ({
+        productId: parseInt(item.productId),
+        requestedQuantity: parseFloat(item.quantity)
+        // Optional: Add notes per item if needed in the future
+        // notes: item.notes || ""
+      }));
 
       const payload = {
-        storeId: form.storeId,
+        storeId: parseInt(form.storeId),
         items: indentItems,
-        notes: form.notes || "",
-        priority: form.priority,
-        expectedDate: form.expectedDate || null
+        notes: form.notes || ""
+        // Note: priority is not part of backend API, removed
       };
 
       const res = await storeService.createIndent(payload);
-      alert(res.message || "Indent created successfully");
+      
+      // Handle backend response format
+      const successMessage = res.message || res.data?.message || "Indent created successfully";
+      alert(successMessage);
       navigate("/store/indents");
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Indent creation failed");
@@ -157,21 +214,23 @@ function CreateIndent({ navigate }) {
       <div className="row m-0 p-3">
         <h5 className={styles.head}>Indent Details</h5>
         
-        {/* Store Selection */}
+        {/* Store Selection - Read Only */}
         <div className={`col-3 ${styles.longform}`}>
           <label>Store :</label>
-          <select
-            value={form.storeId}
-            onChange={(e) => handleChange("storeId", e.target.value)}
-            required
-          >
-            <option value="">Select Store</option>
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name || store.storeName || `Store ${store.id}`}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={currentStore ? (currentStore.name || currentStore.storeName || `Store ${currentStore.id}`) : "Loading..."}
+            readOnly
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              backgroundColor: '#f8f9fa',
+              cursor: 'not-allowed',
+              fontFamily: 'Poppins'
+            }}
+          />
         </div>
 
         {/* Priority */}
@@ -186,16 +245,6 @@ function CreateIndent({ navigate }) {
             <option value="high">High</option>
             <option value="urgent">Urgent</option>
           </select>
-        </div>
-
-        {/* Expected Date */}
-        <div className={`col-3 ${styles.longform}`}>
-          <label>Expected Date :</label>
-          <input
-            type="date"
-            value={form.expectedDate}
-            onChange={(e) => handleChange("expectedDate", e.target.value)}
-          />
         </div>
       </div>
 
