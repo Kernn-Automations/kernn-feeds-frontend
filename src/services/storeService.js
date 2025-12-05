@@ -573,6 +573,11 @@ const storeService = {
     const res = await api.request(`/stores/${storeId}/products/search${queryParams}`, { method: "GET" });
     return res.json();
   },
+  async searchStoreProducts(storeId, searchTerm = "") {
+    const queryParams = searchTerm ? `?q=${encodeURIComponent(searchTerm)}` : "";
+    const res = await api.request(`/stores/${storeId}/products/search${queryParams}`, { method: "GET" });
+    return res.json();
+  },
   async getStoreProductsForBulkUpdate(storeId, searchTerm = "") {
     const queryParams = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : "";
     const res = await api.request(`/stores/${storeId}/products/bulk-update${queryParams}`, { method: "GET" });

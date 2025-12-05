@@ -246,6 +246,7 @@ function StoreStockSummary() {
     setPage(1); // Reset to first page when switching tabs
   };
 
+<<<<<<< HEAD
   // Export function
   const onExport = (type) => {
     const arr = [];
@@ -286,6 +287,8 @@ function StoreStockSummary() {
     }
   };
 
+=======
+>>>>>>> 1fe82fe (till 05-12-2025, stores major developments except employees list)
   const renderSummaryTable = (dataArray) => (
     <div style={{ overflowX: 'auto' }}>
       <table className="table table-bordered borderedtable table-sm mt-2" style={{ fontFamily: 'Poppins' }}>
@@ -565,6 +568,7 @@ function StoreStockSummary() {
       {loading && <Loading />}
       
       {/* Stock Summary Tab */}
+<<<<<<< HEAD
       {!loading && activeTab === "summary" && stockData.length > 0 && (
         <>
           {/* Export buttons */}
@@ -587,6 +591,89 @@ function StoreStockSummary() {
             {renderSummaryTable(stockData)}
           </div>
         </>
+      )}
+
+      {/* Statistics Tab */}
+      {!loading && activeTab === "stats" && stats && (
+=======
+      {!loading && activeTab === "summary" && (
+>>>>>>> 1fe82fe (till 05-12-2025, stores major developments except employees list)
+        <div className={styles.orderStatusCard}>
+          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+            Overall Statistics
+          </h4>
+<<<<<<< HEAD
+          {stats.summary && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Inward Stock</div>
+                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#059669' }}>
+                  {Number(stats.summary.totalInwardStock || 0).toFixed(2)}
+                </div>
+              </div>
+              <div style={{ padding: '16px', backgroundColor: '#fef2f2', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Outward Stock</div>
+                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#ef4444' }}>
+                  {Number(stats.summary.totalOutwardStock || 0).toFixed(2)}
+                </div>
+              </div>
+              <div style={{ padding: '16px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Closing Stock</div>
+                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: 'var(--primary-color)' }}>
+                  {Number(stats.summary.totalClosingStock || 0).toFixed(2)}
+                </div>
+              </div>
+              <div style={{ padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Products</div>
+                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#92400e' }}>
+                  {stats.summary.totalProducts || 0}
+                </div>
+              </div>
+              <div style={{ padding: '16px', backgroundColor: '#e0e7ff', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Stores</div>
+                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#4338ca' }}>
+                  {stats.summary.totalStores || 0}
+                </div>
+              </div>
+            </div>
+          )}
+          {stats.stockByStore && stats.stockByStore.length > 0 && (
+            <div>
+              <h5 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '16px' }}>Stock by Store</h5>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
+                  <thead className="table-light">
+                    <tr>
+                      <th>Store Name</th>
+                      <th>Store Code</th>
+                      <th>Inward Stock</th>
+                      <th>Outward Stock</th>
+                      <th>Closing Stock</th>
+                      <th>Products</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.stockByStore.map((store, index) => (
+                      <tr key={store.storeId || index}>
+                        <td>{store.storeName}</td>
+                        <td>{store.storeCode}</td>
+                        <td style={{ color: '#059669' }}>{Number(store.inwardStock || 0).toFixed(2)}</td>
+                        <td style={{ color: '#ef4444' }}>{Number(store.outwardStock || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600 }}>{Number(store.closingStock || 0).toFixed(2)}</td>
+                        <td>{store.products || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+=======
+          {renderSummaryTable(stockData)}
+        </div>
       )}
 
       {/* Statistics Tab */}
@@ -663,6 +750,7 @@ function StoreStockSummary() {
         </div>
       )}
 
+>>>>>>> 1fe82fe (till 05-12-2025, stores major developments except employees list)
       {/* Audit Trail Tab */}
       {!loading && activeTab === "audit" && (
         <div className={styles.orderStatusCard}>

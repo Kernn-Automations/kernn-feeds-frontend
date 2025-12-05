@@ -576,21 +576,7 @@ function StoreExpenditures() {
           <div className="row m-0 p-3">
             <div className="col-3 formcontent">
               <label>Month</label>
-              <select 
-                value={filters.month} 
-                onChange={(e) => handleFilterChange("month", Number(e.target.value))}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #000",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  fontFamily: "Poppins",
-                  backgroundColor: "#fff",
-                  color: "#000",
-                  cursor: "pointer",
-                }}
-              >
+              <select value={filters.month} onChange={(e) => handleFilterChange("month", Number(e.target.value))}>
                 {MONTH_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -604,35 +590,11 @@ function StoreExpenditures() {
                 type="number"
                 value={filters.year}
                 onChange={(e) => handleFilterChange("year", Number(e.target.value) || DEFAULT_FILTERS.year)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #000",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  fontFamily: "Poppins",
-                  backgroundColor: "#fff",
-                  color: "#000",
-                }}
               />
             </div>
             <div className="col-3 formcontent">
               <label>Rows per page</label>
-              <select 
-                value={filters.limit} 
-                onChange={(e) => handleFilterChange("limit", Number(e.target.value))}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #000",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  fontFamily: "Poppins",
-                  backgroundColor: "#fff",
-                  color: "#000",
-                  cursor: "pointer",
-                }}
-              >
+              <select value={filters.limit} onChange={(e) => handleFilterChange("limit", Number(e.target.value))}>
                 {LIMIT_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -805,17 +767,6 @@ function StoreExpenditures() {
                       value={createForm.month}
                       onChange={(e) => handleCreateInputChange("month", Number(e.target.value))}
                       required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                        cursor: "pointer",
-                      }}
                     >
                       {MONTH_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -831,16 +782,6 @@ function StoreExpenditures() {
                       value={createForm.year}
                       onChange={(e) => handleCreateInputChange("year", Number(e.target.value) || DEFAULT_FILTERS.year)}
                       required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
                     />
                   </div>
                   <div>
@@ -851,16 +792,6 @@ function StoreExpenditures() {
                       value={createForm.staffSalary}
                       onChange={(e) => handleCreateInputChange("staffSalary", e.target.value)}
                       required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
                     />
                   </div>
                   <div>
@@ -871,16 +802,6 @@ function StoreExpenditures() {
                       value={createForm.rent}
                       onChange={(e) => handleCreateInputChange("rent", e.target.value)}
                       required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
                     />
                   </div>
                   <div>
@@ -891,16 +812,6 @@ function StoreExpenditures() {
                       value={createForm.powerBill}
                       onChange={(e) => handleCreateInputChange("powerBill", e.target.value)}
                       required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
                     />
                   </div>
                   <div>
@@ -911,16 +822,6 @@ function StoreExpenditures() {
                       value={createForm.maintenance}
                       onChange={(e) => handleCreateInputChange("maintenance", e.target.value)}
                       required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
                     />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
@@ -929,17 +830,6 @@ function StoreExpenditures() {
                       rows="2"
                       value={createForm.notes || ""}
                       onChange={(e) => handleCreateInputChange("notes", e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                        resize: "vertical",
-                      }}
                     />
                   </div>
                 </div>
@@ -970,32 +860,12 @@ function StoreExpenditures() {
                           placeholder="Field name"
                           value={row.key}
                           onChange={(e) => handleCreateCustomFieldChange(index, "key", e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "8px 12px",
-                            border: "1px solid #000",
-                            borderRadius: "4px",
-                            fontSize: "14px",
-                            fontFamily: "Poppins",
-                            backgroundColor: "#fff",
-                            color: "#000",
-                          }}
                         />
                         <input
                           type="number"
                           placeholder="Amount"
                           value={row.value}
                           onChange={(e) => handleCreateCustomFieldChange(index, "value", e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "8px 12px",
-                            border: "1px solid #000",
-                            borderRadius: "4px",
-                            fontSize: "14px",
-                            fontFamily: "Poppins",
-                            backgroundColor: "#fff",
-                            color: "#000",
-                          }}
                         />
                         <button
                           type="button"
