@@ -6,7 +6,6 @@ import storeService from '../../../services/storeService';
 import { showSuccessNotification, showErrorNotification } from '../../../utils/errorHandler';
 import Loading from '@/components/Loading';
 import ErrorModal from '@/components/ErrorModal';
-import { fetchWithDivision } from '../../../utils/fetchWithDivision';
 
 const StoreIndentRequests = ({ navigate, canApprove }) => {
   const { axiosAPI } = useAuth();
@@ -20,6 +19,9 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [storeFilter, setStoreFilter] = useState('all');
+  const [stores, setStores] = useState([]);
+  const [dateRange, setDateRange] = useState('last30days');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -34,83 +36,142 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Set default date range (last 30 days)
+  // Update dates when date range changes
   useEffect(() => {
     const today = new Date();
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    setDateFrom(thirtyDaysAgo.toISOString().split('T')[0]);
+    today.setHours(23, 59, 59, 999); // End of today
+    let fromDate = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        fromDate = new Date(today);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'last7days':
+        fromDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'last30days':
+        fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'last90days':
+        fromDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'last6months':
+        fromDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'last1year':
+        fromDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'all':
+        setDateFrom('');
+        setDateTo('');
+        return;
+      default:
+        fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        fromDate.setHours(0, 0, 0, 0);
+    }
+    
+    setDateFrom(fromDate.toISOString().split('T')[0]);
     setDateTo(today.toISOString().split('T')[0]);
+  }, [dateRange]);
+
+  // Fetch stores for filter dropdown
+  useEffect(() => {
+    fetchStores();
   }, []);
 
   // Fetch store indents
   useEffect(() => {
     fetchIndents();
-  }, [page, limit, statusFilter, dateFrom, dateTo, selectedDivision, showAllDivisions]);
+  }, [page, limit, statusFilter, storeFilter, dateFrom, dateTo, selectedDivision, showAllDivisions]);
+
+  const fetchStores = async () => {
+    try {
+      const response = await axiosAPI.get('/stores', { params: { limit: 1000 } });
+      const responseData = response.data || response;
+      const storesList = responseData.stores || responseData.data || responseData || [];
+      setStores(Array.isArray(storesList) ? storesList : []);
+    } catch (err) {
+      console.error('Error fetching stores:', err);
+      setStores([]);
+    }
+  };
 
   const fetchIndents = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use fetchWithDivision to get indents that need approval
-      const queryParams = new URLSearchParams();
-      queryParams.append('page', page);
-      queryParams.append('limit', limit);
+      // Build query parameters for the API call
+      // Using GET /store-indents?storeId=1&status=pending format
+      const params = {
+        page,
+        limit,
+      };
+      
+      // Add storeId filter if a specific store is selected
+      if (storeFilter !== 'all') {
+        params.storeId = storeFilter;
+      }
+      
       if (statusFilter !== 'all') {
-        queryParams.append('status', statusFilter);
+        params.status = statusFilter;
       }
       if (dateFrom) {
-        queryParams.append('fromDate', dateFrom);
+        params.fromDate = dateFrom;
       }
       if (dateTo) {
-        queryParams.append('toDate', dateTo);
+        params.toDate = dateTo;
       }
 
-      const url = `/indents${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('Fetching store indents with params:', params);
+      
+      // Use axiosAPI to call the endpoint: GET /store-indents?storeId=1&status=pending
+      // Note: axiosAPI.get expects params as the second argument directly, not nested
+      const response = await axiosAPI.get('/store-indents', params);
+      
+      console.log('Store indents response:', response);
 
-      const response = await fetchWithDivision(
-        url,
-        localStorage.getItem('accessToken'),
-        selectedDivision?.id,
-        showAllDivisions
-      );
-
-      if (response.success !== undefined) {
-        if (response.success) {
-          const data = response.data || response;
+      // Handle response structure
+      const responseData = response.data || response;
+      
+      if (responseData.success !== undefined) {
+        if (responseData.success) {
+          const data = responseData.data || responseData;
           setIndents(data.indents || data || []);
           setTotalPages(data.totalPages || 0);
           setTotal(data.total || data.indents?.length || 0);
         } else {
-          throw new Error(response.message || 'Failed to fetch indents');
+          throw new Error(responseData.message || 'Failed to fetch indents');
         }
-      } else if (response.indents) {
-        setIndents(response.indents || []);
-        setTotalPages(response.totalPages || 0);
-        setTotal(response.total || response.indents?.length || 0);
-      } else if (Array.isArray(response)) {
-        setIndents(response);
-        setTotal(response.length);
+      } else if (responseData.indents) {
+        setIndents(responseData.indents || []);
+        setTotalPages(responseData.totalPages || 0);
+        setTotal(responseData.total || responseData.indents?.length || 0);
+      } else if (Array.isArray(responseData)) {
+        setIndents(responseData);
+        setTotal(responseData.length);
         setTotalPages(1);
       } else {
         // Handle different response structures
-        const indentsArray = response.data?.indents || response.indents || [];
+        const indentsArray = responseData.data?.indents || responseData.indents || [];
         setIndents(indentsArray);
-        setTotalPages(response.totalPages || response.data?.totalPages || 1);
-        setTotal(response.total || response.data?.total || indentsArray.length);
+        setTotalPages(responseData.totalPages || responseData.data?.totalPages || 1);
+        setTotal(responseData.total || responseData.data?.total || indentsArray.length);
       }
     } catch (err) {
       console.error('Error fetching store indents:', err);
-      // Don't show error if endpoint doesn't exist yet
-      if (!err.message.includes('404')) {
-        setError(err.message || 'Failed to fetch store indent requests');
-        setIsErrorModalOpen(true);
-      } else {
-        // Endpoint doesn't exist yet, show empty state
-        setIndents([]);
-        setTotal(0);
-        setTotalPages(0);
-      }
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch store indent requests';
+      setError(errorMessage);
+      setIsErrorModalOpen(true);
+      setIndents([]);
+      setTotal(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
@@ -134,19 +195,24 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
 
     try {
       setSubmitting(true);
-      const response = await storeService.approveRejectIndent(indent.id, 'approve', remarks);
+      const response = await axiosAPI.put(`/store-indents/indents/${indent.id}/approve-reject`, {
+        action: 'approve',
+        notes: remarks
+      });
       
-      if (response.success || response.message) {
-        showSuccessNotification('Store indent approved successfully');
+      const responseData = response.data || response;
+      if (responseData.success || responseData.message) {
+        showSuccessNotification(responseData.message || 'Store indent approved successfully');
         setShowViewModal(false);
         setSelectedIndent(null);
         fetchIndents(); // Refresh list
       } else {
-        throw new Error(response.message || 'Failed to approve indent');
+        throw new Error(responseData.message || 'Failed to approve indent');
       }
     } catch (err) {
       console.error('Error approving indent:', err);
-      showErrorNotification(err.message || 'Failed to approve store indent');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to approve store indent';
+      showErrorNotification(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -165,19 +231,74 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
 
     try {
       setSubmitting(true);
-      const response = await storeService.approveRejectIndent(indent.id, 'reject', remarks);
+      const response = await axiosAPI.put(`/store-indents/indents/${indent.id}/approve-reject`, {
+        action: 'reject',
+        notes: remarks
+      });
       
-      if (response.success || response.message) {
-        showSuccessNotification('Store indent rejected successfully');
+      const responseData = response.data || response;
+      if (responseData.success || responseData.message) {
+        showSuccessNotification(responseData.message || 'Store indent rejected successfully');
         setShowViewModal(false);
         setSelectedIndent(null);
         fetchIndents(); // Refresh list
       } else {
-        throw new Error(response.message || 'Failed to reject indent');
+        throw new Error(responseData.message || 'Failed to reject indent');
       }
     } catch (err) {
       console.error('Error rejecting indent:', err);
-      showErrorNotification(err.message || 'Failed to reject store indent');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to reject store indent';
+      showErrorNotification(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleProcessStockIn = async (indent) => {
+    if (!canApprove) {
+      showErrorNotification('Only Admin/Super Admin can process stock in');
+      return;
+    }
+
+    if (!indent.store?.id && !indent.storeId) {
+      showErrorNotification('Store information is missing');
+      return;
+    }
+
+    const confirmMessage = 'Are you sure you want to process stock in for this approved indent?';
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      // Prepare stock-in payload
+      const stockInPayload = {
+        storeId: indent.store?.id || indent.storeId,
+        indentId: indent.id,
+        items: (indent.items || []).map(item => ({
+          productId: item.productId || item.product?.id,
+          quantity: item.quantity,
+          unit: item.unit || 'units'
+        }))
+      };
+
+      const response = await axiosAPI.post('/stores/stock-in', stockInPayload);
+      
+      const responseData = response.data || response;
+      if (responseData.success || responseData.message) {
+        showSuccessNotification(responseData.message || 'Stock in processed successfully');
+        setShowViewModal(false);
+        setSelectedIndent(null);
+        fetchIndents(); // Refresh list
+      } else {
+        throw new Error(responseData.message || 'Failed to process stock in');
+      }
+    } catch (err) {
+      console.error('Error processing stock in:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to process stock in';
+      showErrorNotification(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -240,6 +361,21 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
               />
             </div>
             <div className="col-md-2">
+              <label className="form-label">Store</label>
+              <select
+                className="form-select"
+                value={storeFilter}
+                onChange={(e) => setStoreFilter(e.target.value)}
+              >
+                <option value="all">All Stores</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name || store.storeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2">
               <label className="form-label">Status</label>
               <select
                 className="form-select"
@@ -254,22 +390,20 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
               </select>
             </div>
             <div className="col-md-2">
-              <label className="form-label">From Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">To Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
+              <label className="form-label">Date Range</label>
+              <select
+                className="form-select"
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+              >
+                <option value="today">Today</option>
+                <option value="last7days">Last 7 Days</option>
+                <option value="last30days">Last 30 Days</option>
+                <option value="last90days">Last 90 Days</option>
+                <option value="last6months">Last 6 Months</option>
+                <option value="last1year">Last 1 Year</option>
+                <option value="all">All Time</option>
+              </select>
             </div>
             <div className="col-md-2 d-flex align-items-end">
               <button
@@ -277,6 +411,8 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
                 onClick={() => {
                   setSearchTerm('');
                   setStatusFilter('all');
+                  setStoreFilter('all');
+                  setDateRange('last30days');
                   setPage(1);
                 }}
               >

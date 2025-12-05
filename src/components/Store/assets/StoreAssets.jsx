@@ -5,6 +5,7 @@ import { isStoreEmployee } from "../../../utils/roleUtils";
 import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
+import storeService from "../../../services/storeService";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
 
 const statusOptions = [
@@ -33,15 +34,23 @@ export default function StoreAssets() {
 
   const [storeId, setStoreId] = useState(inferredStoreId);
   const [assets, setAssets] = useState([]);
-  const [allAssetsData, setAllAssetsData] = useState(null); // Persistent dummy data
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [query, setQuery] = useState({ page: 1, limit: 10 });
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [updateForm, setUpdateForm] = useState(initialUpdateForm);
   const [stockInQty, setStockInQty] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    assetDate: new Date().toISOString().slice(0, 10),
+    itemName: "",
+    quantity: "",
+    value: "",
+    tax: "",
+    notes: "",
+  });
 
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -64,127 +73,87 @@ export default function StoreAssets() {
   useEffect(() => {
     if (!storeId) {
       try {
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        const storedUser = stored.user || stored;
-        const fallbackId = storedUser?.storeId || storedUser?.store?.id;
-        if (fallbackId) {
-          setStoreId(fallbackId);
+        // Get store ID from user context - try multiple sources
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        let id = user?.storeId || user?.store?.id;
+        
+        // Fallback to other localStorage keys
+        if (!id) {
+          const selectedStore = localStorage.getItem("selectedStore");
+          if (selectedStore) {
+            const store = JSON.parse(selectedStore);
+            id = store.id;
+          }
+        }
+        
+        if (!id) {
+          const currentStoreId = localStorage.getItem("currentStoreId");
+          id = currentStoreId ? parseInt(currentStoreId) : null;
+        }
+        
+        if (id) {
+          setStoreId(id);
+        } else {
+          showError("Store information missing. Please re-login to continue.");
         }
       } catch (err) {
         console.error("Unable to parse stored user data", err);
+        showError("Unable to determine store information. Please re-login.");
       }
     }
-  }, [storeId]);
+  }, [storeId, showError]);
 
   const fetchStoreAssets = useCallback(async () => {
     if (!storeId) return;
     setLoading(true);
     try {
-      // Initialize dummy data only once
-      if (!allAssetsData) {
-        const initialDummyAssets = [
-          {
-            id: 1,
-            assetCode: "AST-001",
-            assetDate: "2024-01-15",
-            itemName: "Laptop Computer",
-            requestedQuantity: 5,
-            receivedQuantity: 3,
-            value: 50000,
-            tax: 9000,
-            total: 59000,
-            status: "pending",
-            notes: "High priority item",
-            store: { name: "Store 1" },
-          },
-          {
-            id: 2,
-            assetCode: "AST-002",
-            assetDate: "2024-02-20",
-            itemName: "Office Chair",
-            requestedQuantity: 10,
-            receivedQuantity: 10,
-            value: 15000,
-            tax: 2700,
-            total: 17700,
-            status: "completed",
-            notes: "Ergonomic chairs",
-            store: { name: "Store 1" },
-          },
-          {
-            id: 3,
-            assetCode: "AST-003",
-            assetDate: "2024-03-10",
-            itemName: "Printer",
-            requestedQuantity: 2,
-            receivedQuantity: 1,
-            value: 25000,
-            tax: 4500,
-            total: 29500,
-            status: "processing",
-            notes: "Color laser printer",
-            store: { name: "Store 1" },
-          },
-          {
-            id: 4,
-            assetCode: "AST-004",
-            assetDate: "2024-01-25",
-            itemName: "Desk Table",
-            requestedQuantity: 8,
-            receivedQuantity: 0,
-            value: 32000,
-            tax: 5760,
-            total: 37760,
-            status: "pending",
-            notes: "Standard office desks",
-            store: { name: "Store 1" },
-          },
-          {
-            id: 5,
-            assetCode: "AST-005",
-            assetDate: "2024-02-05",
-            itemName: "Air Conditioner",
-            requestedQuantity: 3,
-            receivedQuantity: 0,
-            value: 80000,
-            tax: 14400,
-            total: 94400,
-            status: "cancelled",
-            notes: "1.5 ton AC units",
-            store: { name: "Store 1" },
-          },
-        ];
-        setAllAssetsData(initialDummyAssets);
-      }
-
-      // Use existing data or initialize
-      const currentAssets = allAssetsData || [];
-
-      // Filter by status
-      let filtered = currentAssets;
-      if (statusFilter) {
-        filtered = currentAssets.filter((asset) => asset.status === statusFilter);
-      }
-
-      // Simulate pagination
-      const startIndex = (query.page - 1) * query.limit;
-      const endIndex = startIndex + query.limit;
-      const paginatedAssets = filtered.slice(startIndex, endIndex);
-
-      setAssets(paginatedAssets);
-      setPagination({
+      const params = {
         page: query.page,
-        limit: query.limit,
-        total: filtered.length,
-        totalPages: Math.ceil(filtered.length / query.limit) || 1,
+        limit: query.limit
+      };
+      
+      if (statusFilter) {
+        params.status = statusFilter;
+      }
+      
+      const res = await storeService.getStoreAssets(storeId, params);
+      const assetsData = res.data || res.assets || res || [];
+      const paginationData = res.pagination || {};
+      
+      // Map backend response to frontend format
+      const mappedAssets = Array.isArray(assetsData) ? assetsData.map(item => ({
+        id: item.id,
+        assetCode: item.assetCode || item.code || `AST-${item.id}`,
+        assetDate: item.assetDate || item.date || item.createdAt,
+        itemName: item.itemName || item.name || "-",
+        requestedQuantity: parseFloat(item.requestedQuantity || item.quantity || 0),
+        quantity: parseFloat(item.quantity || item.requestedQuantity || 0),
+        receivedQuantity: parseFloat(item.receivedQuantity || 0),
+        value: parseFloat(item.value || 0),
+        tax: parseFloat(item.tax || 0),
+        total: parseFloat(item.total || (item.value + item.tax) || 0),
+        status: item.status || "pending",
+        notes: item.notes || "",
+        store: item.store || { name: "-" },
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt
+      })) : [];
+
+      setAssets(mappedAssets);
+      setPagination({
+        page: paginationData.page || query.page,
+        limit: paginationData.limit || query.limit,
+        total: paginationData.total || mappedAssets.length,
+        totalPages: paginationData.totalPages || Math.ceil((paginationData.total || mappedAssets.length) / query.limit) || 1,
       });
     } catch (err) {
       console.error("Failed to fetch store assets", err);
-      showError(err.message);
+      showError(err.response?.data?.message || err.message || "Failed to fetch store assets");
     } finally {
       setLoading(false);
     }
-  }, [storeId, query.page, query.limit, statusFilter, showError, allAssetsData]);
+  }, [storeId, query.page, query.limit, statusFilter, showError]);
 
   useEffect(() => {
     if (storeId) {
@@ -199,18 +168,36 @@ export default function StoreAssets() {
         setDetailLoading(true);
       }
       try {
-        // Use persistent dummy data
-        const currentAssets = allAssetsData || [];
-        const data = currentAssets.find((a) => a.id === Number(assetId)) || {};
-        if (data.id) {
-          setSelectedAsset(data);
-          setUpdateForm({
-            assetDate: data.assetDate ? data.assetDate.split("T")[0] : "",
-            itemName: data.itemName || "",
-            quantity: (data.quantity ?? data.requestedQuantity ?? "").toString(),
-            value: (data.value ?? "").toString(),
-            tax: (data.tax ?? "").toString(),
+        const res = await storeService.getStoreAssetById(storeId, assetId);
+        const data = res.data || res.asset || res;
+        
+        if (data && data.id) {
+          const mappedData = {
+            id: data.id,
+            assetCode: data.assetCode || data.code || `AST-${data.id}`,
+            assetDate: data.assetDate || data.date || data.createdAt,
+            itemName: data.itemName || data.name || "-",
+            requestedQuantity: parseFloat(data.requestedQuantity || data.quantity || 0),
+            quantity: parseFloat(data.quantity || data.requestedQuantity || 0),
+            receivedQuantity: parseFloat(data.receivedQuantity || 0),
+            value: parseFloat(data.value || 0),
+            tax: parseFloat(data.tax || 0),
+            total: parseFloat(data.total || (data.value + data.tax) || 0),
+            status: data.status || "pending",
             notes: data.notes || "",
+            store: data.store || { name: "-" },
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          };
+          
+          setSelectedAsset(mappedData);
+          setUpdateForm({
+            assetDate: mappedData.assetDate ? mappedData.assetDate.split("T")[0] : "",
+            itemName: mappedData.itemName || "",
+            quantity: mappedData.quantity.toString(),
+            value: mappedData.value.toString(),
+            tax: mappedData.tax.toString(),
+            notes: mappedData.notes || "",
           });
           setStockInQty("");
         } else {
@@ -218,14 +205,14 @@ export default function StoreAssets() {
         }
       } catch (err) {
         console.error("Failed to load asset details", err);
-        showError(err.message);
+        showError(err.response?.data?.message || err.message || "Failed to load asset details");
       } finally {
         if (!silent) {
           setDetailLoading(false);
         }
       }
     },
-    [storeId, showError, allAssetsData]
+    [storeId, showError]
   );
 
   const filteredAssets = useMemo(() => {
@@ -280,7 +267,7 @@ export default function StoreAssets() {
 
   const handleUpdateAsset = async (event) => {
     event.preventDefault();
-    if (!selectedAsset) return;
+    if (!selectedAsset || !storeId) return;
     if (selectedAsset.status !== "pending") {
       showError("Only assets in pending status can be updated.");
       return;
@@ -288,31 +275,48 @@ export default function StoreAssets() {
 
     setActionLoading(true);
     try {
-      // Update persistent dummy data
-      const updatedAsset = {
-        ...selectedAsset,
+      const payload = {
         assetDate: updateForm.assetDate,
         itemName: updateForm.itemName,
-        requestedQuantity: Number(updateForm.quantity || 0),
         quantity: Number(updateForm.quantity || 0),
+        requestedQuantity: Number(updateForm.quantity || 0),
         value: Number(updateForm.value || 0),
         tax: Number(updateForm.tax || 0),
-        total: Number(updateForm.value || 0) + Number(updateForm.tax || 0),
         notes: updateForm.notes || "",
       };
-
-      // Update in persistent data
-      setAllAssetsData((prev) => {
-        if (!prev) return prev;
-        return prev.map((asset) => (asset.id === updatedAsset.id ? updatedAsset : asset));
-      });
       
-      setSelectedAsset(updatedAsset);
-      showSuccess("Asset updated successfully.");
+      const res = await storeService.updateStoreAsset(storeId, selectedAsset.id, payload);
+      const updatedData = res.data || res.asset || res;
+      
+      if (updatedData && updatedData.id) {
+        const mappedData = {
+          id: updatedData.id,
+          assetCode: updatedData.assetCode || updatedData.code || `AST-${updatedData.id}`,
+          assetDate: updatedData.assetDate || updatedData.date || updatedData.createdAt,
+          itemName: updatedData.itemName || updatedData.name || "-",
+          requestedQuantity: parseFloat(updatedData.requestedQuantity || updatedData.quantity || 0),
+          quantity: parseFloat(updatedData.quantity || updatedData.requestedQuantity || 0),
+          receivedQuantity: parseFloat(updatedData.receivedQuantity || 0),
+          value: parseFloat(updatedData.value || 0),
+          tax: parseFloat(updatedData.tax || 0),
+          total: parseFloat(updatedData.total || (updatedData.value + updatedData.tax) || 0),
+          status: updatedData.status || "pending",
+          notes: updatedData.notes || "",
+          store: updatedData.store || { name: "-" },
+          createdAt: updatedData.createdAt,
+          updatedAt: updatedData.updatedAt
+        };
+        
+        setSelectedAsset(mappedData);
+        showSuccess(res.message || "Asset updated successfully.");
         await fetchStoreAssets();
+      } else {
+        showSuccess("Asset updated successfully.");
+        await fetchStoreAssets();
+      }
     } catch (err) {
       console.error("Failed to update asset", err);
-      showError(err.message);
+      showError(err.response?.data?.message || err.message || "Failed to update asset");
     } finally {
       setActionLoading(false);
     }
@@ -320,7 +324,7 @@ export default function StoreAssets() {
 
   const handleStockIn = async (event) => {
     event.preventDefault();
-    if (!selectedAsset) return;
+    if (!selectedAsset || !storeId) return;
 
     const qty = Number(stockInQty || 0);
     if (!qty) {
@@ -334,34 +338,51 @@ export default function StoreAssets() {
 
     setActionLoading(true);
     try {
-      // Update persistent dummy data
-      const newReceivedQty = (selectedAsset.receivedQuantity || 0) + qty;
-      const updatedAsset = {
-        ...selectedAsset,
-        receivedQuantity: newReceivedQty,
-        status: newReceivedQty >= selectedAsset.requestedQuantity ? "completed" : "processing",
+      const payload = {
+        receivedQuantity: qty
       };
       
-      // Update in persistent data
-      setAllAssetsData((prev) => {
-        if (!prev) return prev;
-        return prev.map((asset) => (asset.id === updatedAsset.id ? updatedAsset : asset));
-      });
+      const res = await storeService.stockInStoreAsset(storeId, selectedAsset.id, payload);
+      const updatedData = res.data || res.asset || res;
       
-      setSelectedAsset(updatedAsset);
-      showSuccess("Stock in processed successfully.");
+      if (updatedData && updatedData.id) {
+        const mappedData = {
+          id: updatedData.id,
+          assetCode: updatedData.assetCode || updatedData.code || `AST-${updatedData.id}`,
+          assetDate: updatedData.assetDate || updatedData.date || updatedData.createdAt,
+          itemName: updatedData.itemName || updatedData.name || "-",
+          requestedQuantity: parseFloat(updatedData.requestedQuantity || updatedData.quantity || 0),
+          quantity: parseFloat(updatedData.quantity || updatedData.requestedQuantity || 0),
+          receivedQuantity: parseFloat(updatedData.receivedQuantity || 0),
+          value: parseFloat(updatedData.value || 0),
+          tax: parseFloat(updatedData.tax || 0),
+          total: parseFloat(updatedData.total || (updatedData.value + updatedData.tax) || 0),
+          status: updatedData.status || "pending",
+          notes: updatedData.notes || "",
+          store: updatedData.store || { name: "-" },
+          createdAt: updatedData.createdAt,
+          updatedAt: updatedData.updatedAt
+        };
+        
+        setSelectedAsset(mappedData);
+        showSuccess(res.message || "Stock in processed successfully.");
         setStockInQty("");
         await fetchStoreAssets();
+      } else {
+        showSuccess("Stock in processed successfully.");
+        setStockInQty("");
+        await fetchStoreAssets();
+      }
     } catch (err) {
       console.error("Failed to process stock in", err);
-      showError(err.message);
+      showError(err.response?.data?.message || err.message || "Failed to process stock in");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeleteAsset = async () => {
-    if (!selectedAsset || selectedAsset.status !== "pending") {
+    if (!selectedAsset || !storeId || selectedAsset.status !== "pending") {
       showError("Only pending assets can be deleted.");
       return;
     }
@@ -370,20 +391,66 @@ export default function StoreAssets() {
 
     setActionLoading(true);
     try {
-      // Update persistent dummy data
-      setAllAssetsData((prev) => {
-        if (!prev) return prev;
-        return prev.filter((asset) => asset.id !== selectedAsset.id);
-      });
+      const res = await storeService.deleteStoreAsset(storeId, selectedAsset.id);
       
-        setSelectedAsset(null);
-        setUpdateForm(initialUpdateForm);
-        setStockInQty("");
-      showSuccess("Asset deleted successfully.");
-        await fetchStoreAssets();
+      setSelectedAsset(null);
+      setUpdateForm(initialUpdateForm);
+      setStockInQty("");
+      showSuccess(res.message || "Asset deleted successfully.");
+      await fetchStoreAssets();
     } catch (err) {
       console.error("Failed to delete asset", err);
-      showError(err.message);
+      showError(err.response?.data?.message || err.message || "Failed to delete asset");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCreateInputChange = (field, value) => {
+    setCreateForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateAsset = async (event) => {
+    event.preventDefault();
+    if (!storeId) {
+      showError("Store information missing.");
+      return;
+    }
+
+    if (!createForm.itemName || !createForm.quantity || !createForm.value) {
+      showError("Please fill in all required fields (Item Name, Quantity, Value).");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const payload = {
+        storeId: storeId,
+        assetDate: createForm.assetDate,
+        itemName: createForm.itemName,
+        quantity: Number(createForm.quantity || 0),
+        requestedQuantity: Number(createForm.quantity || 0),
+        value: Number(createForm.value || 0),
+        tax: Number(createForm.tax || 0),
+        notes: createForm.notes || "",
+      };
+      
+      const res = await storeService.createStoreAsset(payload);
+      
+      showSuccess(res.message || "Asset created successfully.");
+      setShowCreateForm(false);
+      setCreateForm({
+        assetDate: new Date().toISOString().slice(0, 10),
+        itemName: "",
+        quantity: "",
+        value: "",
+        tax: "",
+        notes: "",
+      });
+      await fetchStoreAssets();
+    } catch (err) {
+      console.error("Failed to create asset", err);
+      showError(err.response?.data?.message || err.message || "Failed to create asset");
     } finally {
       setActionLoading(false);
     }
@@ -414,11 +481,22 @@ export default function StoreAssets() {
             <span onClick={() => navigate("/store")}>Store Home</span> <i className="bi bi-chevron-right"></i> Assets
           </p>
         </div>
-        {!isEmployee && (
-          <button className="homebtn" onClick={() => navigate("/store/assets/transfer")} style={{ fontFamily: "Poppins" }}>
-            Asset Transfer
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "12px" }}>
+          {!isEmployee && (
+            <>
+              <button 
+                className="homebtn" 
+                onClick={() => setShowCreateForm(!showCreateForm)} 
+                style={{ fontFamily: "Poppins", background: showCreateForm ? "#f3f4f6" : undefined }}
+              >
+                {showCreateForm ? "Cancel" : "Create Asset"}
+              </button>
+              <button className="homebtn" onClick={() => navigate("/store/assets/transfer")} style={{ fontFamily: "Poppins" }}>
+                Asset Transfer
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {!storeId && (
@@ -429,23 +507,127 @@ export default function StoreAssets() {
 
       {storeId && (
         <>
+          {/* Create Asset Form */}
+          {showCreateForm && (
+            <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+              <h4
+                style={{
+                  margin: 0,
+                  marginBottom: "20px",
+                  fontFamily: "Poppins",
+                  fontWeight: 600,
+                  fontSize: "20px",
+                  color: "var(--primary-color)",
+                }}
+              >
+                Create New Asset
+              </h4>
+              <form onSubmit={handleCreateAsset}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: "16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <div>
+                    <label>Date</label>
+                    <input
+                      type="date"
+                      value={createForm.assetDate}
+                      onChange={(e) => handleCreateInputChange("assetDate", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label>Item Name</label>
+                    <input
+                      type="text"
+                      value={createForm.itemName}
+                      onChange={(e) => handleCreateInputChange("itemName", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label>Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={createForm.quantity}
+                      onChange={(e) => handleCreateInputChange("quantity", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label>Value (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={createForm.value}
+                      onChange={(e) => handleCreateInputChange("value", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label>Tax (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={createForm.tax}
+                      onChange={(e) => handleCreateInputChange("tax", e.target.value)}
+                    />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label>Notes</label>
+                    <textarea
+                      rows="2"
+                      value={createForm.notes}
+                      onChange={(e) => handleCreateInputChange("notes", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  <button className="homebtn" type="submit" disabled={actionLoading}>
+                    {actionLoading ? "Creating..." : "Create Asset"}
+                  </button>
+                  <button
+                    className="homebtn"
+                    type="button"
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setCreateForm({
+                        assetDate: new Date().toISOString().slice(0, 10),
+                        itemName: "",
+                        quantity: "",
+                        value: "",
+                        tax: "",
+                        notes: "",
+                      });
+                    }}
+                    style={{ background: "#f3f4f6", color: "#2563eb" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
           <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div>
                 <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600, fontSize: "20px", color: "var(--primary-color)" }}>
                   Asset Summary
                 </h4>
-                <p style={{ margin: 0, fontFamily: "Poppins", color: "#6b7280" }}>
-                  Showing page {pagination.page} of {pagination.totalPages || 1}
-                </p>
               </div>
               <p style={{ fontFamily: "Poppins", margin: 0, color: "#059669", fontWeight: 600 }}>
                 Total Value (page): {formatCurrency(totalValue)}
               </p>
             </div>
 
-            <div style={{ marginTop: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
-              <div>
+            <div className="row m-0 p-3" style={{ marginBottom: "24px" }}>
+              <div className={`col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent`}>
                 <label>Status</label>
                 <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}>
                   {statusOptions.map((option) => (
@@ -455,7 +637,7 @@ export default function StoreAssets() {
                   ))}
                 </select>
               </div>
-              <div>
+              <div className={`col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent`}>
                 <label>Rows per page</label>
                 <select value={query.limit} onChange={(e) => handleLimitChange(e.target.value)}>
                   {[10, 25, 50].map((limit) => (
@@ -465,7 +647,7 @@ export default function StoreAssets() {
                   ))}
                 </select>
               </div>
-              <div>
+              <div className={`col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent`}>
                 <label>Search</label>
                 <input
                   type="text"
@@ -474,10 +656,10 @@ export default function StoreAssets() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: "12px" }}>
-                <button className="homebtn" type="button" onClick={fetchStoreAssets} disabled={loading}>
-                  Refresh
-                </button>
+              <div className="col-12 mt-3">
+                <p style={{ margin: 0, fontFamily: "Poppins", color: "#6b7280" }}>
+                  Showing page {pagination.page} of {pagination.totalPages || 1}
+                </p>
               </div>
             </div>
           </div>
@@ -668,6 +850,19 @@ export default function StoreAssets() {
                           <button className="homebtn" type="submit" disabled={actionLoading || selectedAsset.status !== "pending"}>
                             Save Changes
                           </button>
+                          <button
+                            className="homebtn"
+                            type="button"
+                            onClick={() => {
+                              setSelectedAsset(null);
+                              setUpdateForm(initialUpdateForm);
+                              setStockInQty("");
+                            }}
+                            disabled={actionLoading}
+                            style={{ background: "#f3f4f6", color: "#374151" }}
+                          >
+                            Close
+                          </button>
                         </div>
                       </form>
 
@@ -688,9 +883,22 @@ export default function StoreAssets() {
                               Remaining receivable: {maxReceivable} units
                             </p>
                           </div>
-                          <div style={{ display: "flex", alignItems: "flex-end" }}>
+                          <div style={{ display: "flex", alignItems: "flex-end", gap: "12px" }}>
                             <button className="homebtn" type="submit" disabled={actionLoading || maxReceivable === 0}>
                               Stock In
+                            </button>
+                            <button
+                              className="homebtn"
+                              type="button"
+                              onClick={() => {
+                                setSelectedAsset(null);
+                                setUpdateForm(initialUpdateForm);
+                                setStockInQty("");
+                              }}
+                              disabled={actionLoading}
+                              style={{ background: "#f3f4f6", color: "#374151" }}
+                            >
+                              Close
                             </button>
                           </div>
                         </div>

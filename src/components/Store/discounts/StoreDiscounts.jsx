@@ -1,21 +1,42 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
 import { FaTag, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import storeService from "../../../services/storeService";
+import Modal from "react-bootstrap/Modal";
+import Button from "react-bootstrap/Button";
 
 export default function StoreDiscounts() {
+  const [storeId, setStoreId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState(null);
+  const [discountRules, setDiscountRules] = useState([]);
+  const [summary, setSummary] = useState({
+    activeRules: 0,
+    totalDiscounts: 0,
+    customersBenefited: 0,
+    expiringSoon: 0,
+  });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [statusFilter, setStatusFilter] = useState("");
   const [formData, setFormData] = useState({
-    name: "",
-    type: "percentage",
-    value: 0,
+    ruleName: "",
+    discountType: "percentage",
+    discountValue: 0,
     minPurchase: 0,
     applicableTo: "all",
+    productIds: [],
     validFrom: "",
     validUntil: "",
-    status: "active"
+    notes: "",
   });
 
   useEffect(() => {
@@ -27,49 +48,208 @@ export default function StoreDiscounts() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const mockDiscountsData = {
-    activeRules: 3,
-    totalDiscounts: 12500,
-    customersBenefited: 45,
-    expiringSoon: 1,
-    rules: [
-      { 
-        id: "DISC001", 
-        name: "Seasonal Discount", 
-        type: "percentage", 
-        value: 5, 
-        minPurchase: 1000, 
-        applicableTo: "All Products",
-        validFrom: "2024-01-01",
-        validUntil: "2024-12-31",
-        status: "active",
-        usage: 120
-      },
-      { 
-        id: "DISC002", 
-        name: "Bulk Purchase", 
-        type: "percentage", 
-        value: 3, 
-        minPurchase: 5000, 
-        applicableTo: "Selected Products",
-        validFrom: "2024-01-15",
-        validUntil: "2024-06-30",
-        status: "active",
-        usage: 85
-      },
-      { 
-        id: "DISC003", 
-        name: "New Customer", 
-        type: "fixed", 
-        value: 100, 
-        minPurchase: 500, 
-        applicableTo: "All Products",
-        validFrom: "2024-02-01",
-        validUntil: "2024-03-31",
-        status: "expiring",
-        usage: 42
+  const showError = useCallback((message) => {
+    setError(message);
+    setIsErrorModalOpen(true);
+  }, []);
+
+  const showSuccess = useCallback((message) => {
+    setSuccessMessage(message);
+    setIsSuccessModalOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (storeId) return;
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const user = userData.user || userData;
+      let id = user?.storeId || user?.store?.id;
+      
+      if (!id) {
+        const selectedStore = localStorage.getItem("selectedStore");
+        if (selectedStore) {
+          const store = JSON.parse(selectedStore);
+          id = store.id;
+        }
       }
-    ]
+      
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      if (id) {
+        setStoreId(id);
+      } else {
+        showError("Store information missing. Please re-login to continue.");
+      }
+    } catch (err) {
+      console.error("Unable to parse stored user data", err);
+      showError("Unable to determine store information. Please re-login.");
+    }
+  }, [showError, storeId]);
+
+  const fetchDiscountRules = useCallback(async () => {
+    if (!storeId) return;
+    setLoading(true);
+    try {
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+      };
+      if (statusFilter) params.status = statusFilter;
+      
+      const res = await storeService.getStoreDiscountRules(storeId, params);
+      if (res.success) {
+        setDiscountRules(res.data || []);
+        setPagination(prev => ({
+          ...prev,
+          total: res.pagination?.total || 0,
+          totalPages: res.pagination?.totalPages || 1,
+        }));
+      } else {
+        showError(res.message || "Failed to fetch discount rules");
+      }
+    } catch (err) {
+      console.error("Failed to fetch discount rules", err);
+      showError(err.response?.data?.message || err.message || "Failed to fetch discount rules");
+    } finally {
+      setLoading(false);
+    }
+  }, [storeId, pagination.page, pagination.limit, statusFilter, showError]);
+
+  const fetchSummary = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      const res = await storeService.getStoreDiscountSummary(storeId);
+      if (res.success) {
+        setSummary({
+          activeRules: res.data?.activeRules || 0,
+          totalDiscounts: res.data?.totalDiscounts || 0,
+          customersBenefited: res.data?.customersBenefited || 0,
+          expiringSoon: res.data?.expiringSoon || 0,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch discount summary", err);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (storeId) {
+      fetchDiscountRules();
+      fetchSummary();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, pagination.page, pagination.limit, statusFilter]);
+
+  const handleCreateRule = async (e) => {
+    e.preventDefault();
+    if (!storeId) {
+      showError("Store information missing.");
+      return;
+    }
+
+    if (!formData.ruleName || !formData.discountValue || !formData.validFrom || !formData.validUntil) {
+      showError("Please fill in all required fields.");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const payload = {
+        ruleName: formData.ruleName,
+        discountType: formData.discountType,
+        discountValue: Number(formData.discountValue),
+        minPurchase: Number(formData.minPurchase || 0),
+        applicableTo: formData.applicableTo,
+        validFrom: formData.validFrom,
+        validUntil: formData.validUntil,
+        notes: formData.notes || "",
+      };
+      
+      if (formData.applicableTo === "selected" && formData.productIds.length > 0) {
+        payload.productIds = formData.productIds;
+      }
+
+      const res = editingRule
+        ? await storeService.updateStoreDiscountRule(storeId, editingRule.id, payload)
+        : await storeService.createStoreDiscountRule(storeId, payload);
+      
+      if (res.success) {
+        showSuccess(res.message || (editingRule ? "Discount rule updated successfully." : "Discount rule created successfully."));
+        setShowForm(false);
+        setEditingRule(null);
+        setFormData({
+          ruleName: "",
+          discountType: "percentage",
+          discountValue: 0,
+          minPurchase: 0,
+          applicableTo: "all",
+          productIds: [],
+          validFrom: "",
+          validUntil: "",
+          notes: "",
+        });
+        fetchDiscountRules();
+        fetchSummary();
+      } else {
+        showError(res.message || "Failed to save discount rule");
+      }
+    } catch (err) {
+      console.error("Failed to save discount rule", err);
+      showError(err.response?.data?.message || err.message || "Failed to save discount rule");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditRule = async (rule) => {
+    try {
+      const res = await storeService.getStoreDiscountRuleById(storeId, rule.id);
+      if (res.success) {
+        const ruleData = res.data;
+        setFormData({
+          ruleName: ruleData.ruleName || "",
+          discountType: ruleData.discountType || "percentage",
+          discountValue: ruleData.discountValue || 0,
+          minPurchase: ruleData.minPurchase || 0,
+          applicableTo: ruleData.applicableTo || "all",
+          productIds: ruleData.productIds || [],
+          validFrom: ruleData.validFrom ? ruleData.validFrom.split("T")[0] : "",
+          validUntil: ruleData.validUntil ? ruleData.validUntil.split("T")[0] : "",
+          notes: ruleData.notes || "",
+        });
+        setEditingRule(rule);
+        setShowForm(true);
+      } else {
+        showError(res.message || "Failed to load discount rule");
+      }
+    } catch (err) {
+      console.error("Failed to load discount rule", err);
+      showError(err.response?.data?.message || err.message || "Failed to load discount rule");
+    }
+  };
+
+  const handleDeleteRule = async (ruleId) => {
+    if (!window.confirm("Are you sure you want to delete this discount rule?")) return;
+    
+    setActionLoading(true);
+    try {
+      const res = await storeService.deleteStoreDiscountRule(storeId, ruleId);
+      if (res.success) {
+        showSuccess(res.message || "Discount rule deleted successfully.");
+        fetchDiscountRules();
+        fetchSummary();
+      } else {
+        showError(res.message || "Failed to delete discount rule");
+      }
+    } catch (err) {
+      console.error("Failed to delete discount rule", err);
+      showError(err.response?.data?.message || err.message || "Failed to delete discount rule");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -151,61 +331,41 @@ export default function StoreDiscounts() {
           >
             {showForm ? 'Cancel' : 'Create Discount Rule'}
           </button>
-          <button 
-            className="homebtn" 
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: '1',
-              ...(isMobile ? {
-                padding: '6px 8px',
-                fontSize: '11px',
-                borderRadius: '6px',
-                flex: '0 0 calc(33.333% - 4px)',
-                maxWidth: 'calc(33.333% - 4px)',
-                width: 'calc(33.333% - 4px)',
-                minHeight: '32px',
-                boxSizing: 'border-box',
-                whiteSpace: 'normal',
-                margin: 0
-              } : {
-                padding: '12px 24px',
-                fontSize: '14px',
-                borderRadius: '8px',
-                whiteSpace: 'nowrap',
-                height: '36px'
-              })
-            }}
-          >
-            View All Rules
-          </button>
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <Flex wrap="wrap" justify="space-between" px={2} style={{ marginBottom: '24px' }}>
-        <ReusableCard title="Active Rules" value={mockDiscountsData.activeRules.toString()} color="green.500" />
-        <ReusableCard title="Total Discounts" value={`₹${mockDiscountsData.totalDiscounts.toLocaleString()}`} color="blue.500" />
-        <ReusableCard title="Customers Benefited" value={mockDiscountsData.customersBenefited.toString()} color="purple.500" />
-        <ReusableCard title="Expiring Soon" value={mockDiscountsData.expiringSoon.toString()} color="yellow.500" />
-      </Flex>
+      {!storeId && (
+        <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+          <p style={{ margin: 0, fontFamily: "Poppins" }}>Store information missing. Please re-login to continue.</p>
+        </div>
+      )}
+
+      {storeId && (
+        <>
+          {/* Statistics Cards */}
+          <Flex wrap="wrap" justify="space-between" px={2} style={{ marginBottom: '24px' }}>
+            <ReusableCard title="Active Rules" value={summary.activeRules.toString()} color="green.500" />
+            <ReusableCard title="Total Discounts" value={`₹${summary.totalDiscounts.toLocaleString()}`} color="blue.500" />
+            <ReusableCard title="Customers Benefited" value={summary.customersBenefited.toString()} color="purple.500" />
+            <ReusableCard title="Expiring Soon" value={summary.expiringSoon.toString()} color="yellow.500" />
+          </Flex>
 
       {/* Create Rule Form */}
       {showForm && (
         <div className={styles.orderStatusCard} style={{ marginBottom: '24px' }}>
           <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Create Discount Rule
+            {editingRule ? 'Edit Discount Rule' : 'Create Discount Rule'}
           </h4>
-          <div style={{ display: 'grid', gap: '16px' }}>
-            <div>
-              <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                Rule Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          <form onSubmit={handleCreateRule}>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              <div>
+                <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                  Rule Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.ruleName}
+                  onChange={(e) => setFormData({ ...formData, ruleName: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -223,8 +383,8 @@ export default function StoreDiscounts() {
                   Discount Type *
                 </label>
                 <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  value={formData.discountType}
+                  onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '10px',
@@ -244,8 +404,8 @@ export default function StoreDiscounts() {
                 </label>
                 <input
                   type="number"
-                  value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                  value={formData.discountValue}
+                  onChange={(e) => setFormData({ ...formData, discountValue: parseFloat(e.target.value) || 0 })}
                   style={{
                     width: '100%',
                     padding: '10px',
@@ -254,7 +414,7 @@ export default function StoreDiscounts() {
                     fontFamily: 'Poppins',
                     fontSize: '14px'
                   }}
-                  placeholder={formData.type === "percentage" ? "5" : "100"}
+                  placeholder={formData.discountType === "percentage" ? "5" : "100"}
                 />
               </div>
             </div>
@@ -296,14 +456,37 @@ export default function StoreDiscounts() {
                 >
                   <option value="all">All Products</option>
                   <option value="selected">Selected Products</option>
-                  <option value="category">Category</option>
                 </select>
               </div>
             </div>
+            {formData.applicableTo === "selected" && (
+              <div>
+                <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                  Product IDs (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={formData.productIds.join(", ")}
+                  onChange={(e) => {
+                    const ids = e.target.value.split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                    setFormData({ ...formData, productIds: ids });
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    fontFamily: 'Poppins',
+                    fontSize: '14px'
+                  }}
+                  placeholder="e.g., 1, 2, 3"
+                />
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                  Valid From
+                  Valid From *
                 </label>
                 <input
                   type="date"
@@ -321,7 +504,7 @@ export default function StoreDiscounts() {
               </div>
               <div>
                 <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                  Valid Until
+                  Valid Until *
                 </label>
                 <input
                   type="date"
@@ -338,87 +521,235 @@ export default function StoreDiscounts() {
                 />
               </div>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                alert("Discount rule created! (This is a mock action)");
-                setShowForm(false);
-                setFormData({ name: "", type: "percentage", value: 0, minPurchase: 0, applicableTo: "all", validFrom: "", validUntil: "", status: "active" });
-              }}
-              style={{ 
-                fontFamily: 'Poppins',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                marginTop: '8px'
-              }}
-            >
-              Create Discount Rule
-            </button>
+            <div>
+              <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                Notes
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  fontFamily: 'Poppins',
+                  fontSize: '14px',
+                  minHeight: '80px'
+                }}
+                placeholder="Optional notes"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button
+                className="homebtn"
+                type="submit"
+                disabled={actionLoading}
+                style={{ 
+                  fontFamily: 'Poppins',
+                  padding: '12px 24px',
+                  borderRadius: '8px'
+                }}
+              >
+                {actionLoading ? 'Saving...' : (editingRule ? 'Update Discount Rule' : 'Create Discount Rule')}
+              </button>
+              <button
+                className="homebtn"
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingRule(null);
+                  setFormData({
+                    ruleName: "",
+                    discountType: "percentage",
+                    discountValue: 0,
+                    minPurchase: 0,
+                    applicableTo: "all",
+                    productIds: [],
+                    validFrom: "",
+                    validUntil: "",
+                    notes: "",
+                  });
+                }}
+                style={{ 
+                  fontFamily: 'Poppins',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  background: '#f3f4f6',
+                  color: '#374151'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
+          </form>
         </div>
       )}
+        </>
+      )}
 
-      {/* Discount Rules Table */}
-      <div className={styles.orderStatusCard}>
-        <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-          Active Discount Rules
-        </h4>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-            <thead>
-              <tr>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Rule ID</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Name</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Discount</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Min Purchase</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Applicable To</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Usage</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockDiscountsData.rules.map((rule, i) => {
-                const statusInfo = getStatusBadge(rule.status);
-                return (
-                  <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{rule.id}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{rule.name}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                      {rule.type === "percentage" ? `${rule.value}%` : `₹${rule.value}`}
-                    </td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>₹{rule.minPurchase.toLocaleString()}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{rule.applicableTo}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{rule.usage} times</td>
-                    <td>
-                      <span className={`badge ${statusInfo.class}`} style={{ fontFamily: 'Poppins', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        {statusInfo.icon}
-                        {rule.status.charAt(0).toUpperCase() + rule.status.slice(1)}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          className="btn btn-sm btn-outline-primary"
-                          style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
-                        >
-                          <FaEdit style={{ fontSize: '12px' }} />
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-outline-danger"
-                          style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
-                        >
-                          <FaTrash style={{ fontSize: '12px' }} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {storeId && (
+        <>
+          {/* Discount Rules Table */}
+          <div className={styles.orderStatusCard} style={{ marginTop: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <h4 style={{ margin: 0, fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+                Discount Rules
+              </h4>
+              <div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    fontFamily: 'Poppins',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="expiring">Expiring Soon</option>
+                </select>
+              </div>
+            </div>
+            {loading ? (
+              <p style={{ textAlign: 'center', padding: '24px', fontFamily: 'Poppins' }}>Loading discount rules...</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Rule ID</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Name</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Discount</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Min Purchase</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Applicable To</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Valid Period</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discountRules.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: 'center', padding: '24px', fontFamily: 'Poppins', color: '#6b7280' }}>
+                          No discount rules found.
+                        </td>
+                      </tr>
+                    ) : (
+                      discountRules.map((rule, i) => {
+                        const statusInfo = getStatusBadge(rule.status || "active");
+                        const validFrom = rule.validFrom ? new Date(rule.validFrom).toLocaleDateString() : "-";
+                        const validUntil = rule.validUntil ? new Date(rule.validUntil).toLocaleDateString() : "-";
+                        return (
+                          <tr key={rule.id || i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{rule.ruleCode || rule.id || "-"}</td>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{rule.ruleName || "-"}</td>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
+                              {rule.discountType === "percentage" ? `${rule.discountValue}%` : `₹${rule.discountValue}`}
+                            </td>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>₹{(rule.minPurchase || 0).toLocaleString()}</td>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                              {rule.applicableTo === "all" ? "All Products" : rule.applicableTo === "selected" ? "Selected Products" : rule.applicableTo}
+                            </td>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                              {validFrom} - {validUntil}
+                            </td>
+                            <td>
+                              <span className={`badge ${statusInfo.class}`} style={{ fontFamily: 'Poppins', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                {statusInfo.icon}
+                                {(rule.status || "active").charAt(0).toUpperCase() + (rule.status || "active").slice(1)}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn btn-sm btn-outline-primary"
+                                  style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
+                                  onClick={() => handleEditRule(rule)}
+                                  disabled={actionLoading}
+                                >
+                                  <FaEdit style={{ fontSize: '12px' }} />
+                                </button>
+                                <button 
+                                  className="btn btn-sm btn-outline-danger"
+                                  style={{ fontFamily: 'Poppins', fontSize: '11px', padding: '4px 8px' }}
+                                  onClick={() => handleDeleteRule(rule.id)}
+                                  disabled={actionLoading}
+                                >
+                                  <FaTrash style={{ fontSize: '12px' }} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {pagination.totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                <p style={{ margin: 0, fontFamily: 'Poppins', color: '#6b7280' }}>
+                  Showing page {pagination.page} of {pagination.totalPages}
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="homebtn"
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page <= 1 || loading}
+                    style={{ padding: '8px 16px', fontSize: '14px' }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="homebtn"
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
+                    disabled={pagination.page >= pagination.totalPages || loading}
+                    style={{ padding: '8px 16px', fontSize: '14px' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Error Modal */}
+      <Modal show={isErrorModalOpen} onHide={() => setIsErrorModalOpen(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Error</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>{error}</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setIsErrorModalOpen(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal show={isSuccessModalOpen} onHide={() => setIsSuccessModalOpen(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Success</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>{successMessage}</Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={() => setIsSuccessModalOpen(false)}>
+            OK
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

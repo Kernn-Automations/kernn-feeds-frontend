@@ -27,189 +27,122 @@ function StoreStockTransfer() {
 
   useEffect(() => {
     fetchCurrentStore();
-    fetchStores();
   }, []);
 
   useEffect(() => {
     if (currentStore?.id) {
       fetchCurrentStock();
+      fetchStores();
     }
   }, [currentStore]);
 
   const fetchCurrentStore = async () => {
-    // Using dummy data for frontend development - no API calls
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
-
-      // Use dummy current store for testing
-      const dummyCurrentStore = {
-        id: storeId || 1, // Default to store ID 1 if not found
-        name: user.store?.name || "Hyderabad Main Store",
-        storeType: user.store?.storeType || user.store?.type || "own",
-        type: user.store?.type || "own",
-        address: "Hyderabad, Telangana"
-      };
+      setLoading(true);
+      let storeId = null;
       
-      setCurrentStore(dummyCurrentStore);
-    } catch (err) {
-      console.error('Error setting dummy current store:', err);
-      // Set a default dummy store
-      setCurrentStore({
-        id: 1,
-        name: "Hyderabad Main Store",
-        storeType: "own",
-        type: "own",
-        address: "Hyderabad, Telangana"
-      });
-    }
-  };
-
-  // Dummy stores data for frontend development
-  const getDummyStores = (excludeStoreId = null) => {
-    const allDummyStores = [
-      {
-        id: 1,
-        name: "Hyderabad Main Store",
-        storeType: "own",
-        type: "own",
-        address: "Hyderabad, Telangana"
-      },
-      {
-        id: 2,
-        name: "Mumbai Central Store",
-        storeType: "own",
-        type: "own",
-        address: "Mumbai, Maharashtra"
-      },
-      {
-        id: 3,
-        name: "Delhi North Store",
-        storeType: "own",
-        type: "own",
-        address: "Delhi"
-      },
-      {
-        id: 4,
-        name: "Franchise Store - Bangalore",
-        storeType: "franchise",
-        type: "franchise",
-        address: "Bangalore, Karnataka"
-      },
-      {
-        id: 5,
-        name: "Franchise Store - Chennai",
-        storeType: "franchise",
-        type: "franchise",
-        address: "Chennai, Tamil Nadu"
-      },
-      {
-        id: 6,
-        name: "Pune Branch Store",
-        storeType: "own",
-        type: "own",
-        address: "Pune, Maharashtra"
+      // Try from selectedStore in localStorage
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
+          const store = JSON.parse(selectedStore);
+          storeId = store.id;
+        } catch (e) {
+          console.error("Error parsing selectedStore:", e);
+        }
       }
-    ];
-    
-    // Exclude current store if provided
-    if (excludeStoreId) {
-      return allDummyStores.filter(store => store.id !== excludeStoreId);
-    }
-    return allDummyStores;
-  };
+      
+      // Fallback to currentStoreId
+      if (!storeId) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        storeId = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      // Fallback to user object
+      if (!storeId) {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        storeId = user?.storeId || user?.store?.id;
+      }
+      
+      if (!storeId) {
+        throw new Error("Store information missing. Please re-login to continue.");
+      }
 
-  const fetchStores = async () => {
-    // Using dummy data for frontend development - no API calls
-    setLoading(true);
-    try {
-      // Use dummy data directly for testing
-      const storesList = getDummyStores(currentStore?.id);
-      setStores(storesList);
-      setStoresWarning("⚠️ Development Mode: Using dummy store data for testing.");
+      // Fetch store details from backend
+      const res = await storeService.getStoreById(storeId);
+      const store = res.store || res.data || res;
+      if (store && store.id) {
+        setCurrentStore(store);
+      } else {
+        throw new Error("Store not found");
+      }
     } catch (err) {
-      console.error('Error setting dummy stores:', err);
+      console.error('Error fetching current store:', err);
+      setError(err.response?.data?.message || err.message || "Error fetching store information");
     } finally {
       setLoading(false);
     }
   };
 
-  // Dummy stock data for frontend development
-  const getDummyStock = () => {
-    return [
-      {
-        id: 1,
-        productId: 1,
-        productName: "Layer Feed 50kg",
-        productCode: "LF-50",
-        currentStock: 120,
-        unit: "kg",
-        unitPrice: 1450,
-        productType: "bulk"
-      },
-      {
-        id: 2,
-        productId: 2,
-        productName: "Broiler Starter",
-        productCode: "BS-25",
-        currentStock: 60,
-        unit: "kg",
-        unitPrice: 980,
-        productType: "bulk"
-      },
-      {
-        id: 3,
-        productId: 3,
-        productName: "Finisher Crumble",
-        productCode: "FC-30",
-        currentStock: 35,
-        unit: "kg",
-        unitPrice: 1125,
-        productType: "bulk"
-      },
-      {
-        id: 4,
-        productId: 4,
-        productName: "Packed Mineral Mix",
-        productCode: "PMM-5",
-        currentStock: 200,
-        unit: "packet",
-        unitPrice: 350,
-        productType: "packed"
-      },
-      {
-        id: 5,
-        productId: 5,
-        productName: "Chicken Feed Premium",
-        productCode: "CFP-40",
-        currentStock: 80,
-        unit: "kg",
-        unitPrice: 1250,
-        productType: "bulk"
-      },
-      {
-        id: 6,
-        productId: 6,
-        productName: "Vitamin Supplement",
-        productCode: "VS-10",
-        currentStock: 150,
-        unit: "packet",
-        unitPrice: 450,
-        productType: "packed"
+  const fetchStores = async () => {
+    if (!currentStore?.id) return;
+    
+    setLoading(true);
+    try {
+      const response = await storeService.getDestinationStores(currentStore.id);
+      const storesData = response.data || response.stores || response || [];
+      const mappedStores = Array.isArray(storesData) ? storesData.map(store => ({
+        id: store.id,
+        name: store.name || store.storeName,
+        storeCode: store.storeCode || store.code,
+        storeType: store.storeType || store.type || "own",
+        type: store.type || store.storeType || "own",
+        division: store.division || null
+      })) : [];
+      
+      setStores(mappedStores);
+      if (mappedStores.length === 0) {
+        setStoresWarning("No destination stores available for transfer.");
+      } else {
+        setStoresWarning("");
       }
-    ];
+    } catch (err) {
+      console.error('Error fetching destination stores:', err);
+      setError(err.response?.data?.message || err.message || "Error fetching destination stores");
+      setStores([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchCurrentStock = async () => {
-    // Using dummy data for frontend development - no API calls
+    if (!currentStore?.id) return;
+    
     setLoading(true);
     try {
-      // Use dummy stock data directly for testing
-      const dummyStock = getDummyStock();
-      setCurrentStock(dummyStock);
+      const response = await storeService.getAvailableStockForTransfer(currentStore.id);
+      const stockData = response.data || response.stock || response || [];
+      
+      // Map backend response to frontend format
+      const mappedStock = Array.isArray(stockData) ? stockData.map(item => ({
+        id: item.productId,
+        productId: item.productId,
+        productName: item.productName || item.name,
+        productCode: item.sku || item.SKU || item.productCode,
+        currentStock: item.available || item.quantity || 0,
+        available: item.available || item.quantity || 0,
+        unit: item.unit || "kg",
+        unitPrice: item.customPrice || item.basePrice || 0,
+        basePrice: item.basePrice || 0,
+        customPrice: item.customPrice || null,
+        productType: item.productType || "packed"
+      })) : [];
+      
+      setCurrentStock(mappedStock);
     } catch (err) {
-      console.error('Error setting dummy stock:', err);
+      console.error('Error fetching available stock:', err);
+      setError(err.response?.data?.message || err.message || "Error fetching available stock");
       setCurrentStock([]);
     } finally {
       setLoading(false);
@@ -222,8 +155,9 @@ function StoreStockTransfer() {
 
     const qty = parseFloat(quantity) || 0;
     if (qty < 0) return;
-    if (qty > product.currentStock) {
-      setError(`Quantity cannot exceed available stock (${product.currentStock} ${product.unit})`);
+    const availableStock = product.available || product.currentStock || 0;
+    if (qty > availableStock) {
+      setError(`Quantity cannot exceed available stock (${availableStock} ${product.unit})`);
       return;
     }
 
@@ -290,7 +224,8 @@ function StoreStockTransfer() {
         setError(`Invalid quantity for ${item.product.productName}`);
         return;
       }
-      if (item.quantity > item.product.currentStock) {
+      const availableStock = item.product.available || item.product.currentStock || 0;
+      if (item.quantity > availableStock) {
         setError(`Quantity exceeds available stock for ${item.product.productName}`);
         return;
       }
@@ -306,21 +241,19 @@ function StoreStockTransfer() {
       const payload = {
         fromStoreId: currentStore.id,
         toStoreId: parseInt(selectedDestinationStore),
-        transferType: transferType, // "stock_transfer" or "sale"
         items: items.map(item => ({
           productId: item.product.productId || item.product.id,
-          quantity: item.quantity,
-          unit: item.product.unit
+          quantity: item.quantity
         })),
         notes: `Stock transfer from ${currentStore.name || 'Current Store'} to ${destinationStore?.name || 'Destination Store'}`
       };
 
       const res = await storeService.createStockTransfer(payload);
+      const transferData = res.data || res;
+      const transferCode = transferData?.transfer?.transferCode || transferData?.transferCode || res.transferCode || 'N/A';
       
       setSuccessMessage(
-        transferType === "sale" 
-          ? `Sale recorded successfully! Transfer ID: ${res.transferId || res.id || 'N/A'}`
-          : `Stock transfer completed successfully! Transfer ID: ${res.transferId || res.id || 'N/A'}`
+        `Stock transfer completed successfully! Transfer Code: ${transferCode}`
       );
 
       // Clear form
@@ -491,20 +424,21 @@ function StoreStockTransfer() {
                   </thead>
                   <tbody>
                     {currentStock
-                      .filter(product => product.currentStock > 0)
+                      .filter(product => (product.available || product.currentStock || 0) > 0)
                       .map((product, index) => {
                         const productId = product.id || product.productId;
+                        const availableStock = product.available || product.currentStock || 0;
                         const transferItem = transferItems[productId];
                         const transferQty = transferItem?.quantity || 0;
                         return (
                           <tr key={productId} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
                               <div style={{ fontWeight: 600 }}>{product.productName}</div>
-                              <div style={{ fontSize: '11px', color: '#6b7280' }}>{product.productCode}</div>
+                              <div style={{ fontSize: '11px', color: '#6b7280' }}>{product.productCode || product.sku}</div>
                             </td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
                               <span className="badge bg-success" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                                {product.currentStock}
+                                {availableStock}
                               </span>
                             </td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{product.unit}</td>
@@ -512,7 +446,7 @@ function StoreStockTransfer() {
                               <input
                                 type="number"
                                 min="0"
-                                max={product.currentStock}
+                                max={availableStock}
                                 value={transferQty}
                                 onChange={(e) => handleQuantityChange(productId, e.target.value)}
                                 style={{
@@ -567,7 +501,7 @@ function StoreStockTransfer() {
                       <tr key={item.product.id || item.product.productId} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
                         <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
                           <div style={{ fontWeight: 600 }}>{item.product.productName}</div>
-                          <div style={{ fontSize: '11px', color: '#6b7280' }}>{item.product.productCode}</div>
+                          <div style={{ fontSize: '11px', color: '#6b7280' }}>{item.product.productCode || item.product.sku}</div>
                         </td>
                         <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
                           {item.quantity}

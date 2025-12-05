@@ -43,8 +43,7 @@ export default function EmployeesList() {
   return (
     <>
       <p className="path">
-        <span onClick={() => navigate("/store/employees")}>Employees</span>{" "}
-        <i className="bi bi-chevron-right"></i> Employees List
+        <span>Employees</span>
       </p>
 
       <div className="row m-0 p-3">

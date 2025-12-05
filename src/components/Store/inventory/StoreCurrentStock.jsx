@@ -7,6 +7,7 @@ import inventoryAni from "../../../images/animations/fetchingAnimation.gif";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
+import storeService from "../../../services/storeService";
 
 function StoreCurrentStock() {
   const navigate = useNavigate();
@@ -17,10 +18,50 @@ function StoreCurrentStock() {
   const [filteredStock, setFilteredStock] = useState([]);
   const [limit, setLimit] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [storeId, setStoreId] = useState(null);
 
   useEffect(() => {
-    fetchCurrentStock();
+    // Get store ID from multiple sources
+    try {
+      let id = null;
+      
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
+          const store = JSON.parse(selectedStore);
+          id = store.id;
+        } catch (e) {
+          console.error("Error parsing selectedStore:", e);
+        }
+      }
+      
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      if (!id) {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        id = user?.storeId || user?.store?.id;
+      }
+      
+      if (id) {
+        setStoreId(id);
+      } else {
+        setError("Store information missing. Please re-login to continue.");
+      }
+    } catch (err) {
+      console.error("Unable to parse stored user data", err);
+      setError("Unable to determine store information. Please re-login.");
+    }
   }, []);
+
+  useEffect(() => {
+    if (storeId) {
+      fetchCurrentStock();
+    }
+  }, [storeId]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -35,43 +76,41 @@ function StoreCurrentStock() {
   }, [searchTerm, currentStock]);
 
   const fetchCurrentStock = async () => {
+    if (!storeId) return;
+    
     setLoading(true);
     setError(null);
     try {
-      // Get store ID from user context or localStorage
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
-
-      if (!storeId) {
-        setError("Store ID not found. Please ensure you are assigned to a store.");
-        return;
-      }
-
-      const res = await axiosAPI.get(`/stores/${storeId}/inventory`);
+      const res = await storeService.getStoreInventory(storeId);
       
-      if (res.data && res.data.inventory) {
-        const inventoryData = res.data.inventory;
-        const transformedStock = Array.isArray(inventoryData) ? inventoryData.map((item, index) => ({
-          id: item.id || index,
-          productName: item.product?.name || item.name || "N/A",
-          productCode: item.product?.SKU || item.SKU || item.productCode || "N/A",
-          currentStock: parseFloat(item.stockQuantity || item.quantity || item.currentStock) || 0,
-          unit: item.product?.unit || item.unit || "kg",
-          unitPrice: parseFloat(item.product?.basePrice || item.basePrice || item.unitPrice) || 0,
-          stockValue: parseFloat(item.stockValue || ((item.stockQuantity || item.quantity || 0) * (item.product?.basePrice || item.basePrice || 0))) || 0,
-          isLowStock: item.isLowStock || false,
-          stockStatus: item.stockStatus || "normal",
-          lastUpdated: item.lastUpdated || item.updatedAt || new Date().toISOString(),
-          productType: item.product?.productType || item.productType || "unknown"
-        })) : [];
+      // Handle different response formats
+      const inventoryData = res.data?.inventory || res.inventory || res.data || res || [];
+      
+      const transformedStock = Array.isArray(inventoryData) ? inventoryData.map((item, index) => {
+        const stockQuantity = parseFloat(item.stockQuantity || item.quantity || item.currentStock || 0);
+        const unitPrice = parseFloat(item.product?.basePrice || item.product?.customPrice || item.basePrice || item.unitPrice || 0);
+        const stockValue = stockQuantity * unitPrice;
         
-        setCurrentStock(transformedStock);
-        setFilteredStock(transformedStock);
-      } else {
-        setCurrentStock([]);
-        setFilteredStock([]);
-      }
+        return {
+          id: item.id || item.productId || index,
+          productId: item.productId || item.product?.id,
+          productName: item.product?.name || item.name || "N/A",
+          productCode: item.product?.SKU || item.product?.sku || item.SKU || item.sku || item.productCode || "N/A",
+          currentStock: stockQuantity,
+          unit: item.product?.unit || item.unit || "kg",
+          unitPrice: unitPrice,
+          stockValue: stockValue,
+          isLowStock: item.isLowStock || (stockQuantity > 0 && stockQuantity < 10) || false,
+          stockStatus: item.stockStatus || (stockQuantity === 0 ? 'out_of_stock' : stockQuantity < 10 ? 'low' : 'normal'),
+          lastUpdated: item.lastUpdated || item.updatedAt || item.createdAt || new Date().toISOString(),
+          productType: item.product?.productType || item.productType || "unknown",
+          // Recent movements if available
+          recentMovements: item.recentMovements || item.movements || []
+        };
+      }) : [];
+      
+      setCurrentStock(transformedStock);
+      setFilteredStock(transformedStock);
     } catch (err) {
       console.error('Error fetching current stock:', err);
       setError(err?.response?.data?.message || err?.message || "Failed to load current stock");
@@ -110,7 +149,7 @@ function StoreCurrentStock() {
         }}>Current Stock</h2>
         <p className="path">
           <span onClick={() => navigate("/store/inventory")}>Inventory</span>{" "}
-          <i class="bi bi-chevron-right"></i> Current Stock
+          <i className="bi bi-chevron-right"></i> Current Stock
         </p>
       </div>
 

@@ -51,7 +51,29 @@ const storeService = {
   },
   async createSale(body) {
     const res = await api.request(`/stores/sales`, { method: "POST", body: JSON.stringify(body) });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
+  },
+  async calculateSaleTotal(body) {
+    // Preview/calculate sale total with tax without creating the sale
+    // This endpoint should return the calculated total including tax
+    try {
+      const res = await api.request(`/stores/sales/calculate`, { method: "POST", body: JSON.stringify(body) });
+      return res.json();
+    } catch (err) {
+      // If calculate endpoint doesn't exist, try creating sale in dry-run mode
+      // or return null to indicate calculation is not available
+      console.warn("Sale calculation endpoint not available, will calculate on backend");
+      return null;
+    }
   },
   async createIndent(body) {
     const res = await api.request(`/stores/indents`, { method: "POST", body: JSON.stringify(body) });
@@ -67,11 +89,40 @@ const storeService = {
   },
 
   async approveRejectIndent(indentId, action, notes) {
-    const res = await api.request(`/indents/${indentId}/approve-reject`, { method: "PUT", body: JSON.stringify({ action, notes }) });
+    const res = await api.request(`/store-indents/indents/${indentId}/approve-reject`, { method: "PUT", body: JSON.stringify({ action, notes }) });
+    return res.json();
+  },
+  // Get store indents for admin dashboard (supports filtering by storeId and status)
+  async getStoreIndentsForAdmin(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.storeId) queryParams.append('storeId', params.storeId);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+    if (params.toDate) queryParams.append('toDate', params.toDate);
+    const queryString = queryParams.toString();
+    const res = await api.request(`/store-indents${queryString ? `?${queryString}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to fetch store indents: ${res.status} ${errorText}`);
+    }
+    
     return res.json();
   },
   async createStockTransfer(body) {
-    const res = await api.request(`/stock-transfers`, { method: "POST", body: JSON.stringify(body) });
+    const res = await api.request(`/store-indents/store-to-store-transfer`, { method: "POST", body: JSON.stringify(body) });
+    return res.json();
+  },
+  async getAvailableStockForTransfer(storeId) {
+    const res = await api.request(`/store-indents/stock-transfer/available-stock/${storeId}`, { method: "GET" });
+    return res.json();
+  },
+  async getDestinationStores(excludeStoreId) {
+    const queryParams = excludeStoreId ? `?excludeStoreId=${excludeStoreId}` : '';
+    const res = await api.request(`/store-indents/stock-transfer/destination-stores${queryParams}`, { method: "GET" });
     return res.json();
   },
   async processStockIn(body) {
@@ -80,6 +131,14 @@ const storeService = {
   },
 
   // Store Assets operations
+  async createStoreAsset(body) {
+    // Backend API: POST /stores/assets (storeId should be in body)
+    const res = await api.request(`/stores/assets`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  },
   async getStoreAssets(storeId, params = {}) {
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.append("page", params.page);
@@ -130,8 +189,9 @@ const storeService = {
     );
     return res.json();
   },
-  async createStoreExpenditure(storeId, body) {
-    const res = await api.request(`/stores/${storeId}/expenditures`, {
+  async createStoreExpenditure(body) {
+    // Backend API: POST /stores/expenditures (storeId should be in body)
+    const res = await api.request(`/stores/expenditures`, {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -155,8 +215,18 @@ const storeService = {
     const res = await api.request(`/stores/${storeId}/sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
     return res.json();
   },
+  async getStoreSalesAdmin(storeId, params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/admin/${storeId}/sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
   async updateSalePaymentUTR(saleId, utrNumber) {
     const res = await api.request(`/stores/sales/${saleId}/payment/utr`, { method: "PUT", body: JSON.stringify({ utrNumber }) });
+    return res.json();
+  },
+  async getSalesReports(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/reports/sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
     return res.json();
   },
   
@@ -171,7 +241,7 @@ const storeService = {
     return res.json();
   },
   async searchStoreCustomers(storeId, searchTerm) {
-    const res = await api.request(`/stores/${storeId}/customers/search?search=${encodeURIComponent(searchTerm)}`, { method: "GET" });
+    const res = await api.request(`/stores/${storeId}/customers/search?q=${encodeURIComponent(searchTerm)}`, { method: "GET" });
     return res.json();
   },
   
@@ -215,6 +285,11 @@ const storeService = {
     const res = await api.request(`/stores/${storeId}/products/for-sale${queryString}`, { method: "GET" });
     return res.json();
   },
+  async searchStoreProducts(storeId, searchTerm = "") {
+    const queryParams = searchTerm ? `?q=${encodeURIComponent(searchTerm)}` : "";
+    const res = await api.request(`/stores/${storeId}/products/search${queryParams}`, { method: "GET" });
+    return res.json();
+  },
   async getStoreProductsForBulkUpdate(storeId, searchTerm = "") {
     const queryParams = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : "";
     const res = await api.request(`/stores/${storeId}/products/bulk-update${queryParams}`, { method: "GET" });
@@ -243,6 +318,61 @@ const storeService = {
   async getStorePerformance(storeId, params = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/stores/${storeId}/reports/performance${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  
+  // Store Stock Summary operations
+  async getStoreStockSummary(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/store-stock-summary/summary${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreStockSummaryStats(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/store-stock-summary/stats${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreStockAuditTrail(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/store-stock-summary/audit-trail${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreStockOpeningClosing(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/store-stock-summary/opening-closing${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+
+  // Store Discount operations
+  async getStoreDiscountRules(storeId, params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/${storeId}/discounts/rules${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreDiscountSummary(storeId) {
+    const res = await api.request(`/stores/${storeId}/discounts/rules/summary`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreDiscountRuleById(storeId, ruleId) {
+    const res = await api.request(`/stores/${storeId}/discounts/rules/${ruleId}`, { method: "GET" });
+    return res.json();
+  },
+  async createStoreDiscountRule(storeId, body) {
+    const res = await api.request(`/stores/${storeId}/discounts/rules`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  },
+  async updateStoreDiscountRule(storeId, ruleId, body) {
+    const res = await api.request(`/stores/${storeId}/discounts/rules/${ruleId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  },
+  async deleteStoreDiscountRule(storeId, ruleId) {
+    const res = await api.request(`/stores/${storeId}/discounts/rules/${ruleId}`, { method: "DELETE" });
     return res.json();
   },
 };

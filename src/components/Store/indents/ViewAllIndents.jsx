@@ -1,182 +1,147 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/Auth";
 import styles from "../../Dashboard/Purchases/Purchases.module.css";
 import { FaFileAlt, FaClock, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import Loading from "@/components/Loading";
+import ErrorModal from "@/components/ErrorModal";
+import storeService from "../../../services/storeService";
 
 export default function ViewAllIndents() {
   const navigate = useNavigate();
+  const { axiosAPI } = useAuth();
+  const [storeId, setStoreId] = useState(null);
   const [pageNo, setPageNo] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [indents, setIndents] = useState([]);
   const [selectedIndent, setSelectedIndent] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Stock In states
+  const [showStockIn, setShowStockIn] = useState(false);
+  const [receivedQuantities, setReceivedQuantities] = useState({});
+  const [hasDamagedGoods, setHasDamagedGoods] = useState(false);
+  const [damagedGoodsRows, setDamagedGoodsRows] = useState([]);
+  const [stockInLoading, setStockInLoading] = useState(false);
 
-  const mockIndentsData = {
-    recentIndents: [
-      { 
-        id: 1,
-        code: "IND000123", 
-        value: 15000, 
-        status: "Awaiting Approval", 
-        date: "15-01-2024", 
-        items: 5,
-        storeName: "Store A",
-        priority: "High",
-        notes: "Urgent requirement for upcoming sale",
-        products: [
-          { name: "Product A", quantity: 10, unit: "kg", price: 500 },
-          { name: "Product B", quantity: 5, unit: "pcs", price: 200 },
-          { name: "Product C", quantity: 20, unit: "kg", price: 300 }
-        ]
-      },
-      { 
-        id: 2,
-        code: "IND000124", 
-        value: 9800, 
-        status: "Awaiting Approval", 
-        date: "14-01-2024", 
-        items: 3,
-        storeName: "Store B",
-        priority: "Normal",
-        notes: "Regular stock replenishment",
-        products: [
-          { name: "Product D", quantity: 15, unit: "pcs", price: 400 },
-          { name: "Product E", quantity: 8, unit: "kg", price: 350 }
-        ]
-      },
-      { 
-        id: 3,
-        code: "IND000125", 
-        value: 21000, 
-        status: "Waiting for Stock", 
-        date: "13-01-2024", 
-        items: 8,
-        storeName: "Store C",
-        priority: "Urgent",
-        notes: "Bulk order for festival season",
-        products: [
-          { name: "Product F", quantity: 25, unit: "kg", price: 600 },
-          { name: "Product G", quantity: 12, unit: "pcs", price: 450 },
-          { name: "Product H", quantity: 30, unit: "kg", price: 550 }
-        ]
-      },
-      { 
-        id: 4,
-        code: "IND000122", 
-        value: 18500, 
-        status: "Approved", 
-        date: "12-01-2024", 
-        items: 6,
-        storeName: "Store A",
-        priority: "Normal",
-        notes: "Approved and ready for processing",
-        products: [
-          { name: "Product I", quantity: 18, unit: "pcs", price: 500 },
-          { name: "Product J", quantity: 10, unit: "kg", price: 400 }
-        ]
-      },
-      { 
-        id: 5,
-        code: "IND000121", 
-        value: 12200, 
-        status: "Rejected", 
-        date: "11-01-2024", 
-        items: 4,
-        storeName: "Store B",
-        priority: "Low",
-        notes: "Rejected due to insufficient stock",
-        products: [
-          { name: "Product K", quantity: 8, unit: "kg", price: 600 }
-        ]
-      },
-      { 
-        id: 6,
-        code: "IND000120", 
-        value: 15200, 
-        status: "Approved", 
-        date: "10-01-2024", 
-        items: 7,
-        storeName: "Store C",
-        priority: "High",
-        notes: "",
-        products: [
-          { name: "Product L", quantity: 12, unit: "pcs", price: 450 },
-          { name: "Product M", quantity: 15, unit: "kg", price: 500 }
-        ]
-      },
-      { 
-        id: 7,
-        code: "IND000119", 
-        value: 9800, 
-        status: "Approved", 
-        date: "09-01-2024", 
-        items: 3,
-        storeName: "Store A",
-        priority: "Normal",
-        notes: "",
-        products: [
-          { name: "Product N", quantity: 10, unit: "kg", price: 400 }
-        ]
-      },
-      { 
-        id: 8,
-        code: "IND000118", 
-        value: 21000, 
-        status: "Waiting for Stock", 
-        date: "08-01-2024", 
-        items: 8,
-        storeName: "Store B",
-        priority: "Urgent",
-        notes: "Waiting for warehouse stock",
-        products: [
-          { name: "Product O", quantity: 20, unit: "pcs", price: 600 },
-          { name: "Product P", quantity: 15, unit: "kg", price: 500 }
-        ]
-      },
-      { 
-        id: 9,
-        code: "IND000117", 
-        value: 18500, 
-        status: "Approved", 
-        date: "07-01-2024", 
-        items: 6,
-        storeName: "Store C",
-        priority: "Normal",
-        notes: "",
-        products: [
-          { name: "Product Q", quantity: 12, unit: "kg", price: 550 },
-          { name: "Product R", quantity: 8, unit: "pcs", price: 450 }
-        ]
-      },
-      { 
-        id: 10,
-        code: "IND000116", 
-        value: 12200, 
-        status: "Rejected", 
-        date: "06-01-2024", 
-        items: 4,
-        storeName: "Store A",
-        priority: "Low",
-        notes: "Rejected - invalid request",
-        products: [
-          { name: "Product S", quantity: 10, unit: "kg", price: 600 }
-        ]
+  // Get store ID from localStorage
+  useEffect(() => {
+    try {
+      // Get store ID from multiple sources
+      let id = null;
+      
+      // Try from selectedStore in localStorage
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
+          const store = JSON.parse(selectedStore);
+          id = store.id;
+        } catch (e) {
+          console.error("Error parsing selectedStore:", e);
+        }
       }
-    ]
+      
+      // Fallback to currentStoreId
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      // Fallback to user object
+      if (!id) {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        id = user?.storeId || user?.store?.id;
+      }
+      
+      if (id) {
+        setStoreId(id);
+      } else {
+        setError("Store information missing. Please re-login to continue.");
+        setIsModalOpen(true);
+      }
+    } catch (err) {
+      console.error("Unable to parse stored user data", err);
+      setError("Unable to determine store information. Please re-login.");
+      setIsModalOpen(true);
+    }
+  }, []);
+
+  // Fetch indents from backend
+  useEffect(() => {
+    if (storeId) {
+      fetchIndents();
+    }
+  }, [storeId, pageNo, limit]);
+
+  const fetchIndents = async () => {
+    if (!storeId) return;
+    
+    try {
+      setLoading(true);
+      const params = {
+        page: pageNo,
+        limit: limit
+      };
+      
+      const res = await storeService.getStoreIndents(storeId, params);
+      
+      // Handle different response formats
+      const indentsData = res.data?.indents || res.data || res.indents || res || [];
+      const total = res.data?.total || res.total || indentsData.length;
+      
+      // Map backend response to UI format
+      const mappedIndents = Array.isArray(indentsData) ? indentsData.map(indent => ({
+        id: indent.id,
+        code: indent.indentCode || indent.code || `IND${String(indent.id).padStart(6, '0')}`,
+        value: indent.totalAmount || indent.value || 0,
+        status: mapStatus(indent.status),
+        originalStatus: indent.status?.toLowerCase() || indent.status, // Store original backend status
+        date: formatDate(indent.createdAt || indent.date),
+        itemCount: indent.items?.length || indent.itemCount || 0,
+        storeName: indent.store?.name || indent.storeName || "Store",
+        notes: indent.notes || "",
+        items: indent.items || []
+      })) : [];
+      
+      setIndents(mappedIndents);
+      setTotalPages(Math.ceil(total / limit) || 1);
+    } catch (err) {
+      console.error("Error fetching indents:", err);
+      setError(err.response?.data?.message || err.message || "Error fetching indents");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Calculate pagination
-  useEffect(() => {
-    setTotalPages(Math.ceil(mockIndentsData.recentIndents.length / limit));
-    setPageNo(1); // Reset page number when limit changes
-  }, [limit]);
+  // Map backend status to UI status
+  const mapStatus = (status) => {
+    const statusMap = {
+      "pending": "Awaiting Approval",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "processing": "Waiting for Stock",
+      "completed": "Stocked In",
+      "stocked_in": "Stocked In"
+    };
+    return statusMap[status?.toLowerCase()] || status || "Awaiting Approval";
+  };
 
-  // Get paginated data
-  const getPaginatedData = () => {
-    const startIndex = (pageNo - 1) * limit;
-    const endIndex = startIndex + limit;
-    return mockIndentsData.recentIndents.slice(startIndex, endIndex);
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -197,14 +162,244 @@ export default function ViewAllIndents() {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedIndent(null);
+    setShowStockIn(false);
+    setReceivedQuantities({});
+    setHasDamagedGoods(false);
+    setDamagedGoodsRows([]);
   };
 
-  const handleEdit = () => {
-    // Navigate to edit page or open edit modal
+  const handleStockIn = () => {
     if (selectedIndent) {
-      // For now, just close and show alert
-      alert(`Edit functionality for ${selectedIndent.code} will be implemented`);
-      handleCloseModal();
+      // Initialize received quantities with requested quantities
+      const initialQuantities = {};
+      const items = selectedIndent.items || selectedIndent.products || [];
+      items.forEach((item, index) => {
+        const productId = item.productId || item.id;
+        initialQuantities[productId] = item.requestedQuantity || item.quantity || 0;
+      });
+      setReceivedQuantities(initialQuantities);
+      setShowStockIn(true);
+    }
+  };
+
+  const handleCancelStockIn = () => {
+    setShowStockIn(false);
+    setReceivedQuantities({});
+    setHasDamagedGoods(false);
+    setDamagedGoodsRows([]);
+  };
+
+  const handleReceivedQuantityChange = (productId, value) => {
+    setReceivedQuantities(prev => ({
+      ...prev,
+      [productId]: parseFloat(value) || 0
+    }));
+  };
+
+  const handleDamagedGoodsToggle = (checked) => {
+    setHasDamagedGoods(checked);
+    if (checked) {
+      // Initialize damaged goods rows from items
+      const items = selectedIndent.items || selectedIndent.products || [];
+      const initialRows = items.map((item, index) => ({
+        productId: item.productId || item.id,
+        productName: item.product?.name || item.productName || `Product ${item.productId || item.id}`,
+        orderedQty: item.requestedQuantity || item.quantity || 0,
+        damagedQty: 0,
+        reason: "",
+        image: null,
+        imageBase64: null,
+        imagePreview: null
+      }));
+      setDamagedGoodsRows(initialRows);
+    } else {
+      setDamagedGoodsRows([]);
+    }
+  };
+
+  const handleDamagedGoodsChange = (index, field, value) => {
+    setDamagedGoodsRows(prev => {
+      const newRows = [...prev];
+      const newValue = field === 'damagedQty' ? Math.min(parseFloat(value) || 0, newRows[index].orderedQty) : value;
+      newRows[index] = { ...newRows[index], [field]: newValue };
+      return newRows;
+    });
+  };
+
+  const handleImageUpload = async (index, file) => {
+    if (!file) return;
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size should be less than 5MB");
+      setIsModalOpen(true);
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError("Please select an image file");
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setDamagedGoodsRows(prev => {
+          const newRows = [...prev];
+          newRows[index] = {
+            ...newRows[index],
+            image: file,
+            imageBase64: base64String,
+            imagePreview: base64String
+          };
+          return newRows;
+        });
+      };
+      reader.onerror = () => {
+        setError("Error reading image file");
+        setIsModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error processing image:", err);
+      setError("Error processing image");
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleConfirmStockIn = async () => {
+    if (!selectedIndent || !storeId) {
+      setError("Store information missing");
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      setStockInLoading(true);
+
+      // Validate received quantities
+      const items = selectedIndent.items || selectedIndent.products || [];
+      const invalidItems = items.filter(item => {
+        const productId = item.productId || item.id;
+        const receivedQty = receivedQuantities[productId] || 0;
+        const requestedQty = item.requestedQuantity || item.quantity || 0;
+        return receivedQty <= 0 || receivedQty > requestedQty;
+      });
+
+      if (invalidItems.length > 0) {
+        setError("Please enter valid received quantities (greater than 0 and not exceeding ordered quantity)");
+        setIsModalOpen(true);
+        setStockInLoading(false);
+        return;
+      }
+
+      // Validate damaged goods if enabled
+      if (hasDamagedGoods) {
+        // Note: API doesn't require reason or image, but we'll validate image is optional
+        // Reason is kept in UI for user reference but not sent to API
+        const damagedWithoutImage = damagedGoodsRows.filter(row => {
+          return row.damagedQty > 0 && !row.imageBase64;
+        });
+
+        // Image is optional according to API, but we can warn user
+        // if (damagedWithoutImage.length > 0) {
+        //   setError("Please upload image for all damaged goods");
+        //   setIsModalOpen(true);
+        //   setStockInLoading(false);
+        //   return;
+        // }
+      }
+
+      // Prepare stock in payload according to backend API format
+      const stockInPayload = {
+        indentId: selectedIndent.id,
+        items: items.map(item => {
+          const productId = item.productId || item.id;
+          const receivedQty = parseFloat(receivedQuantities[productId] || item.requestedQuantity || item.quantity || 0);
+          
+          // Find damaged goods for this product if any
+          const damagedRow = hasDamagedGoods 
+            ? damagedGoodsRows.find(row => {
+                const rowProductId = row.productId?.toString() || String(row.productId);
+                const itemProductId = productId?.toString() || String(productId);
+                return rowProductId === itemProductId;
+              })
+            : null;
+          
+          const damagedQty = damagedRow && damagedRow.damagedQty > 0 
+            ? parseFloat(damagedRow.damagedQty) 
+            : 0;
+          
+          // Extract base64 data (remove data:image/...;base64, prefix if present)
+          const damagedImageBase64 = damagedRow && damagedRow.imageBase64
+            ? (damagedRow.imageBase64.includes(',') 
+                ? damagedRow.imageBase64.split(',')[1] 
+                : damagedRow.imageBase64)
+            : undefined;
+          
+          const itemPayload = {
+            productId: parseInt(productId),
+            receivedQuantity: receivedQty
+          };
+          
+          // Add damaged goods fields only if damaged quantity > 0
+          if (damagedQty > 0) {
+            itemPayload.damagedQuantity = damagedQty;
+            if (damagedImageBase64) {
+              itemPayload.damagedImageBase64 = damagedImageBase64;
+            }
+          }
+          
+          return itemPayload;
+        })
+      };
+
+      console.log("Stock In Payload:", JSON.stringify(stockInPayload, null, 2));
+      
+      const res = await storeService.processStockIn(stockInPayload);
+      
+      const successMessage = res.message || res.data?.message || "Stock in processed successfully";
+      alert(successMessage);
+      
+      // Update selected indent status to reflect stock in completion
+      if (selectedIndent) {
+        setSelectedIndent(prev => ({
+          ...prev,
+          status: "Stocked In",
+          originalStatus: "completed"
+        }));
+      }
+      
+      // Reset stock in form but keep modal open to show updated status
+      setShowStockIn(false);
+      setReceivedQuantities({});
+      setHasDamagedGoods(false);
+      setDamagedGoodsRows([]);
+      
+      // Refresh the indents list
+      fetchIndents();
+    } catch (err) {
+      console.error("Error processing stock in:", err);
+      console.error("Error details:", err.response?.data || err);
+      
+      // Extract error message from various possible formats
+      let errorMessage = "Failed to process stock in";
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setStockInLoading(false);
     }
   };
 
@@ -224,7 +419,10 @@ export default function ViewAllIndents() {
                 name=""
                 id=""
                 value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPageNo(1); // Reset to first page when limit changes
+                }}
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -247,12 +445,16 @@ export default function ViewAllIndents() {
               </tr>
             </thead>
             <tbody>
-              {getPaginatedData().length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td>
+                </tr>
+              ) : indents.length === 0 ? (
                 <tr>
                   <td colSpan={7}>NO DATA FOUND</td>
                 </tr>
               ) : (
-                getPaginatedData().map((indent, index) => {
+                indents.map((indent, index) => {
                   const statusInfo = getStatusBadge(indent.status);
                   const actualIndex = (pageNo - 1) * limit + index + 1;
                   return (
@@ -264,8 +466,8 @@ export default function ViewAllIndents() {
                       <td>{actualIndex}</td>
                       <td>{indent.date}</td>
                       <td>{indent.code}</td>
-                      <td>{indent.items} items</td>
-                      <td>₹{indent.value.toLocaleString()}</td>
+                      <td>{indent.itemCount || indent.items?.length || 0} items</td>
+                      <td>₹{Number(indent.value || 0).toLocaleString()}</td>
                       <td>
                         <span 
                           className={`badge ${statusInfo.class}`}
@@ -364,12 +566,14 @@ export default function ViewAllIndents() {
                   onClick={handleCloseModal}
                 ></button>
               </div>
-              <div className="modal-body" style={{ padding: '1.5rem' }}>
-                {/* Indent Information */}
-                <div style={{ marginBottom: '2rem' }}>
-                  <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-color)' }}>
-                    Indent Information
-                  </h6>
+              <div className="modal-body" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+                {!showStockIn ? (
+                  <>
+                    {/* Indent Information */}
+                    <div style={{ marginBottom: '2rem' }}>
+                      <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-color)' }}>
+                        Indent Information
+                      </h6>
                   <div className="row" style={{ fontFamily: 'Poppins' }}>
                     <div className="col-6" style={{ marginBottom: '0.75rem' }}>
                       <strong>Indent Code:</strong> {selectedIndent.code}
@@ -381,12 +585,6 @@ export default function ViewAllIndents() {
                       <strong>Store:</strong> {selectedIndent.storeName || 'N/A'}
                     </div>
                     <div className="col-6" style={{ marginBottom: '0.75rem' }}>
-                      <strong>Priority:</strong> 
-                      <span className={`badge ${selectedIndent.priority === 'Urgent' ? 'bg-danger' : selectedIndent.priority === 'High' ? 'bg-warning' : 'bg-info'}`} style={{ marginLeft: '8px' }}>
-                        {selectedIndent.priority}
-                      </span>
-                    </div>
-                    <div className="col-6" style={{ marginBottom: '0.75rem' }}>
                       <strong>Status:</strong> 
                       <span className={`badge ${getStatusBadge(selectedIndent.status).class}`} style={{ marginLeft: '8px' }}>
                         {getStatusBadge(selectedIndent.status).icon}
@@ -394,7 +592,7 @@ export default function ViewAllIndents() {
                       </span>
                     </div>
                     <div className="col-6" style={{ marginBottom: '0.75rem' }}>
-                      <strong>Total Value:</strong> ₹{selectedIndent.value.toLocaleString()}
+                      <strong>Total Value:</strong> ₹{Number(selectedIndent.value || 0).toLocaleString()}
                     </div>
                     {selectedIndent.notes && (
                       <div className="col-12" style={{ marginTop: '0.5rem' }}>
@@ -408,7 +606,7 @@ export default function ViewAllIndents() {
                 {/* Items Table */}
                 <div>
                   <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-color)' }}>
-                    Items ({selectedIndent.products?.length || selectedIndent.items || 0})
+                    Items ({selectedIndent.items?.length || selectedIndent.products?.length || selectedIndent.items || 0})
                   </h6>
                   <div style={{ overflowX: 'auto' }}>
                     <table className={`table table-bordered borderedtable`} style={{ fontFamily: 'Poppins' }}>
@@ -423,15 +621,26 @@ export default function ViewAllIndents() {
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedIndent.products && selectedIndent.products.length > 0 ? (
+                        {selectedIndent.items && selectedIndent.items.length > 0 ? (
+                          selectedIndent.items.map((item, index) => (
+                            <tr key={index}>
+                              <td>{index + 1}</td>
+                              <td>{item.product?.name || item.productName || `Product ${item.productId}`}</td>
+                              <td>{item.requestedQuantity || item.quantity || 0}</td>
+                              <td>{item.unit || "units"}</td>
+                              <td>₹{Number(item.unitPrice || item.price || 0).toLocaleString()}</td>
+                              <td>₹{Number(item.totalAmount || (item.unitPrice || item.price || 0) * (item.requestedQuantity || item.quantity || 0)).toLocaleString()}</td>
+                            </tr>
+                          ))
+                        ) : selectedIndent.products && selectedIndent.products.length > 0 ? (
                           selectedIndent.products.map((product, index) => (
                             <tr key={index}>
                               <td>{index + 1}</td>
                               <td>{product.name}</td>
                               <td>{product.quantity}</td>
                               <td>{product.unit}</td>
-                              <td>₹{product.price.toLocaleString()}</td>
-                              <td>₹{(product.quantity * product.price).toLocaleString()}</td>
+                              <td>₹{Number(product.price || 0).toLocaleString()}</td>
+                              <td>₹{Number((product.quantity || 0) * (product.price || 0)).toLocaleString()}</td>
                             </tr>
                           ))
                         ) : (
@@ -443,6 +652,174 @@ export default function ViewAllIndents() {
                     </table>
                   </div>
                 </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Stock In Form */}
+                    <div style={{ marginBottom: '2rem' }}>
+                      <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-color)' }}>
+                        Stock In - {selectedIndent.code}
+                      </h6>
+                      
+                      {/* Received Quantities Table */}
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '0.75rem', fontSize: '14px' }}>
+                          Received Quantities
+                        </h6>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className={`table table-bordered borderedtable`} style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                            <thead>
+                              <tr>
+                                <th>S.No</th>
+                                <th>Product</th>
+                                <th>Ordered Qty</th>
+                                <th>Received Qty</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(selectedIndent.items || selectedIndent.products || []).map((item, index) => {
+                                const productId = item.productId || item.id;
+                                const orderedQty = item.requestedQuantity || item.quantity || 0;
+                                const receivedQty = receivedQuantities[productId] || orderedQty;
+                                return (
+                                  <tr key={index}>
+                                    <td>{index + 1}</td>
+                                    <td>{item.product?.name || item.productName || `Product ${productId}`}</td>
+                                    <td>{orderedQty} {item.unit || "units"}</td>
+                                    <td>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max={orderedQty}
+                                        step="0.01"
+                                        value={receivedQty}
+                                        onChange={(e) => handleReceivedQuantityChange(productId, e.target.value)}
+                                        style={{
+                                          width: '100px',
+                                          padding: '4px 8px',
+                                          border: '1px solid #ddd',
+                                          borderRadius: '4px',
+                                          fontFamily: 'Poppins'
+                                        }}
+                                      />
+                                      <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
+                                        {item.unit || "units"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Damaged Goods Checkbox */}
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ fontFamily: 'Poppins', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={hasDamagedGoods}
+                            onChange={(e) => handleDamagedGoodsToggle(e.target.checked)}
+                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontWeight: 600 }}>Damaged Goods</span>
+                        </label>
+                      </div>
+
+                      {/* Damaged Goods Table */}
+                      {hasDamagedGoods && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '0.75rem', fontSize: '14px' }}>
+                            Damaged Goods Details
+                          </h6>
+                          <div style={{ overflowX: 'auto' }}>
+                            <table className={`table table-bordered borderedtable`} style={{ fontFamily: 'Poppins', fontSize: '12px' }}>
+                              <thead>
+                                <tr>
+                                  <th>Product</th>
+                                  <th>Ordered Qty</th>
+                                  <th>Damaged Qty</th>
+                                  <th>Reason</th>
+                                  <th>Image</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {damagedGoodsRows.map((row, index) => {
+                                  const orderedQty = row.orderedQty || 0;
+                                  return (
+                                    <tr key={index}>
+                                      <td>{row.productName}</td>
+                                      <td>{orderedQty}</td>
+                                      <td>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max={orderedQty}
+                                          step="0.01"
+                                          value={row.damagedQty}
+                                          onChange={(e) => handleDamagedGoodsChange(index, 'damagedQty', parseFloat(e.target.value) || 0)}
+                                          style={{
+                                            width: '80px',
+                                            padding: '4px 8px',
+                                            border: '1px solid #ddd',
+                                            borderRadius: '4px',
+                                            fontFamily: 'Poppins'
+                                          }}
+                                        />
+                                      </td>
+                                      <td>
+                                        <input
+                                          type="text"
+                                          value={row.reason}
+                                          onChange={(e) => handleDamagedGoodsChange(index, 'reason', e.target.value)}
+                                          placeholder="Enter reason"
+                                          style={{
+                                            width: '100%',
+                                            padding: '4px 8px',
+                                            border: '1px solid #ddd',
+                                            borderRadius: '4px',
+                                            fontFamily: 'Poppins'
+                                          }}
+                                        />
+                                      </td>
+                                      <td>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) handleImageUpload(index, file);
+                                            }}
+                                            style={{ fontSize: '11px', fontFamily: 'Poppins' }}
+                                          />
+                                          {row.imagePreview && (
+                                            <img
+                                              src={row.imagePreview}
+                                              alt="Preview"
+                                              style={{
+                                                width: '60px',
+                                                height: '60px',
+                                                objectFit: 'cover',
+                                                borderRadius: '4px',
+                                                border: '1px solid #ddd'
+                                              }}
+                                            />
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
               <div className="modal-footer" style={{ 
                 borderTop: '1px solid #dee2e6',
@@ -450,26 +827,62 @@ export default function ViewAllIndents() {
                 justifyContent: 'flex-end',
                 gap: '10px'
               }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleCloseModal}
-                  style={{ fontFamily: 'Poppins' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleEdit}
-                  style={{ fontFamily: 'Poppins' }}
-                >
-                  Edit
-                </button>
+                {!showStockIn ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleCloseModal}
+                      style={{ fontFamily: 'Poppins' }}
+                    >
+                      Close
+                    </button>
+                    {selectedIndent?.originalStatus === "approved" && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleStockIn}
+                        style={{ fontFamily: 'Poppins' }}
+                      >
+                        Stock In
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleCancelStockIn}
+                      disabled={stockInLoading}
+                      style={{ fontFamily: 'Poppins' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleConfirmStockIn}
+                      disabled={stockInLoading}
+                      style={{ fontFamily: 'Poppins' }}
+                    >
+                      {stockInLoading ? "Processing..." : "Confirm Stock In"}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {loading && <Loading />}
+      {isModalOpen && (
+        <ErrorModal
+          isOpen={isModalOpen}
+          message={error}
+          onClose={() => setIsModalOpen(false)}
+        />
       )}
     </>
   );
