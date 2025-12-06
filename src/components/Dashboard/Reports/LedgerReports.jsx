@@ -5,6 +5,7 @@ import Loading from '@/components/Loading'
 import customerLedgerService from '@/services/customerLedgerService'
 import pdf from '../../../images/pdf-png.png'
 import styles from '../Sales/Sales.module.css'
+import CustomSearchDropdown from '@/utils/CustomSearchDropDown'
 
 function LedgerReports({navigate}) {
   const { axiosAPI } = useAuth()
@@ -123,6 +124,25 @@ function LedgerReports({navigate}) {
         if (result.success) {
           // Handle the new backend response structure
           const responseData = result.data;
+          
+          // Use customer data from API response if available, otherwise use selected customer
+          if (responseData?.customer) {
+            const apiCustomer = responseData.customer;
+            setSelectedCustomerDetails({
+              id: apiCustomer.id,
+              customer_id: apiCustomer.customer_id,
+              name: apiCustomer.name,
+              address: apiCustomer.location || '',
+              aadhar: apiCustomer.aadhaarNumber || '',
+              location: apiCustomer.location || '',
+              contact: apiCustomer.contact || `Mobile: ${apiCustomer.mobile || ''}, WhatsApp: ${apiCustomer.whatsapp || ''}`,
+              email: apiCustomer.email || '',
+              mobile: apiCustomer.mobile || '',
+              whatsapp: apiCustomer.whatsapp || '',
+              firmName: apiCustomer.firmName || ''
+            });
+          }
+          
           const transactions = responseData?.transactions || [];
           
           const formattedData = transactions.map(item => {
@@ -312,20 +332,12 @@ function LedgerReports({navigate}) {
           </div>
         )}
         
-        <div className="col-3 formcontent">
-          <label>Customer:</label>
-          <select
-            value={customer}
-            onChange={(e) => setCustomer(e.target.value)}
-          >
-            <option value="">--select--</option>
-            {customers?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSearchDropdown
+          label="Customer"
+          onSelect={setCustomer}
+          options={customers?.map((c) => ({ value: c.id, label: c.name }))}
+          showSelectAll={false}
+        />
       </div>
 
       {/* Submit and Cancel Buttons */}
@@ -375,10 +387,21 @@ function LedgerReports({navigate}) {
 
             <h5 className="fw-bold mb-1">{selectedCustomerDetails.name}</h5>
             <div className="mb-1">Ledger Account</div>
-            <div className="mb-1">{selectedCustomerDetails.address}</div>
+            {selectedCustomerDetails.address && (
+              <div className="mb-1">
+                {selectedCustomerDetails.address
+                  .split(',')
+                  .map(part => part.trim())
+                  .filter(part => part && part.toLowerCase() !== 'null' && part !== '')
+                  .map((part, index) => (
+                    <div key={index}>{part}</div>
+                  ))}
+              </div>
+            )}
             <div className="mb-1">Aadhar no : {selectedCustomerDetails.aadhar}</div>
-            <div className="mb-1">Location : {selectedCustomerDetails.location}</div>
-            <div className="mb-3">Contact : {selectedCustomerDetails.contact}</div>
+            {selectedCustomerDetails.mobile && (
+              <div className="mb-3">Contact : {selectedCustomerDetails.mobile}</div>
+            )}
 
             {rangedLedgerData.length > 0 && (
               <div className="mt-2">

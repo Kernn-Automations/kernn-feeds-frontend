@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/Auth";
 import styles from "./Targets.module.css";
+import purchaseStyles from "../Purchases/Purchases.module.css";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import targetService from "@/services/targetService";
@@ -463,66 +464,56 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
       <DialogRoot open={isOpen} onOpenChange={onClose} placement="center" size="lg">
         <DialogContent className="mdl">
           <DialogBody>
-            <h3 className="px-3 pb-3 mdl-title">Create New Target</h3>
+            <h3 className={`px-3 mdl-title`}>Create New Target</h3>
             
-            <div className="container-fluid">
-              {/* Basic Information */}
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Target Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      placeholder="Enter target name"
-                      className={errors.name ? styles.errorField : ''}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Target Type *</label>
-                    <select
-                      value={formData.targetType}
-                      onChange={(e) => handleInputChange('targetType', e.target.value)}
-                    >
-                      <option value="sales">Sales Target</option>
-                      <option value="customer">Customer Target</option>
-                    </select>
-                  </div>
-                </div>
+            {/* Basic Information */}
+            <div className="row m-0 p-0">
+              <h5 className={purchaseStyles.headmdl}>Target Basic Information</h5>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Target Name :</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Enter target name"
+                  className={errors.name ? styles.errorField : ''}
+                />
               </div>
-
-              {/* Assign To */}
-              <div className="row">
-                <div className="col-12">
-                  <div className="inputcolumn-mdl">
-                    <label>Assign To *</label>
-                    <select
-                      value={formData.assignmentType}
-                      onChange={(e) => handleInputChange('assignmentType', e.target.value)}
-                    >
-                      <option value="team">Team</option>
-                      <option value="employee">Employee</option>
-                    </select>
-                  </div>
-                </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Target Type :</label>
+                <select
+                  value={formData.targetType}
+                  onChange={(e) => handleInputChange('targetType', e.target.value)}
+                >
+                  <option value="sales">Sales Target</option>
+                  <option value="customer">Customer Target</option>
+                </select>
               </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Assignment Type :</label>
+                <select
+                  value={formData.assignmentType}
+                  onChange={(e) => handleInputChange('assignmentType', e.target.value)}
+                >
+                  <option value="team">Team</option>
+                  <option value="employee">Employee</option>
+                </select>
+              </div>
+            </div>
 
-              {/* Assignment Selection */}
-              <div className="row">
-                <div className="col-12">
-                  {formData.assignmentType === 'team' ? (
-                    <div className="inputcolumn-mdl">
-                      <label>Select Teams *</label>
-                      <select
-                        multiple
-                        value={formData.teamIds.map(id => id.toString())}
-                        onChange={(e) => handleMultiSelectChange('teamIds', e.target.selectedOptions)}
-                        className={errors.teamIds ? styles.errorField : ''}
-                        style={{ minHeight: '120px' }}
-                      >
+            {/* Assignment Selection */}
+            <div className="row m-0 p-0">
+              <h5 className={purchaseStyles.headmdl}>Assignment Selection</h5>
+              {formData.assignmentType === 'team' ? (
+                <div className={`col-12 ${purchaseStyles.longformmdl}`}>
+                  <label>Select Teams :</label>
+                  <select
+                    multiple
+                    value={formData.teamIds.map(id => id.toString())}
+                    onChange={(e) => handleMultiSelectChange('teamIds', e.target.selectedOptions)}
+                    className={errors.teamIds ? styles.errorField : ''}
+                    style={{ minHeight: '120px', width: '100%' }}
+                  >
                         {(() => {
                           console.log('Rendering teams dropdown. Teams state:', teams);
                           console.log('Teams length in render:', teams.length);
@@ -546,19 +537,19 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                           }
                         })()}
                       </select>
-                      <small className="text-muted">Hold Ctrl/Cmd to select multiple teams</small>
-                      {errors.teamIds && <small className="text-danger d-block mt-1">Please select at least one team</small>}
-                    </div>
-                  ) : (
-                    <div className="inputcolumn-mdl">
-                      <label>Select Employees *</label>
-                      <select
-                        multiple
-                        value={formData.employeeIds.map(id => id.toString())}
-                        onChange={(e) => handleMultiSelectChange('employeeIds', e.target.selectedOptions)}
-                        className={errors.employeeIds ? styles.errorField : ''}
-                        style={{ minHeight: '120px' }}
-                      >
+                  <small className="text-muted">Hold Ctrl/Cmd to select multiple teams</small>
+                  {errors.teamIds && <small className="text-danger d-block mt-1">Please select at least one team</small>}
+                </div>
+              ) : (
+                <div className={`col-12 ${purchaseStyles.longformmdl}`}>
+                  <label>Select Employees :</label>
+                  <select
+                    multiple
+                    value={formData.employeeIds.map(id => id.toString())}
+                    onChange={(e) => handleMultiSelectChange('employeeIds', e.target.selectedOptions)}
+                    className={errors.employeeIds ? styles.errorField : ''}
+                    style={{ minHeight: '120px', width: '100%' }}
+                  >
                         {console.log('Employees state:', employees, 'Length:', employees.length)}
                         {employees.length === 0 && <option disabled>No employees available</option>}
                         {employees
@@ -576,19 +567,18 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                             );
                           })}
                       </select>
-                      <small className="text-muted">Hold Ctrl/Cmd to select multiple employees</small>
-                      {errors.employeeIds && <small className="text-danger d-block mt-1">Please select at least one employee</small>}
-                    </div>
-                  )}
+                  <small className="text-muted">Hold Ctrl/Cmd to select multiple employees</small>
+                  {errors.employeeIds && <small className="text-danger d-block mt-1">Please select at least one employee</small>}
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Team Members Assignment (Step 2) - Only show when teams are selected */}
-              {formData.assignmentType === 'team' && formData.teamIds.length > 0 && (
-                <div className="row mt-3">
-                  <div className="col-12">
-                    <div className="inputcolumn-mdl">
-                      <label>Assign Budget to Team Members *</label>
+            {/* Team Members Assignment (Step 2) - Only show when teams are selected */}
+            {formData.assignmentType === 'team' && formData.teamIds.length > 0 && (
+              <div className="row m-0 p-0">
+                <h5 className={purchaseStyles.headmdl}>Team Members Budget Assignment</h5>
+                <div className={`col-12 ${purchaseStyles.longformmdl}`}>
+                  <label>Assign Budget to Team Members :</label>
                       {loading && teamMembers.length === 0 ? (
                         <div className="text-center py-3">
                           <Loading />
@@ -698,154 +688,133 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                           )}
                         </div>
                       )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Budget Information */}
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Budget Amount *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.budgetNumber}
-                      onChange={(e) => handleInputChange('budgetNumber', e.target.value)}
-                      placeholder="Enter budget amount"
-                      className={errors.budgetNumber ? styles.errorField : ''}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Budget Unit *</label>
-                    <select
-                      value={formData.budgetUnit}
-                      onChange={(e) => handleInputChange('budgetUnit', e.target.value)}
-                    >
-                      {budgetUnits.map(unit => (
-                        <option key={unit.value} value={unit.value}>
-                          {unit.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Time Frame */}
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Time Frame Value *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.timeFrameValue}
-                      onChange={(e) => handleInputChange('timeFrameValue', e.target.value)}
-                      placeholder="Enter duration"
-                      className={errors.timeFrameValue ? styles.errorField : ''}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Time Frame Unit *</label>
-                    <select
-                      value={formData.timeFrame}
-                      onChange={(e) => handleInputChange('timeFrame', e.target.value)}
-                    >
-                      <option value="months">Months</option>
-                    </select>
-                  </div>
-                </div>
+            {/* Budget Information */}
+            <div className="row m-0 p-0">
+              <h5 className={purchaseStyles.headmdl}>Budget Information</h5>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Budget Amount :</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.budgetNumber}
+                  onChange={(e) => handleInputChange('budgetNumber', e.target.value)}
+                  placeholder="Enter budget"
+                  className={errors.budgetNumber ? styles.errorField : ''}
+                />
               </div>
-
-              {/* Date Range */}
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Start Date *</label>
-                    <input
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => handleInputChange('startDate', e.target.value)}
-                      className={errors.startDate ? styles.errorField : ''}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>End Date *</label>
-                    <input
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) => handleInputChange('endDate', e.target.value)}
-                      className={errors.endDate ? styles.errorField : ''}
-                    />
-                  </div>
-                </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Budget Unit :</label>
+                <select
+                  value={formData.budgetUnit}
+                  onChange={(e) => handleInputChange('budgetUnit', e.target.value)}
+                >
+                  {budgetUnits.map(unit => (
+                    <option key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-
-              {/* Priority and Notes */}
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Priority</label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => handleInputChange('priority', e.target.value)}
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="inputcolumn-mdl">
-                    <label>Notes</label>
-                    <input
-                      type="text"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange('notes', e.target.value)}
-                      placeholder="Enter notes (optional)"
-                    />
-                  </div>
-                </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Time Frame Value :</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.timeFrameValue}
+                  onChange={(e) => handleInputChange('timeFrameValue', e.target.value)}
+                  placeholder="Enter duration"
+                  className={errors.timeFrameValue ? styles.errorField : ''}
+                />
               </div>
-
-              {/* Description */}
-              <div className="row">
-                <div className="col-12">
-                  <div className="inputcolumn-mdl">
-                    <label>Description</label>
-                    <textarea
-                      rows="3"
-                      value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value)}
-                      placeholder="Enter target description (optional)"
-                      style={{ resize: 'vertical' }}
-                    />
-                  </div>
-                </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Time Frame Unit :</label>
+                <select
+                  value={formData.timeFrame}
+                  onChange={(e) => handleInputChange('timeFrame', e.target.value)}
+                >
+                  <option value="months">Months</option>
+                </select>
               </div>
+            </div>
 
-              {/* Action Buttons */}
-              {!loading && (
-                <div className="row pt-3 mt-3">
-                  <div className="col-12 text-center">
-                    <button
-                      type="button"
-                      className="submitbtn me-3"
-                      onClick={handleSubmit}
-                      disabled={loading}
-                    >
-                      Create Target
-                    </button>
+            {/* Date Range */}
+            <div className="row m-0 p-0">
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Start Date :</label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => handleInputChange('startDate', e.target.value)}
+                  className={errors.startDate ? styles.errorField : ''}
+                />
+              </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>End Date :</label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => handleInputChange('endDate', e.target.value)}
+                  className={errors.endDate ? styles.errorField : ''}
+                />
+              </div>
+            </div>
+
+            {/* Priority and Notes */}
+            <div className="row m-0 p-0">
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Priority :</label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => handleInputChange('priority', e.target.value)}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div className={`col-3 ${purchaseStyles.longformmdl}`}>
+                <label>Notes :</label>
+                <input
+                  type="text"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Enter notes (optional)"
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="row m-0 p-0">
+              <div className={`col-12 ${purchaseStyles.longformmdl}`}>
+                <label>Description :</label>
+                <textarea
+                  rows="3"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter target description (optional)"
+                  style={{ resize: 'vertical', width: '100%' }}
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            {!loading && (
+              <div className="row m-0 p-3 pt-4 justify-content-center">
+                <div className="col-6 d-flex justify-content-between gap-3">
+                  <button
+                    type="button"
+                    className="submitbtn"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                  >
+                    Create
+                  </button>
+                  <DialogCloseTrigger asChild>
                     <button
                       type="button"
                       className="cancelbtn"
@@ -854,18 +823,18 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
                     >
                       Cancel
                     </button>
-                  </div>
+                  </DialogCloseTrigger>
                 </div>
-              )}
+              </div>
+            )}
 
-              {loading && (
-                <div className="row pt-3 mt-3">
-                  <div className="col-12 text-center">
-                    <Loading />
-                  </div>
+            {loading && (
+              <div className="row m-0 p-3 pt-4 justify-content-center">
+                <div className="col-12 text-center">
+                  <Loading />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </DialogBody>
           <DialogCloseTrigger className="inputcolumn-mdl-close" />
         </DialogContent>

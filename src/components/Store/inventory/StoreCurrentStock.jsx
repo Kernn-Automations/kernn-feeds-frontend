@@ -237,8 +237,8 @@ function StoreCurrentStock() {
             Current Stock Details
           </h4>
           <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-              <thead>
+            <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
+              <thead className="table-light">
                 <tr>
                   <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
                   <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product Name</th>
@@ -255,32 +255,21 @@ function StoreCurrentStock() {
                   <tr key={item.id || index} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
                     <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{index + 1}</td>
                     <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{item.productName}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.productCode}</td>
-                    <td>
-                      <span className={`badge ${
-                        item.isLowStock 
-                          ? 'bg-warning' 
-                          : item.currentStock > 0 
-                            ? 'bg-success' 
-                            : 'bg-danger'
-                      }`} style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                        {item.currentStock}
-                      </span>
-                      {item.isLowStock && (
-                        <small className="text-warning d-block" style={{ fontFamily: 'Poppins', fontSize: '10px' }}>Low Stock</small>
-                      )}
+                    <td style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666' }}>{item.productCode}</td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                      {Number(item.currentStock || 0).toFixed(2)}
                     </td>
                     <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.unit}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>₹{item.unitPrice}</td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>₹{Number(item.unitPrice || 0).toFixed(2)}</td>
                     <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                      ₹{item.stockValue.toLocaleString()}
+                      ₹{Number(item.stockValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td>
                       <span className={`badge ${
                         item.stockStatus === 'normal' ? 'bg-success' : 
                         item.stockStatus === 'low' ? 'bg-warning' : 'bg-danger'
                       }`} style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                        {item.stockStatus || 'normal'}
+                        {item.stockStatus === 'normal' ? 'Normal' : item.stockStatus === 'low' ? 'Low' : 'Out of Stock'}
                       </span>
                     </td>
                   </tr>

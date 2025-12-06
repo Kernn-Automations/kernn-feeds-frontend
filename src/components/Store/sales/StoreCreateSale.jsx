@@ -936,6 +936,10 @@ export default function StoreCreateSale() {
 
   return (
     <div style={{ padding: isMobile ? 8 : 12, maxWidth: '100%', overflowX: 'hidden' }}>
+      <p className="path">
+        <span onClick={() => navigate("/store/sales")}>Sales</span>{" "}
+        <i className="bi bi-chevron-right"></i> Create Sale
+      </p>
       <h4 style={{ marginBottom: isMobile ? 12 : 8, fontSize: isMobile ? '18px' : '20px' }}>Create Sale</h4>
       <StepIndicator step={step} steps={steps} isMobile={isMobile} />
 

@@ -72,6 +72,10 @@
   flex-shrink: 0;
 }
 
+.storeContainer {
+  flex-shrink: 0;
+}
+
 .profileContainer {
   flex-shrink: 0;
 }
