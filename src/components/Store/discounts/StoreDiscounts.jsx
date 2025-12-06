@@ -370,9 +370,11 @@ export default function StoreDiscounts() {
                   width: '100%',
                   padding: '10px',
                   borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #000',
                   fontFamily: 'Poppins',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                  color: '#000'
                 }}
                 placeholder="e.g., Seasonal Discount"
               />
@@ -389,9 +391,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                 >
                   <option value="percentage">Percentage (%)</option>
@@ -410,9 +414,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                   placeholder={formData.discountType === "percentage" ? "5" : "100"}
                 />
@@ -431,9 +437,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                   placeholder="0"
                 />
@@ -449,9 +457,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                 >
                   <option value="all">All Products</option>
@@ -475,9 +485,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                   placeholder="e.g., 1, 2, 3"
                 />
@@ -496,9 +508,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                 />
               </div>
@@ -514,9 +528,11 @@ export default function StoreDiscounts() {
                     width: '100%',
                     padding: '10px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                 />
               </div>
@@ -532,10 +548,12 @@ export default function StoreDiscounts() {
                   width: '100%',
                   padding: '10px',
                   borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #000',
                   fontFamily: 'Poppins',
                   fontSize: '14px',
-                  minHeight: '80px'
+                  minHeight: '80px',
+                  backgroundColor: '#fff',
+                  color: '#000'
                 }}
                 placeholder="Optional notes"
               />
@@ -607,9 +625,11 @@ export default function StoreDiscounts() {
                   style={{
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #000',
                     fontFamily: 'Poppins',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: '#fff',
+                    color: '#000'
                   }}
                 >
                   <option value="">All Statuses</option>
@@ -623,8 +643,8 @@ export default function StoreDiscounts() {
               <p style={{ textAlign: 'center', padding: '24px', fontFamily: 'Poppins' }}>Loading discount rules...</p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-                  <thead>
+                <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
+                  <thead className="table-light">
                     <tr>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Rule ID</th>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Name</th>
@@ -639,7 +659,7 @@ export default function StoreDiscounts() {
                   <tbody>
                     {discountRules.length === 0 ? (
                       <tr>
-                        <td colSpan={8} style={{ textAlign: 'center', padding: '24px', fontFamily: 'Poppins', color: '#6b7280' }}>
+                        <td colSpan={8} className="text-center" style={{ padding: '20px', fontFamily: 'Poppins' }}>
                           No discount rules found.
                         </td>
                       </tr>
@@ -653,9 +673,9 @@ export default function StoreDiscounts() {
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{rule.ruleCode || rule.id || "-"}</td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{rule.ruleName || "-"}</td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                              {rule.discountType === "percentage" ? `${rule.discountValue}%` : `₹${rule.discountValue}`}
+                              {rule.discountType === "percentage" ? `${Number(rule.discountValue || 0).toFixed(2)}%` : `₹${Number(rule.discountValue || 0).toFixed(2)}`}
                             </td>
-                            <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>₹{(rule.minPurchase || 0).toLocaleString()}</td>
+                            <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>₹{Number(rule.minPurchase || 0).toFixed(2)}</td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
                               {rule.applicableTo === "all" ? "All Products" : rule.applicableTo === "selected" ? "Selected Products" : rule.applicableTo}
                             </td>

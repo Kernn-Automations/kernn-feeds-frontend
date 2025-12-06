@@ -112,141 +112,129 @@ function AddVendorModal({changeTrigger}) {
 
   return (
     <>
-      <h3 className={`px-3 pb-3 mdl-title`}>Create Vendor</h3>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Vendor Code :</label>
+      <h3 className={`px-3 mdl-title`}>Create Vendor</h3>
+
+      {/* Vendor Basic Information */}
+      <div className="row m-0 p-0">
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Vendor Code :</label>
           <input
             type="text"
-            value={supplierCode}
-            onChange={(e) => onError(e, supplierCode, setSupplierCode)}
+            value={supplierCode || ""}
+            onChange={(e) => onError(e, "supplierCode", setSupplierCode)}
             required
             className={errors.supplierCode ? styles.errorField : ""}
           />
         </div>
-      </div>{" "}
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Vendor Name :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Vendor Name :</label>
           <input
             type="text"
-            value={name}
-            onChange={(e) => onError(e, name, setName)}
+            value={name || ""}
+            onChange={(e) => onError(e, "name", setName)}
             required
             className={errors.name ? styles.errorField : ""}
           />
         </div>
-      </div>{" "}
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Plot :</label>
+      </div>
+
+      {/* Address Section */}
+      <div className="row m-0 p-0">
+        <h5 className={styles.headmdl}>Address</h5>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Plot :</label>
           <input
             type="text"
-            value={plot}
-            onChange={(e) => onError(e, plot, setPlot)}
+            value={plot || ""}
+            onChange={(e) => onError(e, "plot", setPlot)}
             required
             className={errors.plot ? styles.errorField : ""}
           />
         </div>
-      </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Street :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Street :</label>
           <input
             type="text"
-            value={street}
-            onChange={(e) => onError(e, street, setStreet)}
+            value={street || ""}
+            onChange={(e) => onError(e, "street", setStreet)}
             required
             className={errors.street ? styles.errorField : ""}
           />
         </div>
-      </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Area :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Area :</label>
           <input
             type="text"
-            value={area}
-            onChange={(e) => onError(e, area, setArea)}
+            value={area || ""}
+            onChange={(e) => onError(e, "area", setArea)}
             required
             className={errors.area ? styles.errorField : ""}
           />
         </div>
-      </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">City/Village :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Village/City :</label>
           <input
             type="text"
-            value={city}
-            onChange={(e) => onError(e, city, setCity)}
+            value={city || ""}
+            onChange={(e) => onError(e, "city", setCity)}
             required
             className={errors.city ? styles.errorField : ""}
           />
         </div>
-      </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">District :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>District :</label>
           <input
             type="text"
-            value={district}
-            onChange={(e) => onError(e, district, setDistrict)}
+            value={district || ""}
+            onChange={(e) => onError(e, "district", setDistrict)}
             required
             className={errors.district ? styles.errorField : ""}
           />
         </div>
-      </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">State :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>State :</label>
           <input
             type="text"
-            value={state}
-            onChange={(e) => onError(e, state, setState)}
+            value={state || ""}
+            onChange={(e) => onError(e, "state", setState)}
             required
             className={errors.state ? styles.errorField : ""}
           />
         </div>
-      </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Pincode :</label>
+        <div className={`col-3 ${styles.longformmdl}`}>
+          <label>Pincode :</label>
           <input
             type="text"
-            value={pincode}
-            onChange={(e) => onError(e, pincode, setPincode)}
+            value={pincode || ""}
+            onChange={(e) => onError(e, "pincode", setPincode)}
             required
             className={errors.pincode ? styles.errorField : ""}
           />
         </div>
       </div>
+
+      {/* Submit/Cancel Buttons */}
       {!loading && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-5`}>
+        <div className="row m-0 p-3 pt-4 justify-content-center">
+          <div className="col-6 d-flex justify-content-center gap-3">
             <button
               type="submit"
-              className={`submitbtn`}
-              data-bs-dismiss="modal"
+              className="submitbtn"
               onClick={onSubmitClick}
             >
               Create
             </button>
             <DialogActionTrigger asChild>
-              <button
-                type="button"
-                className={`cancelbtn`}
-                data-bs-dismiss="modal"
-              >
-                Close
+              <button type="button" className="cancelbtn">
+                Cancel
               </button>
             </DialogActionTrigger>
           </div>
         </div>
       )}
       {loading && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-5`}>
+        <div className="row m-0 p-3 pt-4 justify-content-center">
+          <div className="col-6">
             <Loading />
           </div>
         </div>
@@ -258,7 +246,14 @@ function AddVendorModal({changeTrigger}) {
         <SuccessModal
           isOpen={issuccessModalOpen}
           message={error}
-          onClose={closesuccessModal}
+          onClose={() => {
+            closesuccessModal();
+            // Close the dialog after closing success modal
+            const closeButton = document.querySelector("[data-radix-dialog-close]");
+            if (closeButton) {
+              closeButton.click();
+            }
+          }}
         />
       )}
     </>

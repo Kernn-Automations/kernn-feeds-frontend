@@ -84,8 +84,6 @@ function EmployeeDetailsPage() {
     <>
       <p className="path">
         <span onClick={() => navigate("/store/employees")}>Employees</span>{" "}
-        <i className="bi bi-chevron-right"></i>{" "}
-        <span onClick={() => navigate("/store/employees/list")}>Employees List</span>{" "}
         <i className="bi bi-chevron-right"></i> Employee Details
       </p>
 

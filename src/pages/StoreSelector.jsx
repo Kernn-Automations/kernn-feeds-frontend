@@ -164,6 +164,11 @@ const StoreSelector = () => {
 
         console.log("StoreSelector.jsx - Store stored in localStorage:", storeData);
 
+        // Dispatch custom event to notify components that store has changed
+        window.dispatchEvent(new CustomEvent('storeChanged', { 
+          detail: { storeId: store.id, store: storeData } 
+        }));
+
         // Set success state
         setStoreSelected(true);
 

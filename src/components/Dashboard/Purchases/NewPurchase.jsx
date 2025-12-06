@@ -5,6 +5,7 @@ import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import LoadingAnimation from "@/components/LoadingAnimation";
 import success from "../../../images/animations/SuccessAnimation.gif";
+import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 
 function NewPurchase({ navigate }) {
   const [products, setProducts] = useState([]);
@@ -231,28 +232,18 @@ function NewPurchase({ navigate }) {
           {/* Warehouse and Supplier */}
           <div className="row m-0 p-3">
           <h5 className={styles.head}>TO</h5>
-            <div className={`col-3 ${styles.longform}`}>
-              <label>Warehouse :</label>
-              <select onChange={(e) => setWarehouse(e.target.value)}>
-                <option value="">--select--</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className={`col-3 ${styles.longform}`}>
-              <label>Vendor :</label>
-              <select onChange={(e) => setSupplier(e.target.value)}>
-                <option value="">--select--</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomSearchDropdown
+              label="Warehouse"
+              onSelect={setWarehouse}
+              options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+              showSelectAll={false}
+            />
+            <CustomSearchDropdown
+              label="Vendor"
+              onSelect={setSupplier}
+              options={suppliers?.map((s) => ({ value: s.id, label: s.name }))}
+              showSelectAll={false}
+            />
           </div>
 
           {/* Product Table */}

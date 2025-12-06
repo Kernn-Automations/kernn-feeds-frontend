@@ -704,94 +704,102 @@ function DamagedGoods({ navigate }) {
               ) : null}
             </thead>
             <tbody>
-              {(() => {
-                // Apply search filters to the current page data
-                let filteredGoods = goods || [];
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center">
+                    Loading...
+                  </td>
+                </tr>
+              ) : (
+                (() => {
+                  // Apply search filters to the current page data
+                  let filteredGoods = goods || [];
 
-                if (productSearchTerm || warehouseSearchTerm) {
-                  filteredGoods = filteredGoods.filter((item) => {
-                    let pass = true;
+                  if (productSearchTerm || warehouseSearchTerm) {
+                    filteredGoods = filteredGoods.filter((item) => {
+                      let pass = true;
 
-                    // Apply existing filters: warehouse, product, order
-                    if (warehouse) {
-                      const itemWarehouseId =
-                        item.warehouseId ||
-                        (item.warehouse && item.warehouse.id);
-                      if (String(itemWarehouseId) !== String(warehouse))
-                        pass = false;
-                    }
-                    if (product) {
-                      const itemProductId =
-                        item.productId || (item.product && item.product.id);
-                      if (String(itemProductId) !== String(product))
-                        pass = false;
-                    }
-                    if (order) {
-                      if (String(item.purchaseOrderId) !== String(order))
-                        pass = false;
-                    }
-
-                    // Apply new search filters
-                    if (productSearchTerm) {
-                      const productName =
-                        item.productName || item.product?.name || "";
-                      if (
-                        !productName
-                          .toLowerCase()
-                          .includes(productSearchTerm.toLowerCase())
-                      ) {
-                        pass = false;
+                      // Apply existing filters: warehouse, product, order
+                      if (warehouse) {
+                        const itemWarehouseId =
+                          item.warehouseId ||
+                          (item.warehouse && item.warehouse.id);
+                        if (String(itemWarehouseId) !== String(warehouse))
+                          pass = false;
                       }
-                    }
-                    if (warehouseSearchTerm) {
-                      const warehouseName =
-                        item.warehouseName || item.warehouse?.name || "";
-                      if (
-                        !warehouseName
-                          .toLowerCase()
-                          .includes(warehouseSearchTerm.toLowerCase())
-                      ) {
-                        pass = false;
+                      if (product) {
+                        const itemProductId =
+                          item.productId || (item.product && item.product.id);
+                        if (String(itemProductId) !== String(product))
+                          pass = false;
                       }
-                    }
+                      if (order) {
+                        if (String(item.purchaseOrderId) !== String(order))
+                          pass = false;
+                      }
 
-                    return pass;
-                  });
-                }
+                      // Apply new search filters
+                      if (productSearchTerm) {
+                        const productName =
+                          item.productName || item.product?.name || "";
+                        if (
+                          !productName
+                            .toLowerCase()
+                            .includes(productSearchTerm.toLowerCase())
+                        ) {
+                          pass = false;
+                        }
+                      }
+                      if (warehouseSearchTerm) {
+                        const warehouseName =
+                          item.warehouseName || item.warehouse?.name || "";
+                        if (
+                          !warehouseName
+                            .toLowerCase()
+                            .includes(warehouseSearchTerm.toLowerCase())
+                        ) {
+                          pass = false;
+                        }
+                      }
 
-                return filteredGoods.length > 0 ? (
-                  filteredGoods.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{(pageNo - 1) * limit + idx + 1}</td>
-                      <td>{formatDate(item.date || item.createdAt)}</td>
-                      <td>{item.productName || item.product?.name || ""}</td>
-                      <td>
-                        {item.damagedQuantity ||
-                          item.damageQuantity ||
-                          item.quantity ||
-                          ""}
-                      </td>
-                      <td>
-                        {item.warehouseName || item.warehouse?.name || ""}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => openViewModal(item)}
-                        >
-                          View
-                        </button>
+                      return pass;
+                    });
+                  }
+
+                  return filteredGoods.length > 0 ? (
+                    filteredGoods.map((item, idx) => (
+                      <tr key={idx}>
+                        <td>{(pageNo - 1) * limit + idx + 1}</td>
+                        <td>{formatDate(item.date || item.createdAt)}</td>
+                        <td>{item.productName || item.product?.name || ""}</td>
+                        <td>
+                          {item.damagedQuantity ||
+                            item.damageQuantity ||
+                            item.quantity ||
+                            ""}
+                        </td>
+                        <td>
+                          {item.warehouseName || item.warehouse?.name || ""}
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => openViewModal(item)}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center">
+                        No Damaged Goods Found
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="text-center">
-                      No Damaged Goods Found
-                    </td>
-                  </tr>
-                );
-              })()}
+                  );
+                })()
+              )}
             </tbody>
           </table>
 

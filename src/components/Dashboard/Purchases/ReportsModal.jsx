@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/Auth";
 import PDFPreviewModal from "@/utils/PDFPreviewModal";
 import ErrorModal from "@/components/ErrorModal";
+import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 
 function getDamageColor(damagePercent) {
@@ -25,7 +26,9 @@ function ReportsModal({ pdetails, warehouses, setWarehouses, onStockInSuccess })
 
   // State for controlling modal, error, loading, etc.
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [error, setError] = useState();
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
@@ -44,6 +47,10 @@ function ReportsModal({ pdetails, warehouses, setWarehouses, onStockInSuccess })
   const [formErrors, setFormErrors] = useState({});
 
   const closeModal = () => setIsModalOpen(false);
+  const closeSuccessModal = () => {
+    setIsSuccessModalOpen(false);
+    setSuccessMessage("");
+  };
 
 
   
@@ -268,8 +275,9 @@ const handleStockIn = async () => {
 
     console.log("API Response:", response); // Debug log
     
-    setError("✅ Stock IN completed successfully!");
-    setIsModalOpen(true);
+    // Show success modal instead of error modal
+    setSuccessMessage("Successfully stocked in!");
+    setIsSuccessModalOpen(true);
     setDamagedRows([]);
     setDeliveryChallanFile(null);
     setDeliveryChallanPreview(null);
@@ -852,6 +860,15 @@ const handleStockIn = async () => {
       {/* Show error modal */}
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+      )}
+
+      {/* Show success modal */}
+      {isSuccessModalOpen && (
+        <SuccessModal
+          isOpen={isSuccessModalOpen}
+          message={successMessage}
+          onClose={closeSuccessModal}
+        />
       )}
     </>
   );

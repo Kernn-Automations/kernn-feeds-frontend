@@ -1151,6 +1151,94 @@ function SalesReports({ navigate }) {
                     </tr>
                   );
                 })}
+                {/* Total Row */}
+                {salesData.length > 0 && (
+                  <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold' }}>
+                    {isDetailedView ? (
+                      // Detailed view totals
+                      <>
+                        <td className="text-center">TOTAL</td>
+                        <td className="text-center">
+                          {(() => {
+                            const total = salesData.reduce((sum, row) => {
+                              const val = typeof row.cattleFeed === 'number' ? row.cattleFeed : (typeof row.cattleFeed === 'string' && row.cattleFeed !== '-' ? parseFloat(row.cattleFeed) || 0 : 0);
+                              return sum + val;
+                            }, 0);
+                            return total > 0 ? total : '-';
+                          })()}
+                        </td>
+                        <td className="text-center">
+                          {(() => {
+                            const total = salesData.reduce((sum, row) => {
+                              const val = typeof row.natu === 'number' ? row.natu : (typeof row.natu === 'string' && row.natu !== '-' ? parseFloat(row.natu) || 0 : 0);
+                              return sum + val;
+                            }, 0);
+                            return total > 0 ? total : '-';
+                          })()}
+                        </td>
+                        <td className="text-center">
+                          {(() => {
+                            const total = salesData.reduce((sum, row) => {
+                              const val = typeof row.organicFertilizer === 'number' ? row.organicFertilizer : (typeof row.organicFertilizer === 'string' && row.organicFertilizer !== '-' ? parseFloat(row.organicFertilizer) || 0 : 0);
+                              return sum + val;
+                            }, 0);
+                            return total > 0 ? total : '-';
+                          })()}
+                        </td>
+                        <td className="text-center">
+                          {(() => {
+                            const total = salesData.reduce((sum, row) => {
+                              const val = typeof row.poultryFeed === 'number' ? row.poultryFeed : (typeof row.poultryFeed === 'string' && row.poultryFeed !== '-' ? parseFloat(row.poultryFeed) || 0 : 0);
+                              return sum + val;
+                            }, 0);
+                            return total > 0 ? total : '-';
+                          })()}
+                        </td>
+                        <td className="text-center">
+                          {(() => {
+                            const total = salesData.reduce((sum, row) => {
+                              const val = typeof row.testProduct1 === 'number' ? row.testProduct1 : (typeof row.testProduct1 === 'string' && row.testProduct1 !== '-' ? parseFloat(row.testProduct1) || 0 : 0);
+                              return sum + val;
+                            }, 0);
+                            return total > 0 ? total : '-';
+                          })()}
+                        </td>
+                        <td className="text-center">
+                          {(() => {
+                            const total = salesData.reduce((sum, row) => {
+                              const val = typeof row.testsWithoutSlabs === 'number' ? row.testsWithoutSlabs : (typeof row.testsWithoutSlabs === 'string' && row.testsWithoutSlabs !== '-' ? parseFloat(row.testsWithoutSlabs) || 0 : 0);
+                              return sum + val;
+                            }, 0);
+                            return total > 0 ? total : '-';
+                          })()}
+                        </td>
+                        <td className="text-center">
+                          {salesData.reduce((sum, row) => sum + (parseFloat(row.totalBags) || 0), 0)}
+                        </td>
+                        <td className="text-center">
+                          {salesData.reduce((sum, row) => sum + (parseFloat(row.totalTons) || 0), 0).toFixed(3)}
+                        </td>
+                        <td className="text-center">
+                          {salesData.reduce((sum, row) => sum + (parseFloat(row.totalValue) || 0), 0).toFixed(2)}
+                        </td>
+                      </>
+                    ) : (
+                      // Simple view totals
+                      <>
+                        <td className="text-center" colSpan="2">TOTAL</td>
+                        <td className="text-center">
+                          {salesData.reduce((sum, row) => sum + (parseFloat(row.bags) || 0), 0)}
+                        </td>
+                        <td className="text-center">
+                          {salesData.reduce((sum, row) => sum + (parseFloat(row.tons) || 0), 0).toFixed(3)}
+                        </td>
+                        <td className="text-center">
+                          {salesData.reduce((sum, row) => sum + (parseFloat(row.value) || 0), 0).toFixed(2)}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
