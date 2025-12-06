@@ -21,7 +21,6 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [storeFilter, setStoreFilter] = useState('all');
   const [stores, setStores] = useState([]);
-  const [dateRange, setDateRange] = useState('last30days');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -36,49 +35,13 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Update dates when date range changes
+  // Set default date range (last 30 days)
   useEffect(() => {
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
-    let fromDate = new Date();
-    
-    switch (dateRange) {
-      case 'today':
-        fromDate = new Date(today);
-        fromDate.setHours(0, 0, 0, 0);
-        break;
-      case 'last7days':
-        fromDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        fromDate.setHours(0, 0, 0, 0);
-        break;
-      case 'last30days':
-        fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        fromDate.setHours(0, 0, 0, 0);
-        break;
-      case 'last90days':
-        fromDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-        fromDate.setHours(0, 0, 0, 0);
-        break;
-      case 'last6months':
-        fromDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000);
-        fromDate.setHours(0, 0, 0, 0);
-        break;
-      case 'last1year':
-        fromDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
-        fromDate.setHours(0, 0, 0, 0);
-        break;
-      case 'all':
-        setDateFrom('');
-        setDateTo('');
-        return;
-      default:
-        fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        fromDate.setHours(0, 0, 0, 0);
-    }
-    
-    setDateFrom(fromDate.toISOString().split('T')[0]);
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    setDateFrom(thirtyDaysAgo.toISOString().split('T')[0]);
     setDateTo(today.toISOString().split('T')[0]);
-  }, [dateRange]);
+  }, []);
 
   // Fetch stores for filter dropdown
   useEffect(() => {
@@ -347,89 +310,67 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   return (
     <div>
       {/* Filters */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-3">
-              <label className="form-label">Search</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search by ID, Code, Store..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Store</label>
-              <select
-                className="form-select"
-                value={storeFilter}
-                onChange={(e) => setStoreFilter(e.target.value)}
-              >
-                <option value="all">All Stores</option>
-                {stores.map((store) => (
-                  <option key={store.id} value={store.id}>
-                    {store.name || store.storeName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="awaiting_approval">Awaiting Approval</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Date Range</label>
-              <select
-                className="form-select"
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-              >
-                <option value="today">Today</option>
-                <option value="last7days">Last 7 Days</option>
-                <option value="last30days">Last 30 Days</option>
-                <option value="last90days">Last 90 Days</option>
-                <option value="last6months">Last 6 Months</option>
-                <option value="last1year">Last 1 Year</option>
-                <option value="all">All Time</option>
-              </select>
-            </div>
-            <div className="col-md-2 d-flex align-items-end">
-              <button
-                className="btn btn-secondary w-100"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setStoreFilter('all');
-                  setDateRange('last30days');
-                  setPage(1);
-                }}
-              >
-                <i className="bi bi-x-circle me-1"></i>
-                Clear
-              </button>
-            </div>
-            <div className="col-md-1 d-flex align-items-end">
-              <button
-                className="btn btn-primary w-100"
-                onClick={fetchIndents}
-                disabled={loading}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </button>
-            </div>
-          </div>
+      <div className="row m-0 p-3">
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Search :</label>
+          <input
+            type="text"
+            placeholder="Search by ID, Code, Store..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Store :</label>
+          <select
+            value={storeFilter}
+            onChange={(e) => setStoreFilter(e.target.value)}
+          >
+            <option value="all">All Stores</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name || store.storeName}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Status :</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="awaiting_approval">Awaiting Approval</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">From :</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="row m-0 p-3">
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">To :</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="row m-0 p-3 pb-5 justify-content-center">
+        <div className="col-4">
+          <button className="submitbtn" onClick={fetchIndents} disabled={loading}>
+            Submit
+          </button>
         </div>
       </div>
 
@@ -448,10 +389,9 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
         </div>
       ) : (
         <>
-          <div className="card">
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover">
+          <div className="row m-0 p-3 justify-content-around">
+            <div className="col-lg-10">
+              <table className={`table table-bordered borderedtable`}>
                   <thead>
                     <tr>
                       <th>Indent ID</th>
@@ -538,7 +478,6 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
           </div>
 

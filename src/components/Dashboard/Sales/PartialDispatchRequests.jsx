@@ -38,15 +38,6 @@ const PartialDispatchRequests = () => {
     <div style={{ padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2>Requests</h2>
-        {canApprove && activeTab === 'partial-dispatch' && (
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate('/sales/partial-dispatch-requests/create')}
-          >
-            <i className="bi bi-plus-circle me-2"></i>
-            Create Partial Dispatch Request
-          </button>
-        )}
       </div>
 
       {/* Tabs */}

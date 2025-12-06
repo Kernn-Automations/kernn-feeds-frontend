@@ -478,7 +478,7 @@ export default function StoreAssets() {
             Store Assets
           </h2>
           <p className="path">
-            <span onClick={() => navigate("/store")}>Store Home</span> <i className="bi bi-chevron-right"></i> Assets
+          Assets
           </p>
         </div>
         <div style={{ display: "flex", gap: "12px" }}>
@@ -538,6 +538,16 @@ export default function StoreAssets() {
                       value={createForm.assetDate}
                       onChange={(e) => handleCreateInputChange("assetDate", e.target.value)}
                       required
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
                     />
                   </div>
                   <div>
@@ -547,6 +557,16 @@ export default function StoreAssets() {
                       value={createForm.itemName}
                       onChange={(e) => handleCreateInputChange("itemName", e.target.value)}
                       required
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
                     />
                   </div>
                   <div>
@@ -557,6 +577,16 @@ export default function StoreAssets() {
                       value={createForm.quantity}
                       onChange={(e) => handleCreateInputChange("quantity", e.target.value)}
                       required
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
                     />
                   </div>
                   <div>
@@ -567,6 +597,16 @@ export default function StoreAssets() {
                       value={createForm.value}
                       onChange={(e) => handleCreateInputChange("value", e.target.value)}
                       required
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
                     />
                   </div>
                   <div>
@@ -576,6 +616,16 @@ export default function StoreAssets() {
                       min="0"
                       value={createForm.tax}
                       onChange={(e) => handleCreateInputChange("tax", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
                     />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
@@ -584,6 +634,17 @@ export default function StoreAssets() {
                       rows="2"
                       value={createForm.notes}
                       onChange={(e) => handleCreateInputChange("notes", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                        resize: "vertical",
+                      }}
                     />
                   </div>
                 </div>

@@ -30,47 +30,50 @@ export default function StoreManageProducts() {
     setIsModalOpen(false);
   };
 
-  useEffect(() => {
-    // Get store ID from user context - try multiple sources
+  // Function to get store ID from multiple sources
+  const getStoreId = () => {
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      let id = user.storeId || user.store?.id;
-      
-      // Fallback to other localStorage keys
-      if (!id) {
-        const selectedStore = localStorage.getItem("selectedStore");
-        if (selectedStore) {
+      // Priority 1: selectedStore from localStorage
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
           const store = JSON.parse(selectedStore);
-          id = store.id;
+          if (store && store.id) {
+            return store.id;
+          }
+        } catch (e) {
+          console.error("Error parsing selectedStore:", e);
         }
       }
       
-      if (!id) {
-        const currentStoreId = localStorage.getItem("currentStoreId");
-        id = currentStoreId ? parseInt(currentStoreId) : null;
+      // Priority 2: currentStoreId from localStorage
+      const currentStoreId = localStorage.getItem("currentStoreId");
+      if (currentStoreId) {
+        const id = parseInt(currentStoreId);
+        if (!isNaN(id)) {
+          return id;
+        }
       }
       
-      console.log("Store ID retrieved:", id);
-      setStoreId(id);
+      // Priority 3: From user data
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const user = userData.user || userData;
+      if (user?.storeId) {
+        return user.storeId;
+      }
+      if (user?.store?.id) {
+        return user.store.id;
+      }
+      
+      return null;
     } catch (err) {
       console.error("Error getting store ID:", err);
-      setError("Failed to get store ID");
-      setIsModalOpen(true);
+      return null;
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    if (storeId) {
-      fetchProducts();
-    } else {
-      console.warn("Store ID not found, cannot fetch products");
-      setError("Store ID not found. Please ensure you are logged in and have a store assigned.");
-      setIsModalOpen(true);
-    }
-  }, [storeId]);
-
-  const fetchProducts = async () => {
+  // Define fetchProducts before using it in useEffect
+  const fetchProducts = React.useCallback(async () => {
     if (!storeId) return;
     
     try {
@@ -122,7 +125,59 @@ export default function StoreManageProducts() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [storeId]);
+
+  useEffect(() => {
+    // Get store ID on mount
+    const id = getStoreId();
+    if (id) {
+      console.log("Store ID retrieved:", id);
+      setStoreId(id);
+    } else {
+      console.warn("Store ID not found on mount, will retry...");
+      // Don't show error immediately, wait a bit and check again
+      const timeout = setTimeout(() => {
+        const retryId = getStoreId();
+        if (retryId) {
+          console.log("Store ID retrieved on retry:", retryId);
+          setStoreId(retryId);
+        } else {
+          console.warn("Store ID still not found after retry");
+          setError("Store ID not found. Please ensure you are logged in and have a store assigned.");
+          setIsModalOpen(true);
+        }
+      }, 500);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, []);
+
+  // Listen for store change events
+  useEffect(() => {
+    const handleStoreChange = () => {
+      const id = getStoreId();
+      if (id && id !== storeId) {
+        console.log("Store changed, updating store ID:", id);
+        setStoreId(id);
+      }
+    };
+
+    window.addEventListener('storeChanged', handleStoreChange);
+    window.addEventListener('storage', handleStoreChange);
+    
+    return () => {
+      window.removeEventListener('storeChanged', handleStoreChange);
+      window.removeEventListener('storage', handleStoreChange);
+    };
+  }, [storeId]);
+
+  useEffect(() => {
+    if (storeId) {
+      fetchProducts();
+    }
+    // Removed the else block that was showing error immediately
+    // Error will only show if store ID is not found after retry
+  }, [storeId, fetchProducts]);
 
   const handleEditClick = (product) => {
     setEditingProduct(product.id);
@@ -214,13 +269,10 @@ export default function StoreManageProducts() {
     <div style={{ padding: '20px' }}>
       {/* Page Header */}
       <div style={{ marginBottom: '24px' }}>
-        <button
-          className="btn btn-sm btn-outline-secondary mb-3"
-          onClick={() => navigate('/store/products')}
-          style={{ fontFamily: 'Poppins' }}
-        >
-          ← Back to Products
-        </button>
+        <p className="path">
+          <span onClick={() => navigate("/store/products")}>Products</span>{" "}
+          <i className="bi bi-chevron-right"></i> Manage Products
+        </p>
         <h2 style={{ 
           fontFamily: 'Poppins', 
           fontWeight: 700, 
@@ -260,14 +312,14 @@ export default function StoreManageProducts() {
               width: '100%',
               padding: '12px 16px 12px 48px',
               borderRadius: '12px',
-              border: '1px solid #e5e7eb',
+              border: '1px solid #000',
               fontFamily: 'Poppins',
               fontSize: '14px',
               outline: 'none',
+              backgroundColor: '#fff',
+              color: '#000',
               transition: 'all 0.2s ease'
             }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
-            onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
           />
         </div>
       </div>
@@ -313,8 +365,8 @@ export default function StoreManageProducts() {
           Products List ({filteredProducts.length})
         </h4>
         <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-            <thead>
+          <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
+            <thead className="table-light">
               <tr>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product Name</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>SKU</th>
@@ -329,7 +381,7 @@ export default function StoreManageProducts() {
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px', fontFamily: 'Poppins', color: '#666' }}>
+                  <td colSpan="8" className="text-center" style={{ padding: '20px', fontFamily: 'Poppins' }}>
                     {loading ? 'Loading products...' : 'No products found'}
                   </td>
                 </tr>
@@ -339,7 +391,7 @@ export default function StoreManageProducts() {
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
                         {product.name}
                       </td>
-                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666' }}>
                         {product.SKU || product.sku || '-'}
                       </td>
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
@@ -359,15 +411,17 @@ export default function StoreManageProducts() {
                               width: '100px',
                               padding: '4px 8px',
                               borderRadius: '4px',
-                              border: '1px solid #e5e7eb',
+                              border: '1px solid #000',
                               fontFamily: 'Poppins',
-                              fontSize: '13px'
+                              fontSize: '13px',
+                              backgroundColor: '#fff',
+                              color: '#000'
                             }}
                           />
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
-                              ₹{visiblePrices[product.id] ? (product.currentPrice || product.customPrice || product.basePrice || '0.00') : '••••'}
+                              ₹{visiblePrices[product.id] ? Number(product.currentPrice || product.customPrice || product.basePrice || 0).toFixed(2) : '••••'}
                             </span>
                             <button
                               className="btn btn-sm btn-link p-0"
@@ -390,9 +444,11 @@ export default function StoreManageProducts() {
                               width: '80px',
                               padding: '4px 8px',
                               borderRadius: '4px',
-                              border: '1px solid #e5e7eb',
+                              border: '1px solid #000',
                               fontFamily: 'Poppins',
-                              fontSize: '13px'
+                              fontSize: '13px',
+                              backgroundColor: '#fff',
+                              color: '#000'
                             }}
                           />
                         ) : (
@@ -400,7 +456,7 @@ export default function StoreManageProducts() {
                             color: product.stockQuantity <= (product.minStockLevel || 0) ? '#dc3545' : 'inherit',
                             fontWeight: product.stockQuantity <= (product.minStockLevel || 0) ? 600 : 'normal'
                           }}>
-                            {product.stockQuantity || 0} {product.unit ? product.unit : ''}
+                            {Number(product.stockQuantity || 0).toFixed(2)} {product.unit ? product.unit : ''}
                           </span>
                         )}
                       </td>
@@ -415,9 +471,11 @@ export default function StoreManageProducts() {
                               width: '80px',
                               padding: '4px 8px',
                               borderRadius: '4px',
-                              border: '1px solid #e5e7eb',
+                              border: '1px solid #000',
                               fontFamily: 'Poppins',
-                              fontSize: '13px'
+                              fontSize: '13px',
+                              backgroundColor: '#fff',
+                              color: '#000'
                             }}
                           />
                         ) : (

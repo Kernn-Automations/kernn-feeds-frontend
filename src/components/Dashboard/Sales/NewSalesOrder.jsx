@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 //import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import ApiService from "../../../services/apiService";
 import { useAuth } from "@/Auth";
 import { useDivision } from "../../context/DivisionContext";
@@ -38,7 +39,9 @@ const styles = {
     margin: '0 auto',
     padding: '20px',
     fontFamily: 'Arial, sans-serif',
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    overflowY: 'auto',
+    maxHeight: 'calc(100vh - 100px)'
   },
   title: {
     fontSize: '18px',
@@ -568,7 +571,7 @@ const keyframes = `
 `;
 
 export default function SalesOrderWizard() {
-
+  const navigate = useNavigate();
   const { axiosAPI } = useAuth();
   const { selectedDivision } = useDivision();
   
@@ -614,7 +617,7 @@ export default function SalesOrderWizard() {
   }
 
   // Step state
-  // Step 0: Products, Step 1: Overview, Step 2: Payment
+  // Step 0: Customer, Step 1: Products, Step 2: Logistics, Step 3: Overview, Step 4: Payment
   const [step, setStep] = useState(0);
 
   // Step 1: Customer select
@@ -712,6 +715,40 @@ export default function SalesOrderWizard() {
     });
   }, [step, selectedCustomer, customerDetails, cartItems, cartId, selectedWarehouseType, dropOffs, reviewData, payments, deliveryDropOffs, selectedDeliveryWarehouse]);
   
+  // Auto-initialize drop-offs when entering logistics step
+  useEffect(() => {
+    if (step === 2 && dropOffs.length === 0 && Object.keys(cartItems).length > 0 && dropOffLimit > 0) {
+      const cartItemsArray = Object.values(cartItems);
+      const initialDropOff = {
+        order: 1,
+        receiverName: "",
+        receiverMobile: "",
+        plot: "",
+        street: "",
+        area: "",
+        city: "",
+        pincode: "",
+        latitude: 17.3850, // Hyderabad default
+        longitude: 78.4867,
+        items: cartItemsArray.map(item => ({
+          productId: item.productId,
+          productName: item.name || item.productName,
+          quantity: item.quantity,
+          unit: item.unit,
+          productType: item.productType,
+          packageWeight: item.packageWeight,
+          packageWeightUnit: item.packageWeightUnit,
+        })),
+      };
+      
+      setDropOffs([initialDropOff]);
+      setDropCount(1);
+      setIsDropValid([false]);
+      setDropValidationErrors([null]);
+      console.log('🟢 [LOGISTICS] Auto-initialized drop-off with products:', initialDropOff);
+    }
+  }, [step, cartItems, dropOffLimit]);
+
   // Debug deliveryDropOffs changes
   useEffect(() => {
     console.log('🟠 [STATE] deliveryDropOffs state changed:', JSON.parse(JSON.stringify(deliveryDropOffs)));
@@ -1144,6 +1181,35 @@ export default function SalesOrderWizard() {
       return;
     }
     
+    // Initialize drop-offs with products from cart
+    const cartItemsArray = Object.values(cartItems);
+    const initialDropOff = {
+      order: 1,
+      receiverName: "",
+      receiverMobile: "",
+      plot: "",
+      street: "",
+      area: "",
+      city: "",
+      pincode: "",
+      latitude: 17.3850, // Hyderabad default
+      longitude: 78.4867,
+      items: cartItemsArray.map(item => ({
+        productId: item.productId,
+        productName: item.name || item.productName,
+        quantity: item.quantity,
+        unit: item.unit,
+        productType: item.productType,
+        packageWeight: item.packageWeight,
+        packageWeightUnit: item.packageWeightUnit,
+      })),
+    };
+    
+    setDropOffs([initialDropOff]);
+    setDropCount(1);
+    setIsDropValid([false]);
+    setDropValidationErrors([null]);
+    
     // Initialize delivery details
     setSelectedDeliveryWarehouse("local");
     setDeliveryDropOffs([
@@ -1159,7 +1225,7 @@ export default function SalesOrderWizard() {
       }
     ]);
     
-    setStep(1);
+    setStep(2);
   }
 
   // Handle delivery drop-off field changes
@@ -1391,7 +1457,7 @@ export default function SalesOrderWizard() {
       });
       return;
     }
-    setStep(4);
+    setStep(3);
     fetchReviewData();
   }
 
@@ -1446,11 +1512,35 @@ export default function SalesOrderWizard() {
       
       const res = await axiosAPI.post(finalizeUrl, payload);
       console.log("Finalize order response:", res);
+      console.log("Finalize order response data:", res.data);
+      
       if (res.status === 201) {
         // Update reviewData with the order information from the response
+        // The API might return the order in different formats, so check all possibilities
+        const orderData = res.data.order || res.data;
+        // Order ID can be alphanumeric (e.g., "SO-20251206-000446")
+        const orderId = orderData?.id || res.data.orderId || res.data.id || res.data.orderNumber;
+        const orderNumber = orderData?.orderNumber || res.data.orderNumber || orderId;
+        
+        console.log("Extracted orderId (alphanumeric):", orderId);
+        console.log("Extracted orderNumber:", orderNumber);
+        console.log("Full orderData:", orderData);
+        
+        // Validate that orderId exists (can be numeric or alphanumeric)
+        if (!orderId) {
+          console.error("Failed to extract order ID from response. Response data:", res.data);
+          showToast({
+            title: "Failed to get order ID from response. Please try again.",
+            status: "error",
+            duration: 4000,
+          });
+          return;
+        }
+        
         setReviewData(prevData => ({
           ...prevData,
-          orderId: res.data.orderId || res.data.id || res.data.order?.id,
+          orderId: String(orderId), // Alphanumeric ID for API calls (e.g., "SO-20251206-000446")
+          orderNumber: orderNumber, // Order number for display
           paymentId: res.data.paymentId,
           totalAmount: res.data.totalAmount || prevData?.totals?.grandTotal,
           upiId: res.data.upiId,
@@ -1462,7 +1552,7 @@ export default function SalesOrderWizard() {
           status: "success",
           duration: 3000,
         });
-        setStep(2);
+        setStep(4);
       } else {
         showToast({
           title: "Failed to finalize order",
@@ -1547,24 +1637,60 @@ export default function SalesOrderWizard() {
   }
 
   async function submitPayments() {
-    if (!validatePayments()) return;
+    // Prevent multiple simultaneous submissions
+    if (paymentUploading) {
+      console.log("Payment submission already in progress, ignoring duplicate click");
+      return;
+    }
+    
+    if (!validatePayments()) {
+      return;
+    }
+    
     setPaymentUploading(true);
 
     const payload = new FormData();
-    const paymentsPayload = payments.map((p) => ({
-      transactionDate: p.transactionDate || getTodayDate(),
-      paymentMethod: p.paymentMethod || "cash",
-      paymentMode: p.paymentMethod === "bank" ? (p.paymentMode || "UPI") : p.paymentMethod,
-      amount: parseFloat(p.amount),
-      reference: p.reference.trim(),
-      remark: p.remark.trim(),
-      utrNumber: p.utrNumber || "",
-    }));
+    
+    // Build payments payload - only include fields that have values
+    const paymentsPayload = payments.map((p) => {
+      const paymentObj = {
+        transactionDate: p.transactionDate || getTodayDate(),
+        paymentMethod: p.paymentMethod || "cash",
+        amount: parseFloat(p.amount) || 0,
+        status: 1, // Payment status: 1 = completed (0 is invalid, so we use 1 for submitted payments)
+      };
+      
+      // Only add optional fields if they have values
+      if (p.paymentMethod === "bank" && p.paymentMode) {
+        paymentObj.paymentMode = p.paymentMode;
+      }
+      if (p.reference && p.reference.trim()) {
+        paymentObj.reference = p.reference.trim();
+      }
+      if (p.remark && p.remark.trim()) {
+        paymentObj.remark = p.remark.trim();
+      }
+      if (p.utrNumber && p.utrNumber.trim()) {
+        paymentObj.utrNumber = p.utrNumber.trim();
+      }
+      
+      return paymentObj;
+    });
+    
     payload.append("payments", JSON.stringify(paymentsPayload));
-    payload.append("orderId", reviewData?.orderId || "");
-    payload.append("paymentId", reviewData?.paymentId || "");
-    if (mobileNumber) {
-      payload.append("mobileNumber", mobileNumber);
+    
+    // Use orderNumber for payload (backend may need it)
+    const orderNumberForPayload = reviewData?.orderNumber || reviewData?.orderId;
+    if (orderNumberForPayload) {
+      payload.append("orderId", String(orderNumberForPayload));
+    }
+    
+    if (reviewData?.paymentId) {
+      payload.append("paymentId", String(reviewData.paymentId));
+    }
+    
+    if (mobileNumber && mobileNumber.trim()) {
+      payload.append("mobileNumber", mobileNumber.trim());
     }
 
     payments.forEach((p, idx) => {
@@ -1572,24 +1698,51 @@ export default function SalesOrderWizard() {
         payload.append(`paymentProofs[${idx}]`, p.proofFile);
       }
     });
+    
+    // Log payload contents for debugging
+    console.log("Payment payload details:", {
+      paymentsPayload,
+      orderId: reviewData?.orderId,
+      orderNumber: reviewData?.orderNumber,
+      orderNumberForPayload,
+      paymentId: reviewData?.paymentId,
+      mobileNumber,
+      proofFilesCount: payments.filter(p => p.proofFile).length
+    });
 
     try {
-      const orderId = reviewData?.orderId;
-      if (!orderId) {
+      // Backend expects orderNumber (string format like "SO-20251206-000447") in the URL
+      const orderNumber = reviewData?.orderNumber || reviewData?.orderId;
+      
+      if (!orderNumber) {
         showToast({
-          title: "Order ID not found. Please go back and complete the review step.",
+          title: "Order number not found. Please go back and complete the review step.",
           status: "error",
           duration: 4000,
         });
+        setPaymentUploading(false);
         return;
       }
       
-      const url = fillUrl(ApiUrls.submitPayment, { id: orderId });
-      console.log("Payment URL:", url); // Debug log
+      // Use orderNumber (alphanumeric string) in the URL
+      const orderNumberString = String(orderNumber);
+      
+      const url = fillUrl(ApiUrls.submitPayment, { id: orderNumberString });
+      console.log("Payment submission details:", {
+        url,
+        orderNumber: orderNumberString,
+        orderId: reviewData?.orderId,
+        paymentsPayload,
+        payloadKeys: Array.from(payload.keys())
+      });
+      
       const res = await axiosAPI.post(url, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      if (res.status === 200) {
+      
+      console.log("Payment submission response:", res);
+      
+      if (res.status === 200 || res.status === 201) {
         showToast({
           title: "Payment submitted successfully",
           status: "success",
@@ -1605,20 +1758,34 @@ export default function SalesOrderWizard() {
       }
     } catch (e) {
       console.error("Payment submission error:", e);
+      console.error("Error response:", e.response?.data);
+      console.error("Error status:", e.response?.status);
+      
       let errorMessage = "Error submitting payment";
       
-      if (e.response?.status === 401) {
+      if (e.response?.status === 400) {
+        errorMessage = e.response?.data?.message || "Bad request. Please check payment details and try again.";
+        console.error("400 Bad Request details:", {
+          message: e.response?.data?.message,
+          errors: e.response?.data?.errors,
+          data: e.response?.data
+        });
+      } else if (e.response?.status === 401) {
         errorMessage = "Authentication failed. Please login again.";
       } else if (e.response?.status === 403) {
         errorMessage = "You don't have permission to submit payments.";
+      } else if (e.response?.status === 404) {
+        errorMessage = "Order not found. Please go back and complete the review step again.";
       } else if (e.response?.data?.message) {
         errorMessage = e.response.data.message;
+      } else if (e.message) {
+        errorMessage = `Payment submission failed: ${e.message}`;
       }
       
       showToast({
         title: errorMessage,
         status: "error",
-        duration: 4000,
+        duration: 5000,
       });
     } finally {
       setPaymentUploading(false);
@@ -1633,7 +1800,9 @@ export default function SalesOrderWizard() {
 
   const StepIndicator = () => {
     const steps = [
+      { title: 'Customer', description: 'Select customer' },
       { title: 'Products', description: 'Add products to cart' },
+      { title: 'Logistics', description: 'Delivery details' },
       { title: 'Overview', description: 'Review order details' },
       { title: 'Payment', description: 'Payment information' }
     ];
@@ -2021,67 +2190,7 @@ export default function SalesOrderWizard() {
     return (
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Add Products</h2>
-        <p style={styles.sectionSubtitle}>Select customer and products for this order</p>
-        
-        {/* Customer Selection */}
-        {!selectedCustomer && (
-          <Card style={{ marginBottom: '20px', backgroundColor: '#f8f9fa' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontWeight: '600', fontSize: '16px', color: '#555' }}>
-              Select Customer
-            </h3>
-            <div className="row m-0 p-3">
-              <div className="customer-filter-wrapper" style={{ width: '100%', maxWidth: '600px' }}>
-                <CustomSearchDropdown
-                  label="Customers"
-                  onSelect={(customerId) => {
-                    setSelectedCustomer(customerId);
-                  }}
-                  options={customers?.map((c) => ({ value: c.id, label: c.name }))}
-                  showSelectAll={false}
-                />
-              </div>
-            </div>
-            <style>{`
-              .customer-filter-wrapper .formcontent {
-                max-width: 600px !important;
-                width: 100% !important;
-                display: flex !important;
-                align-items: center !important;
-                gap: 15px !important;
-              }
-              .customer-filter-wrapper .formcontent label {
-                width: auto !important;
-                min-width: 120px !important;
-                margin-bottom: 0 !important;
-                flex-shrink: 0 !important;
-              }
-              .customer-filter-wrapper .formcontent input {
-                width: 100% !important;
-                max-width: 500px !important;
-                min-width: 400px !important;
-                flex: 1 !important;
-              }
-              .customer-filter-wrapper .formcontent ul {
-                width: 500px !important;
-                max-width: 500px !important;
-                left: 135px !important;
-                top: 40px !important;
-              }
-            `}</style>
-            {customerDetails && (
-              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'white', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <span style={{ fontWeight: '600', color: 'var(--primary-color)', fontSize: '14px' }}>Name:</span>
-                  <span style={{ color: '#555', fontSize: '14px' }}>{customerDetails.name}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <span style={{ fontWeight: '600', color: 'var(--primary-color)', fontSize: '14px' }}>Phone:</span>
-                  <span style={{ color: '#555', fontSize: '14px' }}>{customerDetails.mobile}</span>
-                </div>
-              </div>
-            )}
-          </Card>
-        )}
+        <p style={styles.sectionSubtitle}>Select products for this order</p>
         
         {/* Cart Summary */}
         {cartItemsCount > 0 && (
@@ -2336,11 +2445,17 @@ export default function SalesOrderWizard() {
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
               <Button
+                variant="secondary"
+                onClick={() => setStep(0)}
+              >
+                ← Back to Customer
+              </Button>
+              <Button
                 variant="primary"
-                onClick={confirmProductsStep}
+                onClick={() => setStep(2)}
                 disabled={cartItemsCount === 0 || !selectedCustomer}
               >
-                Continue to Overview →
+                Continue to Logistics →
               </Button>
             </div>
           </>
@@ -2349,206 +2464,7 @@ export default function SalesOrderWizard() {
     );
   }
 
-  // Step 2: Delivery Details and Drop-off Locations
-  function renderDeliveryDetailsStep() {
-    console.log('🟢 [DELIVERY] renderDeliveryDetailsStep called - timestamp:', new Date().toISOString());
-    console.log('🟢 [DELIVERY] Current deliveryDropOffs state:', JSON.parse(JSON.stringify(deliveryDropOffs)));
-    console.log('🟢 [DELIVERY] Current selectedDeliveryWarehouse:', selectedDeliveryWarehouse);
-    console.log('🟢 [DELIVERY] Current step:', step);
-    
-    // Get drop-off directly from state
-    const dropOff = deliveryDropOffs[0] || {
-      order: 1,
-      receiverName: "",
-      receiverMobile: "",
-      plot: "",
-      street: "",
-      area: "",
-      city: "",
-      pincode: "",
-    };
-    
-    console.log('🟢 [DELIVERY] dropOff object being used:', JSON.parse(JSON.stringify(dropOff)));
-    console.log('🟢 [DELIVERY] dropOff reference check:', dropOff === deliveryDropOffs[0] ? 'SAME' : 'DIFFERENT');
-
-    return (
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Delivery Details and Drop-off Locations</h2>
-        <p style={{ color: '#666', marginBottom: '20px' }}>
-          Configure delivery details and drop-off locations for this order.
-        </p>
-        
-        {/* Select Warehouse */}
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ margin: '0 0 10px 0', fontWeight: '600', color: '#555', fontSize: '14px' }}>Select Warehouse</h3>
-          <div style={styles.radioGroup}>
-            <label 
-              style={{
-                ...styles.radioItem,
-                ...(selectedDeliveryWarehouse === "local" ? styles.radioItemSelected : {})
-              }}
-            >
-              <input
-                type="radio"
-                name="deliveryWarehouseType"
-                style={styles.radio}
-                value="local"
-                checked={selectedDeliveryWarehouse === "local"}
-                onChange={e => setSelectedDeliveryWarehouse(e.target.value)}
-              />
-              <span style={{ fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '12px' }}>
-                local
-              </span>
-            </label>
-          </div>
-        </div>
-
-        {/* Number of Drop-offs */}
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ margin: '0 0 8px 0', fontWeight: '600', color: '#555', fontSize: '14px' }}>
-            Number of Drop-offs
-          </h3>
-          <p style={{ margin: '0 0 10px 0', color: '#666', fontSize: '12px' }}>
-            Maximum allowed: 1
-          </p>
-          <div style={{ 
-            padding: '10px 15px', 
-            backgroundColor: '#f8f9fa', 
-            borderRadius: '4px',
-            border: '1px solid #dee2e6',
-            display: 'inline-block'
-          }}>
-            <span style={{ fontWeight: '500', color: '#2d3748' }}>1 Drop-off</span>
-          </div>
-        </div>
-
-        {/* Drop-off Form Card */}
-        <Card style={{ marginBottom: '20px' }}>
-          <div style={{ fontWeight: '600', marginBottom: '15px', fontSize: '16px', color: '#2d3748' }}>
-            Drop-off #1
-          </div>
-          
-          <div className="row m-0 p-3">
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>Receiver Name :</label>
-              <input
-                key="delivery-receiverName"
-                type="text"
-                value={dropOff.receiverName || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] Receiver Name onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "receiverName", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] Receiver Name onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] Receiver Name onBlur at', new Date().toISOString())}
-              />
-            </div>
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>Receiver Mobile :</label>
-              <input
-                key="delivery-receiverMobile"
-                type="text"
-                value={dropOff.receiverMobile || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] Receiver Mobile onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "receiverMobile", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] Receiver Mobile onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] Receiver Mobile onBlur at', new Date().toISOString())}
-              />
-            </div>
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>Plot :</label>
-              <input
-                key="delivery-plot"
-                type="text"
-                value={dropOff.plot || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] Plot onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "plot", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] Plot onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] Plot onBlur at', new Date().toISOString())}
-              />
-            </div>
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>Street :</label>
-              <input
-                key="delivery-street"
-                type="text"
-                value={dropOff.street || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] Street onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "street", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] Street onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] Street onBlur at', new Date().toISOString())}
-              />
-            </div>
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>Area :</label>
-              <input
-                key="delivery-area"
-                type="text"
-                value={dropOff.area || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] Area onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "area", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] Area onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] Area onBlur at', new Date().toISOString())}
-              />
-            </div>
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>City :</label>
-              <input
-                key="delivery-city"
-                type="text"
-                value={dropOff.city || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] City onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "city", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] City onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] City onBlur at', new Date().toISOString())}
-              />
-            </div>
-            <div className={`col-3 ${customerStyles.longform}`}>
-              <label>Pincode :</label>
-              <input
-                key="delivery-pincode"
-                type="text"
-                value={dropOff.pincode || ''}
-                onChange={(e) => {
-                  console.log('🟡 [INPUT] Pincode onChange triggered:', e.target.value, 'at', new Date().toISOString());
-                  handleDeliveryDropOffChange(0, "pincode", e.target.value);
-                }}
-                onFocus={(e) => console.log('🟡 [INPUT] Pincode onFocus at', new Date().toISOString())}
-                onBlur={(e) => console.log('🟡 [INPUT] Pincode onBlur at', new Date().toISOString())}
-              />
-            </div>
-          </div>
-        </Card>
-
-        <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
-          <Button
-            variant="secondary"
-            onClick={() => setStep(1)}
-          >
-            ← Back to Products
-          </Button>
-          <Button
-            variant="primary"
-            onClick={confirmDeliveryDetailsStep}
-          >
-            Continue to Logistics →
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 3: Logistics
+  // Step 2: Logistics
   function renderDropOffCard(index, drop) {
     return (
       <Card
@@ -2768,23 +2684,37 @@ export default function SalesOrderWizard() {
               setDropCount(val);
               setDropOffs(oldDrops => {
                 if (val > oldDrops.length) {
-                  // add defaults
-                  return [
-                    ...oldDrops,
-                    ...Array(val - oldDrops.length).fill(0).map((_, i) => ({
-                      order: oldDrops.length + i + 1,
-                      receiverName: "",
-                      receiverMobile: "",
-                      plot: "",
-                      street: "",
-                      area: "",
-                      city: "",
-                      pincode: "",
-                      latitude: 17.3850, // Hyderabad default
-                      longitude: 78.4867,
-                      items: [],
-                    }))
-                  ];
+                  // Get products from cart if this is the first drop-off being created
+                  const cartItemsArray = Object.keys(cartItems).length > 0 ? Object.values(cartItems) : [];
+                  const isFirstDropOff = oldDrops.length === 0;
+                  const defaultItems = isFirstDropOff && cartItemsArray.length > 0
+                    ? cartItemsArray.map(item => ({
+                        productId: item.productId,
+                        productName: item.name || item.productName,
+                        quantity: item.quantity,
+                        unit: item.unit,
+                        productType: item.productType,
+                        packageWeight: item.packageWeight,
+                        packageWeightUnit: item.packageWeightUnit,
+                      }))
+                    : [];
+                  
+                  // add new drop-offs
+                  const newDrops = Array(val - oldDrops.length).fill(0).map((_, i) => ({
+                    order: oldDrops.length + i + 1,
+                    receiverName: "",
+                    receiverMobile: "",
+                    plot: "",
+                    street: "",
+                    area: "",
+                    city: "",
+                    pincode: "",
+                    latitude: 17.3850, // Hyderabad default
+                    longitude: 78.4867,
+                    items: isFirstDropOff && i === 0 ? defaultItems : [],
+                  }));
+                  
+                  return [...oldDrops, ...newDrops];
                 } else {
                   return oldDrops.slice(0, val);
                 }
@@ -2972,16 +2902,16 @@ export default function SalesOrderWizard() {
         <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
           <Button
             variant="secondary"
-            onClick={() => setStep(2)}
+            onClick={() => setStep(1)}
           >
-            ← Back to Delivery Details
+            ← Back to Products
           </Button>
           <Button
             variant="primary"
             onClick={confirmLogisticsStep}
             disabled={!selectedWarehouseType || !isDropValid.every(Boolean)}
           >
-            Continue to Review →
+            Continue to Overview →
           </Button>
         </div>
       </div>
@@ -3251,9 +3181,9 @@ export default function SalesOrderWizard() {
         <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
           <Button
             variant="secondary"
-            onClick={() => setStep(0)}
+            onClick={() => setStep(2)}
           >
-            ← Back to Products
+            ← Back to Logistics
           </Button>
           <Button
             onClick={finalizeOrder}
@@ -3623,15 +3553,20 @@ export default function SalesOrderWizard() {
         <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
           <Button
             variant="secondary"
-            onClick={() => setStep(1)}
+            onClick={() => setStep(3)}
           >
             ← Back to Overview
           </Button>
           <Button
             variant="primary"
-            onClick={submitPayments}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              submitPayments();
+            }}
             disabled={paymentUploading}
-            style={{ minWidth: '200px' }}
+            style={{ minWidth: '200px', cursor: paymentUploading ? 'not-allowed' : 'pointer' }}
           >
             {paymentUploading ? 'Submitting...' : 'Submit Order'}
           </Button>
@@ -3646,11 +3581,17 @@ export default function SalesOrderWizard() {
       {/* Loader Keyframes */}
       <style>{keyframes}</style>
       <div style={styles.container} className="container">
+        <p className="path">
+          <span onClick={() => navigate("/sales")}>Sales</span>{" "}
+          <i className="bi bi-chevron-right"></i> New Sales Order
+        </p>
         <div style={styles.title} className="title">Create New Sales Order</div>
         <StepIndicator />
-        {step === 0 && renderProductStep()}
-        {step === 1 && renderReviewStep()}
-        {step === 2 && renderPaymentStep()}
+        {step === 0 && renderCustomerStep()}
+        {step === 1 && renderProductStep()}
+        {step === 2 && renderLogisticsStep()}
+        {step === 3 && renderReviewStep()}
+        {step === 4 && renderPaymentStep()}
         
         {/* Quantity Modal */}
         <QuantityModal />

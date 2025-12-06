@@ -463,12 +463,19 @@ function Orders({
     let totalBags = 0;
     let totalTons = 0;
 
-    if (!Array.isArray(source)) return { totalValue, totalBags, totalTons };
+    if (!Array.isArray(source) || source.length === 0) {
+      return { totalValue, totalBags, totalTons };
+    }
 
     for (const order of source) {
-      // Value (sum of all orders in the current page)
-      if (typeof order?.totalAmount === "number") {
-        totalValue += order.totalAmount;
+      // Value (sum of all orders' transaction amounts in the current page)
+      // Handle both number and string types, and null/undefined
+      const amount = order?.totalAmount;
+      if (amount !== null && amount !== undefined) {
+        const numAmount = typeof amount === "number" ? amount : parseFloat(amount);
+        if (!isNaN(numAmount)) {
+          totalValue += numAmount;
+        }
       }
 
       // Tons
@@ -863,14 +870,15 @@ function Orders({
                 !status || status === '' ? 'active' : ''
               }`}
               onClick={() => {
-                // Clear status immediately
-                setStatus('');
-                // Remove status from URL params
+                // Remove status from URL params first
                 const newParams = new URLSearchParams(searchParams);
                 newParams.delete('status');
                 setSearchParams(newParams, { replace: true });
+                // Clear status immediately
+                setStatus('');
                 // Reset page and trigger fetch
                 setPageNo(1);
+                // Force trigger by toggling
                 setTrigger(prev => !prev);
               }}
             >
@@ -1167,7 +1175,52 @@ function Orders({
                       }}
                     >
                       {(() => {
-                        const filteredOrders = applyFilters(orders || []);
+                        // Use same filtering logic as table body
+                        let filteredOrders = orders || [];
+                        if (status && status !== '' && status !== 'all') {
+                          filteredOrders = applyFilters(orders || []);
+                        } else if (
+                          dateSearchTerm ||
+                          orderIdSearchTerm ||
+                          warehouseSearchTerm ||
+                          customerIdSearchTerm ||
+                          customerNameSearchTerm ||
+                          paymentModeSearchTerm
+                        ) {
+                          filteredOrders = filteredOrders.filter((order) => {
+                            let pass = true;
+                            if (dateSearchTerm) {
+                              const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : "";
+                              if (!orderDate.includes(dateSearchTerm)) pass = false;
+                            }
+                            if (orderIdSearchTerm) {
+                              const orderId = order.orderNumber || "";
+                              if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
+                                pass = false;
+                            }
+                            if (warehouseSearchTerm) {
+                              const warehouseName = order.warehouse?.name || "";
+                              if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
+                                pass = false;
+                            }
+                            if (customerIdSearchTerm) {
+                              const customerId = order.customer?.customer_id || "";
+                              if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase()))
+                                pass = false;
+                            }
+                            if (customerNameSearchTerm) {
+                              const customerName = order.customer?.name || "";
+                              if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
+                                pass = false;
+                            }
+                            if (paymentModeSearchTerm) {
+                              const paymentMode = "UPI";
+                              if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
+                                pass = false;
+                            }
+                            return pass;
+                          });
+                        }
                         return `Showing ${filteredOrders.length} result(s)`;
                       })()}
                     </td>
@@ -1176,7 +1229,65 @@ function Orders({
               </thead>
               <tbody>
                 {(() => {
-                  const filteredOrders = applyFilters(orders || []);
+                  // When status is empty (All orders), don't apply status filter
+                  // Backend already returns all orders when no status param is provided
+                  let filteredOrders = orders || [];
+                  
+                  // Only apply filters if status is explicitly set (not empty)
+                  if (status && status !== '' && status !== 'all') {
+                    filteredOrders = applyFilters(orders || []);
+                  } else {
+                    // When showing all orders, only apply search filters (not status filter)
+                    if (
+                      dateSearchTerm ||
+                      orderIdSearchTerm ||
+                      warehouseSearchTerm ||
+                      customerIdSearchTerm ||
+                      customerNameSearchTerm ||
+                      paymentModeSearchTerm
+                    ) {
+                      filteredOrders = filteredOrders.filter((order) => {
+                        let pass = true;
+
+                        if (dateSearchTerm) {
+                          const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : "";
+                          if (!orderDate.includes(dateSearchTerm)) pass = false;
+                        }
+
+                        if (orderIdSearchTerm) {
+                          const orderId = order.orderNumber || "";
+                          if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
+                            pass = false;
+                        }
+
+                        if (warehouseSearchTerm) {
+                          const warehouseName = order.warehouse?.name || "";
+                          if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
+                            pass = false;
+                        }
+
+                        if (customerIdSearchTerm) {
+                          const customerId = order.customer?.customer_id || "";
+                          if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase()))
+                            pass = false;
+                        }
+
+                        if (customerNameSearchTerm) {
+                          const customerName = order.customer?.name || "";
+                          if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
+                            pass = false;
+                        }
+
+                        if (paymentModeSearchTerm) {
+                          const paymentMode = "UPI";
+                          if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
+                            pass = false;
+                        }
+
+                        return pass;
+                      });
+                    }
+                  }
 
                   if (filteredOrders.length === 0) {
                     return (
@@ -1298,19 +1409,65 @@ function Orders({
               </tbody>
             </table>
             {orders.length > 0 && (() => {
-              // Sum totals from page 1 to current page
-              const cumulative = Array.from({ length: pageNo }, (_, i) => pageTotalsByPage[i + 1])
-                .filter(Boolean)
-                .reduce(
-                  (acc, t) => ({
-                    totalValue: acc.totalValue + (t.totalValue || 0),
-                    totalBags: acc.totalBags + (t.totalBags || 0),
-                    totalTons: acc.totalTons + (t.totalTons || 0),
-                  }),
-                  { totalValue: 0, totalBags: 0, totalTons: 0 }
-                );
-              const { totalValue, totalBags, totalTons } = cumulative;
-              const formattedValue = (totalValue || 0).toLocaleString();
+              // Calculate totals for current page only
+              // Backend already sends paginated and status-filtered orders
+              // Only apply search filters if they exist
+              let ordersForTotals = orders || [];
+              
+              // Apply only search filters (not status filter, as backend already filtered)
+              if (
+                dateSearchTerm ||
+                orderIdSearchTerm ||
+                warehouseSearchTerm ||
+                customerIdSearchTerm ||
+                customerNameSearchTerm ||
+                paymentModeSearchTerm
+              ) {
+                ordersForTotals = ordersForTotals.filter((order) => {
+                  let pass = true;
+
+                  if (dateSearchTerm) {
+                    const orderDate = order.createdAt ? order.createdAt.slice(0, 10) : "";
+                    if (!orderDate.includes(dateSearchTerm)) pass = false;
+                  }
+
+                  if (orderIdSearchTerm) {
+                    const orderId = order.orderNumber || "";
+                    if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
+                      pass = false;
+                  }
+
+                  if (warehouseSearchTerm) {
+                    const warehouseName = order.warehouse?.name || "";
+                    if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
+                      pass = false;
+                  }
+
+                  if (customerIdSearchTerm) {
+                    const customerId = order.customer?.customer_id || "";
+                    if (!customerId.toLowerCase().includes(customerIdSearchTerm.toLowerCase()))
+                      pass = false;
+                  }
+
+                  if (customerNameSearchTerm) {
+                    const customerName = order.customer?.name || "";
+                    if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
+                      pass = false;
+                  }
+
+                  if (paymentModeSearchTerm) {
+                    const paymentMode = "UPI";
+                    if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
+                      pass = false;
+                  }
+
+                  return pass;
+                });
+              }
+              
+              const currentPageTotals = getPageTotals(ordersForTotals);
+              const { totalValue, totalBags, totalTons } = currentPageTotals;
+              const formattedValue = (totalValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               const formattedBags = Math.round(totalBags || 0);
               const formattedTons = (totalTons || 0).toFixed(3);
               return (

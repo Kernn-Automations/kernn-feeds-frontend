@@ -412,8 +412,8 @@ function StoreStockTransfer() {
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-                  <thead>
+                <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
+                  <thead className="table-light">
                     <tr>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Available</th>
@@ -434,12 +434,10 @@ function StoreStockTransfer() {
                           <tr key={productId} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
                               <div style={{ fontWeight: 600 }}>{product.productName}</div>
-                              <div style={{ fontSize: '11px', color: '#6b7280' }}>{product.productCode || product.sku}</div>
+                              <div style={{ fontSize: '12px', color: '#666' }}>{product.productCode || product.sku}</div>
                             </td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-                              <span className="badge bg-success" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>
-                                {availableStock}
-                              </span>
+                              {Number(availableStock || 0).toFixed(2)}
                             </td>
                             <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{product.unit}</td>
                             <td>
@@ -447,15 +445,18 @@ function StoreStockTransfer() {
                                 type="number"
                                 min="0"
                                 max={availableStock}
+                                step="0.01"
                                 value={transferQty}
                                 onChange={(e) => handleQuantityChange(productId, e.target.value)}
                                 style={{
                                   width: '100px',
                                   padding: '6px 8px',
                                   borderRadius: '6px',
-                                  border: '1px solid #dbeafe',
+                                  border: '1px solid #000',
                                   fontFamily: 'Poppins',
-                                  fontSize: '13px'
+                                  fontSize: '13px',
+                                  backgroundColor: '#fff',
+                                  color: '#000'
                                 }}
                                 placeholder="0"
                               />
@@ -487,8 +488,8 @@ function StoreStockTransfer() {
                 Transfer Summary
               </h4>
               <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-                  <thead>
+                <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
+                  <thead className="table-light">
                     <tr>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Quantity</th>
@@ -501,10 +502,10 @@ function StoreStockTransfer() {
                       <tr key={item.product.id || item.product.productId} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
                         <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
                           <div style={{ fontWeight: 600 }}>{item.product.productName}</div>
-                          <div style={{ fontSize: '11px', color: '#6b7280' }}>{item.product.productCode || item.product.sku}</div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>{item.product.productCode || item.product.sku}</div>
                         </td>
                         <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
-                          {item.quantity}
+                          {Number(item.quantity || 0).toFixed(2)}
                         </td>
                         <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.product.unit}</td>
                         <td>

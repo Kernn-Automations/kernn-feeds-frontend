@@ -4,7 +4,6 @@ import styles from "./Targets.module.css";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import { useAuth } from "@/Auth";
-import CreateTargetModal from "../Reports/CreateTargetModal";
 import { 
   FaUsers, 
   FaChartLine, 
@@ -168,7 +167,9 @@ function TargetsHome() {
     <div className={styles.targetsContainer}>
       {/* Simple Header with Create Button */}
       <div className={styles.simpleHeader}>
-        <CreateTargetModal onCreated={refresh} />
+        <button className="homebtn" onClick={() => navigate('/targets/create-target')}>
+          + Create Target
+        </button>
       </div>
 
 
@@ -213,7 +214,8 @@ function TargetsHome() {
                     <tr
                       key={row.id || row.targetCode || idx}
                       className="animated-row"
-                      style={{ animationDelay: `${idx * 0.1}s` }}
+                      style={{ animationDelay: `${idx * 0.1}s`, cursor: 'pointer' }}
+                      onClick={() => navigate(`/targets/${row.id}`)}
                     >
                       <td className="text-center">{idx + 1}</td>
                       <td>

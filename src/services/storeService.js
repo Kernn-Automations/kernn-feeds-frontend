@@ -125,6 +125,48 @@ const storeService = {
     const res = await api.request(`/store-indents/stock-transfer/destination-stores${queryParams}`, { method: "GET" });
     return res.json();
   },
+  async createAssetTransfer(body) {
+    const res = await api.request(`/stores/indents/store-to-store-asset-transfer`, { method: "POST", body: JSON.stringify(body) });
+    return res.json();
+  },
+  async getAssetTransfers(storeId, params = {}) {
+    if (!storeId) {
+      throw new Error("Store ID is required");
+    }
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+    if (params.toDate) queryParams.append('toDate', params.toDate);
+    const queryString = queryParams.toString();
+    const url = `/stores/${storeId}/asset-transfers${queryString ? `?${queryString}` : ''}`;
+    const res = await api.request(url, { method: "GET" });
+    return res.json();
+  },
+  async getAssetTransferById(storeId, transferId) {
+    if (!storeId || !transferId) {
+      throw new Error("Store ID and Transfer ID are required");
+    }
+    const res = await api.request(`/stores/${storeId}/asset-transfer/${transferId}`, { method: "GET" });
+    return res.json();
+  },
+
+  // Store Dashboard operations
+  async getStoreDashboard(storeId = null) {
+    const url = storeId ? `/stores/dashboard/${storeId}` : `/stores/dashboard`;
+    const res = await api.request(url, { method: "GET" });
+    return res.json();
+  },
+  async getStorePerformanceComparison(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.startDate) queryParams.append('startDate', params.startDate);
+    if (params.endDate) queryParams.append('endDate', params.endDate);
+    const queryString = queryParams.toString();
+    const url = `/stores/dashboard/performance/store-wise${queryString ? `?${queryString}` : ''}`;
+    const res = await api.request(url, { method: "GET" });
+    return res.json();
+  },
   async processStockIn(body) {
     const res = await api.request(`/stores/stock-in`, { method: "POST", body: JSON.stringify(body) });
     return res.json();
@@ -373,6 +415,20 @@ const storeService = {
   },
   async deleteStoreDiscountRule(storeId, ruleId) {
     const res = await api.request(`/stores/${storeId}/discounts/rules/${ruleId}`, { method: "DELETE" });
+    return res.json();
+  },
+
+  // Store Employees operations
+  async getAllStoreEmployees(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.storeId) queryParams.append('storeId', params.storeId);
+    if (params.roleId) queryParams.append('roleId', params.roleId);
+    if (params.isActive !== undefined) queryParams.append('isActive', params.isActive);
+    const queryString = queryParams.toString();
+    const res = await api.request(`/store-employees/all${queryString ? `?${queryString}` : ''}`, { method: "GET" });
     return res.json();
   },
 };
