@@ -10,7 +10,7 @@ export default defineConfig({
     port: 5173, // or any open port
     allowedHosts: [
       "wallpaper-launch-reward-pmc.trycloudflare.com",
-      "kernn.feedbazaar.in",
+      "kernn-automations.kernn.xyz",
       "web.kernn.xyz",
       "fb-web.kernn.xyz",
       "fb-frontend-kaushik.kernn.xyz",

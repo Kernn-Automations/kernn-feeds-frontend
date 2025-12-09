@@ -37,7 +37,7 @@ function StoreDashHeader({
             {/* Centered logo + brand */}
             <div className={styles.mobileHeaderCenter}>
               <Logo />
-              <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
+              <p className={styles.brand}>Kernn Automations Pvt Ltd</p>
             </div>
             
             {/* Right: Search only (Profile moved to navbar on mobile) */}
@@ -64,7 +64,7 @@ function StoreDashHeader({
       <div className={styles.header}>
         <div className="row justify-content-between align-items-center" style={{ width: '100%', margin: 0 }}>
           <div className={`col-auto ${styles.headcontentTitle}`}>
-            <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
+            <p className={styles.brand}>Kernn Automations Pvt Ltd</p>
           </div>
           <div className={`col-auto ${styles.headcontent}`}>
             <div className={styles.headerRight}>
