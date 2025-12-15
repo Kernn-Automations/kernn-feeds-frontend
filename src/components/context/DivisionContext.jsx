@@ -83,7 +83,7 @@ export function DivisionProvider({ children }) {
       const resp = await axiosAPI.get("/divisions/user-divisions");
       const list = resp.data.divisions || resp.data.data || [];
       
-      // Add "All Divisions" option if user is Admin or Super Admin
+      // Add "All Divisions" option if user is Admin or Super Admin (but NOT Business Officer, Warehouse Manager, etc.)
       let divisionsWithAll = [...list];
       
       // Check if user is Admin or Super Admin and has multiple divisions
@@ -95,9 +95,18 @@ export function DivisionProvider({ children }) {
             return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
           });
           
-          // Always include All Divisions for admins, even if only one division is present
-          if (isAdminOrSuperAdmin) {
-            console.log('DivisionContext - Adding All Divisions option for admin user');
+          // Check for restricted roles that should NOT have All Divisions access
+          const hasRestrictedRole = userData.roles.some(role => {
+            const roleName = normalizeRoleName(role);
+            return roleName.includes("business officer") || 
+                   roleName.includes("business office") ||
+                   roleName.includes("warehouse manager") ||
+                   roleName.includes("area business manager");
+          });
+          
+          // Always include All Divisions for admins (without restricted roles), even if only one division is present
+          if (isAdminOrSuperAdmin && !hasRestrictedRole) {
+            console.log('DivisionContext - Adding All Divisions option for admin user (no restricted roles)');
             divisionsWithAll = [
               { 
                 id: "all", 
@@ -111,7 +120,8 @@ export function DivisionProvider({ children }) {
               ...list
             ];
           } else {
-            // Ensure non-admin users never see an All Divisions option
+            // Ensure non-admin users and restricted roles never see an All Divisions option
+            console.log('DivisionContext - Filtering out All Divisions option (isAdmin:', isAdminOrSuperAdmin, ', hasRestrictedRole:', hasRestrictedRole, ')');
             divisionsWithAll = divisionsWithAll.filter(d => d?.id !== "all" && !d?.isAllDivisions);
           }
         }
@@ -177,7 +187,31 @@ export function DivisionProvider({ children }) {
       
                 // Update showAllDivisions based on the selected division
           // Only set showAllDivisions to true if "All Divisions" is actually selected
-          const isAllDivs = selectedDivision?.isAllDivisions === true || selectedDivision?.id === "all";
+      // AND user is NOT a restricted role (Business Officer, Warehouse Manager, etc.)
+      let isAllDivs = selectedDivision?.isAllDivisions === true || selectedDivision?.id === "all";
+      
+      // Check if user has restricted roles that should NEVER use showAllDivisions
+      try {
+        const userData = JSON.parse(localStorage.getItem("user"));
+        if (userData && userData.roles && Array.isArray(userData.roles)) {
+          const hasRestrictedRole = userData.roles.some(role => {
+            const roleName = normalizeRoleName(role);
+            return roleName.includes("business officer") || 
+                   roleName.includes("business office") ||
+                   roleName.includes("warehouse manager") ||
+                   roleName.includes("area business manager");
+          });
+          
+          // If user has restricted role, NEVER set showAllDivisions to true
+          if (hasRestrictedRole && isAllDivs) {
+            console.warn('DivisionContext - Restricted role user tried to select All Divisions, forcing showAllDivisions=false');
+            isAllDivs = false;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user roles in DivisionContext:", error);
+      }
+      
           console.log('DivisionContext - Updating showAllDivisions:', {
             selectedDivisionId: selectedDivision?.id,
             isAllDivisions: selectedDivision?.isAllDivisions,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../Auth";
 import Loading from "../Loading";
 import ErrorModal from "../ErrorModal";
@@ -7,6 +8,8 @@ import subZonesService from "../../services/subZonesService";
 import styles from "./DivisionManager.module.css";
 
 function DivisionManager() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { axiosAPI } = useAuth();
   const [divisions, setDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +33,23 @@ function DivisionManager() {
   const [creating, setCreating] = useState(false);
   
   // Zones state
-  const [activeTab, setActiveTab] = useState("divisions");
+  // Get active tab from URL params or default to 'divisions'
+  const activeTabFromUrl = searchParams.get('tab') || 'divisions';
+  const [activeTab, setActiveTab] = useState(activeTabFromUrl);
+
+  // Sync activeTab with URL params on mount and when URL changes
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab') || 'divisions';
+    setActiveTab(tabFromUrl);
+  }, [searchParams]);
+
+  // Update URL when tab changes
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    setSearchParams(newParams);
+  };
   const [zones, setZones] = useState([]);
   const [zonesLoading, setZonesLoading] = useState(false);
   const [showZoneForm, setShowZoneForm] = useState(false);
@@ -82,6 +101,7 @@ function DivisionManager() {
   const [editingStore, setEditingStore] = useState(null);
   const [storeManagers, setStoreManagers] = useState([]);
   const [storeEmployees, setStoreEmployees] = useState([]);
+  const [electricityDistributors, setElectricityDistributors] = useState([]);
   const [storeDropdownLoading, setStoreDropdownLoading] = useState(false);
   const [newStore, setNewStore] = useState({
     name: "",
@@ -90,11 +110,35 @@ function DivisionManager() {
     area: "",
     district: "",
     state: "",
+    city: "",
+    pincode: "",
+    latitude: "",
+    longitude: "",
     divisionId: "",
     zoneId: "",
     storeType: "own",
-    staffManagerId: "",
-    employeeIds: []
+    storeManagerId: "",
+    employeeIds: [],
+    // Agreement fields
+    landOwnerName: "",
+    agreementTimePeriod: "",
+    rentAgreementStartDate: "",
+    rentAgreementEndDate: "",
+    advancePayOfRent: "",
+    rentAgreementDocumentBase64: null,
+    // Power bill fields
+    powerBillNumber: "",
+    electricityDistributor: "",
+    // Owner details
+    ownerAadharNumber: "",
+    ownerMobileNumber: "",
+    beneficiaryName: "",
+    bankName: "",
+    ifscCode: "",
+    accountNumber: "",
+    // UI state
+    agreementImage: null,
+    agreementImagePreview: null
   });
   const [storesPagination, setStoresPagination] = useState({
     page: 1,
@@ -120,9 +164,20 @@ function DivisionManager() {
 
   useEffect(() => {
     if (activeTab === "stores") {
-      fetchStoreDropdowns();
+      const currentDivisionId = localStorage.getItem('currentDivisionId');
+      const divisionId = currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' 
+        ? parseInt(currentDivisionId) 
+        : null;
+      fetchStoreDropdowns(divisionId);
     }
   }, [activeTab]);
+
+  // Refetch dropdowns when division changes in store form
+  useEffect(() => {
+    if (showStoreForm && newStore.divisionId) {
+      fetchStoreDropdowns(parseInt(newStore.divisionId));
+    }
+  }, [newStore.divisionId, showStoreForm]);
 
   const fetchDivisions = async () => {
     try {
@@ -422,12 +477,25 @@ function DivisionManager() {
     }
   };
 
-  const fetchStoreDropdowns = async () => {
+  const fetchStoreDropdowns = async (divisionId = null) => {
     try {
       setStoreDropdownLoading(true);
+      
+      // Build query params
+      const params = {};
+      if (divisionId) {
+        params.divisionId = divisionId;
+      }
+      
+      // Fetch electricity distributors (public, no auth)
+      const electricityResponse = await axiosAPI.get("/stores/dropdowns/electricity-distributors");
+      const electricityData = electricityResponse.data?.data || electricityResponse.data || [];
+      setElectricityDistributors(Array.isArray(electricityData) ? electricityData : []);
+      
+      // Fetch managers and employees with division filter
       const [managersResponse, employeesResponse] = await Promise.all([
-        axiosAPI.get("/stores/dropdowns/managers"),
-        axiosAPI.get("/stores/dropdowns/employees")
+        axiosAPI.get("/stores/dropdowns/managers", { params }),
+        axiosAPI.get("/stores/dropdowns/employees", { params })
       ]);
 
       const extractList = (payload, fallbackKey) => {
@@ -444,6 +512,7 @@ function DivisionManager() {
       console.error("Error fetching store dropdowns:", error);
       setStoreManagers([]);
       setStoreEmployees([]);
+      setElectricityDistributors([]);
     } finally {
       setStoreDropdownLoading(false);
     }
@@ -453,6 +522,87 @@ function DivisionManager() {
     if (storeManagers.length === 0 || storeEmployees.length === 0) {
       fetchStoreDropdowns();
     }
+  };
+
+  // Helper function to compress images
+  const compressImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (maintain aspect ratio)
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to compress image'));
+          }
+        }, file.type || 'image/jpeg', quality);
+      };
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Helper function to validate and format base64 data URL
+  // Backend expects: data:image/...;base64,... format
+  const formatBase64DataURL = (base64String) => {
+    if (!base64String) return undefined;
+    
+    // If it's already a data URL (data:image/...;base64,...), use it as is
+    if (base64String.startsWith('data:')) {
+      // Extract just the base64 part for size calculation
+      const base64Part = base64String.includes(',') ? base64String.split(',')[1] : base64String;
+      const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
+      
+      if (base64SizeMB > 1.5) {
+        return undefined; // Will be handled below
+      }
+      
+      // Return full data URL as backend expects: data:image/...;base64,...
+      return base64String;
+    }
+    
+    // If it's just base64 string without prefix, we shouldn't reach here
+    // because FileReader.readAsDataURL always returns data URL format
+    // But just in case, convert it
+    const mimeType = 'image/jpeg'; // Default
+    const dataURL = `data:${mimeType};base64,${base64String}`;
+    
+    // Check size
+    const base64SizeMB = (base64String.length * 3) / 4 / 1024 / 1024;
+    if (base64SizeMB > 1.5) {
+      return undefined;
+    }
+    
+    return dataURL;
   };
 
   const fetchZones = async () => {
@@ -1038,20 +1188,60 @@ function DivisionManager() {
       setCreating(true);
       console.log("Creating store:", newStore);
       
+      // Validate agreement document size before proceeding
+      if (newStore.rentAgreementDocumentBase64) {
+        const formattedBase64 = formatBase64DataURL(newStore.rentAgreementDocumentBase64);
+        if (!formattedBase64) {
+          const base64Part = newStore.rentAgreementDocumentBase64.includes(',') 
+            ? newStore.rentAgreementDocumentBase64.split(',')[1] 
+            : newStore.rentAgreementDocumentBase64;
+          const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
+          setError(`Agreement document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`);
+          setIsModalOpen(true);
+          setCreating(false);
+          return;
+        }
+      }
+
       const storeData = {
         name: newStore.name,
-        street1: newStore.street1 || "",
-        street2: newStore.street2 || "",
-        area: newStore.area || "",
-        district: newStore.district || "",
-        state: newStore.state || "",
         divisionId: parseInt(newStore.divisionId),
         zoneId: newStore.zoneId ? parseInt(newStore.zoneId) : undefined,
         storeType: newStore.storeType || "own",
-        staffManagerId: newStore.staffManagerId ? parseInt(newStore.staffManagerId) : undefined,
-        employeeIds: newStore.employeeIds && newStore.employeeIds.length > 0 
-          ? newStore.employeeIds.map(id => parseInt(id)) 
-          : undefined
+        district: newStore.district || "",
+        state: newStore.state || "",
+        city: newStore.city || "",
+        pincode: newStore.pincode || "",
+        street1: newStore.street1 || "",
+        street2: newStore.street2 || "",
+        area: newStore.area || "",
+        ...(newStore.latitude && parseFloat(newStore.latitude) && { latitude: parseFloat(newStore.latitude) }),
+        ...(newStore.longitude && parseFloat(newStore.longitude) && { longitude: parseFloat(newStore.longitude) }),
+        ...(newStore.storeManagerId && { storeManagerId: parseInt(newStore.storeManagerId) }),
+        ...(newStore.employeeIds && newStore.employeeIds.length > 0 && { 
+          employeeIds: newStore.employeeIds.map(id => parseInt(id)) 
+        }),
+        // Agreement fields
+        ...(newStore.landOwnerName && { landOwnerName: newStore.landOwnerName.trim() }),
+        ...(newStore.agreementTimePeriod && { agreementTimePeriod: newStore.agreementTimePeriod.trim() }),
+        ...(newStore.rentAgreementStartDate && { rentAgreementStartDate: newStore.rentAgreementStartDate }),
+        ...(newStore.rentAgreementEndDate && { rentAgreementEndDate: newStore.rentAgreementEndDate }),
+        ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
+          advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
+        }),
+        ...(newStore.rentAgreementDocumentBase64 && { 
+          rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
+        }),
+        // Power bill fields
+        ...(newStore.powerBillNumber && { powerBillNumber: newStore.powerBillNumber.trim() }),
+        ...(newStore.electricityDistributor && { electricityDistributor: newStore.electricityDistributor.trim() }),
+        // Owner details
+        ...(newStore.ownerAadharNumber && { ownerAadharNumber: newStore.ownerAadharNumber.trim() }),
+        ...(newStore.ownerMobileNumber && { ownerMobileNumber: newStore.ownerMobileNumber.trim() }),
+        ...(newStore.beneficiaryName && { beneficiaryName: newStore.beneficiaryName.trim() }),
+        ...(newStore.bankName && { bankName: newStore.bankName.trim() }),
+        ...(newStore.ifscCode && { ifscCode: newStore.ifscCode.trim().toUpperCase() }),
+        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() })
       };
       
       const response = await axiosAPI.post("/stores", storeData);
@@ -1061,12 +1251,8 @@ function DivisionManager() {
         // Get the created store ID
         const createdStoreId = response.data?.data?.id || response.data?.id || response.data?.data?.store?.id;
         
-        // Assign staff first
-        const assignmentErrors = await assignStoreStaff(
-          createdStoreId,
-          newStore.staffManagerId,
-          newStore.employeeIds
-        );
+        // Note: Staff assignment is now handled by the backend via storeManagerId and employeeIds
+        // No need for separate assignment call
 
         // Small delay to ensure backend has processed the assignment
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -1125,24 +1311,43 @@ function DivisionManager() {
           area: "",
           district: "",
           state: "",
+          city: "",
+          pincode: "",
+          latitude: "",
+          longitude: "",
           divisionId: currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' ? currentDivisionId : "",
           zoneId: "",
           storeType: "own",
-          staffManagerId: "",
-          employeeIds: []
+          storeManagerId: "",
+          employeeIds: [],
+          // Agreement fields
+          landOwnerName: "",
+          agreementTimePeriod: "",
+          rentAgreementStartDate: "",
+          rentAgreementEndDate: "",
+          advancePayOfRent: "",
+          rentAgreementDocumentBase64: null,
+          // Power bill fields
+          powerBillNumber: "",
+          electricityDistributor: "",
+          // Owner details
+          ownerAadharNumber: "",
+          ownerMobileNumber: "",
+          beneficiaryName: "",
+          bankName: "",
+          ifscCode: "",
+          accountNumber: "",
+          // UI state
+          agreementImage: null,
+          agreementImagePreview: null
         });
         setShowStoreForm(false);
         setEditingStore(null);
 
-        const feedbackMessage =
-          assignmentErrors.length > 0
-            ? `Store created successfully but some staff assignments failed: ${assignmentErrors.join(", ")}`
-            : "Store created successfully!";
-        setError(feedbackMessage);
+        setError("Store created successfully!");
         setIsModalOpen(true);
         
         // Force a full refresh of the stores list to ensure all data is up to date
-        // This ensures manager/employee data is properly loaded
         await fetchStores(1, storesPagination.limit);
       }
     } catch (error) {
@@ -1168,31 +1373,67 @@ function DivisionManager() {
       setCreating(true);
       console.log("Updating store:", editingStore.id, newStore);
       
+      // Validate agreement document size before proceeding
+      if (newStore.rentAgreementDocumentBase64) {
+        const formattedBase64 = formatBase64DataURL(newStore.rentAgreementDocumentBase64);
+        if (!formattedBase64) {
+          const base64Part = newStore.rentAgreementDocumentBase64.includes(',') 
+            ? newStore.rentAgreementDocumentBase64.split(',')[1] 
+            : newStore.rentAgreementDocumentBase64;
+          const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
+          setError(`Agreement document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`);
+          setIsModalOpen(true);
+          setCreating(false);
+          return;
+        }
+      }
+
       const storeData = {
         name: newStore.name,
-        street1: newStore.street1 || "",
-        street2: newStore.street2 || "",
-        area: newStore.area || "",
-        district: newStore.district || "",
-        state: newStore.state || "",
         divisionId: parseInt(newStore.divisionId),
         zoneId: newStore.zoneId ? parseInt(newStore.zoneId) : undefined,
         storeType: newStore.storeType || "own",
-        staffManagerId: newStore.staffManagerId ? parseInt(newStore.staffManagerId) : undefined,
-        employeeIds: newStore.employeeIds && newStore.employeeIds.length > 0 
-          ? newStore.employeeIds.map(id => parseInt(id)) 
-          : undefined
+        district: newStore.district || "",
+        state: newStore.state || "",
+        city: newStore.city || "",
+        pincode: newStore.pincode || "",
+        street1: newStore.street1 || "",
+        street2: newStore.street2 || "",
+        area: newStore.area || "",
+        ...(newStore.latitude && parseFloat(newStore.latitude) && { latitude: parseFloat(newStore.latitude) }),
+        ...(newStore.longitude && parseFloat(newStore.longitude) && { longitude: parseFloat(newStore.longitude) }),
+        ...(newStore.storeManagerId && { storeManagerId: parseInt(newStore.storeManagerId) }),
+        ...(newStore.employeeIds && newStore.employeeIds.length > 0 && { 
+          employeeIds: newStore.employeeIds.map(id => parseInt(id)) 
+        }),
+        // Agreement fields
+        ...(newStore.landOwnerName && { landOwnerName: newStore.landOwnerName.trim() }),
+        ...(newStore.agreementTimePeriod && { agreementTimePeriod: newStore.agreementTimePeriod.trim() }),
+        ...(newStore.rentAgreementStartDate && { rentAgreementStartDate: newStore.rentAgreementStartDate }),
+        ...(newStore.rentAgreementEndDate && { rentAgreementEndDate: newStore.rentAgreementEndDate }),
+        ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
+          advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
+        }),
+        ...(newStore.rentAgreementDocumentBase64 && { 
+          rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
+        }),
+        // Power bill fields
+        ...(newStore.powerBillNumber && { powerBillNumber: newStore.powerBillNumber.trim() }),
+        ...(newStore.electricityDistributor && { electricityDistributor: newStore.electricityDistributor.trim() }),
+        // Owner details
+        ...(newStore.ownerAadharNumber && { ownerAadharNumber: newStore.ownerAadharNumber.trim() }),
+        ...(newStore.ownerMobileNumber && { ownerMobileNumber: newStore.ownerMobileNumber.trim() }),
+        ...(newStore.beneficiaryName && { beneficiaryName: newStore.beneficiaryName.trim() }),
+        ...(newStore.bankName && { bankName: newStore.bankName.trim() }),
+        ...(newStore.ifscCode && { ifscCode: newStore.ifscCode.trim().toUpperCase() }),
+        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() })
       };
       
       const response = await axiosAPI.put(`/stores/${editingStore.id}`, storeData);
       console.log("Update store response:", response);
       
       if (response.status === 200 || response.data?.success || response.data?.data || response.data?.id) {
-        const assignmentErrors = await assignStoreStaff(
-          editingStore.id,
-          newStore.staffManagerId,
-          newStore.employeeIds
-        );
+        // Note: Staff assignment is now handled by the backend via storeManagerId and employeeIds
         
         // Small delay to ensure backend has processed the assignment
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -1237,11 +1478,7 @@ function DivisionManager() {
         
         setShowStoreForm(false);
         setEditingStore(null);
-        const feedbackMessage =
-          assignmentErrors.length > 0
-            ? `Store updated but some staff assignments failed: ${assignmentErrors.join(", ")}`
-            : "Store updated successfully!";
-        setError(feedbackMessage);
+        setError("Store updated successfully!");
         setIsModalOpen(true);
         
         // Force a full refresh of the stores list to ensure all data is up to date
@@ -1297,11 +1534,14 @@ function DivisionManager() {
       ? storeDetails.employees.map(emp => emp.id || emp.employeeId).filter(Boolean)
       : storeDetails.employeeIds || store.employeeIds || [];
 
-    const staffManagerId =
+    const storeManagerId =
+      storeDetails.storeManagerId ||
+      storeDetails.storeManager?.id ||
       storeDetails.staffManagerId ||
       storeDetails.staffManager?.id ||
       storeDetails.managerId ||
       storeDetails.manager?.id ||
+      store.storeManagerId ||
       store.staffManagerId ||
       "";
     
@@ -1312,11 +1552,35 @@ function DivisionManager() {
       area: storeDetails.area || store.area || "",
       district: storeDetails.district || store.district || "",
       state: storeDetails.state || store.state || "",
+      city: storeDetails.city || store.city || "",
+      pincode: storeDetails.pincode || store.pincode || "",
+      latitude: storeDetails.latitude || store.latitude || "",
+      longitude: storeDetails.longitude || store.longitude || "",
       divisionId: storeDetails.divisionId || storeDetails.division?.id || store.divisionId || store.division?.id || "",
       zoneId: storeDetails.zoneId || storeDetails.zone?.id || store.zoneId || store.zone?.id || "",
       storeType: storeDetails.storeType || store.storeType || "own",
-      staffManagerId: staffManagerId ? String(staffManagerId) : "",
-      employeeIds: Array.isArray(employeeIds) ? employeeIds.map(String) : []
+      storeManagerId: storeManagerId ? String(storeManagerId) : "",
+      employeeIds: Array.isArray(employeeIds) ? employeeIds.map(String) : [],
+      // Agreement fields
+      landOwnerName: storeDetails.landOwnerName || store.landOwnerName || "",
+      agreementTimePeriod: storeDetails.agreementTimePeriod || store.agreementTimePeriod || "",
+      rentAgreementStartDate: storeDetails.rentAgreementStartDate || storeDetails.rentAgreementDateStart || store.rentAgreementStartDate || store.rentAgreementDateStart || "",
+      rentAgreementEndDate: storeDetails.rentAgreementEndDate || storeDetails.rentAgreementDateEnd || store.rentAgreementEndDate || store.rentAgreementDateEnd || "",
+      advancePayOfRent: storeDetails.advancePayOfRent || store.advancePayOfRent || "",
+      rentAgreementDocumentBase64: null,
+      // Power bill fields
+      powerBillNumber: storeDetails.powerBillNumber || store.powerBillNumber || "",
+      electricityDistributor: storeDetails.electricityDistributor || store.electricityDistributor || "",
+      // Owner details
+      ownerAadharNumber: storeDetails.ownerAadharNumber || store.ownerAadharNumber || "",
+      ownerMobileNumber: storeDetails.ownerMobileNumber || store.ownerMobileNumber || "",
+      beneficiaryName: storeDetails.beneficiaryName || store.beneficiaryName || "",
+      bankName: storeDetails.bankName || store.bankName || "",
+      ifscCode: storeDetails.ifscCode || storeDetails.ifsc || store.ifscCode || store.ifsc || "",
+      accountNumber: storeDetails.accountNumber || store.accountNumber || "",
+      // UI state
+      agreementImage: null,
+      agreementImagePreview: null
     });
     setShowStoreForm(true);
   };
@@ -1332,11 +1596,35 @@ function DivisionManager() {
       area: "",
       district: "",
       state: "",
+      city: "",
+      pincode: "",
+      latitude: "",
+      longitude: "",
       divisionId: currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' ? currentDivisionId : "",
       zoneId: "",
       storeType: "own",
-      staffManagerId: "",
-      employeeIds: []
+      storeManagerId: "",
+      employeeIds: [],
+      // Agreement fields
+      landOwnerName: "",
+      agreementTimePeriod: "",
+      rentAgreementStartDate: "",
+      rentAgreementEndDate: "",
+      advancePayOfRent: "",
+      rentAgreementDocumentBase64: null,
+      // Power bill fields
+      powerBillNumber: "",
+      electricityDistributor: "",
+      // Owner details
+      ownerAadharNumber: "",
+      ownerMobileNumber: "",
+      beneficiaryName: "",
+      bankName: "",
+      ifscCode: "",
+      accountNumber: "",
+      // UI state
+      agreementImage: null,
+      agreementImagePreview: null
     });
   };
 
@@ -1436,14 +1724,16 @@ function DivisionManager() {
         <div className={styles.tabs}>
           <button
             className={`${styles.tabButton} ${activeTab === "divisions" ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab("divisions")}
+            onClick={() => {
+              handleTabChange("divisions");
+            }}
           >
             Divisions
           </button>
           <button
             className={`${styles.tabButton} ${activeTab === "zones" ? styles.activeTab : ""}`}
             onClick={() => {
-              setActiveTab("zones");
+              handleTabChange("zones");
               if (zones.length === 0) {
                 fetchZones();
               }
@@ -1454,7 +1744,7 @@ function DivisionManager() {
           <button
             className={`${styles.tabButton} ${activeTab === "subzones" ? styles.activeTab : ""}`}
             onClick={() => {
-              setActiveTab("subzones");
+              handleTabChange("subzones");
               if (zones.length === 0) {
                 fetchZones();
               }
@@ -1465,7 +1755,7 @@ function DivisionManager() {
           <button
             className={`${styles.tabButton} ${activeTab === "stores" ? styles.activeTab : ""}`}
             onClick={() => {
-              setActiveTab("stores");
+              handleTabChange("stores");
               if (stores.length === 0) {
                 fetchStores();
               }
@@ -2380,8 +2670,8 @@ function DivisionManager() {
                     </div>
                     <div className={styles.formRow}>
                       <div className={styles.formGroup}>
-                        <label htmlFor="storeManager">Staff Manager</label>
-                        {editingStore && newStore.staffManagerId && (
+                        <label htmlFor="storeManager">Store Manager</label>
+                        {editingStore && newStore.storeManagerId && (
                           <small style={{ 
                             color: '#1976d2', 
                             fontSize: '12px', 
@@ -2389,17 +2679,17 @@ function DivisionManager() {
                             display: 'block',
                             fontWeight: '500'
                           }}>
-                            Current Manager: {storeManagers.find(m => String(m.id) === String(newStore.staffManagerId))?.name || storeManagers.find(m => String(m.id) === String(newStore.staffManagerId))?.fullName || storeManagers.find(m => String(m.id) === String(newStore.staffManagerId))?.employeeName || 'Loading...'}
+                            Current Manager: {storeManagers.find(m => String(m.id) === String(newStore.storeManagerId))?.name || storeManagers.find(m => String(m.id) === String(newStore.storeManagerId))?.fullName || storeManagers.find(m => String(m.id) === String(newStore.storeManagerId))?.employeeName || 'Loading...'}
                           </small>
                         )}
                         <select
                           id="storeManager"
-                          value={newStore.staffManagerId}
-                          onChange={(e) => setNewStore({ ...newStore, staffManagerId: e.target.value })}
-                          disabled={storeDropdownLoading}
+                          value={newStore.storeManagerId}
+                          onChange={(e) => setNewStore({ ...newStore, storeManagerId: e.target.value })}
+                          disabled={storeDropdownLoading || !newStore.divisionId}
                         >
                           <option value="">
-                            {storeDropdownLoading ? "Loading..." : "Select manager (optional)"}
+                            {storeDropdownLoading ? "Loading..." : !newStore.divisionId ? "Select division first" : "Select manager (optional)"}
                           </option>
                           {storeManagers.map(manager => (
                             <option key={manager.id} value={manager.id}>
@@ -2549,6 +2839,29 @@ function DivisionManager() {
                     </div>
                     <div className={styles.formRow}>
                       <div className={styles.formGroup}>
+                        <label htmlFor="storeCity">City</label>
+                        <input
+                          type="text"
+                          id="storeCity"
+                          value={newStore.city}
+                          onChange={(e) => setNewStore({ ...newStore, city: e.target.value })}
+                          placeholder="City"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="storePincode">Pincode</label>
+                        <input
+                          type="text"
+                          id="storePincode"
+                          value={newStore.pincode}
+                          onChange={(e) => setNewStore({ ...newStore, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                          placeholder="Pincode"
+                          maxLength="6"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
                         <label htmlFor="storeState">State</label>
                         <input
                           type="text"
@@ -2557,6 +2870,351 @@ function DivisionManager() {
                           onChange={(e) => setNewStore({ ...newStore, state: e.target.value })}
                           placeholder="State"
                         />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="storeLatitude">Latitude (Optional)</label>
+                        <input
+                          type="number"
+                          id="storeLatitude"
+                          step="any"
+                          value={newStore.latitude}
+                          onChange={(e) => setNewStore({ ...newStore, latitude: e.target.value })}
+                          placeholder="e.g., 17.6868"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="storeLongitude">Longitude (Optional)</label>
+                        <input
+                          type="number"
+                          id="storeLongitude"
+                          step="any"
+                          value={newStore.longitude}
+                          onChange={(e) => setNewStore({ ...newStore, longitude: e.target.value })}
+                          placeholder="e.g., 83.2185"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Store Ownership & Agreement Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Store Ownership & Agreement Details (Optional)</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="landOwnerName">Land Owner Name</label>
+                        <input
+                          type="text"
+                          id="landOwnerName"
+                          value={newStore.landOwnerName || ""}
+                          onChange={(e) => setNewStore({ ...newStore, landOwnerName: e.target.value })}
+                          placeholder="Enter land owner name"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="agreementTimePeriod">Agreement Time Period</label>
+                        <input
+                          type="text"
+                          id="agreementTimePeriod"
+                          value={newStore.agreementTimePeriod || ""}
+                          onChange={(e) => setNewStore({ ...newStore, agreementTimePeriod: e.target.value })}
+                          placeholder="e.g., 12 months, 2 years"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="rentAgreementStartDate">Rent Agreement Start Date</label>
+                        <input
+                          type="date"
+                          id="rentAgreementStartDate"
+                          value={newStore.rentAgreementStartDate || ""}
+                          onChange={(e) => setNewStore({ ...newStore, rentAgreementStartDate: e.target.value })}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="rentAgreementEndDate">Rent Agreement End Date</label>
+                        <input
+                          type="date"
+                          id="rentAgreementEndDate"
+                          value={newStore.rentAgreementEndDate || ""}
+                          onChange={(e) => setNewStore({ ...newStore, rentAgreementEndDate: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="advancePayOfRent">Advance Pay of Rent (₹)</label>
+                        <input
+                          type="number"
+                          id="advancePayOfRent"
+                          min="0"
+                          step="0.01"
+                          value={newStore.advancePayOfRent || ""}
+                          onChange={(e) => setNewStore({ ...newStore, advancePayOfRent: e.target.value })}
+                          placeholder="Enter advance rent amount"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Power Bill Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Power Bill Details (Optional)</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="powerBillNumber">Power Bill Number</label>
+                        <input
+                          type="text"
+                          id="powerBillNumber"
+                          value={newStore.powerBillNumber || ""}
+                          onChange={(e) => setNewStore({ ...newStore, powerBillNumber: e.target.value })}
+                          placeholder="Enter power bill number"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="electricityDistributor">Electricity Distributor</label>
+                        <select
+                          id="electricityDistributor"
+                          value={newStore.electricityDistributor || ""}
+                          onChange={(e) => setNewStore({ ...newStore, electricityDistributor: e.target.value })}
+                          disabled={storeDropdownLoading}
+                        >
+                          <option value="">
+                            {storeDropdownLoading ? "Loading..." : "Select Electricity Distributor"}
+                          </option>
+                          {electricityDistributors.map((distributor) => (
+                            <option key={distributor.id || distributor} value={distributor.name || distributor}>
+                              {distributor.name || distributor}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Owner Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Owner Details (Optional)</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="ownerAadharNumber">Owner Aadhar Number</label>
+                        <input
+                          type="text"
+                          id="ownerAadharNumber"
+                          value={newStore.ownerAadharNumber || ""}
+                          onChange={(e) => setNewStore({ ...newStore, ownerAadharNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 12) })}
+                          placeholder="Enter 12-digit Aadhar number"
+                          maxLength="12"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="ownerMobileNumber">Owner Mobile Number</label>
+                        <input
+                          type="tel"
+                          id="ownerMobileNumber"
+                          value={newStore.ownerMobileNumber || ""}
+                          onChange={(e) => setNewStore({ ...newStore, ownerMobileNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
+                          placeholder="Enter 10-digit mobile number"
+                          maxLength="10"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="beneficiaryName">Beneficiary Name</label>
+                        <input
+                          type="text"
+                          id="beneficiaryName"
+                          value={newStore.beneficiaryName || ""}
+                          onChange={(e) => setNewStore({ ...newStore, beneficiaryName: e.target.value })}
+                          placeholder="Enter beneficiary name"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="bankName">Bank Name</label>
+                        <input
+                          type="text"
+                          id="bankName"
+                          value={newStore.bankName || ""}
+                          onChange={(e) => setNewStore({ ...newStore, bankName: e.target.value })}
+                          placeholder="Enter bank name"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="ifscCode">IFSC Code</label>
+                        <input
+                          type="text"
+                          id="ifscCode"
+                          value={newStore.ifscCode || ""}
+                          onChange={(e) => setNewStore({ ...newStore, ifscCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11) })}
+                          placeholder="Enter IFSC code"
+                          maxLength="11"
+                          style={{ textTransform: 'uppercase' }}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="accountNumber">Account Number</label>
+                        <input
+                          type="text"
+                          id="accountNumber"
+                          value={newStore.accountNumber || ""}
+                          onChange={(e) => setNewStore({ ...newStore, accountNumber: e.target.value.replace(/[^0-9]/g, '') })}
+                          placeholder="Enter account number"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agreement Document Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Agreement Document (Optional)</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                        <label htmlFor="agreementImage">Upload Rent Agreement</label>
+                        <input
+                          type="file"
+                          id="agreementImage"
+                          accept="image/*,application/pdf"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+
+                            // Check file size (max 2MB for images, 3MB for PDFs)
+                            const maxSize = file.type === 'application/pdf' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
+                            if (file.size > maxSize) {
+                              alert(`File size should be less than ${maxSize / 1024 / 1024}MB`);
+                              e.target.value = ''; // Reset input
+                              return;
+                            }
+
+                            try {
+                              let processedFile = file;
+                              let previewUrl = null;
+
+                              // Compress images before converting to base64
+                              if (file.type.startsWith('image/')) {
+                                // Compress image
+                                const compressedBlob = await compressImage(file, 800, 600, 0.7);
+                                processedFile = new File([compressedBlob], file.name, { type: file.type });
+                                previewUrl = URL.createObjectURL(compressedBlob);
+                                
+                                // Check compressed size
+                                if (compressedBlob.size > 1.5 * 1024 * 1024) {
+                                  alert("Image is still too large after compression. Please use a smaller image.");
+                                  e.target.value = '';
+                                  return;
+                                }
+                              } else if (file.type === 'application/pdf') {
+                                // For PDFs, just check size - no compression
+                                if (file.size > 2 * 1024 * 1024) {
+                                  alert("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
+                                  e.target.value = '';
+                                  return;
+                                }
+                              }
+
+                              // Convert to base64
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                const base64String = reader.result;
+                                setNewStore({
+                                  ...newStore,
+                                  agreementImage: processedFile,
+                                  rentAgreementDocumentBase64: base64String,
+                                  agreementImagePreview: previewUrl
+                                });
+                              };
+                              reader.onerror = () => {
+                                alert("Error reading file");
+                                e.target.value = '';
+                              };
+                              reader.readAsDataURL(processedFile);
+                            } catch (error) {
+                              console.error("Error processing file:", error);
+                              alert("Error processing file: " + error.message);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                        {newStore.agreementImagePreview && (
+                          <div style={{ marginTop: '10px' }}>
+                            <img
+                              src={newStore.agreementImagePreview}
+                              alt="Agreement preview"
+                              style={{
+                                maxWidth: '300px',
+                                maxHeight: '300px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                padding: '4px'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewStore({
+                                  ...newStore,
+                                  agreementImage: null,
+                                  rentAgreementDocumentBase64: null,
+                                  agreementImagePreview: null
+                                });
+                                // Reset file input
+                                const fileInput = document.getElementById('agreementImage');
+                                if (fileInput) fileInput.value = '';
+                              }}
+                              style={{
+                                marginLeft: '10px',
+                                padding: '4px 12px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                        {newStore.agreementImage && !newStore.agreementImagePreview && (
+                          <div style={{ marginTop: '10px', color: '#666', fontSize: '12px' }}>
+                            <i className="bi bi-file-earmark-pdf" style={{ marginRight: '6px' }}></i>
+                            File selected: {newStore.agreementImage.name} ({(newStore.agreementImage.size / 1024).toFixed(2)} KB)
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewStore({
+                                  ...newStore,
+                                  agreementImage: null,
+                                  rentAgreementDocumentBase64: null,
+                                  agreementImagePreview: null
+                                });
+                                // Reset file input
+                                const fileInput = document.getElementById('agreementImage');
+                                if (fileInput) fileInput.value = '';
+                              }}
+                              style={{
+                                marginLeft: '10px',
+                                padding: '2px 8px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                        <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>
+                          Upload rent agreement document (Image max 2MB, PDF max 3MB). Images will be automatically compressed.
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -2583,7 +3241,27 @@ function DivisionManager() {
             })()}
 
             <div className={styles.divisionsList}>
-              <h3>Existing Stores</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0 }}>Existing Stores</h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    className="homebtn"
+                    onClick={() => {
+                      navigate('/stores-products');
+                    }}
+                  >
+                    Stores Products
+                  </button>
+                  <button
+                    className="homebtn"
+                    onClick={() => {
+                      navigate('/stores-abstract');
+                    }}
+                  >
+                    Stores Abstract
+                  </button>
+                </div>
+              </div>
               {storesLoading ? (
                 <p>Loading stores...</p>
               ) : stores.length === 0 ? (

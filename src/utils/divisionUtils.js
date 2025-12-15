@@ -98,21 +98,80 @@ export const isValidDivision = (division) => {
  * @returns {boolean} - True if user can access all divisions
  */
 export const canAccessAllDivisions = (user) => {
-  return user && 
-         user.roles && 
-         Array.isArray(user.roles) && 
-         user.roles.some(role => {
-           const roleName = role.name && role.name.toLowerCase();
-           return roleName === "admin" || roleName === "super admin" || roleName === "superadmin";
+  if (!user || !user.roles || !Array.isArray(user.roles)) {
+    return false;
+  }
+  
+  // Import role checking functions
+  const normalizeRoleName = (role) => {
+    if (!role) return "";
+    if (typeof role === "string") return role.toLowerCase();
+    if (typeof role === "object") {
+      const name = role.name || role.role || String(role);
+      return (name || "").toLowerCase();
+    }
+    return String(role).toLowerCase();
+  };
+  
+  // Check for admin roles
+  const hasAdminRole = user.roles.some(role => {
+    const roleName = normalizeRoleName(role);
+    return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
          });
+  
+  // Exclude Business Officer, Warehouse Manager, Area Business Manager from All Divisions access
+  const hasRestrictedRole = user.roles.some(role => {
+    const roleName = normalizeRoleName(role);
+    return roleName.includes("business officer") || 
+           roleName.includes("business office") ||
+           roleName.includes("warehouse manager") ||
+           roleName.includes("area business manager");
+  });
+  
+  // Only admins without restricted roles can access all divisions
+  return hasAdminRole && !hasRestrictedRole;
 };
 
 /**
  * Get API parameters for division filtering
  * @param {string|number} divisionId - The division ID
+ * @param {Object} user - Optional user object to check for restricted roles
  * @returns {Object} - Object with appropriate API parameters
  */
-export const getDivisionApiParams = (divisionId) => {
+export const getDivisionApiParams = (divisionId, user = null) => {
+  // If user is provided, check if they have restricted roles (Business Officer, etc.)
+  // Restricted roles should NEVER use showAllDivisions, even if divisionId is "all"
+  if (user && user.roles && Array.isArray(user.roles)) {
+    const normalizeRoleName = (role) => {
+      if (!role) return "";
+      if (typeof role === "string") return role.toLowerCase();
+      if (typeof role === "object") {
+        const name = role.name || role.role || String(role);
+        return (name || "").toLowerCase();
+      }
+      return String(role).toLowerCase();
+    };
+    
+    const hasRestrictedRole = user.roles.some(role => {
+      const roleName = normalizeRoleName(role);
+      return roleName.includes("business officer") || 
+             roleName.includes("business office") ||
+             roleName.includes("warehouse manager") ||
+             roleName.includes("area business manager");
+    });
+    
+    // For restricted roles, always use divisionId, never showAllDivisions
+    if (hasRestrictedRole) {
+      if (divisionId && divisionId !== "all" && !isAllDivisions(divisionId)) {
+        return { divisionId: divisionId };
+      }
+      // If divisionId is "all" or invalid for restricted role, return empty (should not happen)
+      console.warn('getDivisionApiParams - Restricted role user with invalid divisionId:', divisionId);
+      return {};
+    }
+  }
+  
+  // For non-restricted roles, use normal logic
   if (isAllDivisions(divisionId)) {
     return { showAllDivisions: 'true' };
   } else if (divisionId && divisionId !== "all") {
@@ -133,6 +192,76 @@ export const getCurrentDivision = () => {
     console.error("Error parsing division data:", error);
     return null;
   }
+};
+
+/**
+ * Check if user has restricted role that should never use showAllDivisions
+ * @param {Object} user - User object (optional, will get from storage if not provided)
+ * @returns {boolean} - True if user has restricted role
+ */
+export const hasRestrictedRole = (user = null) => {
+  try {
+    const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
+    if (!currentUser || !currentUser.roles || !Array.isArray(currentUser.roles)) {
+      return false;
+    }
+    
+    const normalizeRoleName = (role) => {
+      if (!role) return "";
+      if (typeof role === "string") return role.toLowerCase();
+      if (typeof role === "object") {
+        const name = role.name || role.role || String(role);
+        return (name || "").toLowerCase();
+      }
+      return String(role).toLowerCase();
+    };
+    
+    return currentUser.roles.some(role => {
+      const roleName = normalizeRoleName(role);
+      return roleName.includes("business officer") || 
+             roleName.includes("business office") ||
+             roleName.includes("warehouse manager") ||
+             roleName.includes("area business manager");
+    });
+  } catch (error) {
+    console.error("Error checking restricted role:", error);
+    return false;
+  }
+};
+
+/**
+ * Get division parameter for API calls - ensures restricted roles always use divisionId
+ * @param {string|number} divisionId - The division ID
+ * @param {boolean} showAllDivisions - Current showAllDivisions state
+ * @param {Object} user - Optional user object
+ * @returns {Object} - Object with divisionId or showAllDivisions parameter
+ */
+export const getDivisionParam = (divisionId, showAllDivisions = false, user = null) => {
+  const isRestricted = hasRestrictedRole(user);
+  
+  // Restricted roles should NEVER use showAllDivisions, always use divisionId
+  if (isRestricted) {
+    if (divisionId && divisionId !== "all" && !isAllDivisions(divisionId)) {
+      return { divisionId: divisionId };
+    } else {
+      console.warn('getDivisionParam - Restricted role user with invalid divisionId:', divisionId);
+      // Try to get division from localStorage
+      const currentDivision = getCurrentDivision();
+      if (currentDivision && currentDivision.id && currentDivision.id !== "all") {
+        return { divisionId: currentDivision.id };
+      }
+      return {};
+    }
+  }
+  
+  // Non-restricted roles use normal logic
+  if (showAllDivisions || isAllDivisions(divisionId)) {
+    return { showAllDivisions: 'true' };
+  } else if (divisionId && divisionId !== "all") {
+    return { divisionId: divisionId };
+  }
+  
+  return {};
 };
 
 /**

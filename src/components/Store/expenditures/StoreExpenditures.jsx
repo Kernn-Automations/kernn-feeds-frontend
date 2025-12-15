@@ -5,6 +5,10 @@ import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 import storeService from "../../../services/storeService";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 const MONTH_OPTIONS = [
   { label: "January", value: 1 },
@@ -344,6 +348,49 @@ function StoreExpenditures() {
     }));
   };
 
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Expenditure Code",
+      "Month",
+      "Year",
+      "Staff Salary",
+      "Rent",
+      "Power Bill",
+      "Maintenance",
+      "Custom Fields Total",
+      "Total"
+    ];
+    const dataToExport = expenditures && expenditures.length > 0 ? expenditures : [];
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        const customFieldsTotal = totalCustomFieldsAmount(item.customFields);
+        const total = totalRecordExpenditure(item);
+        arr.push({
+          "S.No": x++,
+          "Expenditure Code": item.expenditureCode || '-',
+          "Month": monthLabel(item.month) || '-',
+          "Year": item.year || '-',
+          "Staff Salary": formatCurrency(item.staffSalary || 0),
+          "Rent": formatCurrency(item.rent || 0),
+          "Power Bill": formatCurrency(item.powerBill || 0),
+          "Maintenance": formatCurrency(item.maintenance || 0),
+          "Custom Fields Total": formatCurrency(customFieldsTotal),
+          "Total": formatCurrency(total)
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Store_Expenditures");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "StoreExpenditures");
+    } else {
+      showError("Table is Empty");
+    }
+  };
+
   const handleRemoveCustomField = (index) => {
     setEditForm((prev) => ({
       ...prev,
@@ -633,6 +680,21 @@ function StoreExpenditures() {
                 {showCreateForm ? "Cancel" : "Create New"}
               </button>
             </div>
+            {/* Export buttons */}
+            {expenditures.length > 0 && (
+              <div className="row m-0 p-3 justify-content-around">
+                <div className="col-lg-5">
+                  <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
+                    <p>Export to </p>
+                    <img src={xls} alt="" />
+                  </button>
+                  <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
+                    <p>Export to </p>
+                    <img src={pdf} alt="" />
+                  </button>
+                </div>
+              </div>
+            )}
             <div style={{ overflowX: "auto" }}>
               <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
                 <thead className="table-light">

@@ -42,6 +42,8 @@ const TargetRoutes = lazy(() => import("./Targets/TargetRoutes"));
 const ReturnRoutes = lazy(() => import("./Returns/ReturnRoutes"));
 const TeamsRoutes = lazy(() => import("./Teams/TeamsRoutes"));
 const DivisionManager = lazy(() => import("./DivisionManager"));
+const StoresProducts = lazy(() => import("./Stores/StoresProducts"));
+const StoresAbstract = lazy(() => import("./Stores/StoresAbstract"));
 
 export default function Dashboard({
   admin,
@@ -397,6 +399,22 @@ export default function Dashboard({
                   element={
                     <Suspense fallback={<RouteSkeleton />}>
                       <DivisionManager />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/stores-products"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <StoresProducts />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/stores-abstract"
+                  element={
+                    <Suspense fallback={<RouteSkeleton />}>
+                      <StoresAbstract />
                     </Suspense>
                   }
                 />

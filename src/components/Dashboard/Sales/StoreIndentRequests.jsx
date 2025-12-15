@@ -599,22 +599,25 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
 
                 <h6 className="mt-3 mb-2">Items</h6>
                 <div className="table-responsive">
-                  <table className="table table-bordered table-sm">
+                  <table className="table table-bordered borderedtable">
                     <thead>
                       <tr>
                         <th>Product</th>
-                        <th>Quantity</th>
+                        <th>No of Bags</th>
                         <th>Unit</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(selectedIndent.items || []).map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.product?.name || item.productName || 'Unknown'}</td>
-                          <td>{item.quantity}</td>
-                          <td>{item.unit || 'N/A'}</td>
-                        </tr>
-                      ))}
+                      {(selectedIndent.items || []).map((item, index) => {
+                        const quantity = item.quantity || item.requestedQuantity || item.qty || 0;
+                        return (
+                          <tr key={index}>
+                            <td>{item.product?.name || item.productName || 'Unknown'}</td>
+                            <td>{quantity}</td>
+                            <td>{item.unit || 'N/A'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

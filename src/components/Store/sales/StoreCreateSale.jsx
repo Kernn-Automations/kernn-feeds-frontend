@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ApiService from "../../../services/apiService";
 import { QRCodeSVG } from "qrcode.react";
@@ -181,6 +181,41 @@ export default function StoreCreateSale() {
   // Step 2: Payment
   const [mobileNumber, setMobileNumber] = useState("");
   const [notes, setNotes] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
+  const [fridgeAmount, setFridgeAmount] = useState("");
+  const [farmerName, setFarmerName] = useState("");
+  const [villageName, setVillageName] = useState("");
+  const [cows, setCows] = useState("");
+  const [buffaloes, setBuffaloes] = useState("");
+  const [additionalAnimals, setAdditionalAnimals] = useState([]);
+  
+  // Customer search states for payment step
+  const [farmerSearchTerm, setFarmerSearchTerm] = useState("");
+  const [farmerSearchResults, setFarmerSearchResults] = useState([]);
+  const [showFarmerDropdown, setShowFarmerDropdown] = useState(false);
+  const [farmerSearchLoading, setFarmerSearchLoading] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const farmerSearchRef = useRef(null);
+  const farmerSearchTimeoutRef = useRef(null);
+  
+  // Village search states
+  const [villageSearchTerm, setVillageSearchTerm] = useState("");
+  const [villageSearchResults, setVillageSearchResults] = useState([]);
+  const [showVillageDropdown, setShowVillageDropdown] = useState(false);
+  const villageSearchRef = useRef(null);
+  
+  // Dummy customer data - Replace with actual API call later
+  const dummyCustomers = [
+    { id: 1, name: "Kaushik Patel", mobile: "9876543210", village: "Gandhinagar", area: "Sector 5", city: "Gandhinagar" },
+    { id: 2, name: "Kaushik Sharma", mobile: "9876543211", village: "Ahmedabad", area: "Navrangpura", city: "Ahmedabad" },
+    { id: 3, name: "Rajesh Kumar", mobile: "9876543212", village: "Surat", area: "Adajan", city: "Surat" },
+    { id: 4, name: "Priya Mehta", mobile: "9876543213", village: "Vadodara", area: "Makarpura", city: "Vadodara" },
+    { id: 5, name: "Amit Singh", mobile: "9876543214", village: "Rajkot", area: "University Road", city: "Rajkot" },
+    { id: 6, name: "Sneha Patel", mobile: "9876543215", village: "Bhavnagar", area: "Talaja", city: "Bhavnagar" },
+    { id: 7, name: "Vikram Desai", mobile: "9876543216", village: "Anand", area: "Vidyanagar", city: "Anand" },
+    { id: 8, name: "Pooja Shah", mobile: "9876543217", village: "Mehsana", area: "Modhera", city: "Mehsana" },
+  ];
   const [generatedOrderId] = useState(() => `STORE-${Date.now().toString().slice(-6)}`);
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -192,14 +227,17 @@ export default function StoreCreateSale() {
   };
   const [payments, setPayments] = useState([{
     transactionDate: getTodayDate(),
-    paymentMethod: "cash", // "cash" or "bank"
-    paymentMode: "", // "UPI", "Card", or "Bank Transfer" (only when paymentMethod is "bank")
-    amount: "",
+    paymentMethod: "cash", // "cash", "bank", or "both"
+    paymentMode: "", // "UPI", "Card", or "Bank Transfer" (only when paymentMethod is "bank" or "both")
+    amount: "", // Total amount when paymentMethod is "both", or single amount for cash/bank
+    cashAmount: "", // Amount for cash payment (only when paymentMethod is "both")
+    bankAmount: "", // Amount for bank payment (only when paymentMethod is "both")
     reference: "",
     remark: "",
     utrNumber: "", // UTR number for bank payments
     proofFile: null,
     proofPreviewUrl: null,
+    proofBase64: null, // Base64 string for payment proof (for API)
   }]);
   const [activePaymentTab, setActivePaymentTab] = useState(0);
   const [qrCodeData, setQrCodeData] = useState({}); // Store QR code data for each payment: { paymentIndex: { upiId, amount, showQR } }
@@ -297,6 +335,291 @@ export default function StoreCreateSale() {
       setChecking(false);
     }
   };
+
+  // Search customers by farmer name - using backend API
+  const searchFarmers = async (searchTerm = "") => {
+    const storeId = getStoreId();
+    if (!storeId) {
+      console.warn("Store ID not found, cannot search customers");
+      setFarmerSearchResults([]);
+      return;
+    }
+
+    setFarmerSearchLoading(true);
+    try {
+      let response;
+      const trimmedTerm = searchTerm.trim();
+      
+      // If search term is empty or too short, fetch all customers
+      // Otherwise, use the search endpoint
+      if (!trimmedTerm || trimmedTerm.length < 1) {
+        // Fetch all customers using GET /stores/:storeId/customers
+        response = await storeService.getStoreCustomers(storeId, { limit: 100 });
+      } else {
+        // Call the backend API endpoint: GET /stores/:storeId/customers/search?search=term
+        response = await storeService.searchStoreCustomers(storeId, trimmedTerm);
+      }
+      
+      console.log('Farmer search response:', response);
+      
+      // Extract customers from response
+      const customers = response.data || response.customers || response || [];
+      
+      // Transform to match component format if needed
+      // Note: Map name from farmerName/label if name is null
+      const formattedCustomers = Array.isArray(customers) ? customers.map(customer => {
+        // Get display name - prefer name, then farmerName, then label, then customerName
+        const displayName = customer.name || customer.farmerName || customer.label || customer.customerName || '';
+        // Get village name - check all possible field names from backend
+        // Backend may return: villageName, village, or area
+        const displayVillage = customer.villageName || customer.village || customer.area || '';
+        
+        console.log('Mapping customer - Original:', {
+          id: customer.id,
+          name: customer.name,
+          farmerName: customer.farmerName,
+          label: customer.label,
+          villageName: customer.villageName,
+          village: customer.village,
+          area: customer.area,
+          fullCustomer: customer
+        });
+        console.log('Mapping customer - Mapped:', {
+          displayName,
+          displayVillage
+        });
+        
+        return {
+          id: customer.id || customer.customerId,
+          name: displayName, // Use the display name we determined
+          farmerName: customer.farmerName || displayName, // Preserve farmerName
+          customerCode: customer.customerCode || '',
+          mobile: customer.mobile || customer.phone || customer.phoneNo || '',
+          // Ensure village is set - check all possible sources
+          village: displayVillage || customer.villageName || customer.village || customer.area || '',
+          villageName: customer.villageName || displayVillage || customer.village || customer.area || '',
+          area: customer.area || '',
+          city: customer.city || '',
+          // Preserve other important fields from original customer object
+          createdAt: customer.createdAt,
+          updatedAt: customer.updatedAt,
+          storeId: customer.storeId,
+          totalPurchases: customer.totalPurchases,
+          lastPurchaseDate: customer.lastPurchaseDate
+        };
+      }) : [];
+      
+      console.log('Formatted farmers:', formattedCustomers);
+      
+      setFarmerSearchResults(formattedCustomers);
+      if (!showFarmerDropdown) {
+        setShowFarmerDropdown(true);
+      }
+    } catch (err) {
+      console.error('Error searching farmers:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setFarmerSearchResults([]);
+      // Don't show error modal for search failures - just log and continue
+    } finally {
+      setFarmerSearchLoading(false);
+    }
+  };
+  
+  // Get unique villages from customers - fetch from API when needed
+  const fetchUniqueVillages = async () => {
+    const storeId = getStoreId();
+    if (!storeId) {
+      return [];
+    }
+
+    // Return cached villages if available
+    if (villagesCache.length > 0) {
+      return villagesCache;
+    }
+
+    try {
+      // Fetch all customers to get unique villages
+      // We search with empty term to get all customers, then extract villages
+      const response = await storeService.getStoreCustomers(storeId, { limit: 1000 });
+      const customers = response.data || response.customers || response || [];
+      
+      // Extract unique villages from customers
+      const villageSet = new Set();
+      customers.forEach(customer => {
+        const village = customer.village || customer.villageName || customer.area || '';
+        if (village) {
+          villageSet.add(village);
+        }
+      });
+      
+      const villages = Array.from(villageSet).sort().map(village => ({ value: village, label: village }));
+      
+      // Cache the villages
+      setVillagesCache(villages);
+      
+      return villages;
+    } catch (err) {
+      console.error('Error fetching villages:', err);
+      return [];
+    }
+  };
+  
+  // Search/filter villages using backend API
+  const filterVillages = async (searchTerm = "") => {
+    const storeId = getStoreId();
+    if (!storeId) {
+      console.warn("Store ID not found, cannot search villages");
+      setVillageSearchResults([]);
+      return;
+    }
+
+    try {
+      // Use the backend villages search endpoint: GET /stores/:storeId/villages/search?search=term
+      const response = await storeService.searchStoreVillages(storeId, searchTerm.trim());
+      
+      console.log('Village search response:', response);
+      
+      // Extract villages from response - backend may return data array or villages array
+      const villagesData = response.data || response.villages || response || [];
+      
+      // Transform to match component format: { value: string, label: string }
+      const formattedVillages = Array.isArray(villagesData) ? villagesData.map((village, index) => {
+        // Handle different response formats
+        // If village is a string, use it directly
+        // If village is an object, extract the name/label field
+        if (typeof village === 'string') {
+          return { value: village, label: village };
+        } else if (typeof village === 'object') {
+          const villageName = village.name || village.villageName || village.label || village.value || village.village || String(village);
+          return { value: villageName, label: villageName };
+        }
+        return { value: String(village), label: String(village) };
+      }) : [];
+      
+      console.log('Formatted villages:', formattedVillages);
+      
+      setVillageSearchResults(formattedVillages);
+      if (!showVillageDropdown) {
+        setShowVillageDropdown(true);
+      }
+    } catch (err) {
+      console.error('Error searching villages:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setVillageSearchResults([]);
+      // Don't show error modal for search failures - just log and continue
+    }
+  };
+
+  // Handle farmer search input with debounce
+  const handleFarmerSearchChange = (value) => {
+    setFarmerSearchTerm(value);
+    
+    // Clear existing timeout
+    if (farmerSearchTimeoutRef.current) {
+      clearTimeout(farmerSearchTimeoutRef.current);
+    }
+    
+    // Show all customers if field is focused/clicked, or search if typing
+    if (value && value.trim().length > 0) {
+      // Debounce search (wait 300ms after user stops typing)
+      farmerSearchTimeoutRef.current = setTimeout(() => {
+        searchFarmers(value);
+      }, 300);
+    } else {
+      // If empty, show all customers
+      searchFarmers("");
+    }
+  };
+  
+  // Handle farmer field focus - show all customers
+  const handleFarmerFieldFocus = () => {
+    if (!showFarmerDropdown) {
+      searchFarmers("");
+    }
+    setShowFarmerDropdown(true);
+  };
+  
+  // Handle village search input
+  const handleVillageSearchChange = (value) => {
+    setVillageSearchTerm(value);
+    filterVillages(value);
+  };
+  
+  // Handle village field focus - show all villages
+  const handleVillageFieldFocus = () => {
+    if (!showVillageDropdown) {
+      filterVillages("");
+    }
+    setShowVillageDropdown(true);
+  };
+  
+  // Handle village selection
+  const handleVillageSelect = (village) => {
+    setVillageName(village || "");
+    setVillageSearchTerm(village || "");
+    setShowVillageDropdown(false);
+  };
+
+  // Handle customer selection from dropdown
+  const handleCustomerSelect = (customer) => {
+    if (customer === 'CREATE_NEW') {
+      // User wants to create new customer - keep current search term as farmer name
+      setFarmerName(farmerSearchTerm);
+      setSelectedCustomer(null);
+      setShowFarmerDropdown(false);
+      // Keep village and mobile empty for new customer
+      return;
+    }
+    
+    // Populate all fields with selected customer data
+    // Use name if available, otherwise fall back to farmerName or label
+    const customerDisplayName = customer.name || customer.farmerName || customer.label || "";
+    const customerVillage = customer.village || customer.villageName || "";
+    const customerMobile = customer.mobile || customer.phone || customer.phoneNo || "";
+    
+    setFarmerName(customerDisplayName);
+    setVillageName(customerVillage);
+    setMobileNumber(customerMobile);
+    setFarmerSearchTerm(customerVillage ? `${customerDisplayName} - ${customerVillage}` : customerDisplayName);
+    setVillageSearchTerm(customerVillage);
+    setSelectedCustomer(customer);
+    setShowFarmerDropdown(false);
+    setFarmerSearchResults([]);
+  };
+  
+  // Sync villageSearchTerm with villageName when villageName changes externally
+  useEffect(() => {
+    if (villageName && !showVillageDropdown && villageSearchTerm !== villageName) {
+      setVillageSearchTerm(villageName);
+    }
+  }, [villageName, showVillageDropdown]);
+  
+  // Sync farmerSearchTerm with farmerName when farmerName changes externally
+  useEffect(() => {
+    if (!selectedCustomer && farmerName && !showFarmerDropdown) {
+      // Only sync if no customer is selected and not actively searching
+      if (farmerSearchTerm !== farmerName) {
+        setFarmerSearchTerm(farmerName);
+      }
+    }
+  }, [farmerName, selectedCustomer, showFarmerDropdown]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (farmerSearchRef.current && !farmerSearchRef.current.contains(event.target)) {
+        setShowFarmerDropdown(false);
+      }
+      if (villageSearchRef.current && !villageSearchRef.current.contains(event.target)) {
+        setShowVillageDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Fetch real products from store products API
   useEffect(() => {
@@ -397,30 +720,59 @@ export default function StoreCreateSale() {
           storeId: storeId,
           items: items,
         };
+        
+        // Add discountAmount if provided
+        if (discountAmount && parseFloat(discountAmount) > 0) {
+          calculateData.discountAmount = parseFloat(discountAmount);
+        }
+        
+        // Add fridgeAmount (freight charges) if provided
+        if (fridgeAmount && parseFloat(fridgeAmount) > 0) {
+          calculateData.fridgeAmount = parseFloat(fridgeAmount);
+          // Also send as freightCharges for backend compatibility
+          calculateData.freightCharges = parseFloat(fridgeAmount);
+        }
 
         try {
           const response = await storeService.calculateSaleTotal(calculateData);
           
           if (response && response.success && response.data) {
-            // Backend returned calculated total
+            // Backend returned calculated total with discount and freight charges included
+            const data = response.data.summary || response.data;
             setCalculatedTotal({
-              subtotal: response.data.subtotal || subtotal,
-              tax: response.data.tax || response.data.taxAmount || 0,
-              total: response.data.total || response.data.grandTotal || (subtotal + (response.data.tax || response.data.taxAmount || 0)),
+              subtotal: data.subtotal || data.totalAmount || subtotal,
+              tax: data.taxAmount || data.tax || 0,
+              discountAmount: data.discountAmount || 0,
+              freightCharges: data.freightCharges || data.fridgeAmount || 0,
+              total: data.grandTotal || data.total || (subtotal + (data.taxAmount || data.tax || 0)),
+            });
+          } else if (response && (response.subtotal !== undefined || response.total !== undefined)) {
+            // Response might be directly in the data object
+            const summary = response.summary || response;
+            setCalculatedTotal({
+              subtotal: summary.subtotal || summary.totalAmount || subtotal,
+              tax: summary.taxAmount || summary.tax || 0,
+              discountAmount: summary.discountAmount || 0,
+              freightCharges: summary.freightCharges || summary.fridgeAmount || 0,
+              total: summary.grandTotal || summary.total || (subtotal + (summary.taxAmount || summary.tax || 0)),
             });
           } else {
-            // Calculate endpoint not available, use fallback
-            // Use 5% tax as default (backend will validate)
+            // Calculate endpoint returned unexpected format, use fallback
+            console.warn("Calculate endpoint returned unexpected format, using estimated tax (5%)");
             const tax = Math.round(subtotal * 0.05);
-            const total = subtotal + tax;
-            setCalculatedTotal({ subtotal, tax, total });
+            const discount = parseFloat(discountAmount) || 0;
+            const freight = parseFloat(fridgeAmount) || 0;
+            const total = subtotal + tax - discount + freight;
+            setCalculatedTotal({ subtotal, tax, discountAmount: discount, freightCharges: freight, total });
           }
         } catch (calcErr) {
-          // Calculate endpoint not available, use fallback
-          console.log("Calculate endpoint not available, using estimated tax (5%)");
+          // Calculate endpoint not available or error occurred, use fallback
+          console.log("Calculate endpoint error or not available, using estimated tax (5%):", calcErr.message);
           const tax = Math.round(subtotal * 0.05);
-          const total = subtotal + tax;
-          setCalculatedTotal({ subtotal, tax, total });
+          const discount = parseFloat(discountAmount) || 0;
+          const freight = parseFloat(fridgeAmount) || 0;
+          const total = subtotal + tax - discount + freight;
+          setCalculatedTotal({ subtotal, tax, discountAmount: discount, freightCharges: freight, total });
         }
       } catch (err) {
         console.error("Error calculating total:", err);
@@ -440,7 +792,7 @@ export default function StoreCreateSale() {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [cartItemsList, cartItemsCount, totalCartValue]);
+  }, [cartItemsList, cartItemsCount, totalCartValue, discountAmount, fridgeAmount]);
 
   const reviewData = useMemo(() => {
     if (!cartItemsCount) return null;
@@ -473,15 +825,21 @@ export default function StoreCreateSale() {
 
     const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
     
+    // Calculate total number of bags (sum of all quantities)
+    const totalBags = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+    
     // Use calculated total from backend if available, otherwise use subtotal
     const tax = calculatedTotal?.tax || 0;
-    const total = calculatedTotal?.total || calculatedTotal?.subtotal || subtotal;
+    const discountAmt = calculatedTotal?.discountAmount || parseFloat(discountAmount) || 0;
+    const freightAmt = calculatedTotal?.freightCharges || calculatedTotal?.fridgeAmount || parseFloat(fridgeAmount) || 0;
+    const total = calculatedTotal?.total || (subtotal + tax - discountAmt + freightAmt);
 
     return {
       orderId: generatedOrderId,
       customer: customerInfo,
       items,
-      totals: { subtotal, tax, total },
+      totals: { subtotal, tax, discountAmount: discountAmt, freightCharges: freightAmt, total },
+      totalBags: totalBags,
       upiId: "kernnfeeds@upi",
       bankDetails: {
         accountNumber: "1234567890",
@@ -489,7 +847,7 @@ export default function StoreCreateSale() {
         bankName: "Kernn Bank",
       },
     };
-  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal]);
+  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal, discountAmount, fridgeAmount]);
 
   const canGoNext = () => {
     if (step === 0) return cartItemsCount > 0; // Products step - need at least one item
@@ -571,11 +929,14 @@ export default function StoreCreateSale() {
         paymentMethod: "cash",
         paymentMode: "",
         amount: "",
+        cashAmount: "",
+        bankAmount: "",
         reference: "",
         remark: "",
         utrNumber: "",
         proofFile: null,
         proofPreviewUrl: null,
+        proofBase64: null,
       },
     ]);
   };
@@ -587,12 +948,39 @@ export default function StoreCreateSale() {
   const updatePaymentField = (idx, field, value) => {
     setPayments((prev) => {
       const next = [...prev];
-      next[idx] = { ...next[idx], [field]: value };
+      const currentPayment = next[idx];
+      
+      // If payment method is changing, reset amount fields appropriately
+      if (field === "paymentMethod") {
+        if (value === "both") {
+          // When switching to "both", clear single amount and initialize cash/bank amounts
+          next[idx] = {
+            ...currentPayment,
+            paymentMethod: "both",
+            amount: "", // Clear single amount
+            cashAmount: currentPayment.cashAmount || "",
+            bankAmount: currentPayment.bankAmount || "",
+          };
+        } else {
+          // When switching to "cash" or "bank", clear cash/bank amounts and use single amount
+          next[idx] = {
+            ...currentPayment,
+            paymentMethod: value,
+            amount: currentPayment.amount || "",
+            cashAmount: "", // Clear cash amount
+            bankAmount: "", // Clear bank amount
+          };
+        }
+      } else {
+        // For other fields, just update normally
+        next[idx] = { ...currentPayment, [field]: value };
+      }
+      
       return next;
     });
     
     // If amount changes and QR is shown, hide it to force regeneration
-    if (field === "amount" && qrCodeData[idx]?.showQR) {
+    if ((field === "amount" || field === "bankAmount") && qrCodeData[idx]?.showQR) {
       setQrCodeData(prev => ({
         ...prev,
         [idx]: { ...prev[idx], showQR: false }
@@ -600,14 +988,36 @@ export default function StoreCreateSale() {
     }
   };
 
-  const handlePaymentProof = (idx, file) => {
+  const handlePaymentProof = async (idx, file) => {
     if (!file) return;
-    const previewUrl = URL.createObjectURL(file);
-    setPayments((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], proofFile: file, proofPreviewUrl: previewUrl };
-      return next;
-    });
+    
+    // Convert file to base64 for API
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        const previewUrl = URL.createObjectURL(file);
+        setPayments((prev) => {
+          const next = [...prev];
+          next[idx] = { 
+            ...next[idx], 
+            proofFile: file, 
+            proofPreviewUrl: previewUrl,
+            proofBase64: base64String // Store base64 for API
+          };
+          return next;
+        });
+      };
+      reader.onerror = () => {
+        setError("Error reading proof file");
+        setIsErrorModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error processing proof file:", err);
+      setError("Error processing proof file");
+      setIsErrorModalOpen(true);
+    }
   };
 
   const handleSubmitPayment = async (e) => {
@@ -637,9 +1047,32 @@ export default function StoreCreateSale() {
     // Customer details are optional - no validation needed
 
     // Validate payments
-    const totalPaymentAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    // For "both" payment method, calculate total from cashAmount + bankAmount
+    // For "cash" or "bank", use amount field
+    const totalPaymentAmount = payments.reduce((sum, p) => {
+      if (p.paymentMethod === "both") {
+        const cashAmt = parseFloat(p.cashAmount) || 0;
+        const bankAmt = parseFloat(p.bankAmount) || 0;
+        return sum + cashAmt + bankAmt;
+      } else {
+        return sum + (parseFloat(p.amount) || 0);
+      }
+    }, 0);
+    
     if (totalPaymentAmount <= 0) {
       setError("Please enter payment amounts");
+      setIsErrorModalOpen(true);
+      return;
+    }
+    
+    // Validate "both" payments have both amounts
+    const invalidBothPayments = payments.filter(p => 
+      p.paymentMethod === "both" && 
+      ((!p.cashAmount || parseFloat(p.cashAmount) <= 0) || (!p.bankAmount || parseFloat(p.bankAmount) <= 0))
+    );
+    
+    if (invalidBothPayments.length > 0) {
+      setError("For 'Both' payment method, please enter amounts for both Cash and Bank");
       setIsErrorModalOpen(true);
       return;
     }
@@ -721,13 +1154,40 @@ export default function StoreCreateSale() {
       console.log("Formatted items for API:", items);
 
       // Step 3: Format payments for API (paymentMethod and amount required)
+      // For "both" payment method, split into two separate payment records (one cash, one bank)
       // Payment proof is handled separately via UTR endpoint if needed
-      const formattedPayments = payments
-        .filter((payment) => payment.amount && parseFloat(payment.amount) > 0)
-        .map((payment) => ({
-          paymentMethod: payment.paymentMethod || "cash",
-          amount: parseFloat(payment.amount) || 0,
-        }));
+      const formattedPayments = [];
+      
+      payments.forEach((payment) => {
+        if (payment.paymentMethod === "both") {
+          // Split "both" payment into two separate payments
+          const cashAmt = parseFloat(payment.cashAmount) || 0;
+          const bankAmt = parseFloat(payment.bankAmount) || 0;
+          
+          if (cashAmt > 0) {
+            formattedPayments.push({
+              paymentMethod: "cash",
+              amount: cashAmt,
+            });
+          }
+          
+          if (bankAmt > 0) {
+            formattedPayments.push({
+              paymentMethod: "bank",
+              amount: bankAmt,
+            });
+          }
+        } else {
+          // Regular cash or bank payment
+          const amount = parseFloat(payment.amount) || 0;
+          if (amount > 0) {
+            formattedPayments.push({
+              paymentMethod: payment.paymentMethod || "cash",
+              amount: amount,
+            });
+          }
+        }
+      });
 
       if (formattedPayments.length === 0) {
         setError("Please enter at least one payment with a valid amount");
@@ -737,7 +1197,7 @@ export default function StoreCreateSale() {
       }
 
       // Step 4: Prepare sale request body according to backend API
-      // API expects: { storeId, customer: { name?, mobile? } (optional), items: [{ productId, quantity }], payments: [{ paymentMethod, amount }], notes? }
+      // API expects: { storeId, customer: { name?, mobile? } (optional), items: [{ productId, quantity }], payments: [{ paymentMethod, amount }], notes?, discount?, discountReason?, fridgeAmount? }
       const saleData = {
         storeId: storeId,
         items: items, // Array of { productId, quantity }
@@ -745,9 +1205,61 @@ export default function StoreCreateSale() {
         ...(notes && notes.trim() && { notes: notes.trim() }), // Optional notes field
       };
       
+      // Add discountAmount if provided (backend expects discountAmount field)
+      if (discountAmount && parseFloat(discountAmount) > 0) {
+        saleData.discountAmount = parseFloat(discountAmount);
+        if (discountReason && discountReason.trim()) {
+          saleData.discountReason = discountReason.trim();
+        }
+      }
+      
+      // Add freight charges (fridgeAmount) as additional charge if provided
+      // Backend accepts both fridgeAmount and freightCharges
+      if (fridgeAmount && parseFloat(fridgeAmount) > 0) {
+        saleData.fridgeAmount = parseFloat(fridgeAmount);
+        saleData.freightCharges = parseFloat(fridgeAmount); // Also send as freightCharges for compatibility
+      }
+      
+      // Build customer object with all optional fields
+      const customerData = { ...customer };
+      
+      // Add payment step customer details if provided
+      if (mobileNumber && mobileNumber.trim()) {
+        const cleanedMobile = sanitizeMobile(mobileNumber);
+        if (cleanedMobile.length === 10) {
+          customerData.mobile = cleanedMobile;
+        }
+      }
+      
+      if (farmerName && farmerName.trim()) {
+        customerData.farmerName = farmerName.trim();
+      }
+      
+      if (villageName && villageName.trim()) {
+        customerData.villageName = villageName.trim();
+      }
+      
+      // Format animals data
+      const animalsArray = [];
+      if (cows && parseInt(cows) > 0) {
+        animalsArray.push(`${cows} Cows`);
+      }
+      if (buffaloes && parseInt(buffaloes) > 0) {
+        animalsArray.push(`${buffaloes} Buffaloes`);
+      }
+      additionalAnimals.forEach(animal => {
+        if (animal.type && animal.type.trim() && animal.count && parseInt(animal.count) > 0) {
+          animalsArray.push(`${animal.count} ${animal.type.trim()}`);
+        }
+      });
+      
+      if (animalsArray.length > 0) {
+        customerData.animals = animalsArray.join(', ');
+      }
+      
       // Only include customer if it has at least one field
-      if (Object.keys(customer).length > 0) {
-        saleData.customer = customer;
+      if (Object.keys(customerData).length > 0) {
+        saleData.customer = customerData;
       }
 
       console.log("Creating sale with data:", saleData);
@@ -765,6 +1277,30 @@ export default function StoreCreateSale() {
       }
 
       if (saleResponse.success || saleResponse.data) {
+        // Get the sale ID from response
+        const saleId = saleResponse.data?.id || saleResponse.data?.saleId || saleResponse.id;
+        
+        // Update UTR numbers for bank payments if provided
+        if (saleId) {
+          const bankPaymentsWithUTR = payments.filter(p => 
+            (p.paymentMethod === "bank" || p.paymentMethod === "both") && 
+            p.utrNumber && 
+            p.utrNumber.trim().length > 0
+          );
+          
+          // Update UTR for each bank payment
+          for (const payment of bankPaymentsWithUTR) {
+            try {
+              await storeService.updateSalePaymentUTR(saleId, payment.utrNumber.trim());
+              console.log(`UTR updated successfully for sale ${saleId}: ${payment.utrNumber}`);
+            } catch (utrErr) {
+              console.error(`Error updating UTR for sale ${saleId}:`, utrErr);
+              // Don't fail the entire sale creation if UTR update fails
+              // Just log the error - UTR can be updated later manually
+            }
+          }
+        }
+        
         setSuccessMessage("✅ Sale created successfully!");
         setIsSuccessModalOpen(true);
       } else {
@@ -1095,6 +1631,7 @@ export default function StoreCreateSale() {
                   <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 6 }}>Totals</div>
                   <div style={{ fontSize: 13, color: '#475569' }}>
                     <div><strong>Items:</strong> {reviewData.items.length}</div>
+                    <div><strong>Total Bags:</strong> {reviewData.totalBags || 0}</div>
                     <div><strong>Subtotal:</strong> ₹{reviewData.totals.subtotal.toLocaleString('en-IN')}</div>
                     <div><strong>Tax:</strong> ₹{reviewData.totals.tax.toLocaleString('en-IN')}</div>
                     <div><strong>Total:</strong> ₹{reviewData.totals.total.toLocaleString('en-IN')}</div>
@@ -1152,24 +1689,396 @@ export default function StoreCreateSale() {
             </div>
           ) : (
             <>
-              {/* Mobile Number (Optional) */}
+              {/* Customer Information Fields - Similar to Warehouse Field Style */}
+              <div className="row m-0 p-3" style={{ marginBottom: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                {/* Farmer Name - Searchable Dropdown */}
+                <div className="col-4 formcontent" ref={farmerSearchRef} style={{ position: 'relative' }}>
+                  <label htmlFor="farmerName">Farmer Name:</label>
+                  <input
+                    id="farmerName"
+                    type="text"
+                    placeholder="Select or Type"
+                    value={farmerSearchTerm || farmerName}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setFarmerName(value);
+                      handleFarmerSearchChange(value);
+                    }}
+                    onFocus={handleFarmerFieldFocus}
+                    onBlur={() => setTimeout(() => setShowFarmerDropdown(false), 200)}
+                  />
+                  {farmerSearchLoading && (
+                    <div style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '12px',
+                      color: '#666',
+                      marginTop: '25px'
+                    }}>
+                      Searching...
+                    </div>
+                  )}
+                  {showFarmerDropdown && (
+                    <ul
+                      style={{
+                        position: 'absolute',
+                        top: '60px',
+                        left: '80px',
+                        zIndex: 999,
+                        background: 'white',
+                        width: '260px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        borderRadius: '10px',
+                        boxShadow: '2px 2px 4px #333',
+                        padding: '0',
+                        margin: '0',
+                        listStyle: 'none'
+                      }}
+                    >
+                      {farmerSearchResults.length > 0 ? (
+                        <>
+                          {farmerSearchResults.map((customer) => (
+                            <li
+                              key={customer.id}
+                              onMouseDown={() => handleCustomerSelect(customer)}
+                              style={{
+                                padding: '5px 10px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                borderBottom: '1px solid #f0f0f0'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f1f1'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <div style={{ fontWeight: '600' }}>
+                                {(() => {
+                                  const name = customer.name || customer.farmerName || customer.label || 'Customer';
+                                  // Check all possible village field names - backend might use different field names
+                                  const village = customer.village || customer.villageName || customer.area || '';
+                                  console.log('Dropdown - Customer:', {
+                                    id: customer.id,
+                                    name,
+                                    village,
+                                    customerVillage: customer.village,
+                                    customerVillageName: customer.villageName,
+                                    customerArea: customer.area,
+                                    fullCustomer: customer
+                                  });
+                                  return village ? `${name} - ${village}` : name;
+                                })()}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#666' }}>
+                                {(() => {
+                                  const name = customer.name || customer.farmerName || customer.label || 'Customer';
+                                  // Check all possible village field names
+                                  const village = customer.village || customer.villageName || customer.area || '';
+                                  const mobile = customer.mobile || customer.phone || customer.phoneNo || '';
+                                  const parts = [];
+                                  if (village) parts.push(`📍 ${village}`);
+                                  if (mobile) parts.push(`📱 ${mobile}`);
+                                  return parts.length > 0 ? parts.join(' • ') : 'No additional info';
+                                })()}
+                              </div>
+                            </li>
+                          ))}
+                          {farmerSearchTerm && farmerSearchTerm.length > 0 && (
+                            <li
+                              onMouseDown={() => handleCustomerSelect('CREATE_NEW')}
+                              style={{
+                                padding: '5px 10px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                backgroundColor: '#e8f5e9',
+                                borderTop: '2px solid #4caf50',
+                                fontWeight: '600',
+                                color: '#2e7d32'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c8e6c9'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e8f5e9'}
+                            >
+                              ➕ Create New: "{farmerSearchTerm}"
+                            </li>
+                          )}
+                        </>
+                      ) : (
+                        <li
+                          onMouseDown={() => handleCustomerSelect('CREATE_NEW')}
+                          style={{
+                            padding: '5px 10px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            backgroundColor: '#e8f5e9',
+                            fontWeight: '600',
+                            color: '#2e7d32'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c8e6c9'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e8f5e9'}
+                        >
+                          ➕ Create New Customer
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+                
+                {/* Village Name - Searchable Dropdown */}
+                <div className="col-4 formcontent" ref={villageSearchRef} style={{ position: 'relative' }}>
+                  <label htmlFor="villageName">Village Name:</label>
+                  <input
+                    id="villageName"
+                    type="text"
+                    placeholder="Select or Type"
+                    value={villageSearchTerm || villageName}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setVillageName(value);
+                      handleVillageSearchChange(value);
+                    }}
+                    onFocus={handleVillageFieldFocus}
+                    onBlur={() => setTimeout(() => setShowVillageDropdown(false), 200)}
+                  />
+                  {showVillageDropdown && (
+                    <ul
+                      style={{
+                        position: 'absolute',
+                        top: '60px',
+                        left: '80px',
+                        zIndex: 999,
+                        background: 'white',
+                        width: '260px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        borderRadius: '10px',
+                        boxShadow: '2px 2px 4px #333',
+                        padding: '0',
+                        margin: '0',
+                        listStyle: 'none'
+                      }}
+                    >
+                      {villageSearchResults.length > 0 ? (
+                        villageSearchResults.map((village, index) => (
+                          <li
+                            key={index}
+                            onMouseDown={() => handleVillageSelect(village.value)}
+                            style={{
+                              padding: '5px 10px',
+                              cursor: 'pointer',
+                              fontSize: '15px'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f1f1'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            {village.label}
+                          </li>
+                        ))
+                      ) : (
+                        <li style={{ padding: '5px 10px', fontSize: '14px' }}>
+                          No results
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+                
+                {/* Mobile Number - Auto-populated or manual entry */}
+                <div className="col-4 formcontent">
+                  <label htmlFor="mobileNumber">Mobile Number:</label>
+                  <input
+                    id="mobileNumber"
+                    type="tel"
+                    placeholder="Enter mobile number"
+                    value={mobileNumber}
+                    onChange={e => setMobileNumber(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Customer Details Section */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, backgroundColor: '#f8fafc', marginBottom: 16 }}>
-                <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>Mobile Number</div>
-                <p style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>Optional - Enter mobile number for payment notifications</p>
-                <input
-                  type="tel"
-                  placeholder="Enter mobile number (optional)"
-                  value={mobileNumber}
-                  onChange={e => setMobileNumber(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    maxWidth: '400px',
-                    padding: '10px 12px', 
-                    borderRadius: 8, 
-                    border: '1px solid #e5e7eb',
-                    fontSize: '14px' 
-                  }}
-                />
+                <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Additional Customer Information</div>
+                <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>Optional - Enter additional customer information</p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
+                  
+                  <div style={{ gridColumn: isMobile ? '1' : '1 / -1' }}>
+                    <label className="form-label" style={{ marginBottom: 12 }}>Animals (Optional)</label>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 13, color: '#475569', marginBottom: 4, display: 'block' }}>Cows</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Number of cows"
+                          value={cows}
+                          onChange={e => setCows(e.target.value.replace(/[^0-9]/g, ''))}
+                          className="form-control"
+                          style={{ fontFamily: 'Poppins' }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label style={{ fontSize: 13, color: '#475569', marginBottom: 4, display: 'block' }}>Buffaloes</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Number of buffaloes"
+                          value={buffaloes}
+                          onChange={e => setBuffaloes(e.target.value.replace(/[^0-9]/g, ''))}
+                          className="form-control"
+                          style={{ fontFamily: 'Poppins' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Additional Animals */}
+                    {additionalAnimals.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ fontSize: 13, color: '#475569', marginBottom: 8, display: 'block' }}>Additional Animals</label>
+                        {additionalAnimals.map((animal, index) => (
+                          <div key={index} style={{ 
+                            display: 'flex', 
+                            gap: 8, 
+                            marginBottom: 8,
+                            alignItems: 'flex-end'
+                          }}>
+                            <div style={{ flex: 1 }}>
+                              <input
+                                type="text"
+                                placeholder="Animal type (e.g., Goats, Sheep)"
+                                value={animal.type}
+                                onChange={e => {
+                                  const updated = [...additionalAnimals];
+                                  updated[index].type = e.target.value;
+                                  setAdditionalAnimals(updated);
+                                }}
+                                className="form-control"
+                                style={{ fontFamily: 'Poppins', fontSize: '14px' }}
+                              />
+                            </div>
+                            <div style={{ width: isMobile ? '100px' : '120px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Count"
+                                value={animal.count}
+                                onChange={e => {
+                                  const updated = [...additionalAnimals];
+                                  updated[index].count = e.target.value.replace(/[^0-9]/g, '');
+                                  setAdditionalAnimals(updated);
+                                }}
+                                className="form-control"
+                                style={{ fontFamily: 'Poppins', fontSize: '14px' }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = additionalAnimals.filter((_, i) => i !== index);
+                                setAdditionalAnimals(updated);
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdditionalAnimals([...additionalAnimals, { type: '', count: '' }]);
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <span>+</span> Add Another Animal
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Discount Section */}
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, backgroundColor: '#f8fafc', marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Discount</div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                  <div>
+                    <label className="form-label">Discount Amount (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="form-control"
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(e.target.value)}
+                      placeholder="Enter discount amount"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Reason for Discount</label>
+                    <select
+                      className="form-control"
+                      value={discountReason}
+                      onChange={(e) => setDiscountReason(e.target.value)}
+                      style={{ fontFamily: 'Poppins' }}
+                    >
+                      <option value="">Select reason</option>
+                      <option value="fridge">Freight Charges (Farmers)</option>
+                      <option value="promotional">Promotional</option>
+                      <option value="bulk">Bulk Purchase</option>
+                      <option value="loyalty">Loyalty Discount</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Charges Section */}
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, backgroundColor: '#f8fafc', marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Additional Charges</div>
+                
+                <div>
+                  <label className="form-label">Freight Charges (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="form-control"
+                    value={fridgeAmount}
+                    onChange={(e) => setFridgeAmount(e.target.value)}
+                    placeholder="Enter freight charges amount"
+                    style={{ maxWidth: '300px' }}
+                  />
+                  <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                    Additional charge like freight charges, delivery charges, etc.
+                  </small>
+                </div>
               </div>
 
               {/* Order Summary */}
@@ -1177,9 +2086,17 @@ export default function StoreCreateSale() {
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontWeight: 600, color: '#312e81' }}>Order Total</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1e1b4b' }}>₹{reviewData.totals.total.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1e1b4b' }}>
+                      ₹{reviewData.totals.total.toLocaleString('en-IN')}
+                    </div>
                     <div style={{ fontSize: 12, color: '#4338ca', marginTop: '4px' }}>
                       Subtotal: ₹{reviewData.totals.subtotal.toLocaleString('en-IN')} + Tax: ₹{reviewData.totals.tax.toLocaleString('en-IN')}
+                      {reviewData.totals.discountAmount > 0 && (
+                        <span style={{ color: '#dc2626' }}> - Discount: ₹{reviewData.totals.discountAmount.toLocaleString('en-IN')}</span>
+                      )}
+                      {reviewData.totals.freightCharges > 0 && (
+                        <span style={{ color: '#059669' }}> + Freight Charges: ₹{reviewData.totals.freightCharges.toLocaleString('en-IN')}</span>
+                      )}
                     </div>
                     <div style={{ fontSize: 12, color: '#4338ca' }}>Order ID: {reviewData.orderId}</div>
                   </div>
@@ -1209,10 +2126,10 @@ export default function StoreCreateSale() {
                         </button>
                       )}
                     </div>
-                    {/* Payment Method Buttons - First */}
+                    {/* Payment Method Buttons */}
                     <div style={{ marginBottom: '16px', gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ marginBottom: '12px', display: 'block' }}>Payment Method</label>
-                        <div style={{ display: 'flex', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+                        <div style={{ display: 'flex', gap: '12px', flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap' }}>
                         <button
                           type="button"
                           onClick={() => updatePaymentField(idx, "paymentMethod", "cash")}
@@ -1277,6 +2194,38 @@ export default function StoreCreateSale() {
                         >
                           Bank
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => updatePaymentField(idx, "paymentMethod", "both")}
+                          style={{
+                            padding: isMobile ? '12px 20px' : '10px 24px',
+                            borderRadius: '8px',
+                            border: '2px solid',
+                            borderColor: payment.paymentMethod === "both" ? 'var(--primary-color)' : '#e2e8f0',
+                            backgroundColor: payment.paymentMethod === "both" ? 'var(--primary-color)' : '#fff',
+                            color: payment.paymentMethod === "both" ? '#fff' : '#4a5568',
+                            fontWeight: '600',
+                            fontSize: isMobile ? '14px' : '14px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            minHeight: isMobile ? '44px' : 'auto',
+                            flex: isMobile ? '1' : 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (payment.paymentMethod !== "both") {
+                              e.target.style.borderColor = 'var(--primary-color)';
+                              e.target.style.backgroundColor = '#f0f4ff';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (payment.paymentMethod !== "both") {
+                              e.target.style.borderColor = '#e2e8f0';
+                              e.target.style.backgroundColor = '#fff';
+                            }
+                          }}
+                        >
+                          Both
+                        </button>
                       </div>
                     </div>
 
@@ -1288,23 +2237,68 @@ export default function StoreCreateSale() {
                           onChange={(e) => updatePaymentField(idx, "transactionDate", e.target.value)}
                         />
                       </div>
-                      <div>
-                        <label className="form-label">Amount (₹)</label>
-                        <input 
-                          type="number" 
-                          className="form-control" 
-                          min="0" 
-                          value={payment.amount}
-                          onChange={(e) => updatePaymentField(idx, "amount", e.target.value)}
-                          placeholder={idx === 0 && reviewData ? `Enter ${reviewData.totals.total.toLocaleString('en-IN')} (Total with tax)` : "Enter amount"}
-                        />
-                        {idx === 0 && reviewData && !payment.amount && (
-                          <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                            Total to pay: ₹{reviewData.totals.total.toLocaleString('en-IN')}
-                          </small>
-                        )}
-                      </div>
-                      {payment.paymentMethod === "bank" && (
+                      
+                      {/* Amount fields - different based on payment method */}
+                      {payment.paymentMethod === "both" ? (
+                        <>
+                          <div>
+                            <label className="form-label">Cash Amount (₹)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              min="0" 
+                              step="0.01"
+                              value={payment.cashAmount || ''}
+                              onChange={(e) => updatePaymentField(idx, "cashAmount", e.target.value)}
+                              placeholder="Enter cash amount"
+                            />
+                          </div>
+                          <div>
+                            <label className="form-label">Bank Amount (₹)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              min="0" 
+                              step="0.01"
+                              value={payment.bankAmount || ''}
+                              onChange={(e) => updatePaymentField(idx, "bankAmount", e.target.value)}
+                              placeholder="Enter bank amount"
+                            />
+                          </div>
+                          {idx === 0 && reviewData && (
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                                Total to pay: ₹{reviewData.totals.total.toLocaleString('en-IN')} 
+                                {payment.cashAmount && payment.bankAmount && (
+                                  <span style={{ marginLeft: '8px', color: '#059669' }}>
+                                    (Cash: ₹{(parseFloat(payment.cashAmount) || 0).toLocaleString('en-IN')} + Bank: ₹{(parseFloat(payment.bankAmount) || 0).toLocaleString('en-IN')} = ₹{((parseFloat(payment.cashAmount) || 0) + (parseFloat(payment.bankAmount) || 0)).toLocaleString('en-IN')})
+                                  </span>
+                                )}
+                              </small>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div>
+                          <label className="form-label">Amount (₹)</label>
+                          <input 
+                            type="number" 
+                            className="form-control" 
+                            min="0" 
+                            step="0.01"
+                            value={payment.amount}
+                            onChange={(e) => updatePaymentField(idx, "amount", e.target.value)}
+                            placeholder={idx === 0 && reviewData ? `Enter ${reviewData.totals.total.toLocaleString('en-IN')} (Total with tax)` : "Enter amount"}
+                          />
+                          {idx === 0 && reviewData && !payment.amount && (
+                            <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                              Total to pay: ₹{reviewData.totals.total.toLocaleString('en-IN')}
+                            </small>
+                          )}
+                        </div>
+                      )}
+                      
+                      {(payment.paymentMethod === "bank" || payment.paymentMethod === "both") && (
                         <div>
                           <label className="form-label">UTR Number (Optional)</label>
                           <input type="text" className="form-control" placeholder="Enter UTR number"
@@ -1319,9 +2313,9 @@ export default function StoreCreateSale() {
                           onChange={(e) => updatePaymentField(idx, "remark", e.target.value)}
                         />
                       </div>
-                      {payment.paymentMethod === "cash" && (
+                      {(payment.paymentMethod === "cash" || payment.paymentMethod === "both") && (
                         <div>
-                          <label className="form-label">Proof (Optional)</label>
+                          <label className="form-label">Cash Proof (Optional)</label>
                           <input type="file" className="form-control" accept="image/*,application/pdf"
                             onChange={(e) => handlePaymentProof(idx, e.target.files?.[0])}
                           />
@@ -1332,14 +2326,20 @@ export default function StoreCreateSale() {
                           )}
                         </div>
                       )}
-                      {payment.paymentMethod === "bank" && (
+                      {(payment.paymentMethod === "bank" || payment.paymentMethod === "both") && (
                         <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
                           <button
                             type="button"
                             onClick={() => {
-                              const amount = parseFloat(payment.amount) || 0;
+                              // For "both" payment method, use bankAmount; for "bank", use amount
+                              const amount = payment.paymentMethod === "both" 
+                                ? (parseFloat(payment.bankAmount) || 0)
+                                : (parseFloat(payment.amount) || 0);
+                              
                               if (amount <= 0) {
-                                setSuccessMessage("Please enter a valid amount first");
+                                setSuccessMessage(payment.paymentMethod === "both" 
+                                  ? "Please enter a valid bank amount first" 
+                                  : "Please enter a valid amount first");
                                 setTimeout(() => setSuccessMessage(""), 3000);
                                 return;
                               }

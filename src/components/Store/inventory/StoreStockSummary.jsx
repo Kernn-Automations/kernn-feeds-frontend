@@ -6,6 +6,10 @@ import Loading from "@/components/Loading";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import storeService from "../../../services/storeService";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 function StoreStockSummary() {
   const navigate = useNavigate();
@@ -240,6 +244,46 @@ function StoreStockSummary() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setPage(1); // Reset to first page when switching tabs
+  };
+
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Product",
+      "SKU",
+      "Date",
+      "Opening Stock",
+      "Stock In",
+      "Stock Out",
+      "Closing Stock",
+      "Unit"
+    ];
+    const dataToExport = stockData && stockData.length > 0 ? stockData : [];
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Product": item.productName || '-',
+          "SKU": item.productSKU || '-',
+          "Date": item.date || '-',
+          "Opening Stock": Number(item.opening || 0).toFixed(2),
+          "Stock In": Number(item.stockIn || 0).toFixed(2),
+          "Stock Out": Number(item.sale || 0).toFixed(2),
+          "Closing Stock": Number(item.closing || 0).toFixed(2),
+          "Unit": item.unit || 'kg'
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Stock_Summary");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "StockSummary");
+    } else {
+      setError("Table is Empty");
+      setIsModalOpen(true);
+    }
   };
 
   const renderSummaryTable = (dataArray) => (
@@ -521,13 +565,28 @@ function StoreStockSummary() {
       {loading && <Loading />}
       
       {/* Stock Summary Tab */}
-      {!loading && activeTab === "summary" && (
-        <div className={styles.orderStatusCard}>
-          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Stock Summary Data
-          </h4>
-          {renderSummaryTable(stockData)}
-        </div>
+      {!loading && activeTab === "summary" && stockData.length > 0 && (
+        <>
+          {/* Export buttons */}
+          <div className="row m-0 p-3 justify-content-around">
+            <div className="col-lg-5">
+              <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
+                <p>Export to </p>
+                <img src={xls} alt="" />
+              </button>
+              <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
+                <p>Export to </p>
+                <img src={pdf} alt="" />
+              </button>
+            </div>
+          </div>
+          <div className={styles.orderStatusCard}>
+            <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+              Stock Summary Data
+            </h4>
+            {renderSummaryTable(stockData)}
+          </div>
+        </>
       )}
 
       {/* Statistics Tab */}

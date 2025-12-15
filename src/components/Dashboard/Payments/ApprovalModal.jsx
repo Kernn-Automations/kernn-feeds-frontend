@@ -25,60 +25,26 @@ function ApprovalModal({ report, changeTrigger }) {
     }
   }, [report]);
 
-  // Dummy payment request data for testing
-  const dummyPaymentRequests = [
-    {
-      paymentRequestId: "dummy-001",
-      paymentMode: "UPI",
-      transactionReference: "123568900",
-      netAmount: "12980",
-      paymentProof: img,
-      status: "Pending"
-    },
-    {
-      paymentRequestId: "dummy-002",
-      paymentMode: "Net Banking",
-      transactionReference: "987654321",
-      netAmount: "8500",
-      paymentProof: img,
-      status: "Pending"
-    }
-  ];
-
-  // Use dummy data for testing (always show dummy data for now)
-  const paymentRequestsToShow = dummyPaymentRequests;
+  // Use actual payment requests from report, fallback to empty array if not available
+  const paymentRequestsToShow = report?.paymentRequests || [];
 
   const handleAction = async (paymentRequestId, action) => {
     setError(null);
     setLoadingIds((prev) => new Set(prev).add(paymentRequestId));
     try {
-      // For dummy data, just update the local state
-      if (paymentRequestId.startsWith("dummy-")) {
-        setTimeout(() => {
-          setPaymentStatuses((prev) => ({
-            ...prev,
-            [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
-          }));
-          setLoadingIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(paymentRequestId);
-            return newSet;
-          });
-        }, 1000); // Simulate API delay
-      } else {
-        // For real data, make API call
-        await axiosAPI.post(`/payment-requests/${paymentRequestId}`, { action });
-        setPaymentStatuses((prev) => ({
-          ...prev,
-          [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
-        }));
-        changeTrigger(); // Notify parent to refresh list as needed
-        setLoadingIds((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(paymentRequestId);
-          return newSet;
-        });
-      }
+      // Make API call to approve/reject payment request
+      const endpoint = `/payment-requests/${paymentRequestId}/${action}`;
+      await axiosAPI.post(endpoint);
+      setPaymentStatuses((prev) => ({
+        ...prev,
+        [paymentRequestId]: action === "approve" ? "Approved" : "Rejected",
+      }));
+      changeTrigger(); // Notify parent to refresh list as needed
+      setLoadingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(paymentRequestId);
+        return newSet;
+      });
     } catch (e) {
       setError(e.response?.data?.message || "Error updating payment status");
       setLoadingIds((prev) => {
@@ -124,7 +90,10 @@ function ApprovalModal({ report, changeTrigger }) {
 
       <h4>Payment Requests</h4>
       <div className={styles.paymentsContainer}>
-        {paymentRequestsToShow.map((pr) => (
+        {paymentRequestsToShow.length === 0 ? (
+          <p>No payment requests available</p>
+        ) : (
+          paymentRequestsToShow.map((pr) => (
           <div key={pr.paymentRequestId} className={styles.paymentCard}>
             <div className={styles.paymentDetails}>
               <div className={styles.paymentDetailRow}>
@@ -187,7 +156,8 @@ function ApprovalModal({ report, changeTrigger }) {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       {error && (

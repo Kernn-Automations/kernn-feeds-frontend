@@ -42,6 +42,70 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Automatically add division parameters to all requests
+    // Skip division params for auth endpoints and public endpoints
+    const skipDivisionParams = 
+      config.url?.includes('/auth/') || 
+      config.url?.includes('/stores/dropdowns/electricity-distributors') ||
+      config.url?.includes('/public/');
+    
+    if (!skipDivisionParams) {
+      try {
+        const selectedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
+        const user = JSON.parse(localStorage.getItem("user"));
+        
+        if (selectedDivision) {
+          const divisionId = selectedDivision.id;
+          const isAllDivisions = selectedDivision.isAllDivisions === true || divisionId === "all";
+          
+          // Check if user has restricted roles (Business Officer, Warehouse Manager, etc.)
+          let hasRestrictedRole = false;
+          if (user && user.roles && Array.isArray(user.roles)) {
+            hasRestrictedRole = user.roles.some(role => {
+              const roleName = typeof role === 'string' 
+                ? role.toLowerCase() 
+                : (role.name || role.role || String(role)).toLowerCase();
+              return roleName.includes("business officer") || 
+                     roleName.includes("business office") ||
+                     roleName.includes("warehouse manager") ||
+                     roleName.includes("area business manager");
+            });
+          }
+          
+          // For restricted roles, always use divisionId, never showAllDivisions
+          if (hasRestrictedRole) {
+            if (divisionId && divisionId !== "all") {
+              // Add divisionId to params if not already present
+              if (!config.params) config.params = {};
+              if (!config.params.divisionId) {
+                config.params.divisionId = divisionId;
+              }
+            }
+          } else {
+            // For non-restricted roles
+            if (isAllDivisions) {
+              // Add divisionId=all or showAllDivisions=true
+              if (!config.params) config.params = {};
+              if (!config.params.divisionId && !config.params.showAllDivisions) {
+                config.params.divisionId = 'all';
+                // Alternative: config.params.showAllDivisions = 'true';
+              }
+            } else if (divisionId && divisionId !== "all") {
+              // Add divisionId to params if not already present
+              if (!config.params) config.params = {};
+              if (!config.params.divisionId) {
+                config.params.divisionId = divisionId;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error adding division parameters to request:", error);
+        // Continue with request even if division parsing fails
+      }
+    }
+    
     return config;
   });
 
@@ -50,6 +114,57 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Automatically add division parameters to all requests
+    try {
+      const selectedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
+      const user = JSON.parse(localStorage.getItem("user"));
+      
+      if (selectedDivision) {
+        const divisionId = selectedDivision.id;
+        const isAllDivisions = selectedDivision.isAllDivisions === true || divisionId === "all";
+        
+        // Check if user has restricted roles
+        let hasRestrictedRole = false;
+        if (user && user.roles && Array.isArray(user.roles)) {
+          hasRestrictedRole = user.roles.some(role => {
+            const roleName = typeof role === 'string' 
+              ? role.toLowerCase() 
+              : (role.name || role.role || String(role)).toLowerCase();
+            return roleName.includes("business officer") || 
+                   roleName.includes("business office") ||
+                   roleName.includes("warehouse manager") ||
+                   roleName.includes("area business manager");
+          });
+        }
+        
+        // For restricted roles, always use divisionId
+        if (hasRestrictedRole) {
+          if (divisionId && divisionId !== "all") {
+            if (!config.params) config.params = {};
+            if (!config.params.divisionId) {
+              config.params.divisionId = divisionId;
+            }
+          }
+        } else {
+          // For non-restricted roles
+          if (isAllDivisions) {
+            if (!config.params) config.params = {};
+            if (!config.params.showAllDivisions && !config.params.divisionId) {
+              config.params.showAllDivisions = 'true';
+            }
+          } else if (divisionId && divisionId !== "all") {
+            if (!config.params) config.params = {};
+            if (!config.params.divisionId) {
+              config.params.divisionId = divisionId;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error adding division parameters to getPdf request:", error);
+    }
+    
     return config;
   });
 
@@ -58,6 +173,57 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Automatically add division parameters to all requests
+    try {
+      const selectedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
+      const user = JSON.parse(localStorage.getItem("user"));
+      
+      if (selectedDivision) {
+        const divisionId = selectedDivision.id;
+        const isAllDivisions = selectedDivision.isAllDivisions === true || divisionId === "all";
+        
+        // Check if user has restricted roles
+        let hasRestrictedRole = false;
+        if (user && user.roles && Array.isArray(user.roles)) {
+          hasRestrictedRole = user.roles.some(role => {
+            const roleName = typeof role === 'string' 
+              ? role.toLowerCase() 
+              : (role.name || role.role || String(role)).toLowerCase();
+            return roleName.includes("business officer") || 
+                   roleName.includes("business office") ||
+                   roleName.includes("warehouse manager") ||
+                   roleName.includes("area business manager");
+          });
+        }
+        
+        // For restricted roles, always use divisionId
+        if (hasRestrictedRole) {
+          if (divisionId && divisionId !== "all") {
+            if (!config.params) config.params = {};
+            if (!config.params.divisionId) {
+              config.params.divisionId = divisionId;
+            }
+          }
+        } else {
+          // For non-restricted roles
+          if (isAllDivisions) {
+            if (!config.params) config.params = {};
+            if (!config.params.showAllDivisions && !config.params.divisionId) {
+              config.params.showAllDivisions = 'true';
+            }
+          } else if (divisionId && divisionId !== "all") {
+            if (!config.params) config.params = {};
+            if (!config.params.divisionId) {
+              config.params.divisionId = divisionId;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error adding division parameters to formApi request:", error);
+    }
+    
     return config;
   });
 

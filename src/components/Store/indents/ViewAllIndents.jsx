@@ -29,6 +29,14 @@ export default function ViewAllIndents() {
   const [damagedGoodsRows, setDamagedGoodsRows] = useState([]);
   const [stockInLoading, setStockInLoading] = useState(false);
 
+  // Manual Stock In states
+  const [showManualStockIn, setShowManualStockIn] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [manualStockItems, setManualStockItems] = useState([{ productId: '', quantity: '', unit: 'units' }]);
+  const [manualStockDamagedGoods, setManualStockDamagedGoods] = useState([]);
+  const [hasManualDamagedGoods, setHasManualDamagedGoods] = useState(false);
+  const [manualStockInLoading, setManualStockInLoading] = useState(false);
+
   // Get store ID from localStorage
   useEffect(() => {
     try {
@@ -76,8 +84,22 @@ export default function ViewAllIndents() {
   useEffect(() => {
     if (storeId) {
       fetchIndents();
+      fetchProducts();
     }
   }, [storeId, pageNo, limit]);
+  
+  // Fetch products for manual stock in
+  const fetchProducts = async () => {
+    if (!storeId) return;
+    
+    try {
+      const res = await storeService.getStoreProducts(storeId);
+      const productsData = res.data?.products || res.data || res.products || res || [];
+      setProducts(Array.isArray(productsData) ? productsData : []);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    }
+  };
 
   const fetchIndents = async () => {
     if (!storeId) return;
@@ -166,6 +188,302 @@ export default function ViewAllIndents() {
     setReceivedQuantities({});
     setHasDamagedGoods(false);
     setDamagedGoodsRows([]);
+  };
+  
+  const handleCloseManualStockIn = () => {
+    setShowManualStockIn(false);
+    setManualStockItems([{ productId: '', quantity: '', unit: 'units' }]);
+    setManualStockDamagedGoods([]);
+    setHasManualDamagedGoods(false);
+  };
+  
+  const handleAddManualStockItem = () => {
+    setManualStockItems([...manualStockItems, { productId: '', quantity: '', unit: 'units' }]);
+  };
+  
+  const handleRemoveManualStockItem = (index) => {
+    setManualStockItems(manualStockItems.filter((_, i) => i !== index));
+  };
+  
+  const handleManualStockItemChange = (index, field, value) => {
+    const newItems = [...manualStockItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    // If product changed, update unit from product data
+    if (field === 'productId' && value) {
+      const product = products.find(p => (p.id || p.productId)?.toString() === value.toString());
+      if (product) {
+        newItems[index].unit = product.unit || 'units';
+      }
+    }
+    
+    setManualStockItems(newItems);
+    
+    // Update damaged goods rows if enabled
+    if (hasManualDamagedGoods) {
+      const validItems = newItems.filter(item => item.productId && item.quantity);
+      const newDamagedRows = validItems.map(item => {
+        const product = products.find(p => (p.id || p.productId)?.toString() === item.productId.toString());
+        const existingRow = manualStockDamagedGoods.find(row => 
+          (row.productId?.toString() || String(row.productId)) === (item.productId?.toString() || String(item.productId))
+        );
+        
+        return {
+          productId: item.productId,
+          productName: product?.name || product?.productName || `Product ${item.productId}`,
+          orderedQty: parseFloat(item.quantity) || 0,
+          damagedQty: existingRow?.damagedQty || 0,
+          reason: existingRow?.reason || "",
+          image: existingRow?.image || null,
+          imageBase64: existingRow?.imageBase64 || null,
+          imagePreview: existingRow?.imagePreview || null
+        };
+      });
+      setManualStockDamagedGoods(newDamagedRows);
+    }
+  };
+  
+  const handleConfirmManualStockIn = async () => {
+    if (!storeId) {
+      setError("Store information missing");
+      setIsModalOpen(true);
+      return;
+    }
+    
+    // Validate items
+    const validItems = manualStockItems.filter(item => item.productId && item.quantity && parseFloat(item.quantity) > 0);
+    
+    if (validItems.length === 0) {
+      setError("Please add at least one product with valid quantity");
+      setIsModalOpen(true);
+      return;
+    }
+    
+    try {
+      setManualStockInLoading(true);
+      
+      // Prepare stock in payload for manual stock (without indentId)
+      // For manual stock in, we don't send indentId at all
+      const stockInPayload = {
+        storeId: storeId,
+        // Note: indentId is NOT included for manual stock in
+        items: validItems.map(item => {
+          const productId = parseInt(item.productId);
+          const quantity = parseFloat(item.quantity);
+          
+          // Find damaged goods for this product if any
+          const damagedRow = hasManualDamagedGoods 
+            ? manualStockDamagedGoods.find(row => {
+                const rowProductId = row.productId?.toString() || String(row.productId);
+                const itemProductId = productId?.toString() || String(productId);
+                return rowProductId === itemProductId;
+              })
+            : null;
+          
+          const damagedQty = damagedRow && damagedRow.damagedQty > 0 
+            ? parseFloat(damagedRow.damagedQty) 
+            : 0;
+          
+          // Extract base64 data (remove data:image/...;base64, prefix if present)
+          const damagedImageBase64 = damagedRow && damagedRow.imageBase64
+            ? (damagedRow.imageBase64.includes(',') 
+                ? damagedRow.imageBase64.split(',')[1] 
+                : damagedRow.imageBase64)
+            : undefined;
+          
+          const itemPayload = {
+            productId: productId,
+            receivedQuantity: quantity
+          };
+          
+          // Add damaged goods fields only if damaged quantity > 0
+          if (damagedQty > 0) {
+            itemPayload.damagedQuantity = damagedQty;
+            if (damagedImageBase64) {
+              itemPayload.damagedImageBase64 = damagedImageBase64;
+            }
+          }
+          
+          return itemPayload;
+        })
+      };
+      
+      // Prepare payload for manual stock in API endpoint
+      // API: POST /stores/manual-stock-in or POST /stores/:storeId/manual-stock-in
+      // Payload structure: { storeId, isDamagedGoods, items: [{ productId, quantity, unit, damagedQuantity, damagedImageBase64 }] }
+      
+      const hasAnyDamagedGoods = hasManualDamagedGoods && manualStockDamagedGoods.some(row => row.damagedQty > 0);
+      
+      const finalPayload = {
+        storeId: storeId,
+        isDamagedGoods: hasAnyDamagedGoods || false, // Optional flag
+        items: validItems.map(item => {
+          const productId = parseInt(item.productId);
+          const quantity = parseFloat(item.quantity);
+          
+          // Find damaged goods for this product if any
+          const damagedRow = hasManualDamagedGoods 
+            ? manualStockDamagedGoods.find(row => {
+                const rowProductId = row.productId?.toString() || String(row.productId);
+                const itemProductId = productId?.toString() || String(productId);
+                return rowProductId === itemProductId;
+              })
+            : null;
+          
+          const damagedQty = damagedRow && damagedRow.damagedQty > 0 
+            ? parseFloat(damagedRow.damagedQty) 
+            : 0;
+          
+          // Extract base64 data (remove data:image/...;base64, prefix if present)
+          const damagedImageBase64 = damagedRow && damagedRow.imageBase64
+            ? (damagedRow.imageBase64.includes(',') 
+                ? damagedRow.imageBase64.split(',')[1] 
+                : damagedRow.imageBase64)
+            : undefined;
+          
+          const itemPayload = {
+            productId: productId,
+            quantity: quantity, // API uses 'quantity' not 'receivedQuantity'
+            unit: item.unit || 'units' // Optional, uses product default if not provided
+          };
+          
+          // Add damaged goods fields only if damaged quantity > 0
+          if (damagedQty > 0) {
+            itemPayload.damagedQuantity = damagedQty;
+            if (damagedImageBase64) {
+              itemPayload.damagedImageBase64 = damagedImageBase64;
+            }
+          }
+          
+          return itemPayload;
+        })
+      };
+      
+      console.log("Manual Stock In Payload:", JSON.stringify(finalPayload, null, 2));
+      console.log("Using endpoint: /stores/manual-stock-in");
+      console.log("Payload keys:", Object.keys(finalPayload));
+      console.log("indentId in payload:", 'indentId' in finalPayload ? 'YES (ERROR!)' : 'NO (CORRECT)');
+      
+      const res = await storeService.processManualStockIn(finalPayload);
+      
+      const successMessage = res.message || res.data?.message || "Manual stock in processed successfully";
+      alert(successMessage);
+      
+      // Reset form
+      handleCloseManualStockIn();
+      
+      // Refresh the indents list (in case it shows stock history)
+      fetchIndents();
+    } catch (err) {
+      console.error("Error processing manual stock in:", err);
+      console.error("Error response:", err.response);
+      console.error("Error response data:", err.response?.data);
+      console.error("Error response status:", err.response?.status);
+      console.error("Error details:", err.response?.data || err);
+      
+      let errorMessage = "Failed to process manual stock in";
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors
+        const errors = err.response.data.errors;
+        if (Array.isArray(errors)) {
+          errorMessage = errors.join(', ');
+        } else if (typeof errors === 'object') {
+          errorMessage = Object.entries(errors).map(([key, value]) => `${key}: ${value}`).join(', ');
+        } else {
+          errorMessage = String(errors);
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setManualStockInLoading(false);
+    }
+  };
+  
+  const handleManualDamagedGoodsToggle = (checked) => {
+    setHasManualDamagedGoods(checked);
+    if (checked) {
+      // Initialize damaged goods rows from manual stock items
+      const initialRows = manualStockItems
+        .filter(item => item.productId && item.quantity)
+        .map(item => {
+          const product = products.find(p => (p.id || p.productId)?.toString() === item.productId.toString());
+          return {
+            productId: item.productId,
+            productName: product?.name || product?.productName || `Product ${item.productId}`,
+            orderedQty: parseFloat(item.quantity) || 0,
+            damagedQty: 0,
+            reason: "",
+            image: null,
+            imageBase64: null,
+            imagePreview: null
+          };
+        });
+      setManualStockDamagedGoods(initialRows);
+    } else {
+      setManualStockDamagedGoods([]);
+    }
+  };
+  
+  const handleManualDamagedGoodsChange = (index, field, value) => {
+    setManualStockDamagedGoods(prev => {
+      const newRows = [...prev];
+      const newValue = field === 'damagedQty' ? Math.min(parseFloat(value) || 0, newRows[index].orderedQty) : value;
+      newRows[index] = { ...newRows[index], [field]: newValue };
+      return newRows;
+    });
+  };
+  
+  const handleManualImageUpload = async (index, file) => {
+    if (!file) return;
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size should be less than 5MB");
+      setIsModalOpen(true);
+      return;
+    }
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError("Please select an image file");
+      setIsModalOpen(true);
+      return;
+    }
+    
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setManualStockDamagedGoods(prev => {
+          const newRows = [...prev];
+          newRows[index] = {
+            ...newRows[index],
+            image: file,
+            imageBase64: base64String,
+            imagePreview: base64String
+          };
+          return newRows;
+        });
+      };
+      reader.onerror = () => {
+        setError("Error reading image file");
+        setIsModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error processing image:", err);
+      setError("Error processing image");
+      setIsModalOpen(true);
+    }
   };
 
   const handleStockIn = () => {
@@ -412,8 +730,18 @@ export default function ViewAllIndents() {
 
       <div className="row m-0 p-3">
         <div className="col-12">
-          <div className="row m-0 mb-3 justify-content-end">
-            <div className={`${styles.entity}`} style={{ marginRight: 0 }}>
+          <div className="row m-0 mb-3 justify-content-between">
+            <div className="col-auto">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowManualStockIn(true)}
+                style={{ fontFamily: 'Poppins' }}
+              >
+                <i className="bi bi-plus-circle" style={{ marginRight: '8px' }}></i>
+                Manual Stock In
+              </button>
+            </div>
+            <div className={`col-auto ${styles.entity}`} style={{ marginRight: 0 }}>
               <label htmlFor="">Entity :</label>
               <select
                 name=""
@@ -870,6 +1198,282 @@ export default function ViewAllIndents() {
                     </button>
                   </>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Stock In Modal */}
+      {showManualStockIn && (
+        <div
+          className="modal fade show"
+          style={{ 
+            display: 'block', 
+            position: 'fixed', 
+            inset: 0, 
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 150000
+          }}
+          tabIndex="-1"
+          role="dialog"
+          onClick={handleCloseManualStockIn}
+          onKeyDown={(e) => { if (e.key === 'Escape') handleCloseManualStockIn(); }}
+        >
+          <div 
+            className="modal-dialog modal-lg modal-dialog-centered" 
+            role="document" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ zIndex: 150001 }}
+          >
+            <div className="modal-content" style={{ 
+              backgroundColor: 'white',
+              borderRadius: '0.5rem',
+              boxShadow: '0 0.5rem 1rem rgba(0, 0, 0, 0.15)',
+              zIndex: 150002
+            }}>
+              <div className="modal-header" style={{ 
+                borderBottom: '1px solid #dee2e6',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '0.5rem 0.5rem 0 0',
+                padding: '1rem 1.5rem'
+              }}>
+                <h5 className="modal-title" style={{ margin: 0, fontWeight: '600', fontFamily: 'Poppins' }}>
+                  Manual Stock In
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  aria-label="Close" 
+                  onClick={handleCloseManualStockIn}
+                ></button>
+              </div>
+              <div className="modal-body" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+                <div style={{ marginBottom: '2rem' }}>
+                  <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '1rem', color: 'var(--primary-color)' }}>
+                    Add Products
+                  </h6>
+                  
+                  <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+                    <table className={`table table-bordered borderedtable`} style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Quantity</th>
+                          <th>Unit</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {manualStockItems.map((item, index) => (
+                          <tr key={index}>
+                            <td>
+                              <select
+                                value={item.productId}
+                                onChange={(e) => handleManualStockItemChange(index, 'productId', e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontFamily: 'Poppins'
+                                }}
+                              >
+                                <option value="">Select Product</option>
+                                {products.map((product) => (
+                                  <option key={product.id || product.productId} value={product.id || product.productId}>
+                                    {product.name || product.productName} {product.code ? `(${product.code})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.quantity}
+                                onChange={(e) => handleManualStockItemChange(index, 'quantity', e.target.value)}
+                                placeholder="Quantity"
+                                style={{
+                                  width: '100px',
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontFamily: 'Poppins'
+                                }}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={item.unit}
+                                onChange={(e) => handleManualStockItemChange(index, 'unit', e.target.value)}
+                                placeholder="Unit"
+                                style={{
+                                  width: '80px',
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontFamily: 'Poppins'
+                                }}
+                              />
+                            </td>
+                            <td>
+                              {manualStockItems.length > 1 && (
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => handleRemoveManualStockItem(index)}
+                                  style={{ fontFamily: 'Poppins' }}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <button
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={handleAddManualStockItem}
+                    style={{ fontFamily: 'Poppins' }}
+                  >
+                    <i className="bi bi-plus-circle" style={{ marginRight: '4px' }}></i>
+                    Add Product
+                  </button>
+                </div>
+
+                {/* Damaged Goods Checkbox */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ fontFamily: 'Poppins', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={hasManualDamagedGoods}
+                      onChange={(e) => handleManualDamagedGoodsToggle(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: 600 }}>Damaged Goods</span>
+                  </label>
+                </div>
+
+                {/* Damaged Goods Table */}
+                {hasManualDamagedGoods && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '0.75rem', fontSize: '14px' }}>
+                      Damaged Goods Details
+                    </h6>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className={`table table-bordered borderedtable`} style={{ fontFamily: 'Poppins', fontSize: '12px' }}>
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th>Received Qty</th>
+                            <th>Damaged Qty</th>
+                            <th>Reason</th>
+                            <th>Image</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {manualStockDamagedGoods.map((row, index) => {
+                            const receivedQty = row.orderedQty || 0;
+                            return (
+                              <tr key={index}>
+                                <td>{row.productName}</td>
+                                <td>{receivedQty}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={receivedQty}
+                                    step="0.01"
+                                    value={row.damagedQty}
+                                    onChange={(e) => handleManualDamagedGoodsChange(index, 'damagedQty', parseFloat(e.target.value) || 0)}
+                                    style={{
+                                      width: '80px',
+                                      padding: '4px 8px',
+                                      border: '1px solid #ddd',
+                                      borderRadius: '4px',
+                                      fontFamily: 'Poppins'
+                                    }}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="text"
+                                    value={row.reason}
+                                    onChange={(e) => handleManualDamagedGoodsChange(index, 'reason', e.target.value)}
+                                    placeholder="Enter reason"
+                                    style={{
+                                      width: '100%',
+                                      padding: '4px 8px',
+                                      border: '1px solid #ddd',
+                                      borderRadius: '4px',
+                                      fontFamily: 'Poppins'
+                                    }}
+                                  />
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleManualImageUpload(index, file);
+                                      }}
+                                      style={{ fontSize: '11px', fontFamily: 'Poppins' }}
+                                    />
+                                    {row.imagePreview && (
+                                      <img
+                                        src={row.imagePreview}
+                                        alt="Preview"
+                                        style={{
+                                          width: '60px',
+                                          height: '60px',
+                                          objectFit: 'cover',
+                                          borderRadius: '4px',
+                                          border: '1px solid #ddd'
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer" style={{ 
+                borderTop: '1px solid #dee2e6',
+                padding: '1rem 1.5rem',
+                justifyContent: 'flex-end',
+                gap: '10px'
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCloseManualStockIn}
+                  disabled={manualStockInLoading}
+                  style={{ fontFamily: 'Poppins' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmManualStockIn}
+                  disabled={manualStockInLoading}
+                  style={{ fontFamily: 'Poppins' }}
+                >
+                  {manualStockInLoading ? "Processing..." : "Confirm Stock In"}
+                </button>
               </div>
             </div>
           </div>

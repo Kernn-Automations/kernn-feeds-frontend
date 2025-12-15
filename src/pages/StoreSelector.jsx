@@ -47,11 +47,14 @@ const StoreSelector = () => {
     }
   }, [navigate]);
 
-  // Fetch stores after user state is set
+  // Fetch stores - run after component mounts and when user state changes
   useEffect(() => {
-    if (user) {
+    // Small delay to ensure localStorage is ready and user state is set
+    const timer = setTimeout(() => {
       loadStoresFromUserData();
-    }
+    }, 200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadStoresFromUserData = async () => {
@@ -61,9 +64,14 @@ const StoreSelector = () => {
 
       console.log("StoreSelector.jsx - Loading stores...");
 
-      // Get assignedStores from user data (for store managers)
-      const currentUser = user.user || user;
-      let storesList = currentUser?.assignedStores || [];
+      let storesList = [];
+
+      // Try to get assignedStores from user data (for store managers)
+      if (user) {
+        const currentUser = user.user || user;
+        storesList = currentUser?.assignedStores || [];
+        console.log("StoreSelector.jsx - Stores from user data:", storesList);
+      }
       
       // Get authMeData from localStorage as fallback
       if (storesList.length === 0) {
@@ -71,10 +79,26 @@ const StoreSelector = () => {
           const authMeData = localStorage.getItem("authMeData");
           if (authMeData) {
             const parsed = JSON.parse(authMeData);
-            storesList = parsed.assignedStores || [];
+            storesList = parsed.assignedStores || parsed.stores || [];
+            console.log("StoreSelector.jsx - Stores from authMeData:", storesList);
           }
         } catch (e) {
           console.error("Error parsing authMeData:", e);
+        }
+      }
+
+      // Try to get from user localStorage as another fallback
+      if (storesList.length === 0) {
+        try {
+          const userData = localStorage.getItem("user");
+          if (userData) {
+            const parsed = JSON.parse(userData);
+            const currentUser = parsed.user || parsed;
+            storesList = currentUser?.assignedStores || currentUser?.stores || [];
+            console.log("StoreSelector.jsx - Stores from user localStorage:", storesList);
+          }
+        } catch (e) {
+          console.error("Error parsing user localStorage:", e);
         }
       }
 
@@ -84,18 +108,23 @@ const StoreSelector = () => {
         try {
           const response = await axiosAPI.get("/auth/available-stores");
           const data = response.data;
+          console.log("StoreSelector.jsx - API response:", data);
 
           if (data.success && Array.isArray(data.data)) {
             storesList = data.data;
-            console.log("StoreSelector.jsx - Stores from API:", storesList);
+            console.log("StoreSelector.jsx - Stores from API (data.data):", storesList);
           } else if (Array.isArray(data.stores)) {
             storesList = data.stores;
+            console.log("StoreSelector.jsx - Stores from API (data.stores):", storesList);
           } else if (Array.isArray(data)) {
             storesList = data;
+            console.log("StoreSelector.jsx - Stores from API (direct array):", storesList);
+          } else {
+            console.warn("StoreSelector.jsx - Unexpected API response structure:", data);
           }
         } catch (err) {
           console.error("StoreSelector.jsx - Error fetching stores from API:", err);
-          setError(err?.response?.data?.message || "Error fetching stores");
+          setError(err?.response?.data?.message || err.message || "Error fetching stores. Please try refreshing the page.");
           setStores([]);
           setLoading(false);
           return;
