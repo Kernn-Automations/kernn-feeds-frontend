@@ -1,7 +1,7 @@
 # 🎯 All Divisions Implementation Guide
 
 ## 📋 Overview
-This document explains how the "All Divisions" functionality has been implemented in the Feed Bazaar frontend application. This feature allows Admin users to view data from all divisions without filtering, while regular users can only access their assigned division.
+This document explains how the "All Divisions" functionality has been implemented in the Kernn Automations frontend application. This feature allows Admin users to view data from all divisions without filtering, while regular users can only access their assigned division.
 
 ## 🔐 Access Control
 - **Admin Users**: Can see and select "All Divisions" option
