@@ -46,7 +46,17 @@ const storeService = {
   },
 
   async createOrFindCustomer(body) {
+    // POST /stores/customers - Create or find customer
     const res = await api.request(`/stores/customers`, { method: "POST", body: JSON.stringify(body) });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
   async createSale(body) {
@@ -64,15 +74,23 @@ const storeService = {
   },
   async calculateSaleTotal(body) {
     // Preview/calculate sale total with tax without creating the sale
-    // This endpoint should return the calculated total including tax
+    // POST /stores/sales/calculate - Calculate sale totals (preview)
     try {
       const res = await api.request(`/stores/sales/calculate`, { method: "POST", body: JSON.stringify(body) });
+      
+      // Check if response is ok before parsing
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+        const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+        error.response = { data: errorData, status: res.status };
+        throw error;
+      }
+      
       return res.json();
     } catch (err) {
-      // If calculate endpoint doesn't exist, try creating sale in dry-run mode
-      // or return null to indicate calculation is not available
-      console.warn("Sale calculation endpoint not available, will calculate on backend");
-      return null;
+      // Re-throw the error so caller can handle it
+      console.error("Error calculating sale total:", err);
+      throw err;
     }
   },
   async createIndent(body) {
@@ -127,6 +145,15 @@ const storeService = {
   },
   async createAssetTransfer(body) {
     const res = await api.request(`/stores/indents/store-to-store-asset-transfer`, { method: "POST", body: JSON.stringify(body) });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
   async getAssetTransfers(storeId, params = {}) {
@@ -169,6 +196,13 @@ const storeService = {
   },
   async processStockIn(body) {
     const res = await api.request(`/stores/stock-in`, { method: "POST", body: JSON.stringify(body) });
+    return res.json();
+  },
+  async processManualStockIn(body) {
+    // Use manual-stock-in endpoint for manual stock entries (without indent)
+    const storeId = body.storeId;
+    const endpoint = storeId ? `/stores/${storeId}/manual-stock-in` : `/stores/manual-stock-in`;
+    const res = await api.request(endpoint, { method: "POST", body: JSON.stringify(body) });
     return res.json();
   },
 
@@ -263,27 +297,224 @@ const storeService = {
     return res.json();
   },
   async updateSalePaymentUTR(saleId, utrNumber) {
+    // PUT /stores/sales/:saleId/payment/utr - Update payment UTR for bank payment
     const res = await api.request(`/stores/sales/${saleId}/payment/utr`, { method: "PUT", body: JSON.stringify({ utrNumber }) });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
-  async getSalesReports(params = {}) {
+  // All Stores Sales Reports operations (Admin/Super Admin only)
+  async getAllStoresSalesReports(params = {}) {
+    // GET /stores/reports/sales - Get sales report for all stores
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/stores/reports/sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
+  },
+  async getAllStoresSalesReportsSummary(params = {}) {
+    // GET /stores/reports/sales/summary - Get sales summary for all stores
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/reports/sales/summary${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async exportAllStoresSalesReportsPDF(params = {}) {
+    // GET /stores/reports/sales/export/pdf - Export all stores sales as PDF
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/reports/sales/export/pdf${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res;
+  },
+  async exportAllStoresSalesReportsExcel(params = {}) {
+    // GET /stores/reports/sales/export/excel - Export all stores sales as Excel
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/reports/sales/export/excel${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res;
+  },
+  
+  // Store Sales Reports operations (store-specific)
+  async getStoreSalesReports(storeId, params = {}) {
+    // GET /stores/:storeId/reports/sales - Get sales report for a store
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/${storeId}/reports/sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async getStoreSalesReportsAdmin(storeId, params = {}) {
+    // GET /stores/admin/:storeId/reports/sales - Admin: Get sales report for any store
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/admin/${storeId}/reports/sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async getStoreSalesReportsSummary(storeId, params = {}, isAdmin = false) {
+    // GET /stores/:storeId/reports/sales/summary or GET /stores/admin/:storeId/reports/sales/summary
+    const queryParams = new URLSearchParams(params).toString();
+    const endpoint = isAdmin 
+      ? `/stores/admin/${storeId}/reports/sales/summary`
+      : `/stores/${storeId}/reports/sales/summary`;
+    const res = await api.request(`${endpoint}${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async exportStoreSalesReportsPDF(storeId, params = {}, isAdmin = false) {
+    // GET /stores/:storeId/reports/sales/export/pdf or GET /stores/admin/:storeId/reports/sales/export/pdf
+    const queryParams = new URLSearchParams(params).toString();
+    const endpoint = isAdmin 
+      ? `/stores/admin/${storeId}/reports/sales/export/pdf`
+      : `/stores/${storeId}/reports/sales/export/pdf`;
+    const res = await api.request(`${endpoint}${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res;
+  },
+  async exportStoreSalesReportsExcel(storeId, params = {}, isAdmin = false) {
+    // GET /stores/:storeId/reports/sales/export/excel or GET /stores/admin/:storeId/reports/sales/export/excel
+    const queryParams = new URLSearchParams(params).toString();
+    const endpoint = isAdmin 
+      ? `/stores/admin/${storeId}/reports/sales/export/excel`
+      : `/stores/${storeId}/reports/sales/export/excel`;
+    const res = await api.request(`${endpoint}${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res;
   },
   
   // Store Customers operations
   async getStoreCustomers(storeId, params = {}) {
+    // GET /stores/:storeId/customers - Get all customers (paginated)
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/stores/${storeId}/customers${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
   async getStoreCustomerById(storeId, customerId) {
+    // GET /stores/:storeId/customers/:id - Get customer by ID
     const res = await api.request(`/stores/${storeId}/customers/${customerId}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
   async searchStoreCustomers(storeId, searchTerm) {
-    const res = await api.request(`/stores/${storeId}/customers/search?q=${encodeURIComponent(searchTerm)}`, { method: "GET" });
+    // GET /stores/:storeId/customers/search?search=term - Search customers (dropdown/autocomplete)
+    const res = await api.request(`/stores/${storeId}/customers/search?search=${encodeURIComponent(searchTerm)}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async searchStoreVillages(storeId, searchTerm = "") {
+    // GET /stores/:storeId/villages/search?search=term - Search villages (dropdown/autocomplete)
+    const queryParam = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : '';
+    const res = await api.request(`/stores/${storeId}/villages/search${queryParam}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
   
@@ -320,11 +551,21 @@ const storeService = {
     return res.json();
   },
   async getStoreProductsForSale(storeId, searchTerm = "", productType = "") {
+    // GET /stores/:storeId/products/for-sale - Get products available for sale
     let queryParams = [];
     if (searchTerm) queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
     if (productType) queryParams.push(`productType=${encodeURIComponent(productType)}`);
     const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : "";
     const res = await api.request(`/stores/${storeId}/products/for-sale${queryString}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
     return res.json();
   },
   async searchStoreProducts(storeId, searchTerm = "") {
@@ -430,6 +671,70 @@ const storeService = {
     const queryString = queryParams.toString();
     const res = await api.request(`/store-employees/all${queryString ? `?${queryString}` : ''}`, { method: "GET" });
     return res.json();
+  },
+  
+  // Get all stores with products (Admin/Super Admin only)
+  async getAllStoresWithProducts() {
+    const res = await api.request(`/stores/products/all`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  
+  // Store Invoices operations
+  async getStoreInvoices(storeId, params = {}) {
+    // GET /stores/:storeId/invoices - Get all invoices for a store
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/${storeId}/invoices${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async getStoreInvoicesAdmin(storeId, params = {}) {
+    // GET /stores/admin/:storeId/invoices - Admin: Get invoices for any store
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/admin/${storeId}/invoices${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async downloadStoreInvoice(storeId, invoiceId, isAdmin = false) {
+    // GET /stores/:storeId/invoices/:invoiceId/download or GET /stores/admin/:storeId/invoices/:invoiceId/download
+    const endpoint = isAdmin 
+      ? `/stores/admin/${storeId}/invoices/${invoiceId}/download`
+      : `/stores/${storeId}/invoices/${invoiceId}/download`;
+    const res = await api.request(endpoint, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res;
   },
 };
 

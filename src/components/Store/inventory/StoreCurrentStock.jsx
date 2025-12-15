@@ -5,9 +5,13 @@ import ErrorModal from "@/components/ErrorModal";
 import LoadingAnimation from "@/components/LoadingAnimation";
 import inventoryAni from "../../../images/animations/fetchingAnimation.gif";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import storeService from "../../../services/storeService";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 function StoreCurrentStock() {
   const navigate = useNavigate();
@@ -135,6 +139,43 @@ function StoreCurrentStock() {
     looseProducts: filteredStock.filter(item => item.productType === "loose").length
   };
 
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Product Name",
+      "Product Code",
+      "Current Stock",
+      "Unit",
+      "Unit Price",
+      "Total Value",
+      "Status"
+    ];
+    const dataToExport = filteredStock && filteredStock.length > 0 ? filteredStock : currentStock;
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Product Name": item.productName || '-',
+          "Product Code": item.productCode || '-',
+          "Current Stock": Number(item.currentStock || 0).toFixed(2),
+          "Unit": item.unit || 'kg',
+          "Unit Price": Number(item.unitPrice || 0).toFixed(2),
+          "Total Value": Number(item.stockValue || 0).toFixed(2),
+          "Status": item.stockStatus === 'normal' ? 'Normal' : item.stockStatus === 'low' ? 'Low' : 'Out of Stock'
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Current_Stock");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "CurrentStock");
+    } else {
+      setError("Table is Empty");
+    }
+  };
+
   return (
     <div style={{ padding: '20px' }}>
       {/* Page Header */}
@@ -226,6 +267,22 @@ function StoreCurrentStock() {
           <div style={{ textAlign: 'center', padding: '40px' }}>
             <h4 style={{ fontFamily: 'Poppins', color: '#666', marginBottom: '12px' }}>No inventory data found</h4>
             <p style={{ fontFamily: 'Poppins', color: '#999', margin: 0 }}>There are no products in stock for this store.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Export buttons */}
+      {!loading && filteredStock.length > 0 && (
+        <div className="row m-0 p-3 justify-content-around">
+          <div className="col-lg-5">
+            <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
+              <p>Export to </p>
+              <img src={xls} alt="" />
+            </button>
+            <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
+              <p>Export to </p>
+              <img src={pdf} alt="" />
+            </button>
           </div>
         </div>
       )}

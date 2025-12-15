@@ -39,6 +39,7 @@ function StoreSalesOrders({ onBack }) {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const customerSearchRef = useRef(null);
   const customerSearchTimeoutRef = useRef(null);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -187,24 +188,69 @@ function StoreSalesOrders({ onBack }) {
       const salesData = response.data || response.sales || response || [];
       const paginationData = response.pagination || {};
       
+      console.log('StoreSalesOrders - API Response:', response);
+      console.log('StoreSalesOrders - Sales Data:', salesData);
+      if (salesData.length > 0) {
+        console.log('StoreSalesOrders - First sale sample:', salesData[0]);
+        console.log('StoreSalesOrders - First sale customer:', salesData[0].customer);
+      }
+      
         // Map API response to match component structure
-      const mappedOrders = Array.isArray(salesData) ? salesData.map((sale) => ({
+      const mappedOrders = Array.isArray(salesData) ? salesData.map((sale, index) => {
+        // Debug customer data
+        console.log(`Sale ${index} - customer object:`, sale.customer);
+        console.log(`Sale ${index} - farmerName:`, sale.customer?.farmerName);
+        console.log(`Sale ${index} - displayName:`, sale.customer?.displayName);
+        console.log(`Sale ${index} - name:`, sale.customer?.name);
+        
+        // Get customer name with proper fallback
+        // Check if customer exists and has the fields
+        let customerName = "Customer";
+        if (sale.customer) {
+          // Check farmerName first (trim to handle whitespace)
+          const farmerName = sale.customer.farmerName?.trim();
+          if (farmerName && farmerName !== "" && farmerName !== "null") {
+            customerName = farmerName;
+          } else {
+            // Check displayName
+            const displayName = sale.customer.displayName?.trim();
+            if (displayName && displayName !== "" && displayName !== "null") {
+              customerName = displayName;
+            } else {
+              // Check name
+              const name = sale.customer.name?.trim();
+              if (name && name !== "" && name !== "null") {
+                customerName = name;
+              }
+            }
+          }
+        }
+        
+        console.log(`Sale ${index} - Final customerName:`, customerName);
+        
+        return {
           id: sale.saleCode || sale.id,
-        saleCode: sale.saleCode || `SALE-${sale.id}`,
+          saleCode: sale.saleCode || `SALE-${sale.id}`,
           date: sale.createdAt || sale.saleDate || new Date().toISOString().split('T')[0],
           storeName: sale.store?.name || "Store",
-        storeEmployee: sale.employee?.name || sale.reportedByEmployee?.name || "Employee",
-          customerName: sale.customer?.name || "Customer",
-        customerId: sale.customerId || sale.customer?.id,
+          storeEmployee: sale.employee?.name || sale.reportedByEmployee?.name || "Employee",
+          customerName: customerName,
+          customerId: sale.customerId || sale.customer?.id,
           quantity: sale.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,
-        status: sale.saleStatus || sale.paymentStatus || "pending",
-        paymentStatus: sale.paymentStatus || "pending",
-        grandTotal: sale.grandTotal || sale.totalAmount || 0,
-        totalAmount: sale.totalAmount || 0,
-        paymentMethod: sale.paymentMethod || "N/A",
-        items: sale.items || [],
+          status: sale.saleStatus || sale.paymentStatus || "pending",
+          paymentStatus: sale.paymentStatus || "pending",
+          grandTotal: sale.grandTotal || sale.totalAmount || 0,
+          totalAmount: sale.totalAmount || 0,
+          paymentMethod: sale.paymentMethod || "N/A",
+          items: sale.items || [],
+          invoices: sale.invoices || [], // Include invoices array
+          invoiceNumber: sale.invoices?.[0]?.invoiceNumber || null, // Get first invoice number
+          invoiceId: sale.invoices?.[0]?.id || null, // Get first invoice ID
           originalData: sale
-      })) : [];
+        };
+      }) : [];
+      
+      console.log('StoreSalesOrders - Mapped orders:', mappedOrders);
       
         setOrders(mappedOrders);
       setTotal(paginationData.total || mappedOrders.length);
@@ -249,6 +295,101 @@ function StoreSalesOrders({ onBack }) {
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleDownloadInvoice = async (order) => {
+    if (!storeId || !order.invoiceId) {
+      setError("Invoice not available for this order.");
+      setIsModalOpen(true);
+      return;
+    }
+
+    setDownloadingInvoiceId(order.invoiceId);
+    setError(null);
+
+    // Check if user is admin
+    const userData = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = userData.user || userData;
+    const isAdminUser = isAdmin(user);
+
+    // Use the provided endpoints
+    // Admin: GET /stores/admin/:storeId/invoices/:invoiceId/download?divisionId=1
+    // Store: GET /stores/:storeId/invoices/:invoiceId/download
+    // Note: divisionId is automatically added by the API interceptor, so we don't add it manually
+    const endpoint = isAdminUser
+      ? `/stores/admin/${storeId}/invoices/${order.invoiceId}/download`
+      : `/stores/${storeId}/invoices/${order.invoiceId}/download`;
+
+    console.log('Attempting invoice download:', endpoint);
+    console.log('Invoice ID:', order.invoiceId);
+    console.log('Store ID:', storeId);
+    console.log('Is Admin:', isAdminUser);
+
+    try {
+      const response = await axiosAPI.getpdf(endpoint);
+
+      // Check if we got a valid response
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
+      // Check if it's a proper blob
+      if (!(response.data instanceof Blob)) {
+        console.error('Response is not a blob:', response.data);
+        throw new Error('Invalid response format - expected blob');
+      }
+
+      // Check if blob has content
+      if (response.data.size === 0) {
+        throw new Error('Received empty file from server');
+      }
+
+      // Create download link
+      const downloadUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      const invoiceNumber = order.invoiceNumber || order.saleCode || `invoice-${order.invoiceId}`;
+      link.download = `${invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      console.log('Invoice download initiated successfully');
+    } catch (err) {
+      console.error('Error downloading invoice:', err);
+      console.error('Attempted endpoint:', endpoint);
+      console.error('Invoice ID:', order.invoiceId);
+      console.error('Sale ID:', order.id);
+      console.error('Store ID:', storeId);
+      console.error('Error status:', err.response?.status);
+      console.error('Error response:', err.response?.data);
+      
+      // Provide more helpful error message
+      let errorMessage = "Failed to download invoice. ";
+      if (err.response?.status === 403) {
+        errorMessage += "You don't have permission to download this invoice. Please contact your administrator.";
+      } else if (err.response?.status === 404) {
+        errorMessage += "Invoice download endpoint not found. Please contact support or check if the invoice is available.";
+      } else {
+        // Try to parse blob error message if available
+        let backendMessage = "";
+        if (err.response?.data instanceof Blob) {
+          try {
+            const text = await err.response.data.text();
+            backendMessage = JSON.parse(text)?.message || text;
+          } catch (parseErr) {
+            backendMessage = "";
+          }
+        }
+        errorMessage += backendMessage || err.response?.data?.message || err.message || "Please try again.";
+      }
+      
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
   };
 
   const handleSubmit = () => {
@@ -494,24 +635,25 @@ function StoreSalesOrders({ onBack }) {
                 <th>S.No</th>
                 <th>Date</th>
                 <th>Sale Code</th>
-                <th>Customer Name</th>
+                <th>Farmer Name</th>
                 <th>Quantity</th>
                 <th>Total Amount</th>
                 <th>Payment Method</th>
                 <th>Status</th>
+                <th>Invoice</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center" style={{ padding: '20px' }}>
+                  <td colSpan={9} className="text-center" style={{ padding: '20px' }}>
                     Loading...
                   </td>
                 </tr>
               ) : displayOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center" style={{ padding: '20px' }}>
-                    No sales orders found.
+                  <td colSpan={9} className="text-center" style={{ padding: '20px' }}>
+No sales orders found.
                   </td>
                 </tr>
               ) : (
@@ -536,6 +678,24 @@ function StoreSalesOrders({ onBack }) {
                       >
                           {order.status || order.paymentStatus || 'pending'}
                       </span>
+                    </td>
+                    <td>
+                      {order.invoiceId ? (
+                        <button
+                          className="submitbtn"
+                          onClick={() => handleDownloadInvoice(order)}
+                          disabled={downloadingInvoiceId === order.invoiceId}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '12px',
+                            minWidth: '80px'
+                          }}
+                        >
+                          {downloadingInvoiceId === order.invoiceId ? 'Downloading...' : 'Download'}
+                        </button>
+                      ) : (
+                        <span style={{ color: '#999', fontSize: '12px' }}>N/A</span>
+                      )}
                     </td>
                   </tr>
                   );

@@ -5,7 +5,11 @@ import ErrorModal from "@/components/ErrorModal";
 import LoadingAnimation from "@/components/LoadingAnimation";
 import inventoryAni from "../../../images/animations/fetchingAnimation.gif";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import storeService from "../../../services/storeService";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 function StoreStockTransfer() {
   const navigate = useNavigate();
@@ -278,6 +282,39 @@ function StoreStockTransfer() {
     setError(null);
   };
 
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Product",
+      "Product Code",
+      "Available Stock",
+      "Unit"
+    ];
+    const dataToExport = currentStock && currentStock.length > 0 
+      ? currentStock.filter(product => (product.available || product.currentStock || 0) > 0)
+      : [];
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Product": item.productName || '-',
+          "Product Code": item.productCode || '-',
+          "Available Stock": Number(item.available || item.currentStock || 0).toFixed(2),
+          "Unit": item.unit || 'kg'
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Stock_Transfer");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "StockTransfer");
+    } else {
+      setError("Table is Empty");
+    }
+  };
+
   const transferItemsList = Object.values(transferItems);
   const totalItems = transferItemsList.reduce((sum, item) => sum + item.quantity, 0);
   const transferType = getTransferType();
@@ -400,6 +437,22 @@ function StoreStockTransfer() {
               )}
             </div>
           </div>
+
+          {/* Export buttons */}
+          {currentStock.filter(product => (product.available || product.currentStock || 0) > 0).length > 0 && (
+            <div className="row m-0 p-3 justify-content-around">
+              <div className="col-lg-5">
+                <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
+                  <p>Export to </p>
+                  <img src={xls} alt="" />
+                </button>
+                <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
+                  <p>Export to </p>
+                  <img src={pdf} alt="" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Available Stock */}
           <div className={styles.orderStatusCard} style={{ marginBottom: '24px' }}>

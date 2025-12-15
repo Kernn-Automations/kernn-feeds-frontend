@@ -7,6 +7,10 @@ import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 import storeService from "../../../services/storeService";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 const statusOptions = [
   { label: "All statuses", value: "" },
@@ -23,11 +27,12 @@ const initialUpdateForm = {
   value: "",
   tax: "",
   notes: "",
+  condition: "good",
 };
 
 export default function StoreAssets() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, axiosAPI } = useAuth();
   const actualUser = user?.user || user || {};
   const inferredStoreId = actualUser?.storeId || actualUser?.store?.id || null;
   const isEmployee = isStoreEmployee(actualUser);
@@ -41,6 +46,9 @@ export default function StoreAssets() {
 
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [updateForm, setUpdateForm] = useState(initialUpdateForm);
+  const [updateBillDocument, setUpdateBillDocument] = useState(null);
+  const [selectedBillImage, setSelectedBillImage] = useState(null);
+  const [showBillModal, setShowBillModal] = useState(false);
   const [stockInQty, setStockInQty] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -50,6 +58,10 @@ export default function StoreAssets() {
     value: "",
     tax: "",
     notes: "",
+    condition: "good",
+    billDocument: null,
+    billDocumentFile: null,
+    billDocumentPreview: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -121,6 +133,12 @@ export default function StoreAssets() {
       const assetsData = res.data || res.assets || res || [];
       const paginationData = res.pagination || {};
       
+      // Debug: Log first asset to see billDocument field
+      if (assetsData.length > 0) {
+        console.log('First asset from API:', assetsData[0]);
+        console.log('billDocument field:', assetsData[0].billDocument);
+      }
+      
       // Map backend response to frontend format
       const mappedAssets = Array.isArray(assetsData) ? assetsData.map(item => ({
         id: item.id,
@@ -135,6 +153,8 @@ export default function StoreAssets() {
         total: parseFloat(item.total || (item.value + item.tax) || 0),
         status: item.status || "pending",
         notes: item.notes || "",
+        condition: item.condition || item.itemCondition || "good",
+        billDocument: item.billDocument || null,
         store: item.store || { name: "-" },
         createdAt: item.createdAt,
         updatedAt: item.updatedAt
@@ -185,6 +205,8 @@ export default function StoreAssets() {
             total: parseFloat(data.total || (data.value + data.tax) || 0),
             status: data.status || "pending",
             notes: data.notes || "",
+            condition: data.condition || data.itemCondition || "good",
+            billDocument: data.billDocument || null,
             store: data.store || { name: "-" },
             createdAt: data.createdAt,
             updatedAt: data.updatedAt
@@ -198,7 +220,9 @@ export default function StoreAssets() {
             value: mappedData.value.toString(),
             tax: mappedData.tax.toString(),
             notes: mappedData.notes || "",
+            condition: mappedData.condition || "good",
           });
+          setUpdateBillDocument(null);
           setStockInQty("");
         } else {
           throw new Error("Asset not found.");
@@ -275,6 +299,20 @@ export default function StoreAssets() {
 
     setActionLoading(true);
     try {
+      // Validate bill document size before proceeding
+      if (updateBillDocument) {
+        const formattedBase64 = formatBase64DataURL(updateBillDocument);
+        if (!formattedBase64) {
+          const base64Part = updateBillDocument.includes(',') 
+            ? updateBillDocument.split(',')[1] 
+            : updateBillDocument;
+          const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
+          showError(`Bill document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`);
+          setActionLoading(false);
+          return;
+        }
+      }
+
       const payload = {
         assetDate: updateForm.assetDate,
         itemName: updateForm.itemName,
@@ -283,9 +321,16 @@ export default function StoreAssets() {
         value: Number(updateForm.value || 0),
         tax: Number(updateForm.tax || 0),
         notes: updateForm.notes || "",
+        condition: updateForm.condition || "good",
       };
       
+      // Add billDocumentBase64 if bill document is present (send full data URL)
+      if (updateBillDocument) {
+        payload.billDocumentBase64 = formatBase64DataURL(updateBillDocument);
+      }
+      
       const res = await storeService.updateStoreAsset(storeId, selectedAsset.id, payload);
+      showSuccess(res.message || "Asset updated successfully.");
       const updatedData = res.data || res.asset || res;
       
       if (updatedData && updatedData.id) {
@@ -302,16 +347,16 @@ export default function StoreAssets() {
           total: parseFloat(updatedData.total || (updatedData.value + updatedData.tax) || 0),
           status: updatedData.status || "pending",
           notes: updatedData.notes || "",
+          condition: updatedData.condition || updatedData.itemCondition || "good",
+          billDocument: updatedData.billDocument || null,
           store: updatedData.store || { name: "-" },
           createdAt: updatedData.createdAt,
           updatedAt: updatedData.updatedAt
         };
         
         setSelectedAsset(mappedData);
-        showSuccess(res.message || "Asset updated successfully.");
         await fetchStoreAssets();
       } else {
-        showSuccess("Asset updated successfully.");
         await fetchStoreAssets();
       }
     } catch (err) {
@@ -359,6 +404,8 @@ export default function StoreAssets() {
           total: parseFloat(updatedData.total || (updatedData.value + updatedData.tax) || 0),
           status: updatedData.status || "pending",
           notes: updatedData.notes || "",
+          condition: updatedData.condition || updatedData.itemCondition || "good",
+          billDocument: updatedData.billDocument || updatedData.bill || null,
           store: updatedData.store || { name: "-" },
           createdAt: updatedData.createdAt,
           updatedAt: updatedData.updatedAt
@@ -410,6 +457,202 @@ export default function StoreAssets() {
     setCreateForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Compress image function (same as store creation)
+  const compressImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (maintain aspect ratio)
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to compress image'));
+          }
+        }, file.type, quality);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Helper function to validate and format base64 data URL
+  const formatBase64DataURL = (base64String) => {
+    if (!base64String) return undefined;
+    
+    // If it's already a data URL (data:image/...;base64,...), use it as is
+    if (base64String.startsWith('data:')) {
+      // Extract just the base64 part for size calculation
+      const base64Part = base64String.includes(',') ? base64String.split(',')[1] : base64String;
+      const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
+      
+      if (base64SizeMB > 1.5) {
+        return undefined; // Will be handled below
+      }
+      
+      // Return full data URL as backend expects: data:image/...;base64,...
+      return base64String;
+    }
+    
+    // If it's just base64 string without prefix, add default image prefix
+    const mimeType = 'image/jpeg'; // Default
+    return `data:${mimeType};base64,${base64String}`;
+  };
+
+  const handleCreateBillChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 2MB for images, 3MB for PDFs)
+    const maxSize = file.type === 'application/pdf' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showError(`File size should be less than ${maxSize / 1024 / 1024}MB`);
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    try {
+      let processedFile = file;
+      let previewUrl = null;
+
+      // Compress images before converting to base64
+      if (file.type.startsWith('image/')) {
+        // Compress image
+        const compressedBlob = await compressImage(file, 800, 600, 0.7);
+        processedFile = new File([compressedBlob], file.name, { type: file.type });
+        previewUrl = URL.createObjectURL(compressedBlob);
+        
+        // Check compressed size
+        if (compressedBlob.size > 1.5 * 1024 * 1024) {
+          showError("Image is still too large after compression. Please use a smaller image.");
+          e.target.value = '';
+          return;
+        }
+      } else if (file.type === 'application/pdf') {
+        // For PDFs, just check size - no compression
+        if (file.size > 2 * 1024 * 1024) {
+          showError("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
+          e.target.value = '';
+          return;
+        }
+      }
+
+      // Convert to base64 using FileReader.readAsDataURL (returns full data URL)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result; // Full data URL: data:image/jpeg;base64,...
+        setCreateForm((prev) => ({ 
+          ...prev, 
+          billDocument: base64String, 
+          billDocumentFile: processedFile,
+          billDocumentPreview: previewUrl
+        }));
+      };
+      reader.onerror = () => {
+        showError("Error reading file");
+        e.target.value = '';
+      };
+      reader.readAsDataURL(processedFile);
+    } catch (error) {
+      console.error("Error processing file:", error);
+      showError("Error processing file: " + error.message);
+      e.target.value = '';
+    }
+  };
+
+  const handleUpdateBillChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 2MB for images, 3MB for PDFs)
+    const maxSize = file.type === 'application/pdf' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showError(`File size should be less than ${maxSize / 1024 / 1024}MB`);
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    try {
+      let processedFile = file;
+      let previewUrl = null;
+
+      // Compress images before converting to base64
+      if (file.type.startsWith('image/')) {
+        // Compress image
+        const compressedBlob = await compressImage(file, 800, 600, 0.7);
+        processedFile = new File([compressedBlob], file.name, { type: file.type });
+        previewUrl = URL.createObjectURL(compressedBlob);
+        
+        // Check compressed size
+        if (compressedBlob.size > 1.5 * 1024 * 1024) {
+          showError("Image is still too large after compression. Please use a smaller image.");
+          e.target.value = '';
+          return;
+        }
+      } else if (file.type === 'application/pdf') {
+        // For PDFs, just check size - no compression
+        if (file.size > 2 * 1024 * 1024) {
+          showError("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
+          e.target.value = '';
+          return;
+        }
+      }
+
+      // Convert to base64 using FileReader.readAsDataURL (returns full data URL)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result; // Full data URL: data:image/jpeg;base64,...
+        setUpdateBillDocument(base64String);
+      };
+      reader.onerror = () => {
+        showError("Error reading file");
+        e.target.value = '';
+      };
+      reader.readAsDataURL(processedFile);
+    } catch (error) {
+      console.error("Error processing file:", error);
+      showError("Error processing file: " + error.message);
+      e.target.value = '';
+    }
+  };
+
+  const handleViewBill = (billUrl) => {
+    if (billUrl) {
+      setSelectedBillImage(billUrl);
+      setShowBillModal(true);
+    }
+  };
+
+  const closeBillModal = () => {
+    setShowBillModal(false);
+    setSelectedBillImage(null);
+  };
+
   const handleCreateAsset = async (event) => {
     event.preventDefault();
     if (!storeId) {
@@ -424,6 +667,20 @@ export default function StoreAssets() {
 
     setActionLoading(true);
     try {
+      // Validate bill document size before proceeding
+      if (createForm.billDocument) {
+        const formattedBase64 = formatBase64DataURL(createForm.billDocument);
+        if (!formattedBase64) {
+          const base64Part = createForm.billDocument.includes(',') 
+            ? createForm.billDocument.split(',')[1] 
+            : createForm.billDocument;
+          const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
+          showError(`Bill document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`);
+          setActionLoading(false);
+          return;
+        }
+      }
+
       const payload = {
         storeId: storeId,
         assetDate: createForm.assetDate,
@@ -433,19 +690,29 @@ export default function StoreAssets() {
         value: Number(createForm.value || 0),
         tax: Number(createForm.tax || 0),
         notes: createForm.notes || "",
+        condition: createForm.condition || "good",
       };
       
-      const res = await storeService.createStoreAsset(payload);
+      // Add billDocumentBase64 if bill document is present (send full data URL)
+      if (createForm.billDocument) {
+        payload.billDocumentBase64 = formatBase64DataURL(createForm.billDocument);
+      }
       
+      const res = await storeService.createStoreAsset(payload);
       showSuccess(res.message || "Asset created successfully.");
+      
       setShowCreateForm(false);
-      setCreateForm({
+        setCreateForm({
         assetDate: new Date().toISOString().slice(0, 10),
         itemName: "",
         quantity: "",
         value: "",
         tax: "",
         notes: "",
+        condition: "good",
+        billDocument: null,
+        billDocumentFile: null,
+        billDocumentPreview: null,
       });
       await fetchStoreAssets();
     } catch (err) {
@@ -460,6 +727,45 @@ export default function StoreAssets() {
   const closeSuccessModal = () => setIsSuccessModalOpen(false);
 
   const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Asset Code",
+      "Date",
+      "Item Name",
+      "Quantity",
+      "Value",
+      "Tax",
+      "Total",
+      "Status"
+    ];
+    const dataToExport = filteredAssets && filteredAssets.length > 0 ? filteredAssets : assets;
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Asset Code": item.assetCode || '-',
+          "Date": item.assetDate ? new Date(item.assetDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : '-',
+          "Item Name": item.itemName || '-',
+          "Quantity": item.quantity || 0,
+          "Value": formatCurrency(item.value || 0),
+          "Tax": formatCurrency(item.tax || 0),
+          "Total": formatCurrency(item.total || 0),
+          "Status": item.status || 'pending'
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Store_Assets");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "StoreAssets");
+    } else {
+      showError("Table is Empty");
+    }
+  };
 
   return (
     <div style={{ padding: "20px" }}>
@@ -628,6 +934,64 @@ export default function StoreAssets() {
                       }}
                     />
                   </div>
+                  <div>
+                    <label>Item Condition</label>
+                    <select
+                      value={createForm.condition}
+                      onChange={(e) => handleCreateInputChange("condition", e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
+                    >
+                      <option value="good">Good</option>
+                      <option value="bad">Bad</option>
+                    </select>
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label>Bill Upload</label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleCreateBillChange}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
+                    />
+                    {createForm.billDocument && (
+                      <div style={{ marginTop: "8px" }}>
+                        <p style={{ margin: "4px 0", fontSize: "12px", color: "#059669", fontFamily: "Poppins" }}>
+                          Selected: {createForm.billDocumentFile?.name || "Bill document ready"}
+                        </p>
+                        {createForm.billDocumentPreview && (
+                          <img
+                            src={createForm.billDocumentPreview}
+                            alt="Bill preview"
+                            style={{
+                              maxWidth: "200px",
+                              maxHeight: "150px",
+                              marginTop: "8px",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label>Notes</label>
                     <textarea
@@ -664,6 +1028,9 @@ export default function StoreAssets() {
                         value: "",
                         tax: "",
                         notes: "",
+                        condition: "good",
+                        billDocument: null,
+                        billDocumentFile: null,
                       });
                     }}
                     style={{ background: "#f3f4f6", color: "#2563eb" }}
@@ -682,9 +1049,14 @@ export default function StoreAssets() {
                   Asset Summary
                 </h4>
               </div>
-              <p style={{ fontFamily: "Poppins", margin: 0, color: "#059669", fontWeight: 600 }}>
-                Total Value (page): {formatCurrency(totalValue)}
-              </p>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
+                <p style={{ fontFamily: "Poppins", margin: 0, color: "#059669", fontWeight: 700, fontSize: "18px" }}>
+                  Asset Total: {formatCurrency(totalValue)}
+                </p>
+                <p style={{ fontFamily: "Poppins", margin: 0, color: "#6b7280", fontSize: "12px" }}>
+                  (Total of {filteredAssets.length} asset{filteredAssets.length !== 1 ? 's' : ''} on this page)
+                </p>
+              </div>
             </div>
 
             <div className="row m-0 p-3" style={{ marginBottom: "24px" }}>
@@ -769,6 +1141,8 @@ export default function StoreAssets() {
                     <th>Value (₹)</th>
                     <th>Tax (₹)</th>
                     <th>Total (₹)</th>
+                    <th>Condition</th>
+                    <th>Bill</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -776,7 +1150,7 @@ export default function StoreAssets() {
                 <tbody>
                   {filteredAssets.length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "#666" }}>
+                      <td colSpan={13} style={{ textAlign: "center", padding: "32px", color: "#666" }}>
                         {loading ? "Loading assets..." : "No assets found"}
                       </td>
                     </tr>
@@ -792,6 +1166,29 @@ export default function StoreAssets() {
                         <td>{formatCurrency(asset.value)}</td>
                         <td>{formatCurrency(asset.tax)}</td>
                         <td>{formatCurrency(asset.total)}</td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              (asset.condition || "good") === "good" ? "bg-success" : "bg-danger"
+                            }`}
+                          >
+                            {(asset.condition || "good") === "good" ? "Good" : "Bad"}
+                          </span>
+                        </td>
+                        <td>
+                          {asset.billDocument && asset.billDocument !== null && asset.billDocument !== '' ? (
+                            <button
+                              className="homebtn"
+                              style={{ fontSize: "11px" }}
+                              onClick={() => handleViewBill(asset.billDocument)}
+                              title="View Bill"
+                            >
+                              <i className="bi bi-eye"></i> View
+                            </button>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
                         <td>
                           <span
                             className={`badge ${
@@ -869,42 +1266,194 @@ export default function StoreAssets() {
                       <label>Total Value</label>
                       <p style={{ fontFamily: "Poppins", fontWeight: 600 }}>{formatCurrency(selectedAsset.total)}</p>
                     </div>
+                    <div>
+                      <label>Item Condition</label>
+                      <p style={{ fontFamily: "Poppins", fontWeight: 600 }}>
+                        <span
+                          className={`badge ${
+                            selectedAsset.condition === "good" ? "bg-success" : "bg-danger"
+                          }`}
+                        >
+                          {selectedAsset.condition === "good" ? "Good" : "Bad"}
+                        </span>
+                      </p>
+                    </div>
                   </div>
 
                   {!isEmployee && (
                     <div style={{ marginTop: "24px", display: "grid", gap: "24px" }}>
                       <form onSubmit={handleUpdateAsset}>
-                        <h5 style={{ fontFamily: "Poppins", fontWeight: 600 }}>Update Asset</h5>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
+                        <h5 style={{ fontFamily: "Poppins", fontWeight: 600, marginBottom: "16px", fontSize: "18px", color: "var(--primary-color)" }}>Update Asset</h5>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "16px" }}>
                           <div>
-                            <label>Date</label>
-                            <input type="date" value={updateForm.assetDate} onChange={(e) => handleUpdateInputChange("assetDate", e.target.value)} required />
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Date</label>
+                            <input
+                              type="date"
+                              value={updateForm.assetDate}
+                              onChange={(e) => handleUpdateInputChange("assetDate", e.target.value)}
+                              required
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
+                            />
                           </div>
                           <div>
-                            <label>Item Name</label>
-                            <input type="text" value={updateForm.itemName} onChange={(e) => handleUpdateInputChange("itemName", e.target.value)} required />
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Item Name</label>
+                            <input
+                              type="text"
+                              value={updateForm.itemName}
+                              onChange={(e) => handleUpdateInputChange("itemName", e.target.value)}
+                              required
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
+                            />
                           </div>
                           <div>
-                            <label>Quantity</label>
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Quantity</label>
                             <input
                               type="number"
                               min="1"
                               value={updateForm.quantity}
                               onChange={(e) => handleUpdateInputChange("quantity", e.target.value)}
                               required
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
                             />
                           </div>
                           <div>
-                            <label>Value (₹)</label>
-                            <input type="number" min="0" value={updateForm.value} onChange={(e) => handleUpdateInputChange("value", e.target.value)} required />
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Value (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={updateForm.value}
+                              onChange={(e) => handleUpdateInputChange("value", e.target.value)}
+                              required
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
+                            />
                           </div>
                           <div>
-                            <label>Tax (₹)</label>
-                            <input type="number" min="0" value={updateForm.tax} onChange={(e) => handleUpdateInputChange("tax", e.target.value)} />
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Tax (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={updateForm.tax}
+                              onChange={(e) => handleUpdateInputChange("tax", e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Item Condition</label>
+                            <select
+                              value={updateForm.condition}
+                              onChange={(e) => handleUpdateInputChange("condition", e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
+                            >
+                              <option value="good">Good</option>
+                              <option value="bad">Bad</option>
+                            </select>
                           </div>
                           <div style={{ gridColumn: "1 / -1" }}>
-                            <label>Notes</label>
-                            <textarea rows="2" value={updateForm.notes} onChange={(e) => handleUpdateInputChange("notes", e.target.value)} />
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Bill Upload</label>
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              onChange={handleUpdateBillChange}
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                              }}
+                            />
+                            {updateBillDocument && (
+                              <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#059669", fontFamily: "Poppins" }}>
+                                New file selected
+                              </p>
+                            )}
+                            {selectedAsset?.billDocument && !updateBillDocument && selectedAsset.billDocument !== null && selectedAsset.billDocument !== '' ? (
+                              <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#6b7280", fontFamily: "Poppins" }}>
+                                Current bill: <button
+                                  type="button"
+                                  onClick={() => handleViewBill(selectedAsset.billDocument)}
+                                  style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", textDecoration: "underline", fontFamily: "Poppins", fontSize: "12px" }}
+                                >
+                                  View
+                                </button>
+                              </p>
+                            ) : null}
+                          </div>
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <label style={{ fontFamily: "Poppins", fontSize: "14px", fontWeight: 500, marginBottom: "4px", display: "block" }}>Notes</label>
+                            <textarea
+                              rows="2"
+                              value={updateForm.notes}
+                              onChange={(e) => handleUpdateInputChange("notes", e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "1px solid #000",
+                                borderRadius: "4px",
+                                fontSize: "14px",
+                                fontFamily: "Poppins",
+                                backgroundColor: "#fff",
+                                color: "#000",
+                                resize: "vertical",
+                              }}
+                            />
                           </div>
                         </div>
                         <div style={{ marginTop: "12px", display: "flex", gap: "12px" }}>
@@ -971,6 +1520,102 @@ export default function StoreAssets() {
             </div>
           )}
         </>
+      )}
+
+      {/* Bill View Modal */}
+      {showBillModal && selectedBillImage && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.95)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 10000,
+            padding: 0,
+          }}
+          onClick={closeBillModal}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: "100vw",
+              height: "100vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "#000",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                padding: "20px",
+                zIndex: 10001,
+                background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent)",
+              }}
+            >
+              <button
+                onClick={closeBillModal}
+                style={{
+                  background: "rgba(255, 255, 255, 0.2)",
+                  border: "2px solid rgba(255, 255, 255, 0.3)",
+                  fontSize: "28px",
+                  color: "#fff",
+                  cursor: "pointer",
+                  padding: 0,
+                  width: "40px",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
+                  transition: "all 0.3s ease",
+                  backdropFilter: "blur(10px)",
+                }}
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                padding: 0,
+                overflow: "auto",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <img
+                src={selectedBillImage}
+                alt="Bill Document"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  display: "block",
+                }}
+                onError={(e) => {
+                  e.target.src = '';
+                  e.target.alt = 'Failed to load bill';
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {(loading || detailLoading || actionLoading) && <Loading />}

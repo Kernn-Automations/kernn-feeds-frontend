@@ -20,6 +20,7 @@ export default function StoreAssetTransfer() {
   const [assets, setAssets] = useState([]);
   const [stores, setStores] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [assetsWithPendingTransfers, setAssetsWithPendingTransfers] = useState(new Set());
   const [transfersLoading, setTransfersLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,13 +86,20 @@ export default function StoreAssetTransfer() {
     try {
       setLoading(true);
       const res = await storeService.getStoreAssets(storeId, { limit: 1000 }); // Get all assets
+      console.log('Assets response:', res);
+      
       const assetsData = res.data || res.assets || res || [];
       
-      // Map assets and calculate available quantity
+      // Map assets - use quantity directly as available quantity for transfer
+      // Backend returns: quantity (actual available), requestedQuantity, receivedQuantity
       const mappedAssets = Array.isArray(assetsData) ? assetsData.map(item => {
+        const quantity = parseFloat(item.quantity || 0);
         const requestedQty = parseFloat(item.requestedQuantity || item.quantity || 0);
         const receivedQty = parseFloat(item.receivedQuantity || 0);
-        const availableQty = Math.max(requestedQty - receivedQty, 0);
+        
+        // For transfer, available quantity is the quantity field (actual available quantity)
+        // If quantity is not available, fall back to requestedQuantity - receivedQuantity
+        const availableQty = quantity > 0 ? quantity : Math.max(requestedQty - receivedQty, 0);
         
         return {
           id: item.id,
@@ -100,10 +108,26 @@ export default function StoreAssetTransfer() {
           availableQuantity: availableQty,
           totalQuantity: requestedQty,
           receivedQuantity: receivedQty,
+          quantity: quantity,
+          status: item.status || "completed",
         };
-      }).filter(asset => asset.availableQuantity > 0) : []; // Only show assets with available quantity
+      }) : [];
       
-      setAssets(mappedAssets);
+      // Filter out assets with pending transfers and assets with no available quantity
+      const filteredAssets = mappedAssets.filter(asset => {
+        const hasAvailableQty = asset.availableQuantity > 0;
+        // Check both number and string versions of asset ID
+        const assetIdNum = Number(asset.id);
+        const hasPendingTransfer = assetsWithPendingTransfers.has(assetIdNum) || assetsWithPendingTransfers.has(String(asset.id));
+        if (hasPendingTransfer) {
+          console.log(`Filtering out asset ${asset.id} (${asset.itemName}) - has pending transfer`);
+        }
+        return hasAvailableQty && !hasPendingTransfer;
+      });
+      
+      console.log('Mapped assets for dropdown:', filteredAssets);
+      console.log('Assets with pending transfers (excluded):', Array.from(assetsWithPendingTransfers));
+      setAssets(filteredAssets);
     } catch (err) {
       console.error("Error fetching assets:", err);
       setError(err.response?.data?.message || err.message || "Error fetching assets");
@@ -150,21 +174,141 @@ export default function StoreAssetTransfer() {
     try {
       setTransfersLoading(true);
       const response = await storeService.getAssetTransfers(storeId, { limit: 50 });
-      const transfersData = response.data || response.transfers || response || [];
-      const mappedTransfers = Array.isArray(transfersData) ? transfersData.map(transfer => ({
-        id: transfer.id,
-        transferCode: transfer.transferCode || transfer.code || `AST-TRF-${transfer.id}`,
-        fromStore: transfer.fromStore || {},
-        toStore: transfer.toStore || {},
-        asset: transfer.asset || {},
-        quantity: transfer.quantity || 0,
-        status: transfer.status || "pending",
-        reason: transfer.reason || "-",
-        transferDate: transfer.transferDate || transfer.createdAt,
-        notes: transfer.notes || "",
-        totals: transfer.totals || {},
-      })) : [];
+      console.log('=== Transfers API Response ===');
+      console.log('Full response:', JSON.stringify(response, null, 2));
+      
+      // The API returns { success: true, data: [...] } where data is an array of transfer records
+      const transfersData = response.data || response.transfers || [];
+      
+      if (!Array.isArray(transfersData)) {
+        console.error('Transfers data is not an array:', transfersData);
+        setTransfers([]);
+        setTransfersLoading(false);
+        return;
+      }
+      
+      console.log('Transfers data array length:', transfersData.length);
+      if (transfersData.length > 0) {
+        console.log('First transfer sample:', JSON.stringify(transfersData[0], null, 2));
+      }
+      
+      // The API returns transfer records with items array
+      // Each transfer has: transferCode, fromStore, toStore, items[], grandTotal, totalQuantity
+      const mappedTransfers = transfersData.map((transfer, index) => {
+        console.log(`\n=== Processing transfer ${index + 1}/${transfersData.length} ===`);
+        console.log('Transfer ID:', transfer.id);
+        console.log('Transfer Code:', transfer.transferCode);
+        console.log('Items:', transfer.items);
+        console.log('Total Quantity:', transfer.totalQuantity);
+        console.log('Grand Total:', transfer.grandTotal);
+        
+        // Get asset information from items array or asset field
+        let itemName = "-";
+        let assetCode = "-";
+        let quantity = 0;
+        
+        if (transfer.items && Array.isArray(transfer.items) && transfer.items.length > 0) {
+          // Get from first item (most transfers have single item, but handle multiple)
+          const firstItem = transfer.items[0];
+          itemName = firstItem.itemName || transfer.asset || "-";
+          assetCode = firstItem.destinationAsset?.assetCode || 
+                     firstItem.sourceAsset?.assetCode || 
+                     "-";
+          // Sum up transferred quantities from all items
+          quantity = transfer.items.reduce((sum, item) => {
+            return sum + parseFloat(item.transferredQuantity || 0);
+          }, 0);
+        } else {
+          // Fallback to transfer-level fields
+          itemName = transfer.asset || transfer.assetNames?.[0] || "-";
+          quantity = parseFloat(transfer.totalQuantity || 0);
+        }
+        
+        // If quantity is still 0, try to get from items
+        if (quantity === 0 && transfer.items && transfer.items.length > 0) {
+          quantity = transfer.items.reduce((sum, item) => {
+            return sum + parseFloat(item.transferredQuantity || 0);
+          }, 0);
+        }
+        
+        // Get totals
+        const grandTotal = parseFloat(transfer.grandTotal || 0);
+        const totalValue = parseFloat(transfer.totalValue || 0);
+        const totalTax = parseFloat(transfer.totalTax || 0);
+        
+        console.log(`Mapped values - itemName: "${itemName}", quantity: ${quantity}, grandTotal: ${grandTotal}`);
+        
+        const mappedTransfer = {
+          id: transfer.id,
+          transferCode: transfer.transferCode || transfer.code || `AST-TRF-${transfer.id}`,
+          fromStore: transfer.fromStore || {},
+          toStore: transfer.toStore || {},
+          asset: {
+            id: transfer.items?.[0]?.destinationAssetId || transfer.items?.[0]?.sourceAssetId || null,
+            assetCode: assetCode,
+            itemName: itemName, // CRITICAL: Set itemName from items array
+            value: totalValue.toString(),
+            tax: totalTax.toString(),
+            total: grandTotal.toString(),
+            assetDate: transfer.transferDate || transfer.createdAt || null,
+            quantity: quantity,
+            // Include first item's asset data if available
+            ...(transfer.items?.[0]?.destinationAsset || transfer.items?.[0]?.sourceAsset || {}),
+            // Override with our mapped values
+            itemName: itemName,
+            assetCode: assetCode,
+            quantity: quantity,
+            total: grandTotal.toString(),
+          },
+          assetId: transfer.items?.[0]?.destinationAssetId || transfer.items?.[0]?.sourceAssetId || null,
+          quantity: quantity, // CRITICAL: Set at transfer level for table display
+          status: transfer.status || "pending",
+          reason: transfer.reason || "-",
+          transferDate: transfer.transferDate || transfer.createdAt,
+          notes: transfer.notes || "",
+          totals: {
+            totalValue: totalValue,
+            totalTax: totalTax,
+            grandTotal: grandTotal,
+          },
+          items: transfer.items || [], // Keep items array for reference
+        };
+        
+        console.log('Final mapped transfer:', {
+          id: mappedTransfer.id,
+          transferCode: mappedTransfer.transferCode,
+          itemName: mappedTransfer.asset.itemName,
+          quantity: mappedTransfer.quantity,
+          grandTotal: mappedTransfer.totals.grandTotal,
+        });
+        return mappedTransfer;
+      });
+      console.log('\n=== Final Mapped Transfers ===');
+      console.log('Total mapped transfers:', mappedTransfers.length);
+      mappedTransfers.forEach((t, i) => {
+        console.log(`Transfer ${i + 1}:`, {
+          id: t.id,
+          transferCode: t.transferCode,
+          itemName: t.asset?.itemName,
+          quantity: t.quantity,
+          total: t.totals?.grandTotal,
+        });
+      });
       setTransfers(mappedTransfers);
+      
+      // Track assets with pending transfers (exclude completed/cancelled)
+      const pendingAssetIds = new Set();
+      mappedTransfers.forEach(transfer => {
+        if (transfer.status === "pending" && transfer.assetId) {
+          const assetIdNum = Number(transfer.assetId);
+          console.log(`Asset ${assetIdNum} (type: ${typeof assetIdNum}) has pending transfer ${transfer.transferCode}`);
+          pendingAssetIds.add(assetIdNum); // Ensure it's a number
+          // Also add as string to catch both cases
+          pendingAssetIds.add(String(transfer.assetId));
+        }
+      });
+      console.log('Pending asset IDs Set:', Array.from(pendingAssetIds));
+      setAssetsWithPendingTransfers(pendingAssetIds);
     } catch (err) {
       console.error("Error fetching asset transfers:", err);
       // Don't show error modal for transfers, just log it
@@ -179,9 +323,11 @@ export default function StoreAssetTransfer() {
 
   useEffect(() => {
     if (currentStore?.id) {
-      fetchAssets();
       fetchStores();
-      fetchTransfers();
+      // Fetch transfers first, then fetch assets after transfers are loaded
+      fetchTransfers().then(() => {
+        fetchAssets();
+      });
     }
   }, [currentStore]);
 
@@ -241,11 +387,54 @@ export default function StoreAssetTransfer() {
       return;
     }
 
-    try {
-      setSubmitting(true);
-      setError(null);
+    // Refetch transfers to ensure we have latest data before validation
+    const storeId = getStoreId();
+    if (!storeId) {
+      setError("Store information missing. Please select a store first.");
+      setIsErrorModalOpen(true);
+      return;
+    }
 
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      // Fetch latest transfers to check for pending transfers
+      const latestTransfersResponse = await storeService.getAssetTransfers(storeId, { limit: 50 });
+      const latestTransfersData = latestTransfersResponse.data || latestTransfersResponse.transfers || latestTransfersResponse || [];
+      const latestTransfers = Array.isArray(latestTransfersData) ? latestTransfersData.map(transfer => ({
+        assetId: transfer.assetId || transfer.asset?.id,
+        status: transfer.status || "pending",
+        transferCode: transfer.transferCode || transfer.code || `AST-TRF-${transfer.id}`,
+      })) : [];
+
+      // Check if asset has a pending transfer (check both Set and latest transfers array)
+      const assetIdNum = Number(form.assetId);
+      console.log('Checking for pending transfers - Asset ID:', assetIdNum);
+      console.log('Pending asset IDs Set:', Array.from(assetsWithPendingTransfers));
+      console.log('Latest transfers:', latestTransfers);
+      
+      // Check in Set first
+      const hasPendingInSet = assetsWithPendingTransfers.has(assetIdNum) || assetsWithPendingTransfers.has(String(assetIdNum));
+      // Also check in latest transfers array directly as fallback
+      const pendingTransfer = latestTransfers.find(t => {
+        const tAssetId = Number(t.assetId);
+        const matches = tAssetId === assetIdNum && t.status === "pending";
+        if (matches) {
+          console.log('Found pending transfer:', t);
+        }
+        return matches;
+      });
+      
+      if (hasPendingInSet || pendingTransfer) {
+        const transferCode = pendingTransfer?.transferCode || "N/A";
+        setError(`This asset is already part of a pending transfer (${transferCode}). Please complete or cancel the existing transfer first.`);
+        setIsErrorModalOpen(true);
+        setSubmitting(false);
+        return;
+      }
       const requestBody = {
+        storeId: storeId,
         assetId: Number(form.assetId),
         toStoreId: Number(form.toStoreId),
         quantity: quantity,
@@ -253,6 +442,8 @@ export default function StoreAssetTransfer() {
         additionalNotes: form.additionalNotes || "",
         remarks: form.remarks || "",
       };
+
+      console.log('Creating asset transfer with body:', requestBody);
 
       const response = await storeService.createAssetTransfer(requestBody);
 
@@ -644,8 +835,9 @@ export default function StoreAssetTransfer() {
                         {transfer.transferCode || `AST-TRF-${transfer.id}`}
                       </td>
                       <td style={{ fontFamily: "Poppins", fontSize: "13px" }}>
-                        {transfer.asset?.itemName || transfer.asset?.name || "-"}
-                        {transfer.asset?.assetCode && (
+                        {transfer.asset?.itemName || transfer.itemName || 
+                         (transfer.assetId ? `Asset ID: ${transfer.assetId}` : "-")}
+                        {transfer.asset?.assetCode && transfer.asset.assetCode !== "-" && (
                           <div style={{ fontSize: "11px", color: "#6b7280" }}>
                             {transfer.asset.assetCode}
                           </div>
@@ -668,7 +860,7 @@ export default function StoreAssetTransfer() {
                         )}
                       </td>
                       <td style={{ fontFamily: "Poppins", fontSize: "13px", fontWeight: 600 }}>
-                        {transfer.quantity || 0}
+                        {transfer.quantity || transfer.asset?.quantity || 0}
                       </td>
                       <td style={{ fontFamily: "Poppins", fontSize: "13px" }}>
                         {transfer.reason || "-"}
@@ -712,7 +904,11 @@ export default function StoreAssetTransfer() {
                       </td>
                       <td style={{ fontFamily: "Poppins", fontSize: "13px", fontWeight: 600 }}>
                         {transfer.totals?.grandTotal
-                          ? `₹${transfer.totals.grandTotal.toLocaleString("en-IN")}`
+                          ? `₹${parseFloat(transfer.totals.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : transfer.asset?.total
+                          ? `₹${parseFloat(transfer.asset.total).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : transfer.total
+                          ? `₹${parseFloat(transfer.total).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : "-"}
                       </td>
                     </tr>

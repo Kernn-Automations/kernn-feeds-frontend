@@ -71,4 +71,63 @@ export const isDivisionHead = (userLike) => {
   });
 };
 
+export const isBusinessOfficer = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "business officer" || n === "business_officer" || n === "businessofficer" || 
+           n === "business office" || n === "business_office" || n === "businessoffice" ||
+           (n.includes("business") && n.includes("officer")) ||
+           (n.includes("business") && n.includes("office"));
+  });
+};
+
+export const isWarehouseManager = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "warehouse manager" || n === "warehouse_manager" || n === "warehousemanager" ||
+           (n.includes("warehouse") && n.includes("manager"));
+  });
+};
+
+export const isAreaBusinessManager = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "area business manager" || n === "area_business_manager" || n === "areabusinessmanager" ||
+           (n.includes("area") && n.includes("business") && n.includes("manager"));
+  });
+};
+
+/**
+ * Get all roles for a user as an array of normalized role names
+ * @param {Object} userLike - User object or null to get from storage
+ * @returns {Array<string>} - Array of normalized role names
+ */
+export const getUserRoles = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.map((r) => normalizeRoleName(r));
+};
+
+/**
+ * Check if user has a specific role
+ * @param {Object} userLike - User object or null to get from storage
+ * @param {string} roleName - Role name to check (case-insensitive)
+ * @returns {boolean} - True if user has the role
+ */
+export const hasRole = (userLike, roleName) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  const normalizedRoleName = normalizeRoleName(roleName);
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === normalizedRoleName || n.includes(normalizedRoleName) || normalizedRoleName.includes(n);
+  });
+};
+
 
