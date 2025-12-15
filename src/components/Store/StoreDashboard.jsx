@@ -9,6 +9,8 @@ import { isStoreManager, isAdmin, isDivisionHead } from "../../utils/roleUtils";
 
 const StoreHome = lazy(() => import("./StoreHome"));
 const StoreSales = lazy(() => import("./sales/StoreSales"));
+const StoreSalesReports = lazy(() => import("./sales/StoreSalesReports"));
+const StoreCashDeposit = lazy(() => import("./sales/StoreCashDeposit"));
 const StoreDamaged = lazy(() => import("./damaged/StoreDamaged"));
 const StoreInventory = lazy(() => import("./inventory/StoreInventory"));
 const StoreCurrentStock = lazy(() => import("./inventory/StoreCurrentStock"));
@@ -209,6 +211,8 @@ export default function StoreDashboard() {
             <Routes>
           <Route index element={<Suspense fallback={<div>Loading...</div>}><StoreHome /></Suspense>} />
           <Route path="sales" element={<Suspense fallback={<div>Loading...</div>}><StoreSales /></Suspense>} />
+          <Route path="sales-reports" element={<Suspense fallback={<div>Loading...</div>}><StoreSalesReports onBack={() => navigate("/store/sales")} /></Suspense>} />
+          <Route path="cashdeposit" element={<Suspense fallback={<div>Loading...</div>}><StoreCashDeposit /></Suspense>} />
           <Route path="damaged" element={<Suspense fallback={<div>Loading...</div>}><StoreDamaged /></Suspense>} />
           <Route path="inventory" element={<Suspense fallback={<div>Loading...</div>}><StoreInventory /></Suspense>} />
           <Route path="current-stock" element={<Suspense fallback={<div>Loading...</div>}><StoreCurrentStock /></Suspense>} />

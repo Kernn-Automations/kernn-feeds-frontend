@@ -80,7 +80,7 @@ const Divs = () => {
       if (data.success) {
         const divisionsList = data.data;
         
-        // Add "All Divisions" option if user is Admin or Super Admin
+        // Add "All Divisions" option if user is Admin or Super Admin (but NOT Business Officer, Warehouse Manager, etc.)
         let divisionsWithAll = [...divisionsList];
         
         // Check if user is Admin or Super Admin and has multiple divisions
@@ -90,12 +90,22 @@ const Divs = () => {
             return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
           });
           
+          // Check for restricted roles that should NOT have All Divisions access
+          const hasRestrictedRole = user.roles.some(role => {
+            const roleName = normalizeRoleName(role);
+            return roleName.includes("business officer") || 
+                   roleName.includes("business office") ||
+                   roleName.includes("warehouse manager") ||
+                   roleName.includes("area business manager");
+          });
+          
           console.log("Divs.jsx - Is Admin or Super Admin:", isAdminOrSuperAdmin);
+          console.log("Divs.jsx - Has Restricted Role (BO/WM/ABM):", hasRestrictedRole);
           console.log("Divs.jsx - Divisions count:", divisionsList.length);
 
-          // Always include All Divisions for admins, even if only one division is present
-          if (isAdminOrSuperAdmin) {
-            console.log("Divs.jsx - Adding All Divisions option");
+          // Always include All Divisions for admins (without restricted roles), even if only one division is present
+          if (isAdminOrSuperAdmin && !hasRestrictedRole) {
+            console.log("Divs.jsx - Adding All Divisions option (admin without restricted roles)");
             divisionsWithAll = [
               { 
                 id: "all", 
@@ -106,7 +116,8 @@ const Divs = () => {
               ...divisionsList
             ];
           } else {
-            // Ensure non-admin users never see an All Divisions option
+            // Ensure non-admin users and restricted roles never see an All Divisions option
+            console.log("Divs.jsx - Filtering out All Divisions option (isAdmin:", isAdminOrSuperAdmin, ", hasRestrictedRole:", hasRestrictedRole, ")");
             divisionsWithAll = divisionsWithAll.filter(d => d?.id !== "all" && !d?.isAllDivisions);
           }
         }
@@ -262,6 +273,28 @@ const Divs = () => {
         // Set success state to prevent any further actions
         setDivisionSelected(true);
 
+        // Ensure activeView is set to "admin" if not already set (for admin users)
+        // This prevents redirect to stores after division selection
+        const currentActiveView = localStorage.getItem("activeView");
+        if (!currentActiveView || currentActiveView !== "admin") {
+          // Check if user is admin - if so, set activeView to "admin"
+          try {
+            const userData = JSON.parse(localStorage.getItem("user"));
+            if (userData && userData.roles && Array.isArray(userData.roles)) {
+              const isAdminOrSuperAdmin = userData.roles.some(role => {
+                const roleName = normalizeRoleName(role);
+                return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
+              });
+              if (isAdminOrSuperAdmin) {
+                console.log("Divs.jsx - Setting activeView to 'admin' for admin user");
+                localStorage.setItem("activeView", "admin");
+              }
+            }
+          } catch (error) {
+            console.error("Error checking user role in Divs.jsx:", error);
+          }
+        }
+
         // Navigate to dashboard with a delay to ensure context state is updated
         setTimeout(() => {
           console.log("Divs.jsx - Navigating to dashboard...");
@@ -269,6 +302,7 @@ const Divs = () => {
             accessToken: localStorage.getItem("accessToken"),
             refreshToken: localStorage.getItem("refreshToken"),
           });
+          console.log("Divs.jsx - ActiveView before navigation:", localStorage.getItem("activeView"));
           console.log("navigate to /");
           navigate("/", { replace: true });
         }, 1500); // Increased delay to ensure context state is updated
@@ -309,8 +343,26 @@ const Divs = () => {
             }
           } catch {}
 
+          // Ensure activeView is set to "admin" for admin users
+          try {
+            const userData = JSON.parse(localStorage.getItem("user"));
+            if (userData && userData.roles && Array.isArray(userData.roles)) {
+              const isAdminOrSuperAdmin = userData.roles.some(role => {
+                const roleName = normalizeRoleName(role);
+                return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
+              });
+              if (isAdminOrSuperAdmin) {
+                console.log("Divs.jsx - Setting activeView to 'admin' for admin user (fallback)");
+                localStorage.setItem("activeView", "admin");
+              }
+            }
+          } catch (error) {
+            console.error("Error checking user role in Divs.jsx:", error);
+          }
+          
           setDivisionSelected(true);
           setTimeout(() => {
+            console.log("Divs.jsx - ActiveView before navigation (fallback):", localStorage.getItem("activeView"));
             navigate("/", { replace: true });
           }, 800);
         } else {

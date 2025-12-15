@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import { isStoreEmployee, isStoreManager, isAdmin } from "../../../utils/roleUtils";
@@ -8,6 +8,7 @@ const StoreCreateSale = lazy(() => import("./StoreCreateSale"));
 
 export default function StoreSales() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const mode = searchParams.get("mode");
   const [isMobile, setIsMobile] = useState(false);
   const userData = JSON.parse(localStorage.getItem("user")) || {};
@@ -53,6 +54,14 @@ export default function StoreSales() {
 
   const handleBackToOverview = () => {
     setSearchParams({});
+  };
+
+  const handleOpenSalesReports = () => {
+    navigate("/store/sales-reports");
+  };
+
+  const handleOpenCashDeposit = () => {
+    navigate("/store/cashdeposit");
   };
 
   if (mode === "orders") {
@@ -105,9 +114,9 @@ export default function StoreSales() {
                   padding: '6px 8px',
                   fontSize: '11px',
                   borderRadius: '6px',
-                  flex: '0 0 calc(33.333% - 4px)',
-                  maxWidth: 'calc(33.333% - 4px)',
-                  width: 'calc(33.333% - 4px)',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
                   minHeight: '32px',
                   boxSizing: 'border-box',
                   whiteSpace: 'normal',
@@ -124,6 +133,35 @@ export default function StoreSales() {
             </button>
             <button 
               className="homebtn" 
+              onClick={handleOpenSalesReports}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Sales Reports
+            </button>
+            <button 
+              className="homebtn" 
               onClick={handleOpenCreate}
               style={{
                 display: 'inline-flex',
@@ -134,9 +172,9 @@ export default function StoreSales() {
                   padding: '6px 8px',
                   fontSize: '11px',
                   borderRadius: '6px',
-                  flex: '0 0 calc(33.333% - 4px)',
-                  maxWidth: 'calc(33.333% - 4px)',
-                  width: 'calc(33.333% - 4px)',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
                   minHeight: '32px',
                   boxSizing: 'border-box',
                   whiteSpace: 'normal',
@@ -150,6 +188,35 @@ export default function StoreSales() {
               }}
             >
               Create Sale
+            </button>
+            <button 
+              className="homebtn" 
+              onClick={handleOpenCashDeposit}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Cash Deposit
             </button>
           </div>
         </div>
@@ -186,9 +253,9 @@ export default function StoreSales() {
                   padding: '6px 8px',
                   fontSize: '11px',
                   borderRadius: '6px',
-                  flex: '0 0 calc(33.333% - 4px)',
-                  maxWidth: 'calc(33.333% - 4px)',
-                  width: 'calc(33.333% - 4px)',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
                   minHeight: '32px',
                   boxSizing: 'border-box',
                   whiteSpace: 'normal',
@@ -204,6 +271,35 @@ export default function StoreSales() {
               Sales Orders
             </button>
             <button 
+              className="homebtn" 
+              onClick={handleOpenSalesReports}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Sales Reports
+            </button>
+            <button 
               className="homebtn"
               style={{
                 display: 'inline-flex',
@@ -214,9 +310,9 @@ export default function StoreSales() {
                   padding: '6px 8px',
                   fontSize: '11px',
                   borderRadius: '6px',
-                  flex: '0 0 calc(33.333% - 4px)',
-                  maxWidth: 'calc(33.333% - 4px)',
-                  width: 'calc(33.333% - 4px)',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
                   minHeight: '32px',
                   boxSizing: 'border-box',
                   whiteSpace: 'normal',
@@ -243,9 +339,9 @@ export default function StoreSales() {
                   padding: '6px 8px',
                   fontSize: '11px',
                   borderRadius: '6px',
-                  flex: '0 0 calc(33.333% - 4px)',
-                  maxWidth: 'calc(33.333% - 4px)',
-                  width: 'calc(33.333% - 4px)',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
                   minHeight: '32px',
                   boxSizing: 'border-box',
                   whiteSpace: 'normal',
@@ -259,6 +355,35 @@ export default function StoreSales() {
               }}
             >
               Create Sale
+            </button>
+            <button 
+              className="homebtn" 
+              onClick={handleOpenCashDeposit}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Cash Deposit
             </button>
           </div>
         </div>

@@ -4,12 +4,16 @@ import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import { Modal, Button } from "react-bootstrap";
 import storeService from "../../../services/storeService";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 function StoreDamagedStock() {
   const navigate = useNavigate();
@@ -276,6 +280,43 @@ function StoreDamagedStock() {
 
   const closeErrorModal = () => {
     setError(null);
+  };
+
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Date",
+      "Report Code",
+      "Product",
+      "Quantity",
+      "Damage Reason",
+      "Status",
+      "Reported By"
+    ];
+    const dataToExport = damagedReports && damagedReports.length > 0 ? damagedReports : [];
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Date": item.reportedAt ? new Date(item.reportedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : 'N/A',
+          "Report Code": item.reportCode || '-',
+          "Product": item.productName || '-',
+          "Quantity": item.quantity || 0,
+          "Damage Reason": item.damageReason || '-',
+          "Status": item.status || 'pending',
+          "Reported By": item.reportedBy || 'N/A'
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Damaged_Stock");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "DamagedStock");
+    } else {
+      setError("Table is Empty");
+    }
   };
 
   const mockStats = {
@@ -555,6 +596,22 @@ function StoreDamagedStock() {
           </form>
         </Modal.Body>
       </Modal>
+
+      {/* Export buttons */}
+      {damagedReports.length > 0 && (
+        <div className="row m-0 p-3 justify-content-around">
+          <div className="col-lg-5">
+            <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
+              <p>Export to </p>
+              <img src={xls} alt="" />
+            </button>
+            <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
+              <p>Export to </p>
+              <img src={pdf} alt="" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Recent Reports Table */}
       <div className={styles.orderStatusCard}>
