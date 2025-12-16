@@ -2345,7 +2345,7 @@ export default function StoreCreateSale() {
                               }
                               
                               const upiId = reviewData?.upiId || "kernnfeeds@upi";
-                              const upiUrl = `upi://pay?pa=${upiId}&pn=Feed Bazaar Private Limited&am=${amount.toFixed(2)}&cu=INR`;
+                              const upiUrl = `upi://pay?pa=${upiId}&pn=Kernn Automations Private Limited&am=${amount.toFixed(2)}&cu=INR`;
                               
                               setQrCodeData(prev => ({
                                 ...prev,

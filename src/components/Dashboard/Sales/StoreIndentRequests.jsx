@@ -48,11 +48,6 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
     fetchStores();
   }, []);
 
-  // Fetch stores for filter dropdown
-  useEffect(() => {
-    fetchStores();
-  }, []);
-
   // Fetch store indents
   useEffect(() => {
     fetchIndents();

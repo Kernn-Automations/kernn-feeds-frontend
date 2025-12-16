@@ -558,6 +558,20 @@ const storeService = {
     if (productType) queryParams.push(`productType=${encodeURIComponent(productType)}`);
     const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : "";
     const res = await api.request(`/stores/${storeId}/products/for-sale${queryString}`, { method: "GET" });
+    
+    // Check if response is ok before parsing
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async searchStoreProducts(storeId, searchTerm = "") {
+    const queryParams = searchTerm ? `?q=${encodeURIComponent(searchTerm)}` : "";
+    const res = await api.request(`/stores/${storeId}/products/search${queryParams}`, { method: "GET" });
     return res.json();
   },
   async searchStoreProducts(storeId, searchTerm = "") {

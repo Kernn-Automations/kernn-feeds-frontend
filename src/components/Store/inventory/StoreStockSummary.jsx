@@ -10,10 +10,6 @@ import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
-import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
-import xls from "../../../images/xls-png.png";
-import pdf from "../../../images/pdf-png.png";
 
 function StoreStockSummary() {
   const navigate = useNavigate();
@@ -290,89 +286,6 @@ function StoreStockSummary() {
     }
   };
 
-  // Export function
-  const onExport = (type) => {
-    const arr = [];
-    let x = 1;
-    const columns = [
-      "S.No",
-      "Product",
-      "SKU",
-      "Date",
-      "Opening Stock",
-      "Stock In",
-      "Stock Out",
-      "Closing Stock",
-      "Unit"
-    ];
-    const dataToExport = stockData && stockData.length > 0 ? stockData : [];
-    if (dataToExport && dataToExport.length > 0) {
-      dataToExport.forEach((item) => {
-        arr.push({
-          "S.No": x++,
-          "Product": item.productName || '-',
-          "SKU": item.productSKU || '-',
-          "Date": item.date || '-',
-          "Opening Stock": Number(item.opening || 0).toFixed(2),
-          "Stock In": Number(item.stockIn || 0).toFixed(2),
-          "Stock Out": Number(item.sale || 0).toFixed(2),
-          "Closing Stock": Number(item.closing || 0).toFixed(2),
-          "Unit": item.unit || 'kg'
-        });
-      });
-
-      if (type === "PDF") handleExportPDF(columns, arr, "Stock_Summary");
-      else if (type === "XLS")
-        handleExportExcel(columns, arr, "StockSummary");
-    } else {
-      setError("Table is Empty");
-      setIsModalOpen(true);
-    }
-  };
-
-<<<<<<< HEAD
-  // Export function
-  const onExport = (type) => {
-    const arr = [];
-    let x = 1;
-    const columns = [
-      "S.No",
-      "Product",
-      "SKU",
-      "Date",
-      "Opening Stock",
-      "Stock In",
-      "Stock Out",
-      "Closing Stock",
-      "Unit"
-    ];
-    const dataToExport = stockData && stockData.length > 0 ? stockData : [];
-    if (dataToExport && dataToExport.length > 0) {
-      dataToExport.forEach((item) => {
-        arr.push({
-          "S.No": x++,
-          "Product": item.productName || '-',
-          "SKU": item.productSKU || '-',
-          "Date": item.date || '-',
-          "Opening Stock": Number(item.opening || 0).toFixed(2),
-          "Stock In": Number(item.stockIn || 0).toFixed(2),
-          "Stock Out": Number(item.sale || 0).toFixed(2),
-          "Closing Stock": Number(item.closing || 0).toFixed(2),
-          "Unit": item.unit || 'kg'
-        });
-      });
-
-      if (type === "PDF") handleExportPDF(columns, arr, "Stock_Summary");
-      else if (type === "XLS")
-        handleExportExcel(columns, arr, "StockSummary");
-    } else {
-      setError("Table is Empty");
-      setIsModalOpen(true);
-    }
-  };
-
-=======
->>>>>>> 1fe82fe (till 05-12-2025, stores major developments except employees list)
   const renderSummaryTable = (dataArray) => (
     <div style={{ overflowX: 'auto' }}>
       <table className="table table-bordered borderedtable table-sm mt-2" style={{ fontFamily: 'Poppins' }}>
@@ -652,94 +565,51 @@ function StoreStockSummary() {
       {loading && <Loading />}
       
       {/* Stock Summary Tab */}
-      {!loading && activeTab === "summary" && (
+      {!loading && activeTab === "summary" && stockData.length > 0 && (
         <div className={styles.orderStatusCard}>
-          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Stock Summary Data
-          </h4>
-          {renderSummaryTable(stockData)}
-        </div>
-      )}
-
-      {/* Statistics Tab */}
-      {!loading && activeTab === "stats" && stats && (
-=======
-      {!loading && activeTab === "summary" && (
->>>>>>> 1fe82fe (till 05-12-2025, stores major developments except employees list)
-        <div className={styles.orderStatusCard}>
-          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Overall Statistics
-          </h4>
-<<<<<<< HEAD
-          {stats.summary && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-              <div style={{ padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px' }}>
-                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Inward Stock</div>
-                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#059669' }}>
-                  {Number(stats.summary.totalInwardStock || 0).toFixed(2)}
-                </div>
-              </div>
-              <div style={{ padding: '16px', backgroundColor: '#fef2f2', borderRadius: '8px' }}>
-                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Outward Stock</div>
-                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#ef4444' }}>
-                  {Number(stats.summary.totalOutwardStock || 0).toFixed(2)}
-                </div>
-              </div>
-              <div style={{ padding: '16px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}>
-                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Closing Stock</div>
-                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: 'var(--primary-color)' }}>
-                  {Number(stats.summary.totalClosingStock || 0).toFixed(2)}
-                </div>
-              </div>
-              <div style={{ padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px' }}>
-                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Products</div>
-                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#92400e' }}>
-                  {stats.summary.totalProducts || 0}
-                </div>
-              </div>
-              <div style={{ padding: '16px', backgroundColor: '#e0e7ff', borderRadius: '8px' }}>
-                <div style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Total Stores</div>
-                <div style={{ fontFamily: 'Poppins', fontSize: '20px', fontWeight: 700, color: '#4338ca' }}>
-                  {stats.summary.totalStores || 0}
-                </div>
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4 style={{ margin: 0, fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+              Stock Summary
+            </h4>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => onExport("XLS")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={xls} alt="XLS" style={{ width: '20px', height: '20px' }} />
+                Export XLS
+              </button>
+              <button
+                onClick={() => onExport("PDF")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={pdf} alt="PDF" style={{ width: '20px', height: '20px' }} />
+                Export PDF
+              </button>
             </div>
-          )}
-          {stats.stockByStore && stats.stockByStore.length > 0 && (
-            <div>
-              <h5 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '16px' }}>Stock by Store</h5>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
-                  <thead className="table-light">
-                    <tr>
-                      <th>Store Name</th>
-                      <th>Store Code</th>
-                      <th>Inward Stock</th>
-                      <th>Outward Stock</th>
-                      <th>Closing Stock</th>
-                      <th>Products</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.stockByStore.map((store, index) => (
-                      <tr key={store.storeId || index}>
-                        <td>{store.storeName}</td>
-                        <td>{store.storeCode}</td>
-                        <td style={{ color: '#059669' }}>{Number(store.inwardStock || 0).toFixed(2)}</td>
-                        <td style={{ color: '#ef4444' }}>{Number(store.outwardStock || 0).toFixed(2)}</td>
-                        <td style={{ fontWeight: 600 }}>{Number(store.closingStock || 0).toFixed(2)}</td>
-                        <td>{store.products || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-=======
+          </div>
           {renderSummaryTable(stockData)}
         </div>
       )}
@@ -818,7 +688,6 @@ function StoreStockSummary() {
         </div>
       )}
 
->>>>>>> 1fe82fe (till 05-12-2025, stores major developments except employees list)
       {/* Audit Trail Tab */}
       {!loading && activeTab === "audit" && (
         <div className={styles.orderStatusCard}>
@@ -992,4 +861,3 @@ function StoreStockSummary() {
 }
 
 export default StoreStockSummary;
-
