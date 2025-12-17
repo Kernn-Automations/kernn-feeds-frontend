@@ -75,35 +75,6 @@ export default function StoreEmployeesHome() {
         >
           <button 
             className="homebtn" 
-            onClick={() => navigate('/store/employees/create')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: '1',
-              ...(isMobile ? {
-                padding: '6px 8px',
-                fontSize: '11px',
-                borderRadius: '6px',
-                flex: '0 0 calc(33.333% - 4px)',
-                maxWidth: 'calc(33.333% - 4px)',
-                width: 'calc(33.333% - 4px)',
-                minHeight: '32px',
-                boxSizing: 'border-box',
-                whiteSpace: 'normal',
-                margin: 0
-              } : {
-                padding: '12px 24px',
-                fontSize: '14px',
-                borderRadius: '8px',
-                whiteSpace: 'nowrap'
-              })
-            }}
-          >
-            Create Employee
-          </button>
-          <button 
-            className="homebtn" 
             onClick={() => navigate('/store/employees/list')}
             style={{
               display: 'inline-flex',

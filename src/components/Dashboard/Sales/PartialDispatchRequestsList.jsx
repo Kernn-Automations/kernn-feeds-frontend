@@ -5,6 +5,7 @@ import partialDispatchService from '../../../services/partialDispatchService';
 import { showSuccessNotification, showErrorNotification } from '../../../utils/errorHandler';
 import Loading from '@/components/Loading';
 import ErrorModal from '@/components/ErrorModal';
+import CustomSearchDropdown from '@/utils/CustomSearchDropDown';
 
 const PartialDispatchRequestsList = ({ navigate, canApprove }) => {
   const { selectedDivision, showAllDivisions } = useDivision();
@@ -128,73 +129,50 @@ const PartialDispatchRequestsList = ({ navigate, canApprove }) => {
   return (
     <div>
       {/* Filters */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-3">
-              <label className="form-label">Search</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search by ID, Order Number, Customer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">From Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">To Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2 d-flex align-items-end">
-              <button
-                className="btn btn-secondary w-100"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setPage(1);
-                }}
-              >
-                <i className="bi bi-x-circle me-1"></i>
-                Clear
-              </button>
-            </div>
-            <div className="col-md-1 d-flex align-items-end">
-              <button
-                className="btn btn-primary w-100"
-                onClick={fetchRequests}
-                disabled={loading}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </button>
-            </div>
-          </div>
+      <div className="row m-0 p-3">
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Search :</label>
+          <input
+            type="text"
+            placeholder="Search by ID, Order Number, Customer..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Status :</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">From :</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">To :</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="row m-0 p-3 pb-5 justify-content-center">
+        <div className="col-4">
+          <button className="submitbtn" onClick={fetchRequests} disabled={loading}>
+            Submit
+          </button>
         </div>
       </div>
 
@@ -209,23 +187,13 @@ const PartialDispatchRequestsList = ({ navigate, canApprove }) => {
                 ? 'No requests match your current filters. Try adjusting your search criteria.'
                 : 'There are no partial dispatch requests yet. Create a request from a sales order to get started.'}
             </p>
-            {canApprove && (
-              <button
-                className="btn btn-primary mt-3"
-                onClick={() => navigate('/sales/partial-dispatch-requests/create')}
-              >
-                <i className="bi bi-plus-circle me-2"></i>
-                Create First Request
-              </button>
-            )}
           </div>
         </div>
       ) : (
         <>
-          <div className="card">
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover">
+          <div className="row m-0 p-3 justify-content-around">
+            <div className="col-lg-10">
+              <table className={`table table-bordered borderedtable`}>
                   <thead>
                     <tr>
                       <th>Request ID</th>
@@ -304,7 +272,6 @@ const PartialDispatchRequestsList = ({ navigate, canApprove }) => {
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
           </div>
 

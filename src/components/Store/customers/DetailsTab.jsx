@@ -55,14 +55,18 @@ function DetailsTab({ customer }) {
       </h5>
 
       <div className="row">
-        {renderDetail("Name:", customer.name || "N/A")}
-        {renderDetail("Mobile:", customer.mobile || "N/A")}
+        {renderDetail("Name:", customer.name || customer.farmerName || customer.label || customer.customerName || "N/A")}
+        {renderDetail("Farmer Name:", customer.farmerName || customer.name || customer.label || "N/A")}
+        {renderDetail("Mobile:", customer.mobile || customer.phone || customer.phoneNo || "N/A")}
         {renderDetail("Email:", customer.email || "N/A")}
+        {renderDetail("Village:", customer.villageName || customer.village || customer.area || "N/A")}
         {renderDetail("Area:", customer.area || "N/A")}
-        {renderDetail("City:", customer.city)}
-        {renderDetail("State:", customer.state)}
-        {renderDetail("Pincode:", customer.pincode)}
-        {renderDetail("Address:", customer.address, true)}
+        {renderDetail("City:", customer.city || "N/A")}
+        {renderDetail("State:", customer.state || "N/A")}
+        {renderDetail("Pincode:", customer.pincode || "N/A")}
+        {renderDetail("Address:", customer.address || "N/A", true)}
+        {renderDetail("Number of Cows:", customer.noOfCows || "N/A")}
+        {renderDetail("Number of Buffaloes:", customer.noOfBuffaloes || "N/A")}
 
         <div className="col-md-6" style={{ marginBottom: "16px" }}>
           <p style={detailRowStyle}>
@@ -111,7 +115,7 @@ function DetailsTab({ customer }) {
                   color: "var(--primary-color)",
                 }}
               >
-                {customer.totalOrders || 0}
+                {customer.totalOrders || customer.saleCount || 0}
               </h6>
               <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>Total Orders</p>
             </div>
@@ -134,9 +138,9 @@ function DetailsTab({ customer }) {
                   color: "#047857",
                 }}
               >
-                ₹{(customer.totalSpent || 0).toLocaleString()}
+                ₹{(customer.totalSpent || customer.totalPurchases || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h6>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>Total Spent</p>
+              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>Total Purchases</p>
             </div>
           </div>
 
@@ -155,11 +159,16 @@ function DetailsTab({ customer }) {
                   fontFamily: "Poppins",
                   fontWeight: 600,
                   color: "#b45309",
+                  fontSize: "14px"
                 }}
               >
-                {customer.lastOrder || "N/A"}
+                {customer.lastOrder 
+                  ? new Date(customer.lastOrder).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : customer.lastPurchaseDate
+                    ? new Date(customer.lastPurchaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : "N/A"}
               </h6>
-              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>Last Order</p>
+              <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>Last Purchase</p>
             </div>
           </div>
         </div>

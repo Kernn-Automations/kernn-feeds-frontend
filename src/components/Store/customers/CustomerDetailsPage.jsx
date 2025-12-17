@@ -48,8 +48,42 @@ function CustomerDetailsPage() {
 
       const response = await storeService.getStoreCustomerById(storeId, id);
 
-      if (response.success && response.data) {
-        setCustomer(response.data);
+      console.log('Customer details response:', response);
+
+      // Handle different response formats
+      const customerData = response.data || response.customer || response;
+      
+      if (customerData && customerData.id) {
+        // Map customer data to match payment step structure
+        // Payment step uses: name (or farmerName), mobile, villageName, etc.
+        const mappedCustomer = {
+          ...customerData,
+          // Map name - check multiple field names
+          name: customerData.name || customerData.farmerName || customerData.label || customerData.customerName || 'N/A',
+          farmerName: customerData.farmerName || customerData.name || customerData.label || '',
+          // Map mobile - check multiple field names
+          mobile: customerData.mobile || customerData.phone || customerData.phoneNo || '',
+          // Map village - check multiple field names
+          village: customerData.village || customerData.villageName || customerData.area || '',
+          villageName: customerData.villageName || customerData.village || customerData.area || '',
+          // Preserve other fields
+          customerCode: customerData.customerCode || '',
+          email: customerData.email || '',
+          area: customerData.area || '',
+          city: customerData.city || '',
+          address: customerData.address || '',
+          pincode: customerData.pincode || '',
+          totalPurchases: customerData.totalPurchases || 0,
+          lastPurchaseDate: customerData.lastPurchaseDate || null,
+          createdAt: customerData.createdAt || null,
+          updatedAt: customerData.updatedAt || null,
+          createdByEmployee: customerData.createdByEmployee || customerData.createdBy || null,
+          noOfCows: customerData.noOfCows || null,
+          noOfBuffaloes: customerData.noOfBuffaloes || null
+        };
+        
+        console.log('Mapped customer data:', mappedCustomer);
+        setCustomer(mappedCustomer);
       } else {
         setError(response.message || "Failed to load customer details");
         setIsModalOpen(true);
@@ -101,10 +135,12 @@ function CustomerDetailsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
             <div>
               <h4 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '8px', color: 'var(--primary-color)' }}>
-                {customer.name}
+                {customer.name || customer.farmerName || customer.label || 'Customer'}
               </h4>
               <p style={{ fontFamily: 'Poppins', color: '#666', margin: 0, fontSize: '14px' }}>
-                {customer.mobile} {customer.email ? `• ${customer.email}` : ''}
+                {customer.mobile || customer.phone || customer.phoneNo || 'N/A'}
+                {customer.email ? ` • ${customer.email}` : ''}
+                {customer.village || customer.villageName ? ` • ${customer.village || customer.villageName}` : ''}
               </p>
             </div>
             {customer.customerCode && (

@@ -148,8 +148,8 @@ export default function CustomersList() {
                     >
                       <td>{actualIndex}</td>
                       <td>{customer.customerCode || `CUST${customer.id}`}</td>
-                      <td>{customer.name}</td>
-                      <td>{customer.mobile}</td>
+                      <td>{customer.name || customer.farmerName || customer.label || customer.customerName || 'N/A'}</td>
+                      <td>{customer.mobile || customer.phone || customer.phoneNo || 'N/A'}</td>
                       <td>₹{customer.totalPurchases?.toLocaleString('en-IN') || '0'}</td>
                       <td>{customer.createdByEmployee?.name || 'N/A'}</td>
                       <td>

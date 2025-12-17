@@ -6,7 +6,6 @@ import storeService from '../../../services/storeService';
 import { showSuccessNotification, showErrorNotification } from '../../../utils/errorHandler';
 import Loading from '@/components/Loading';
 import ErrorModal from '@/components/ErrorModal';
-import { fetchWithDivision } from '../../../utils/fetchWithDivision';
 
 const StoreIndentRequests = ({ navigate, canApprove }) => {
   const { axiosAPI } = useAuth();
@@ -20,6 +19,8 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [storeFilter, setStoreFilter] = useState('all');
+  const [stores, setStores] = useState([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -42,75 +43,98 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
     setDateTo(today.toISOString().split('T')[0]);
   }, []);
 
+  // Fetch stores for filter dropdown
+  useEffect(() => {
+    fetchStores();
+  }, []);
+
   // Fetch store indents
   useEffect(() => {
     fetchIndents();
-  }, [page, limit, statusFilter, dateFrom, dateTo, selectedDivision, showAllDivisions]);
+  }, [page, limit, statusFilter, storeFilter, dateFrom, dateTo, selectedDivision, showAllDivisions]);
+
+  const fetchStores = async () => {
+    try {
+      const response = await axiosAPI.get('/stores', { params: { limit: 1000 } });
+      const responseData = response.data || response;
+      const storesList = responseData.stores || responseData.data || responseData || [];
+      setStores(Array.isArray(storesList) ? storesList : []);
+    } catch (err) {
+      console.error('Error fetching stores:', err);
+      setStores([]);
+    }
+  };
 
   const fetchIndents = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use fetchWithDivision to get indents that need approval
-      const queryParams = new URLSearchParams();
-      queryParams.append('page', page);
-      queryParams.append('limit', limit);
+      // Build query parameters for the API call
+      // Using GET /store-indents?storeId=1&status=pending format
+      const params = {
+        page,
+        limit,
+      };
+      
+      // Add storeId filter if a specific store is selected
+      if (storeFilter !== 'all') {
+        params.storeId = storeFilter;
+      }
+      
       if (statusFilter !== 'all') {
-        queryParams.append('status', statusFilter);
+        params.status = statusFilter;
       }
       if (dateFrom) {
-        queryParams.append('fromDate', dateFrom);
+        params.fromDate = dateFrom;
       }
       if (dateTo) {
-        queryParams.append('toDate', dateTo);
+        params.toDate = dateTo;
       }
 
-      const url = `/indents${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('Fetching store indents with params:', params);
+      
+      // Use axiosAPI to call the endpoint: GET /store-indents?storeId=1&status=pending
+      // Note: axiosAPI.get expects params as the second argument directly, not nested
+      const response = await axiosAPI.get('/store-indents', params);
+      
+      console.log('Store indents response:', response);
 
-      const response = await fetchWithDivision(
-        url,
-        localStorage.getItem('accessToken'),
-        selectedDivision?.id,
-        showAllDivisions
-      );
-
-      if (response.success !== undefined) {
-        if (response.success) {
-          const data = response.data || response;
+      // Handle response structure
+      const responseData = response.data || response;
+      
+      if (responseData.success !== undefined) {
+        if (responseData.success) {
+          const data = responseData.data || responseData;
           setIndents(data.indents || data || []);
           setTotalPages(data.totalPages || 0);
           setTotal(data.total || data.indents?.length || 0);
         } else {
-          throw new Error(response.message || 'Failed to fetch indents');
+          throw new Error(responseData.message || 'Failed to fetch indents');
         }
-      } else if (response.indents) {
-        setIndents(response.indents || []);
-        setTotalPages(response.totalPages || 0);
-        setTotal(response.total || response.indents?.length || 0);
-      } else if (Array.isArray(response)) {
-        setIndents(response);
-        setTotal(response.length);
+      } else if (responseData.indents) {
+        setIndents(responseData.indents || []);
+        setTotalPages(responseData.totalPages || 0);
+        setTotal(responseData.total || responseData.indents?.length || 0);
+      } else if (Array.isArray(responseData)) {
+        setIndents(responseData);
+        setTotal(responseData.length);
         setTotalPages(1);
       } else {
         // Handle different response structures
-        const indentsArray = response.data?.indents || response.indents || [];
+        const indentsArray = responseData.data?.indents || responseData.indents || [];
         setIndents(indentsArray);
-        setTotalPages(response.totalPages || response.data?.totalPages || 1);
-        setTotal(response.total || response.data?.total || indentsArray.length);
+        setTotalPages(responseData.totalPages || responseData.data?.totalPages || 1);
+        setTotal(responseData.total || responseData.data?.total || indentsArray.length);
       }
     } catch (err) {
       console.error('Error fetching store indents:', err);
-      // Don't show error if endpoint doesn't exist yet
-      if (!err.message.includes('404')) {
-        setError(err.message || 'Failed to fetch store indent requests');
-        setIsErrorModalOpen(true);
-      } else {
-        // Endpoint doesn't exist yet, show empty state
-        setIndents([]);
-        setTotal(0);
-        setTotalPages(0);
-      }
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch store indent requests';
+      setError(errorMessage);
+      setIsErrorModalOpen(true);
+      setIndents([]);
+      setTotal(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
@@ -134,19 +158,24 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
 
     try {
       setSubmitting(true);
-      const response = await storeService.approveRejectIndent(indent.id, 'approve', remarks);
+      const response = await axiosAPI.put(`/store-indents/indents/${indent.id}/approve-reject`, {
+        action: 'approve',
+        notes: remarks
+      });
       
-      if (response.success || response.message) {
-        showSuccessNotification('Store indent approved successfully');
+      const responseData = response.data || response;
+      if (responseData.success || responseData.message) {
+        showSuccessNotification(responseData.message || 'Store indent approved successfully');
         setShowViewModal(false);
         setSelectedIndent(null);
         fetchIndents(); // Refresh list
       } else {
-        throw new Error(response.message || 'Failed to approve indent');
+        throw new Error(responseData.message || 'Failed to approve indent');
       }
     } catch (err) {
       console.error('Error approving indent:', err);
-      showErrorNotification(err.message || 'Failed to approve store indent');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to approve store indent';
+      showErrorNotification(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -165,19 +194,74 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
 
     try {
       setSubmitting(true);
-      const response = await storeService.approveRejectIndent(indent.id, 'reject', remarks);
+      const response = await axiosAPI.put(`/store-indents/indents/${indent.id}/approve-reject`, {
+        action: 'reject',
+        notes: remarks
+      });
       
-      if (response.success || response.message) {
-        showSuccessNotification('Store indent rejected successfully');
+      const responseData = response.data || response;
+      if (responseData.success || responseData.message) {
+        showSuccessNotification(responseData.message || 'Store indent rejected successfully');
         setShowViewModal(false);
         setSelectedIndent(null);
         fetchIndents(); // Refresh list
       } else {
-        throw new Error(response.message || 'Failed to reject indent');
+        throw new Error(responseData.message || 'Failed to reject indent');
       }
     } catch (err) {
       console.error('Error rejecting indent:', err);
-      showErrorNotification(err.message || 'Failed to reject store indent');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to reject store indent';
+      showErrorNotification(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleProcessStockIn = async (indent) => {
+    if (!canApprove) {
+      showErrorNotification('Only Admin/Super Admin can process stock in');
+      return;
+    }
+
+    if (!indent.store?.id && !indent.storeId) {
+      showErrorNotification('Store information is missing');
+      return;
+    }
+
+    const confirmMessage = 'Are you sure you want to process stock in for this approved indent?';
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      // Prepare stock-in payload
+      const stockInPayload = {
+        storeId: indent.store?.id || indent.storeId,
+        indentId: indent.id,
+        items: (indent.items || []).map(item => ({
+          productId: item.productId || item.product?.id,
+          quantity: item.quantity,
+          unit: item.unit || 'units'
+        }))
+      };
+
+      const response = await axiosAPI.post('/stores/stock-in', stockInPayload);
+      
+      const responseData = response.data || response;
+      if (responseData.success || responseData.message) {
+        showSuccessNotification(responseData.message || 'Stock in processed successfully');
+        setShowViewModal(false);
+        setSelectedIndent(null);
+        fetchIndents(); // Refresh list
+      } else {
+        throw new Error(responseData.message || 'Failed to process stock in');
+      }
+    } catch (err) {
+      console.error('Error processing stock in:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to process stock in';
+      showErrorNotification(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -226,74 +310,67 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
   return (
     <div>
       {/* Filters */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-3">
-              <label className="form-label">Search</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search by ID, Code, Store..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="awaiting_approval">Awaiting Approval</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">From Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">To Date</label>
-              <input
-                type="date"
-                className="form-control"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <div className="col-md-2 d-flex align-items-end">
-              <button
-                className="btn btn-secondary w-100"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setPage(1);
-                }}
-              >
-                <i className="bi bi-x-circle me-1"></i>
-                Clear
-              </button>
-            </div>
-            <div className="col-md-1 d-flex align-items-end">
-              <button
-                className="btn btn-primary w-100"
-                onClick={fetchIndents}
-                disabled={loading}
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </button>
-            </div>
-          </div>
+      <div className="row m-0 p-3">
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Search :</label>
+          <input
+            type="text"
+            placeholder="Search by ID, Code, Store..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Store :</label>
+          <select
+            value={storeFilter}
+            onChange={(e) => setStoreFilter(e.target.value)}
+          >
+            <option value="all">All Stores</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name || store.storeName}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">Status :</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="awaiting_approval">Awaiting Approval</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">From :</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="row m-0 p-3">
+        <div className={`col-3 formcontent`}>
+          <label htmlFor="">To :</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="row m-0 p-3 pb-5 justify-content-center">
+        <div className="col-4">
+          <button className="submitbtn" onClick={fetchIndents} disabled={loading}>
+            Submit
+          </button>
         </div>
       </div>
 
@@ -312,10 +389,9 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
         </div>
       ) : (
         <>
-          <div className="card">
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover">
+          <div className="row m-0 p-3 justify-content-around">
+            <div className="col-lg-10">
+              <table className={`table table-bordered borderedtable`}>
                   <thead>
                     <tr>
                       <th>Indent ID</th>
@@ -402,7 +478,6 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
           </div>
 
@@ -524,22 +599,25 @@ const StoreIndentRequests = ({ navigate, canApprove }) => {
 
                 <h6 className="mt-3 mb-2">Items</h6>
                 <div className="table-responsive">
-                  <table className="table table-bordered table-sm">
+                  <table className="table table-bordered borderedtable">
                     <thead>
                       <tr>
                         <th>Product</th>
-                        <th>Quantity</th>
+                        <th>No of Bags</th>
                         <th>Unit</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(selectedIndent.items || []).map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.product?.name || item.productName || 'Unknown'}</td>
-                          <td>{item.quantity}</td>
-                          <td>{item.unit || 'N/A'}</td>
-                        </tr>
-                      ))}
+                      {(selectedIndent.items || []).map((item, index) => {
+                        const quantity = item.quantity || item.requestedQuantity || item.qty || 0;
+                        return (
+                          <tr key={index}>
+                            <td>{item.product?.name || item.productName || 'Unknown'}</td>
+                            <td>{quantity}</td>
+                            <td>{item.unit || 'N/A'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

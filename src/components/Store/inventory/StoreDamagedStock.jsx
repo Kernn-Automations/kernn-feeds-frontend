@@ -2,15 +2,23 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
+import Loading from "@/components/Loading";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import { FaExclamationTriangle } from "react-icons/fa";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import { Modal, Button } from "react-bootstrap";
+import storeService from "../../../services/storeService";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 function StoreDamagedStock() {
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
+  const [storeId, setStoreId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -18,6 +26,13 @@ function StoreDamagedStock() {
   const [imageFile, setImageFile] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+  
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState(""); // Empty for all, or "pending", "approved", etc.
   
   const [formData, setFormData] = useState({
     productId: "",
@@ -27,34 +42,60 @@ function StoreDamagedStock() {
     description: ""
   });
 
-  const [products, setProducts] = useState([
-    { id: "dummy1", name: "Product A", code: "PROD001" },
-    { id: "dummy2", name: "Product B", code: "PROD002" }
-  ]);
+  const [products, setProducts] = useState([]);
 
+  // Get store ID from localStorage
   useEffect(() => {
-    fetchProducts();
-    fetchDamagedReports();
+    try {
+      // Get store ID from multiple sources
+      let id = null;
+      
+      // Try from selectedStore in localStorage
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
+          const store = JSON.parse(selectedStore);
+          id = store.id;
+        } catch (e) {
+          console.error("Error parsing selectedStore:", e);
+        }
+      }
+      
+      // Fallback to currentStoreId
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      // Fallback to user object
+      if (!id) {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        id = user?.storeId || user?.store?.id;
+      }
+      
+      if (id) {
+        setStoreId(id);
+      } else {
+        setError("Store information missing. Please re-login to continue.");
+      }
+    } catch (err) {
+      console.error("Unable to parse stored user data", err);
+      setError("Unable to determine store information. Please re-login.");
+    }
   }, []);
 
+  useEffect(() => {
+    if (storeId) {
+      fetchProducts();
+      fetchDamagedReports();
+    }
+  }, [storeId, page, limit, statusFilter]);
+
   const fetchProducts = async () => {
+    if (!storeId) return;
+    
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
-
-      // Dummy products
-      const dummyProducts = [
-        { id: "dummy1", name: "Product A", code: "PROD001" },
-        { id: "dummy2", name: "Product B", code: "PROD002" }
-      ];
-
-      if (!storeId) {
-        setError("Store ID not found.");
-        setProducts(dummyProducts); // Set dummy products even if storeId is missing
-        return;
-      }
-
       const res = await axiosAPI.get(`/stores/${storeId}/inventory`);
       if (res.data && res.data.inventory) {
         const productsList = res.data.inventory.map(item => ({
@@ -62,40 +103,57 @@ function StoreDamagedStock() {
           name: item.product?.name || item.name,
           code: item.product?.SKU || item.SKU || item.productCode
         }));
-        // Combine dummy products with fetched products
-        setProducts([...dummyProducts, ...productsList]);
+        setProducts(productsList);
       } else {
-        // If no products from API, use dummy products
-        setProducts(dummyProducts);
+        setProducts([]);
       }
     } catch (err) {
       console.error('Error fetching products:', err);
-      // On error, still show dummy products
-      setProducts([
-        { id: "dummy1", name: "Product A", code: "PROD001" },
-        { id: "dummy2", name: "Product B", code: "PROD002" }
-      ]);
+      setProducts([]);
     }
   };
 
   const fetchDamagedReports = async () => {
+    if (!storeId) return;
+    
     setLoading(true);
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
-
-      if (!storeId) {
-        setLoading(false);
-        return;
+      const params = {
+        page,
+        limit
+      };
+      
+      if (statusFilter) {
+        params.status = statusFilter;
       }
-
-      const res = await axiosAPI.get(`/stores/${storeId}/damaged-goods`);
-      if (res.data && res.data.damagedGoods) {
-        setDamagedReports(res.data.damagedGoods);
-      }
+      
+      const res = await storeService.getStoreDamagedGoods(storeId, params);
+      
+      // Handle backend response format
+      const reportsData = res.data || res.damagedGoods || res || [];
+      const paginationData = res.pagination || {};
+      
+      // Map backend response to UI format
+      const mappedReports = Array.isArray(reportsData) ? reportsData.map(report => ({
+        id: report.id,
+        reportCode: report.reportCode || `DAM${String(report.id).padStart(6, '0')}`,
+        productId: report.productId,
+        productName: report.product?.name || report.productName || "N/A",
+        productSKU: report.product?.SKU || report.product?.sku || "N/A",
+        quantity: report.quantity || 0,
+        damageReason: report.damageReason || report.reason || "N/A",
+        status: report.status || "pending",
+        reportedBy: report.reportedByEmployee?.name || report.reportedBy || "N/A",
+        reportedAt: report.createdAt || report.reportedAt || report.date,
+        image: report.image || report.imageUrl || null
+      })) : [];
+      
+      setDamagedReports(mappedReports);
+      setTotal(paginationData.total || mappedReports.length);
+      setTotalPages(paginationData.totalPages || Math.ceil((paginationData.total || mappedReports.length) / limit) || 1);
     } catch (err) {
       console.error('Error fetching damaged reports:', err);
+      setError(err.response?.data?.message || err.message || "Error fetching damaged goods reports");
     } finally {
       setLoading(false);
     }
@@ -222,6 +280,43 @@ function StoreDamagedStock() {
 
   const closeErrorModal = () => {
     setError(null);
+  };
+
+  // Export function
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Date",
+      "Report Code",
+      "Product",
+      "Quantity",
+      "Damage Reason",
+      "Status",
+      "Reported By"
+    ];
+    const dataToExport = damagedReports && damagedReports.length > 0 ? damagedReports : [];
+    if (dataToExport && dataToExport.length > 0) {
+      dataToExport.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Date": item.reportedAt ? new Date(item.reportedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : 'N/A',
+          "Report Code": item.reportCode || '-',
+          "Product": item.productName || '-',
+          "Quantity": item.quantity || 0,
+          "Damage Reason": item.damageReason || '-',
+          "Status": item.status || 'pending',
+          "Reported By": item.reportedBy || 'N/A'
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Damaged_Stock");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "DamagedStock");
+    } else {
+      setError("Table is Empty");
+    }
   };
 
   const mockStats = {
@@ -502,32 +597,107 @@ function StoreDamagedStock() {
         </Modal.Body>
       </Modal>
 
+      {/* Export buttons */}
+      {damagedReports.length > 0 && (
+        <div className="row m-0 p-3 justify-content-around">
+          <div className="col-lg-5">
+            <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
+              <p>Export to </p>
+              <img src={xls} alt="" />
+            </button>
+            <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
+              <p>Export to </p>
+              <img src={pdf} alt="" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Recent Reports Table */}
       <div className={styles.orderStatusCard}>
-        <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-          Damage Reports
-        </h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+          <h4 style={{ margin: 0, fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+            Damage Reports
+          </h4>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ marginRight: '8px', fontFamily: 'Poppins', fontSize: '14px' }}>Status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1); // Reset to first page when filter changes
+                }}
+                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd', fontFamily: 'Poppins' }}
+              >
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ marginRight: '8px', fontFamily: 'Poppins', fontSize: '14px' }}>Per Page:</label>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1); // Reset to first page when limit changes
+                }}
+                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd', fontFamily: 'Poppins' }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+        </div>
         <div className="table-responsive">
           <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Report ID</th>
+                <th>Report Code</th>
                 <th>Product</th>
                 <th>Quantity</th>
+                <th>Damage Reason</th>
+                <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {damagedReports.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="text-center" style={{ padding: '20px' }}>
+                    Loading...
+                  </td>
+                </tr>
+              ) : damagedReports.length > 0 ? (
                 damagedReports.map((report, i) => (
-                  <tr key={i}>
-                    <td>{report.reportedAt || report.createdAt 
-                      ? new Date(report.reportedAt || report.createdAt).toLocaleDateString()
-                      : 'N/A'}</td>
-                    <td>{report.id || `DMG${i + 1}`}</td>
-                    <td>{report.productName || 'N/A'}</td>
-                    <td>{report.quantity} {report.unit}</td>
+                  <tr key={report.id || i}>
+                    <td>
+                      {report.reportedAt 
+                        ? new Date(report.reportedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
+                        : 'N/A'}
+                    </td>
+                    <td style={{ fontWeight: 600 }}>{report.reportCode}</td>
+                    <td>
+                      {report.productName}
+                      {report.productSKU && <span style={{ color: '#666', fontSize: '12px', marginLeft: '4px' }}>({report.productSKU})</span>}
+                    </td>
+                    <td>{report.quantity}</td>
+                    <td>{report.damageReason}</td>
+                    <td>
+                      <span className={`badge ${
+                        report.status === 'approved' ? 'bg-success' :
+                        report.status === 'rejected' ? 'bg-danger' :
+                        'bg-warning text-dark'
+                      }`}>
+                        {report.status || 'pending'}
+                      </span>
+                    </td>
                     <td>
                       <button
                         className="btn btn-sm btn-primary"
@@ -540,7 +710,7 @@ function StoreDamagedStock() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center">
+                  <td colSpan={7} className="text-center" style={{ padding: '20px' }}>
                     No Damaged Goods Found
                   </td>
                 </tr>
@@ -548,6 +718,38 @@ function StoreDamagedStock() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ fontFamily: 'Poppins', color: '#666', fontSize: '14px' }}>
+              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, total)} of {total} reports
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                disabled={page === 1 || loading}
+                style={{ fontFamily: 'Poppins' }}
+              >
+                <FaArrowLeftLong style={{ marginRight: '4px' }} />
+                Previous
+              </button>
+              <span style={{ fontFamily: 'Poppins', padding: '0 12px' }}>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages || loading}
+                style={{ fontFamily: 'Poppins' }}
+              >
+                Next
+                <FaArrowRightLong style={{ marginLeft: '4px' }} />
+              </button>
+            </div>
+          </div>
+        )}
 
       {/* View Details Modal */}
       {showDetailsModal && selectedReport && (
@@ -560,34 +762,66 @@ function StoreDamagedStock() {
               </div>
               <div className="modal-body">
                 <div className="row mb-2">
-                  <div className="col-4 text-muted">Product</div>
-                  <div className="col-8">{selectedReport.productName || 'N/A'}</div>
+                  <div className="col-4 text-muted"><strong>Report Code:</strong></div>
+                  <div className="col-8">{selectedReport.reportCode || 'N/A'}</div>
                 </div>
                 <div className="row mb-2">
-                  <div className="col-4 text-muted">Reason</div>
+                  <div className="col-4 text-muted"><strong>Product:</strong></div>
+                  <div className="col-8">
+                    {selectedReport.productName || 'N/A'}
+                    {selectedReport.productSKU && <span style={{ color: '#666', marginLeft: '8px' }}>({selectedReport.productSKU})</span>}
+                  </div>
+                </div>
+                <div className="row mb-2">
+                  <div className="col-4 text-muted"><strong>Quantity:</strong></div>
+                  <div className="col-8">{selectedReport.quantity || '0'}</div>
+                </div>
+                <div className="row mb-2">
+                  <div className="col-4 text-muted"><strong>Damage Reason:</strong></div>
                   <div className="col-8">{selectedReport.damageReason || selectedReport.reason || 'N/A'}</div>
                 </div>
                 <div className="row mb-2">
-                  <div className="col-4 text-muted">Value</div>
-                  <div className="col-8">₹{selectedReport.estimatedValue?.toLocaleString() || '0'}</div>
+                  <div className="col-4 text-muted"><strong>Status:</strong></div>
+                  <div className="col-8">
+                    <span className={`badge ${
+                      selectedReport.status === 'approved' ? 'bg-success' :
+                      selectedReport.status === 'rejected' ? 'bg-danger' :
+                      'bg-warning text-dark'
+                    }`}>
+                      {selectedReport.status || 'pending'}
+                    </span>
+                  </div>
                 </div>
                 <div className="row mb-2">
-                  <div className="col-4 text-muted">Images</div>
+                  <div className="col-4 text-muted"><strong>Reported By:</strong></div>
+                  <div className="col-8">{selectedReport.reportedBy || 'N/A'}</div>
+                </div>
+                <div className="row mb-2">
+                  <div className="col-4 text-muted"><strong>Reported At:</strong></div>
                   <div className="col-8">
-                    {(() => {
-                      const images = Array.isArray(selectedReport.images)
-                        ? selectedReport.images
-                        : (selectedReport.image ? [selectedReport.image] : (selectedReport.imageUrl ? [selectedReport.imageUrl] : []));
-                      return images.length > 0 ? (
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                          {images.map((src, idx) => (
-                            <img key={idx} src={src} alt={`damage-${idx}`} style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #eee' }} />
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted">No image</span>
-                      );
-                    })()}
+                    {selectedReport.reportedAt 
+                      ? new Date(selectedReport.reportedAt).toLocaleString("en-IN")
+                      : 'N/A'}
+                  </div>
+                </div>
+                <div className="row mb-2">
+                  <div className="col-4 text-muted"><strong>Image:</strong></div>
+                  <div className="col-8">
+                    {selectedReport.image ? (
+                      <img 
+                        src={selectedReport.image} 
+                        alt="Damage report" 
+                        style={{ 
+                          width: '200px', 
+                          height: '200px', 
+                          objectFit: 'cover', 
+                          borderRadius: '6px', 
+                          border: '1px solid #eee' 
+                        }} 
+                      />
+                    ) : (
+                      <span className="text-muted">No image available</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -600,6 +834,7 @@ function StoreDamagedStock() {
       )}
       </div>
 
+      {loading && <Loading />}
       {error && <ErrorModal message={error} onClose={closeErrorModal} />}
     </div>
   );

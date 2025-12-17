@@ -28,36 +28,30 @@ import {
 export default function StoreHome() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState({
-    totalOrders: 24,
-    totalSales: 86540,
-    totalProducts: 128,
-    lowStockProducts: 7,
-    customers: { total: 156, active: 120, kycPending: 18, rejected: 5 },
-    orderStatuses: {
-      pendingPaymentApprovals: 3,
-      waitingForDelivery: 5,
-      waitingForDispatch: 2,
-      confirmed: 8,
-      dispatched: 6,
-      delivered: 10
+    keyMetrics: {
+      todayOrders: 0,
+      todaySales: 0,
+      lowStockAlerts: 0,
+      totalCustomers: 0,
+      activeCustomers: 0
     },
-    topSellingProducts: [
-      { name: 'Product A', sales: 120 },
-      { name: 'Product B', sales: 90 },
-      { name: 'Product C', sales: 70 },
-      { name: 'Product D', sales: 60 },
-      { name: 'Product E', sales: 55 }
-    ],
-    lowStockAlerts: [
-      { productName: 'Product A', currentStock: 5, threshold: 20 },
-      { productName: 'Product B', currentStock: 3, threshold: 15 },
-      { productName: 'Product C', currentStock: 2, threshold: 10 }
-    ],
-    topPerformingBOs: [
-      { name: 'John Doe', sales: 45000 },
-      { name: 'Priya Sharma', sales: 38000 },
-      { name: 'Amit Singh', sales: 32000 }
-    ]
+    salesActivity: [],
+    pendingIndents: [],
+    lowStockProducts: [],
+    quickInsights: {
+      pendingReturns: 0,
+      activeCustomers: 0,
+      avgOrderValue: 0,
+      deliveredToday: 0
+    },
+    dayWiseSales: [],
+    totalSales7Days: 0,
+    paymentReports: {
+      cashBalance: 0,
+      bankBalance: 0,
+      recentPayments: [],
+      totalPayments: 0
+    }
   });
 
   const [loading, setLoading] = useState(false);
@@ -66,53 +60,40 @@ export default function StoreHome() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Day-wise sales reports data - Initialize with dummy data
-  const [dayWiseSales, setDayWiseSales] = useState(() => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      dates.push({
-        date: date.toISOString().split('T')[0],
-        sales: Math.floor(Math.random() * 80000) + 15000,
-        orders: Math.floor(Math.random() * 20) + 8
-      });
-    }
-    return dates;
-  });
-  
-  // Payment reports data - Initialize with dummy data
-  const [paymentReports, setPaymentReports] = useState({
-    cash: 185500,
-    bank: 142300,
-    total: 327800,
-    recentPayments: [
-      { method: 'Cash', amount: 8500, date: new Date().toISOString().split('T')[0] },
-      { method: 'Bank', amount: 15000, date: new Date().toISOString().split('T')[0] },
-      { method: 'Cash', amount: 6200, date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-      { method: 'Bank', amount: 18000, date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-      { method: 'Cash', amount: 9500, date: new Date(Date.now() - 172800000).toISOString().split('T')[0] },
-      { method: 'Bank', amount: 12000, date: new Date(Date.now() - 172800000).toISOString().split('T')[0] }
-    ]
-  });
-  
-  // Store performance data - Initialize with dummy data
-  const [storePerformance, setStorePerformance] = useState([
-    { storeName: 'Mumbai Central Store', sales: 485000, orders: 195, performance: 96, location: 'Mumbai' },
-    { storeName: 'Delhi Main Branch', sales: 420000, orders: 168, performance: 92, location: 'Delhi' },
-    { storeName: 'Bangalore Hub', sales: 380000, orders: 152, performance: 88, location: 'Bangalore' },
-    { storeName: 'Pune Outlet', sales: 345000, orders: 138, performance: 82, location: 'Pune' },
-    { storeName: 'Chennai Store', sales: 320000, orders: 128, performance: 78, location: 'Chennai' },
-    { storeName: 'Hyderabad Branch', sales: 295000, orders: 118, performance: 75, location: 'Hyderabad' }
-  ]);
+  const [storePerformance, setStorePerformance] = useState([]);
 
   useEffect(() => {
-    // Get store ID from user context
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    const user = userData.user || userData;
-    const id = user.storeId || user.store?.id;
-    setStoreId(id);
+    // Get store ID from multiple sources
+    try {
+      // Try from user context
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const user = userData.user || userData;
+      let id = user.storeId || user.store?.id;
+      
+      // Fallback to selectedStore
+      if (!id) {
+        const selectedStore = localStorage.getItem("selectedStore");
+        if (selectedStore) {
+          const store = JSON.parse(selectedStore);
+          id = store.id;
+        }
+      }
+      
+      // Fallback to currentStoreId
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      if (id) {
+        setStoreId(id);
+        console.log("Store ID set:", id);
+      } else {
+        console.warn("No store ID found");
+      }
+    } catch (e) {
+      console.error("Error getting store ID:", e);
+    }
   }, []);
 
   useEffect(() => {
@@ -124,84 +105,35 @@ export default function StoreHome() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch day-wise sales reports
+  // Fetch dashboard data
   useEffect(() => {
-    if (storeId) {
-      fetchDayWiseSales();
-    }
+    // Fetch dashboard data - storeId can be null for store manager/employee
+    fetchDashboardData();
+    fetchStorePerformance();
   }, [storeId]);
 
-  // Fetch payment reports
-  useEffect(() => {
-    if (storeId) {
-      fetchPaymentReports();
-    }
-  }, [storeId]);
-
-  // Fetch store performance
-  useEffect(() => {
-    if (storeId) {
-      fetchStorePerformance();
-    }
-  }, [storeId]);
-
-  const fetchDayWiseSales = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Get last 7 days sales
-      const toDate = new Date();
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 7);
-      
-      const params = {
-        fromDate: fromDate.toISOString().split('T')[0],
-        toDate: toDate.toISOString().split('T')[0]
-      };
-      
-      const response = await storeService.getDayWiseSalesReport(storeId, params);
+      setError(null);
+      console.log("Fetching dashboard data for storeId:", storeId);
+      const response = await storeService.getStoreDashboard(storeId);
+      console.log("Dashboard API response:", response);
       
       if (response.success && response.data) {
-        setDayWiseSales(response.data);
+        setDashboardData(response.data);
+        console.log("Dashboard data set successfully");
       } else {
-        // Use existing dummy data if API not available
+        const errorMsg = response.message || "Failed to fetch dashboard data";
+        console.error("Dashboard API error:", errorMsg);
+        setError(errorMsg);
+        setIsModalOpen(true);
       }
     } catch (err) {
-      console.error('Error fetching day-wise sales:', err);
-      // Keep existing dummy data on error
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPaymentReports = async () => {
-    try {
-      setLoading(true);
-      const toDate = new Date();
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 7);
-      
-      const params = {
-        fromDate: fromDate.toISOString().split('T')[0],
-        toDate: toDate.toISOString().split('T')[0]
-      };
-      
-      const response = await storeService.getPaymentReports(storeId, params);
-      
-      if (response.success && response.data) {
-        const cash = response.data.cashPayments || 0;
-        const bank = response.data.bankPayments || 0;
-        setPaymentReports({
-          cash,
-          bank,
-          total: cash + bank,
-          recentPayments: response.data.recentPayments || []
-        });
-      } else {
-        // Use existing dummy data if API not available
-      }
-    } catch (err) {
-      console.error('Error fetching payment reports:', err);
-      // Keep existing dummy data on error
+      console.error('Error fetching dashboard data:', err);
+      const errorMsg = err.response?.data?.message || err.message || "Failed to fetch dashboard data";
+      setError(errorMsg);
+      setIsModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -209,19 +141,20 @@ export default function StoreHome() {
 
   const fetchStorePerformance = async () => {
     try {
-      setLoading(true);
-      const response = await storeService.getStorePerformance(storeId);
+      const response = await storeService.getStorePerformanceComparison();
       
       if (response.success && response.data) {
-        setStorePerformance(response.data);
-      } else {
-        // Use existing dummy data if API not available
+        const mappedData = Array.isArray(response.data) ? response.data.map(store => ({
+          storeName: store.store || store.storeName || "-",
+          sales: store.sales || 0,
+          orders: store.orders || 0,
+          performance: store.performance || 0
+        })) : [];
+        setStorePerformance(mappedData);
       }
     } catch (err) {
       console.error('Error fetching store performance:', err);
-      // Keep existing dummy data on error
-    } finally {
-      setLoading(false);
+      // Don't show error for performance data, just log it
     }
   };
 
@@ -322,7 +255,7 @@ export default function StoreHome() {
             <FaShoppingCart />
           </div>
           <div className={styles.statContent}>
-            <h3>{dashboardData.totalOrders?.toLocaleString() || 0}</h3>
+            <h3>{dashboardData.keyMetrics?.todayOrders?.toLocaleString() || 0}</h3>
             <p>Today Orders</p>
           </div>
         </div>
@@ -332,7 +265,7 @@ export default function StoreHome() {
             <FaRupeeSign />
           </div>
           <div className={styles.statContent}>
-            <h3>₹{dashboardData.totalSales?.toLocaleString() || 0}</h3>
+            <h3>₹{dashboardData.keyMetrics?.todaySales?.toLocaleString() || 0}</h3>
             <p>Today Sales</p>
           </div>
         </div>
@@ -342,10 +275,10 @@ export default function StoreHome() {
             <FaBoxes />
           </div>
           <div className={styles.statContent}>
-            <h3>{dashboardData.lowStockProducts?.toLocaleString() || 0}</h3>
+            <h3>{dashboardData.keyMetrics?.lowStockAlerts?.toLocaleString() || 0}</h3>
             <p>Low Stock Alerts</p>
             <span className={styles.alertIndicator}>
-              {dashboardData.lowStockProducts || 0} items need attention
+              {dashboardData.keyMetrics?.lowStockAlerts || 0} items need attention
             </span>
           </div>
         </div>
@@ -355,10 +288,10 @@ export default function StoreHome() {
             <FaUsers />
           </div>
           <div className={styles.statContent}>
-            <h3>{dashboardData.customers?.total?.toLocaleString() || 0}</h3>
+            <h3>{dashboardData.keyMetrics?.totalCustomers?.toLocaleString() || 0}</h3>
             <p>Total Customers</p>
             <span className={styles.statusIndicator}>
-              {dashboardData.customers?.active || 0} active
+              {dashboardData.keyMetrics?.activeCustomers || 0} active
             </span>
           </div>
         </div>
@@ -373,30 +306,42 @@ export default function StoreHome() {
             <div className={styles.orderStatusCard}>
               <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Sales Activity</h4>
               <div>
-                {[{ customer: 'Rajesh Kumar', amount: 2500, time: '2h ago' }, { customer: 'Priya Sharma', amount: 1800, time: '4h ago' }, { customer: 'Amit Singh', amount: 3200, time: '6h ago' }].map((s, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: idx % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{s.customer}</div>
-                      <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>{s.time}</div>
+                {dashboardData.salesActivity && dashboardData.salesActivity.length > 0 ? (
+                  dashboardData.salesActivity.map((s, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: idx % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{s.customerName || '-'}</div>
+                        <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>{s.timeAgo || '-'}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: '#059669', fontFamily: 'Poppins', fontSize: '16px' }}>₹{(s.amount || 0).toLocaleString()}</div>
                     </div>
-                    <div style={{ fontWeight: 700, color: '#059669', fontFamily: 'Poppins', fontSize: '16px' }}>₹{s.amount.toLocaleString()}</div>
+                  ))
+                ) : (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', fontFamily: 'Poppins' }}>
+                    No recent sales activity
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
             {/* Pending Indents Card */}
             <div className={styles.orderStatusCard}>
               <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Pending Indents</h4>
-              {[{ code: 'IND000123', value: 15000, status: 'Awaiting Approval' }, { code: 'IND000124', value: 9800, status: 'Awaiting Approval' }, { code: 'IND000125', value: 21000, status: 'Waiting for Stock' }].map((ind, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
-                  <div>
-                    <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{ind.code}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>{ind.status}</div>
+              {dashboardData.pendingIndents && dashboardData.pendingIndents.length > 0 ? (
+                dashboardData.pendingIndents.map((ind, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent', borderRadius: '8px', marginBottom: '8px' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>{ind.indentCode || '-'}</div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'Poppins' }}>{ind.status || '-'}</div>
+                    </div>
+                    <div style={{ fontWeight: 600, color: 'var(--primary-color)', fontFamily: 'Poppins', fontSize: '16px' }}>₹{(ind.amount || 0).toLocaleString()}</div>
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--primary-color)', fontFamily: 'Poppins', fontSize: '16px' }}>₹{ind.value.toLocaleString()}</div>
+                ))
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280', fontFamily: 'Poppins' }}>
+                  No pending indents
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -416,16 +361,24 @@ export default function StoreHome() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dashboardData.lowStockAlerts.map((p, i) => (
-                      <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                        <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.productName}</td>
-                        <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.currentStock}</td>
-                        <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.threshold}</td>
-                        <td>
-                          <span className="badge bg-warning" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>Low</span>
+                    {dashboardData.lowStockProducts && dashboardData.lowStockProducts.length > 0 ? (
+                      dashboardData.lowStockProducts.map((p, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
+                          <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.product || p.productName || '-'}</td>
+                          <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.current || p.currentStock || 0}</td>
+                          <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{p.threshold || 0}</td>
+                          <td>
+                            <span className="badge bg-warning" style={{ fontFamily: 'Poppins', fontSize: '11px' }}>{p.status || 'Low'}</span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#6b7280', fontFamily: 'Poppins' }}>
+                          No low stock products
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -437,19 +390,19 @@ export default function StoreHome() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div style={{ background: 'rgba(8,145,178,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(8,145,178,0.1)' }}>
                   <div style={{ fontSize: 12, color: '#0e7490', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Pending Returns</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: '#0e7490', fontFamily: 'Poppins' }}>{dashboardData.orderStatuses?.pendingPaymentApprovals || 0}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#0e7490', fontFamily: 'Poppins' }}>{dashboardData.quickInsights?.pendingReturns || 0}</div>
                 </div>
                 <div style={{ background: 'rgba(124,58,237,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(124,58,237,0.1)' }}>
                   <div style={{ fontSize: 12, color: '#6d28d9', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Active Customers</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: '#6d28d9', fontFamily: 'Poppins' }}>{dashboardData.customers?.active || 0}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#6d28d9', fontFamily: 'Poppins' }}>{dashboardData.quickInsights?.activeCustomers || 0}</div>
                 </div>
                 <div style={{ background: 'rgba(217,119,6,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(217,119,6,0.1)' }}>
                   <div style={{ fontSize: 12, color: '#b45309', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Avg. Order Value</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#b45309', fontFamily: 'Poppins' }}>₹{Math.round((dashboardData.totalSales || 0) / Math.max(dashboardData.totalOrders || 1, 1)).toLocaleString()}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#b45309', fontFamily: 'Poppins' }}>₹{Math.round((dashboardData.quickInsights?.avgOrderValue || 0)).toLocaleString()}</div>
                 </div>
                 <div style={{ background: 'rgba(5,150,105,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(5,150,105,0.1)' }}>
                   <div style={{ fontSize: 12, color: '#047857', fontFamily: 'Poppins', fontWeight: 500, marginBottom: '8px' }}>Delivered Today</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: '#047857', fontFamily: 'Poppins' }}>{dashboardData.orderStatuses?.delivered || 0}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#047857', fontFamily: 'Poppins' }}>{dashboardData.quickInsights?.deliveredToday || 0}</div>
                 </div>
               </div>
             </div>
@@ -461,7 +414,7 @@ export default function StoreHome() {
             <div className={styles.orderStatusCard}>
               <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>Day-wise Sales Reports</h4>
               <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                {dayWiseSales.length > 0 ? (
+                {dashboardData.dayWiseSales && dashboardData.dayWiseSales.length > 0 ? (
                   <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
                     <thead>
                       <tr>
@@ -471,9 +424,9 @@ export default function StoreHome() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dayWiseSales.slice().reverse().map((day, i) => (
+                      {dashboardData.dayWiseSales.map((day, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                          <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{formatDate(day.date)}</td>
+                          <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{day.date || '-'}</td>
                           <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{day.orders || 0}</td>
                           <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: '#059669' }}>₹{(day.sales || 0).toLocaleString()}</td>
                         </tr>
@@ -496,7 +449,7 @@ export default function StoreHome() {
               }}>
                 <span style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, color: '#6b7280' }}>Total (7 days)</span>
                 <span style={{ fontFamily: 'Poppins', fontSize: '16px', fontWeight: 700, color: 'var(--primary-color)' }}>
-                  ₹{dayWiseSales.reduce((sum, day) => sum + (day.sales || 0), 0).toLocaleString()}
+                  ₹{(dashboardData.totalSales7Days || 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -518,7 +471,7 @@ export default function StoreHome() {
                     <div style={{ fontSize: '12px', color: '#047857', fontFamily: 'Poppins', fontWeight: 500 }}>Cash</div>
                   </div>
                   <div style={{ fontSize: '22px', fontWeight: 700, color: '#047857', fontFamily: 'Poppins' }}>
-                    ₹{(paymentReports.cash || 0).toLocaleString()}
+                    ₹{(dashboardData.paymentReports?.cashBalance || 0).toLocaleString()}
                   </div>
                 </div>
                 <div style={{ 
@@ -532,7 +485,7 @@ export default function StoreHome() {
                     <div style={{ fontSize: '12px', color: '#3b82f6', fontFamily: 'Poppins', fontWeight: 500 }}>Bank</div>
                   </div>
                   <div style={{ fontSize: '22px', fontWeight: 700, color: '#3b82f6', fontFamily: 'Poppins' }}>
-                    ₹{(paymentReports.bank || 0).toLocaleString()}
+                    ₹{(dashboardData.paymentReports?.bankBalance || 0).toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -540,9 +493,9 @@ export default function StoreHome() {
               {/* Recent Payments */}
               <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: '#6b7280', fontFamily: 'Poppins', marginBottom: '12px' }}>Recent Payments</div>
-                {paymentReports.recentPayments && paymentReports.recentPayments.length > 0 ? (
+                {dashboardData.paymentReports?.recentPayments && dashboardData.paymentReports.recentPayments.length > 0 ? (
                   <div>
-                    {paymentReports.recentPayments.slice(0, 5).map((payment, i) => (
+                    {dashboardData.paymentReports.recentPayments.slice(0, 5).map((payment, i) => (
                       <div key={i} style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
@@ -564,7 +517,7 @@ export default function StoreHome() {
                           }}>
                             {payment.method}
                           </span>
-                          <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Poppins' }}>{formatDate(payment.date)}</span>
+                          <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'Poppins' }}>{payment.date || '-'}</span>
                         </div>
                         <span style={{ fontWeight: 600, color: '#111827', fontFamily: 'Poppins', fontSize: '14px' }}>
                           ₹{(payment.amount || 0).toLocaleString()}
@@ -590,7 +543,7 @@ export default function StoreHome() {
               }}>
                 <span style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, color: '#6b7280' }}>Total Payments</span>
                 <span style={{ fontFamily: 'Poppins', fontSize: '16px', fontWeight: 700, color: 'var(--primary-color)' }}>
-                  ₹{(paymentReports.total || 0).toLocaleString()}
+                  ₹{(dashboardData.paymentReports?.totalPayments || 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -614,7 +567,7 @@ export default function StoreHome() {
                     <tbody>
                       {storePerformance.map((store, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                          <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{store.storeName}</td>
+                          <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{store.storeName || store.store || '-'}</td>
                           <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: '#059669' }}>
                             ₹{(store.sales || 0).toLocaleString()}
                           </td>

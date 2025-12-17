@@ -230,13 +230,10 @@ export default function StoreBulkPriceUpdate({ navigate }) {
     <div style={{ padding: '20px' }}>
       {/* Page Header */}
       <div style={{ marginBottom: '24px' }}>
-        <button
-          className="btn btn-sm btn-outline-secondary mb-3"
-          onClick={() => navigate('/store/products')}
-          style={{ fontFamily: 'Poppins' }}
-        >
-          ← Back to Products
-        </button>
+        <p className="path">
+          <span onClick={() => navigate("/store/products")}>Products</span>{" "}
+          <i className="bi bi-chevron-right"></i> Bulk Update
+        </p>
         <h2 style={{ 
           fontFamily: 'Poppins', 
           fontWeight: 700, 
@@ -267,7 +264,12 @@ export default function StoreBulkPriceUpdate({ navigate }) {
               className="form-select"
               value={updateType}
               onChange={(e) => setUpdateType(e.target.value)}
-              style={{ fontFamily: 'Poppins' }}
+              style={{ 
+                fontFamily: 'Poppins',
+                border: '1px solid #000',
+                backgroundColor: '#fff',
+                color: '#000'
+              }}
             >
               <option value="percentage">Percentage Change</option>
               <option value="fixed">Fixed Amount Change</option>
@@ -284,7 +286,12 @@ export default function StoreBulkPriceUpdate({ navigate }) {
               value={updateValue}
               onChange={(e) => setUpdateValue(e.target.value)}
               placeholder={updateType === "percentage" ? "e.g., 10 for +10%" : "e.g., 50 for +₹50"}
-              style={{ fontFamily: 'Poppins' }}
+              style={{ 
+                fontFamily: 'Poppins',
+                border: '1px solid #000',
+                backgroundColor: '#fff',
+                color: '#000'
+              }}
             />
           </div>
           <div className="col-md-4" style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -330,14 +337,14 @@ export default function StoreBulkPriceUpdate({ navigate }) {
               width: '100%',
               padding: '12px 16px 12px 48px',
               borderRadius: '12px',
-              border: '1px solid #e5e7eb',
+              border: '1px solid #000',
               fontFamily: 'Poppins',
               fontSize: '14px',
               outline: 'none',
+              backgroundColor: '#fff',
+              color: '#000',
               transition: 'all 0.2s ease'
             }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
-            onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
           />
         </div>
       </div>
@@ -357,8 +364,8 @@ export default function StoreBulkPriceUpdate({ navigate }) {
           </button>
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ marginBottom: 0, fontFamily: 'Poppins' }}>
-            <thead>
+          <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
+            <thead className="table-light">
               <tr>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px', width: '40px' }}>
                   <input
@@ -376,7 +383,7 @@ export default function StoreBulkPriceUpdate({ navigate }) {
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '40px', fontFamily: 'Poppins', color: '#666' }}>
+                  <td colSpan="5" className="text-center" style={{ padding: '20px', fontFamily: 'Poppins' }}>
                     {loading ? 'Loading products...' : 'No products found'}
                   </td>
                 </tr>
@@ -404,16 +411,16 @@ export default function StoreBulkPriceUpdate({ navigate }) {
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
                         {product.name}
                       </td>
-                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666' }}>
                         {product.SKU || product.sku || '-'}
                       </td>
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                        ₹{product.currentPrice?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        ₹{Number(product.currentPrice || 0).toFixed(2)}
                       </td>
                       <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
                         {priceChange ? (
                           <span style={{ color: priceChange.new > priceChange.current ? 'green' : priceChange.new < priceChange.current ? 'red' : 'inherit' }}>
-                            ₹{priceChange.new.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹{Number(priceChange.new || 0).toFixed(2)}
                           </span>
                         ) : (
                           <span style={{ color: '#999' }}>-</span>

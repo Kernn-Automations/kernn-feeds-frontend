@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Returns Management Module is a comprehensive system for handling product returns, cancellations, and related processes in the Kernn Feeds application. It provides a complete workflow from return request creation to final processing, including approval workflows, credit note generation, and detailed reporting.
+The Returns Management Module is a comprehensive system for handling product returns, cancellations, and related processes in the Feed Bazaar application. It provides a complete workflow from return request creation to final processing, including approval workflows, credit note generation, and detailed reporting.
 
 ## Features
 
