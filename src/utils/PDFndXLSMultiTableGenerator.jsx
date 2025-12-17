@@ -69,7 +69,7 @@ export const handleExportMultiplePDF = async (tables, mainTitle = "Report") => {
 
     doc.setTextColor("#a92427");
     doc.text(
-      "© Kernn Automations Private Limited",
+      "© Feed Bazaar Private Limited",
       pageWidth / 2,
       pageHeight - 5,
       { align: "center" }

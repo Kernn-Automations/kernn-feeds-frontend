@@ -82,7 +82,7 @@ export const handleCustomerWisePDF = async (
 
     doc.setTextColor("#a92427");
     doc.text(
-      "© Kernn Automations Private Limited",
+      "© Feed Bazaar Private Limited",
       pageWidth / 2,
       pageHeight - 22 + footerLines.length * 4,
       { align: "center" }

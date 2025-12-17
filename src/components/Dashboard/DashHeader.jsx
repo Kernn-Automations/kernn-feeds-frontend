@@ -23,7 +23,7 @@ function DashHeader({
       <div className={styles.header}>
         <div className="row justify-content-between">
           <div className={`col-4 ${styles.headcontentTitle}`}>
-            <p className={styles.brand}>Kernn Automations Pvt Ltd</p>
+            <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
             {orgadmin && (
               <p className={styles.reset}>
                 <span

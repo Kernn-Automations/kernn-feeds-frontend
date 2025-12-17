@@ -77,7 +77,7 @@ export const handleExportPDF = async (columns, data, title, grandTotal = null) =
     });
 
     doc.setTextColor("#a92427");
-    doc.text("© Kernn Automations Private Limited", pageWidth / 2, pageHeight - 12, {
+    doc.text("© Feed Bazaar Private Limited", pageWidth / 2, pageHeight - 12, {
       align: "center",
     });
 

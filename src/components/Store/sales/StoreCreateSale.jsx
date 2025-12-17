@@ -840,11 +840,11 @@ export default function StoreCreateSale() {
       items,
       totals: { subtotal, tax, discountAmount: discountAmt, freightCharges: freightAmt, total },
       totalBags: totalBags,
-      upiId: "kernnfeeds@upi",
+      upiId: "feedbazaar@upi",
       bankDetails: {
         accountNumber: "1234567890",
-        ifsc: "KERNN0001",
-        bankName: "Kernn Bank",
+        ifsc: "FEEDBAZAAR0001",
+        bankName: "Feed Bazaar Bank",
       },
     };
   }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal, discountAmount, fridgeAmount]);
@@ -2344,8 +2344,8 @@ export default function StoreCreateSale() {
                                 return;
                               }
                               
-                              const upiId = reviewData?.upiId || "kernnfeeds@upi";
-                              const upiUrl = `upi://pay?pa=${upiId}&pn=Kernn Automations Private Limited&am=${amount.toFixed(2)}&cu=INR`;
+                              const upiId = reviewData?.upiId || "feedbazaar@upi";
+                              const upiUrl = `upi://pay?pa=${upiId}&pn=Feed Bazaar Private Limited&am=${amount.toFixed(2)}&cu=INR`;
                               
                               setQrCodeData(prev => ({
                                 ...prev,

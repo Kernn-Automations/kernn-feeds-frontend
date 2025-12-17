@@ -383,7 +383,7 @@ function LedgerReports({navigate}) {
             <div className="mb-2">Kachare Housing Society,</div>
             <div className="mb-2">JAYSINGPUR KOLHAPUR ROAD</div>
             <div className="mb-2">SAMBHJIPUR, Jaysingpur, Kolhapur,, Maharashtra - 416101</div>
-            <div className="mb-3">E-Mail :finance@kernn-automations.in</div>
+            <div className="mb-3">E-Mail :finance@feedbazaar.in</div>
 
             <h5 className="fw-bold mb-1">{selectedCustomerDetails.name}</h5>
             <div className="mb-1">Ledger Account</div>
