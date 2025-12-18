@@ -16,6 +16,9 @@ function StoreStockSummary() {
   const { axiosAPI } = useAuth();
   const [from, setFrom] = useState(new Date().toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [tempFrom, setTempFrom] = useState(new Date().toISOString().slice(0, 10));
+  const [tempTo, setTempTo] = useState(new Date().toISOString().slice(0, 10));
+  const [dateRange, setDateRange] = useState("custom");
   const [stockData, setStockData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -29,7 +32,6 @@ function StoreStockSummary() {
   const [activeTab, setActiveTab] = useState("summary"); // "summary", "stats", "audit", "opening-closing"
   const [auditTrail, setAuditTrail] = useState([]);
   const [openingClosing, setOpeningClosing] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   
   const closeModal = () => setIsModalOpen(false);
 
@@ -200,12 +202,13 @@ function StoreStockSummary() {
   };
 
   const fetchOpeningClosing = async () => {
-    if (!selectedDate || !storeId) return;
+    if (!from || !to || !storeId) return;
     
     setLoading(true);
     try {
       const params = {
-        date: selectedDate,
+        fromDate: from,
+        toDate: to,
         storeId: storeId
       };
       
@@ -221,17 +224,17 @@ function StoreStockSummary() {
     }
   };
 
+  // Removed automatic fetching on date change - now only fetches on Submit button click
   useEffect(() => {
-    if (storeId && activeTab === "summary") {
-      fetchStock();
-    } else if (storeId && activeTab === "stats") {
-      fetchStats();
-    } else if (storeId && activeTab === "audit") {
-      fetchAuditTrail();
-    } else if (storeId && activeTab === "opening-closing") {
-      fetchOpeningClosing();
+    if (storeId && page > 1) {
+      // Only auto-fetch for pagination changes
+      if (activeTab === "summary") {
+        fetchStock();
+      } else if (activeTab === "audit") {
+        fetchAuditTrail();
+      }
     }
-  }, [storeId, from, to, page, limit, activeTab, selectedDate]);
+  }, [storeId, page, limit]);
 
   const handlePageChange = (direction) => {
     if (direction === "next" && page < totalPages) {
@@ -244,6 +247,78 @@ function StoreStockSummary() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setPage(1); // Reset to first page when switching tabs
+  };
+
+  const onSubmit = () => {
+    setFrom(tempFrom);
+    setTo(tempTo);
+    setPage(1); // Reset to first page
+    
+    // Fetch data based on active tab
+    setTimeout(() => {
+      if (activeTab === "summary") fetchStock();
+      else if (activeTab === "stats") fetchStats();
+      else if (activeTab === "audit") fetchAuditTrail();
+      else if (activeTab === "opening-closing") fetchOpeningClosing();
+    }, 100);
+  };
+
+  const onCancel = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setTempFrom(today);
+    setTempTo(today);
+    setFrom(today);
+    setTo(today);
+    setDateRange("custom");
+  };
+
+  const handleDateRangeChange = (range) => {
+    setDateRange(range);
+    const today = new Date();
+    const toDate = today.toISOString().slice(0, 10);
+    let fromDate = toDate;
+
+    switch (range) {
+      case "today":
+        fromDate = toDate;
+        break;
+      case "yesterday":
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        fromDate = yesterday.toISOString().slice(0, 10);
+        setTempTo(fromDate);
+        break;
+      case "last7days":
+        const last7 = new Date(today);
+        last7.setDate(last7.getDate() - 7);
+        fromDate = last7.toISOString().slice(0, 10);
+        break;
+      case "last30days":
+        const last30 = new Date(today);
+        last30.setDate(last30.getDate() - 30);
+        fromDate = last30.toISOString().slice(0, 10);
+        break;
+      case "thisMonth":
+        const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        fromDate = thisMonthStart.toISOString().slice(0, 10);
+        break;
+      case "lastMonth":
+        const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+        fromDate = lastMonthStart.toISOString().slice(0, 10);
+        setTempTo(lastMonthEnd.toISOString().slice(0, 10));
+        break;
+      case "custom":
+        // Don't change dates for custom
+        return;
+      default:
+        fromDate = toDate;
+    }
+
+    setTempFrom(fromDate);
+    if (range !== "yesterday" && range !== "lastMonth") {
+      setTempTo(toDate);
+    }
   };
 
   // Export function
@@ -460,105 +535,62 @@ function StoreStockSummary() {
         </div>
 
         {/* Filters based on active tab */}
-        {activeTab !== "opening-closing" ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
-            <div>
-              <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                From Date
-              </label>
-              <input
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                  fontFamily: 'Poppins',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                To Date
-              </label>
-              <input
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                  fontFamily: 'Poppins',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                className="homebtn"
-                onClick={() => {
-                  if (activeTab === "summary") fetchStock();
-                  else if (activeTab === "stats") fetchStats();
-                  else if (activeTab === "audit") fetchAuditTrail();
-                }}
-                disabled={loading}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1', flex: 1 }}
-              >
-                {loading ? 'Loading...' : 'Submit'}
-              </button>
-              <button 
-                className="homebtn"
-                onClick={() => navigate('/store/inventory')}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1', flex: 1 }}
-              >
-                Back
-              </button>
-            </div>
+        <div className="row m-0 p-3">
+          <div className="col-2 formcontent">
+            <label htmlFor="">Date Range :</label>
+            <select
+              value={dateRange}
+              onChange={(e) => handleDateRangeChange(e.target.value)}
+            >
+              <option value="custom">Custom</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7days">Last 7 Days</option>
+              <option value="last30days">Last 30 Days</option>
+              <option value="thisMonth">This Month</option>
+              <option value="lastMonth">Last Month</option>
+            </select>
           </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'end' }}>
-            <div>
-              <label style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                Select Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                  fontFamily: 'Poppins',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                className="homebtn"
-                onClick={fetchOpeningClosing}
-                disabled={loading}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1', flex: 1 }}
-              >
-                {loading ? 'Loading...' : 'Submit'}
-              </button>
-              <button 
-                className="homebtn"
-                onClick={() => navigate('/store/inventory')}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1', flex: 1 }}
-              >
-                Back
-              </button>
-            </div>
+          <div className="col-2 formcontent">
+            <label htmlFor="">From :</label>
+            <input
+              type="date"
+              value={tempFrom}
+              onChange={(e) => {
+                setTempFrom(e.target.value);
+                setDateRange("custom");
+              }}
+            />
           </div>
-        )}
+          <div className="col-2 formcontent">
+            <label htmlFor="">To :</label>
+            <input
+              type="date"
+              value={tempTo}
+              onChange={(e) => {
+                setTempTo(e.target.value);
+                setDateRange("custom");
+              }}
+            />
+          </div>
+          <div className="col-6 formcontent" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', justifyContent: 'flex-end' }}>
+            <button 
+              className="submitbtn"
+              onClick={onSubmit}
+              disabled={loading}
+              style={{ margin: 0 }}
+            >
+              {loading ? 'Loading...' : 'Submit'}
+            </button>
+            <button 
+              className="cancelbtn"
+              onClick={onCancel}
+              style={{ margin: 0 }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Loading */}
@@ -783,7 +815,7 @@ function StoreStockSummary() {
       {!loading && activeTab === "opening-closing" && openingClosing && (
         <div className={styles.orderStatusCard}>
           <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Opening and Closing Stock - {openingClosing.date || selectedDate}
+            Opening and Closing Stock ({from} to {to})
           </h4>
           {openingClosing.totals && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>

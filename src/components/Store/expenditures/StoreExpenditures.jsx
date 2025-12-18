@@ -29,7 +29,7 @@ const LIMIT_OPTIONS = [10, 25, 50];
 
 const now = new Date();
 const DEFAULT_FILTERS = {
-  month: now.getMonth() + 1,
+  months: [], // Start with no months selected
   year: now.getFullYear(),
   page: 1,
   limit: 10,
@@ -109,6 +109,9 @@ function StoreExpenditures() {
 
   const [storeId, setStoreId] = useState(null);
   const [filters, setFilters] = useState({ ...DEFAULT_FILTERS });
+  const [tempFilters, setTempFilters] = useState({ ...DEFAULT_FILTERS }); // Temporary filters before submit
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [monthSearchTerm, setMonthSearchTerm] = useState("");
 
   const [expenditures, setExpenditures] = useState([]);
   const [pagination, setPagination] = useState({
@@ -191,9 +194,13 @@ function StoreExpenditures() {
       const params = {
         page: filters.page,
         limit: filters.limit,
-        month: filters.month,
         year: filters.year
       };
+      
+      // Only add months parameter if months are selected
+      if (filters.months && filters.months.length > 0) {
+        params.months = filters.months;
+      }
       
       const res = await storeService.getStoreExpenditures(storeId, params);
       const expendituresData = res.data || res.expenditures || res || [];
@@ -203,7 +210,7 @@ function StoreExpenditures() {
       const mappedExpenditures = Array.isArray(expendituresData) ? expendituresData.map(item => ({
         id: item.id,
         expenditureCode: item.expenditureCode || item.code || `EXP-${item.id}`,
-        month: item.month || filters.month,
+        month: item.month,
         year: item.year || filters.year,
         staffSalary: parseFloat(item.staffSalary || 0),
         rent: parseFloat(item.rent || 0),
@@ -241,7 +248,7 @@ function StoreExpenditures() {
     } finally {
       setListLoading(false);
     }
-  }, [filters.limit, filters.month, filters.page, filters.year, selectedExpenditureId, showError, storeId]);
+  }, [filters.limit, filters.months, filters.page, filters.year, selectedExpenditureId, showError, storeId]);
 
 
   const loadExpenditureDetails = useCallback(
@@ -305,11 +312,20 @@ function StoreExpenditures() {
   }, [loadExpenditureDetails, selectedExpenditureId, storeId]);
 
   const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({
+    setTempFilters((prev) => ({
       ...prev,
       [field]: value,
       ...(field !== "page" ? { page: 1 } : {}),
     }));
+  };
+
+  const onSubmit = () => {
+    setFilters({ ...tempFilters });
+  };
+
+  const onCancel = () => {
+    setTempFilters({ ...DEFAULT_FILTERS });
+    setFilters({ ...DEFAULT_FILTERS });
   };
 
   const handlePaginationChange = (direction) => {
@@ -319,7 +335,9 @@ function StoreExpenditures() {
       if (nextPage < 1 || nextPage > totalPages) {
         return prev;
       }
-      return { ...prev, page: nextPage };
+      const newFilters = { ...prev, page: nextPage };
+      setTempFilters(newFilters);
+      return newFilters;
     });
   };
 
@@ -574,12 +592,25 @@ function StoreExpenditures() {
       {storeId && (
         <>
           <div className="row m-0 p-3">
-            <div className="col-3 formcontent">
-              <label>Month</label>
-              <select 
-                value={filters.month} 
-                onChange={(e) => handleFilterChange("month", Number(e.target.value))}
+            <div className="col-3 formcontent" style={{ position: "relative" }}>
+              <label>Month(s):</label>
+              <input
+                type="text"
+                value={monthSearchTerm}
+                onChange={(e) => {
+                  setMonthSearchTerm(e.target.value);
+                  setShowMonthDropdown(true);
+                }}
+                onFocus={() => setShowMonthDropdown(true)}
+                onBlur={() => setTimeout(() => {
+                  setShowMonthDropdown(false);
+                  if (monthSearchTerm === "") {
+                    setMonthSearchTerm("");
+                  }
+                }, 200)}
+                placeholder={tempFilters.months.length > 0 ? `${tempFilters.months.length} month(s) selected` : "Select or Type"}
                 style={{
+                  cursor: "pointer",
                   width: "100%",
                   padding: "8px 12px",
                   border: "1px solid #000",
@@ -588,21 +619,77 @@ function StoreExpenditures() {
                   fontFamily: "Poppins",
                   backgroundColor: "#fff",
                   color: "#000",
-                  cursor: "pointer",
                 }}
-              >
-                {MONTH_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
+              {showMonthDropdown && (
+                <ul
+                  style={{
+                    position: "absolute",
+                    top: "60px",
+                    left: "80px",
+                    zIndex: 999,
+                    background: "white",
+                    width: "260px",
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                    borderRadius: "10px",
+                    boxShadow: "2px 2px 4px #333",
+                    padding: "0",
+                    margin: "0",
+                    listStyle: "none",
+                  }}
+                >
+                  {MONTH_OPTIONS.filter(option => 
+                    option.label.toLowerCase().includes(monthSearchTerm.toLowerCase())
+                  ).map((option) => {
+                    const isSelected = tempFilters.months.includes(option.value);
+                    return (
+                      <li
+                        key={option.value}
+                        onMouseDown={() => {
+                          const newMonths = isSelected
+                            ? tempFilters.months.filter(m => m !== option.value)
+                            : [...tempFilters.months, option.value];
+                          handleFilterChange("months", newMonths);
+                          setMonthSearchTerm("");
+                        }}
+                        style={{
+                          padding: "5px 10px",
+                          cursor: "pointer",
+                          fontSize: "15px",
+                          backgroundColor: isSelected ? "#2563eb" : "transparent",
+                          color: isSelected ? "#fff" : "#000",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = "#f1f1f1";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = "transparent";
+                          }
+                        }}
+                      >
+                        {option.label}
+                      </li>
+                    );
+                  })}
+                  {MONTH_OPTIONS.filter(option => 
+                    option.label.toLowerCase().includes(monthSearchTerm.toLowerCase())
+                  ).length === 0 && (
+                    <li style={{ padding: "5px 10px", fontSize: "14px", color: "#6b7280" }}>
+                      No results
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
             <div className="col-3 formcontent">
-              <label>Year</label>
+              <label>Year:</label>
               <input
                 type="number"
-                value={filters.year}
+                value={tempFilters.year}
                 onChange={(e) => handleFilterChange("year", Number(e.target.value) || DEFAULT_FILTERS.year)}
                 style={{
                   width: "100%",
@@ -617,9 +704,9 @@ function StoreExpenditures() {
               />
             </div>
             <div className="col-3 formcontent">
-              <label>Rows per page</label>
+              <label>Rows per page:</label>
               <select 
-                value={filters.limit} 
+                value={tempFilters.limit} 
                 onChange={(e) => handleFilterChange("limit", Number(e.target.value))}
                 style={{
                   width: "100%",
@@ -639,6 +726,16 @@ function StoreExpenditures() {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+          <div className="row m-0 p-3 pb-5 justify-content-center">
+            <div className="col-4">
+              <button className="submitbtn" onClick={onSubmit}>
+                Submit
+              </button>
+              <button className="cancelbtn" onClick={onCancel}>
+                Cancel
+              </button>
             </div>
           </div>
           <div className="row m-0 p-3">

@@ -21,10 +21,148 @@ const StoresProducts = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingData, setEditingData] = useState({});
   const [saving, setSaving] = useState(false);
+  
+  // Filter states
+  const [storeTypeFilter, setStoreTypeFilter] = useState("all"); // "all", "own", "franchise"
+  const [selectedProducts, setSelectedProducts] = useState([]); // Multiple selected product SKUs
+  const [allProducts, setAllProducts] = useState([]); // All available products with {value, label}
+  
+  // Temporary filter states (before submit)
+  const [tempStoreTypeFilter, setTempStoreTypeFilter] = useState("all");
+  const [tempSelectedProducts, setTempSelectedProducts] = useState([]);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+
+  // Search states for table headers
+  const [zoneSearchTerm, setZoneSearchTerm] = useState("");
+  const [showZoneSearch, setShowZoneSearch] = useState(false);
+  const [subZoneSearchTerm, setSubZoneSearchTerm] = useState("");
+  const [showSubZoneSearch, setShowSubZoneSearch] = useState(false);
+  const [storeSearchTerm, setStoreSearchTerm] = useState("");
+  const [showStoreSearch, setShowStoreSearch] = useState(false);
+  
+  // Search states for price columns (dynamic per product)
+  const [priceSearchTerms, setPriceSearchTerms] = useState({}); // { 'productSKU-selling': 'term', 'productSKU-purchase': 'term' }
+  const [showPriceSearch, setShowPriceSearch] = useState({}); // { 'productSKU-selling': true/false, 'productSKU-purchase': true/false }
 
   useEffect(() => {
     fetchStoreProducts();
+    fetchProductsForFilter();
   }, [selectedDivision, showAllDivisions]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showProductDropdown && !e.target.closest('.formcontent')) {
+        setShowProductDropdown(false);
+      }
+    };
+    
+    if (showProductDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showProductDropdown]);
+
+  // ESC key handler to exit search mode
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        if (showZoneSearch) {
+          setShowZoneSearch(false);
+          setZoneSearchTerm("");
+        }
+        if (showSubZoneSearch) {
+          setShowSubZoneSearch(false);
+          setSubZoneSearchTerm("");
+        }
+        if (showStoreSearch) {
+          setShowStoreSearch(false);
+          setStoreSearchTerm("");
+        }
+        // Clear any active price searches
+        const hasActivePriceSearch = Object.values(showPriceSearch).some(v => v === true);
+        if (hasActivePriceSearch) {
+          setShowPriceSearch({});
+          setPriceSearchTerms({});
+        }
+      }
+    };
+
+    const hasActiveSearch = showZoneSearch || showSubZoneSearch || showStoreSearch || 
+                           Object.values(showPriceSearch).some(v => v === true);
+    if (hasActiveSearch) {
+      document.addEventListener("keydown", handleEscKey);
+      return () => document.removeEventListener("keydown", handleEscKey);
+    }
+  }, [showZoneSearch, showSubZoneSearch, showStoreSearch, showPriceSearch]);
+
+  // Click outside handler to close search inputs
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const isClickInsideTable = event.target.closest('table');
+      const isClickOnSearchInput = event.target.closest('input[type="text"]');
+      const isClickOnClearButton = event.target.closest('button');
+      
+      if (!isClickInsideTable && !isClickOnSearchInput && !isClickOnClearButton) {
+        if (showZoneSearch) {
+          setShowZoneSearch(false);
+          setZoneSearchTerm("");
+        }
+        if (showSubZoneSearch) {
+          setShowSubZoneSearch(false);
+          setSubZoneSearchTerm("");
+        }
+        if (showStoreSearch) {
+          setShowStoreSearch(false);
+          setStoreSearchTerm("");
+        }
+        // Clear any active price searches
+        const hasActivePriceSearch = Object.values(showPriceSearch).some(v => v === true);
+        if (hasActivePriceSearch) {
+          setShowPriceSearch({});
+          setPriceSearchTerms({});
+        }
+      }
+    };
+
+    const hasActiveSearch = showZoneSearch || showSubZoneSearch || showStoreSearch || 
+                           Object.values(showPriceSearch).some(v => v === true);
+    if (hasActiveSearch) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [showZoneSearch, showSubZoneSearch, showStoreSearch, showPriceSearch]);
+
+  // Fetch products for filter from API
+  const fetchProductsForFilter = async () => {
+    try {
+      const response = await axiosAPI.get('/products/list');
+      const products = response.data?.products || response.data || [];
+      
+      // Format products for CustomSearchDropdown: {value: id/sku, label: name}
+      const productOptions = products
+        .filter(p => p.SKU || p.sku) // Only include products with SKU
+        .map(p => ({
+          value: p.SKU || p.sku,
+          label: p.name || p.SKU || p.sku
+        }));
+      
+      setAllProducts(productOptions);
+      
+      // Update SKU to product name mapping
+      const skuMap = {};
+      products.forEach(p => {
+        const sku = p.SKU || p.sku;
+        if (sku) {
+          skuMap[sku] = p.name || sku;
+        }
+      });
+      setSkuToProductName(prev => ({ ...prev, ...skuMap }));
+    } catch (err) {
+      console.error('Error fetching products for filter:', err);
+      // If API call fails, fallback to extracting from existing data
+    }
+  };
 
   // Transform backend API response to component data structure
   const transformApiDataToFlatStructure = (apiData) => {
@@ -105,8 +243,17 @@ const StoresProducts = () => {
         setFbPeriods(sortedSkus);
       }
       
-      // Update SKU to Product Name mapping
-      setSkuToProductName(skuProductNameMap);
+      // Update SKU to Product Name mapping (merge with existing)
+      setSkuToProductName(prev => ({ ...prev, ...skuProductNameMap }));
+      
+      // Only update allProducts if not already set from API
+      if (allProducts.length === 0) {
+        const productOptions = sortedSkus.map(sku => ({
+          value: sku,
+          label: skuProductNameMap[sku] || sku
+        }));
+        setAllProducts(productOptions);
+      }
       
       setStoreProductsData(flattenedData);
     } catch (err) {
@@ -123,6 +270,20 @@ const StoresProducts = () => {
   const closeErrorModal = () => {
     setIsErrorModalOpen(false);
     setError(null);
+  };
+
+  const handleSubmitFilters = () => {
+    setStoreTypeFilter(tempStoreTypeFilter);
+    setSelectedProducts(tempSelectedProducts);
+    setShowProductDropdown(false);
+  };
+
+  const handleCancelFilters = () => {
+    setTempStoreTypeFilter("all");
+    setTempSelectedProducts([]);
+    setStoreTypeFilter("all");
+    setSelectedProducts([]);
+    setShowProductDropdown(false);
   };
 
   const handleEditClick = () => {
@@ -458,12 +619,70 @@ const StoresProducts = () => {
     }
   };
 
+  // Apply filters
+  const filteredStoreData = storeProductsData.filter(row => {
+    // Apply store type filter
+    if (storeTypeFilter !== "all") {
+      const storeType = row.storeType || row.type || "own"; // Default to "own" if not specified
+      if (storeTypeFilter === "own" && storeType !== "own") return false;
+      if (storeTypeFilter === "franchise" && storeType !== "franchise") return false;
+    }
+
+    // Apply zone search filter
+    if (zoneSearchTerm) {
+      const zone = (row.zone || "").toString().toLowerCase();
+      if (!zone.includes(zoneSearchTerm.toLowerCase())) return false;
+    }
+
+    // Apply sub zone search filter
+    if (subZoneSearchTerm) {
+      const subZone = (row.subZone || "").toString().toLowerCase();
+      if (!subZone.includes(subZoneSearchTerm.toLowerCase())) return false;
+    }
+
+    // Apply store search filter
+    if (storeSearchTerm) {
+      const store = (row.store || "").toString().toLowerCase();
+      if (!store.includes(storeSearchTerm.toLowerCase())) return false;
+    }
+
+    // Apply price search filters
+    for (const key in priceSearchTerms) {
+      const searchTerm = priceSearchTerms[key];
+      if (searchTerm) {
+        const [productSKU, priceType] = key.split('-');
+        const prices = row.prices || {};
+        const productPrice = prices[productSKU];
+        
+        if (productPrice) {
+          const priceValue = priceType === 'selling' 
+            ? (productPrice.sellingPrice || "").toString().toLowerCase()
+            : (productPrice.purchasePrice || "").toString().toLowerCase();
+          
+          if (!priceValue.includes(searchTerm.toLowerCase())) return false;
+        } else {
+          // If product doesn't exist in this row and we're searching for it, filter it out
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
+
+  // Filter products to display based on selection
+  const productsToDisplay = selectedProducts.length > 0 ? selectedProducts : fbPeriods;
+
   if (loading && storeProductsData.length === 0) {
     return <Loading />;
   }
 
   return (
     <div className={styles.container}>
+      <p className="path">
+        <span onClick={() => navigate("/divisions?tab=stores")}>Stores</span>{" "}
+        <i className="bi bi-chevron-right"></i> Stores Products
+      </p>
       <div className={styles.header}>
         <h1>Stores Products</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -510,39 +729,497 @@ const StoresProducts = () => {
         </div>
       )}
 
+      {/* Filters Section */}
+      <div className="row m-0 p-3">
+        <div className="col-2 formcontent">
+          <label htmlFor="">Store Type:</label>
+          <select
+            value={tempStoreTypeFilter}
+            onChange={(e) => setTempStoreTypeFilter(e.target.value)}
+          >
+            <option value="all">All Stores</option>
+            <option value="own">Own</option>
+            <option value="franchise">Franchise</option>
+          </select>
+        </div>
+
+        <div className="col-4 formcontent" style={{ position: 'relative' }}>
+          <label htmlFor="">Products:</label>
+          <select
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowProductDropdown(!showProductDropdown);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            value=""
+            readOnly
+            style={{
+              cursor: 'pointer',
+              appearance: 'auto',
+              pointerEvents: 'auto'
+            }}
+          >
+            <option value="">
+              {tempSelectedProducts.length > 0 
+                ? `${tempSelectedProducts.length} product(s) selected` 
+                : 'Select products'}
+            </option>
+          </select>
+          {showProductDropdown && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '0',
+                right: '0',
+                zIndex: 999,
+                background: 'white',
+                border: '1px solid #000',
+                borderRadius: '4px',
+                marginTop: '4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              {allProducts.map((product) => {
+                const isSelected = tempSelectedProducts.includes(product.value);
+                return (
+                  <div
+                    key={product.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSelected) {
+                        setTempSelectedProducts(tempSelectedProducts.filter(p => p !== product.value));
+                      } else {
+                        setTempSelectedProducts([...tempSelectedProducts, product.value]);
+                      }
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      fontFamily: 'Poppins',
+                      fontSize: '14px',
+                      backgroundColor: isSelected ? '#2563eb' : 'transparent',
+                      color: isSelected ? '#fff' : '#000',
+                      transition: 'all 0.2s ease',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    {product.label}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="col-4 formcontent" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+          <button 
+            className="submitbtn"
+            onClick={handleSubmitFilters}
+            style={{ margin: 0 }}
+          >
+            Submit
+          </button>
+          <button 
+            className="cancelbtn"
+            onClick={handleCancelFilters}
+            style={{ margin: 0 }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
       <div className={styles.tableContainer}>
         <div className={styles.tableWrapper}>
           <table className={`table table-bordered borderedtable ${styles.productsTable}`}>
             <thead>
               <tr>
-                <th rowSpan="2" className={styles.zoneColumn}>Zone</th>
-                <th rowSpan="2" className={styles.subZoneColumn}>Sub Zone</th>
-                <th rowSpan="2" className={styles.storeColumn}>Store</th>
-                {fbPeriods.map((fb) => (
+                <th 
+                  rowSpan="2" 
+                  className={styles.zoneColumn}
+                  onClick={() => setShowZoneSearch(!showZoneSearch)}
+                  style={{ cursor: "pointer", position: "relative" }}
+                >
+                  {showZoneSearch ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search zone..."
+                        value={zoneSearchTerm}
+                        onChange={(e) => setZoneSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          flex: 1,
+                          padding: "2px 6px",
+                          border: "1px solid #ddd",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          minWidth: "80px",
+                          height: "28px",
+                          color: "#000",
+                          backgroundColor: "#fff",
+                        }}
+                        autoFocus
+                      />
+                      {zoneSearchTerm && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setZoneSearchTerm("");
+                          }}
+                          style={{
+                            padding: "4px 8px",
+                            border: "1px solid #dc3545",
+                            borderRadius: "4px",
+                            background: "#dc3545",
+                            color: "#fff",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            minWidth: "24px",
+                            height: "28px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>Zone</>
+                  )}
+                </th>
+                <th 
+                  rowSpan="2" 
+                  className={styles.subZoneColumn}
+                  onClick={() => setShowSubZoneSearch(!showSubZoneSearch)}
+                  style={{ cursor: "pointer", position: "relative" }}
+                >
+                  {showSubZoneSearch ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search sub zone..."
+                        value={subZoneSearchTerm}
+                        onChange={(e) => setSubZoneSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          flex: 1,
+                          padding: "2px 6px",
+                          border: "1px solid #ddd",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          minWidth: "100px",
+                          height: "28px",
+                          color: "#000",
+                          backgroundColor: "#fff",
+                        }}
+                        autoFocus
+                      />
+                      {subZoneSearchTerm && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSubZoneSearchTerm("");
+                          }}
+                          style={{
+                            padding: "4px 8px",
+                            border: "1px solid #dc3545",
+                            borderRadius: "4px",
+                            background: "#dc3545",
+                            color: "#fff",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            minWidth: "24px",
+                            height: "28px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>Sub Zone</>
+                  )}
+                </th>
+                <th 
+                  rowSpan="2" 
+                  className={styles.storeColumn}
+                  onClick={() => setShowStoreSearch(!showStoreSearch)}
+                  style={{ cursor: "pointer", position: "relative" }}
+                >
+                  {showStoreSearch ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search store..."
+                        value={storeSearchTerm}
+                        onChange={(e) => setStoreSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          flex: 1,
+                          padding: "2px 6px",
+                          border: "1px solid #ddd",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          minWidth: "120px",
+                          height: "28px",
+                          color: "#000",
+                          backgroundColor: "#fff",
+                        }}
+                        autoFocus
+                      />
+                      {storeSearchTerm && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStoreSearchTerm("");
+                          }}
+                          style={{
+                            padding: "4px 8px",
+                            border: "1px solid #dc3545",
+                            borderRadius: "4px",
+                            background: "#dc3545",
+                            color: "#fff",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            minWidth: "24px",
+                            height: "28px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>Store</>
+                  )}
+                </th>
+                {productsToDisplay.map((fb) => (
                   <th key={fb} colSpan="2" className={styles.fbHeader}>
                     {skuToProductName[fb] || fb}
                   </th>
                 ))}
               </tr>
               <tr>
-                {fbPeriods.map((fb) => (
+                {productsToDisplay.map((fb) => (
                   <React.Fragment key={fb}>
-                    <th className={styles.priceHeader}>Selling Price</th>
-                    <th className={styles.priceHeader}>Purchase Price</th>
+                    <th 
+                      className={styles.priceHeader}
+                      onClick={() => {
+                        const key = `${fb}-selling`;
+                        setShowPriceSearch(prev => ({
+                          ...prev,
+                          [key]: !prev[key]
+                        }));
+                      }}
+                      style={{ cursor: "pointer", position: "relative" }}
+                    >
+                      {showPriceSearch[`${fb}-selling`] ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="Search price..."
+                            value={priceSearchTerms[`${fb}-selling`] || ""}
+                            onChange={(e) => {
+                              const key = `${fb}-selling`;
+                              setPriceSearchTerms(prev => ({
+                                ...prev,
+                                [key]: e.target.value
+                              }));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              flex: 1,
+                              padding: "2px 6px",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              minWidth: "80px",
+                              height: "28px",
+                              color: "#000",
+                              backgroundColor: "#fff",
+                            }}
+                            autoFocus
+                          />
+                          {priceSearchTerms[`${fb}-selling`] && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const key = `${fb}-selling`;
+                                setPriceSearchTerms(prev => {
+                                  const newTerms = { ...prev };
+                                  delete newTerms[key];
+                                  return newTerms;
+                                });
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                border: "1px solid #dc3545",
+                                borderRadius: "4px",
+                                background: "#dc3545",
+                                color: "#fff",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                                minWidth: "24px",
+                                height: "28px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <>Selling Price</>
+                      )}
+                    </th>
+                    <th 
+                      className={styles.priceHeader}
+                      onClick={() => {
+                        const key = `${fb}-purchase`;
+                        setShowPriceSearch(prev => ({
+                          ...prev,
+                          [key]: !prev[key]
+                        }));
+                      }}
+                      style={{ cursor: "pointer", position: "relative" }}
+                    >
+                      {showPriceSearch[`${fb}-purchase`] ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="Search price..."
+                            value={priceSearchTerms[`${fb}-purchase`] || ""}
+                            onChange={(e) => {
+                              const key = `${fb}-purchase`;
+                              setPriceSearchTerms(prev => ({
+                                ...prev,
+                                [key]: e.target.value
+                              }));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              flex: 1,
+                              padding: "2px 6px",
+                              border: "1px solid #ddd",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              minWidth: "80px",
+                              height: "28px",
+                              color: "#000",
+                              backgroundColor: "#fff",
+                            }}
+                            autoFocus
+                          />
+                          {priceSearchTerms[`${fb}-purchase`] && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const key = `${fb}-purchase`;
+                                setPriceSearchTerms(prev => {
+                                  const newTerms = { ...prev };
+                                  delete newTerms[key];
+                                  return newTerms;
+                                });
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                border: "1px solid #dc3545",
+                                borderRadius: "4px",
+                                background: "#dc3545",
+                                color: "#fff",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                                minWidth: "24px",
+                                height: "28px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <>Purchase Price</>
+                      )}
+                    </th>
                   </React.Fragment>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {storeProductsData.length === 0 ? (
+              {filteredStoreData.length === 0 ? (
                 <tr>
-                  <td colSpan={3 + fbPeriods.length * 2} className={styles.noData}>
-                    No store products data found
+                  <td colSpan={3 + productsToDisplay.length * 2} className={styles.noData}>
+                    {storeProductsData.length === 0 ? 'No store products data found' : 'No stores match the selected filters'}
                   </td>
                 </tr>
               ) : (() => {
                 // Group data by zone and sub-zone to calculate rowspans
-                const groupedData = storeProductsData.reduce((acc, row) => {
+                const groupedData = filteredStoreData.reduce((acc, row) => {
                   const key = `${row.zone}-${row.subZone}`;
                   if (!acc[key]) {
                     acc[key] = [];
@@ -582,7 +1259,7 @@ const StoresProducts = () => {
                         </>
                       )}
                       <td>{row.store || '-'}</td>
-                      {fbPeriods.map((fb) => (
+                      {productsToDisplay.map((fb) => (
                         <React.Fragment key={fb}>
                           <td className={styles.priceCell}>
                             {isEditMode ? (
