@@ -123,6 +123,10 @@ const StoresAbstract = () => {
 
   return (
     <div className={styles.container}>
+      <p className="path">
+        <span onClick={() => navigate("/divisions?tab=stores")}>Stores</span>{" "}
+        <i className="bi bi-chevron-right"></i> Stores Abstract
+      </p>
       <div className={styles.header}>
         <h1>Stores Abstract</h1>
         <button

@@ -3,14 +3,18 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
 import { isStoreEmployee, isStoreManager, isAdmin } from "../../../utils/roleUtils";
+import { useAuth } from "../../../Auth";
 import StoreSalesOrders from "./StoreSalesOrders";
 const StoreCreateSale = lazy(() => import("./StoreCreateSale"));
 
 export default function StoreSales() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { axiosAPI } = useAuth();
   const mode = searchParams.get("mode");
   const [isMobile, setIsMobile] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(false);
   const userData = JSON.parse(localStorage.getItem("user")) || {};
   // Handle nested user structure (user.user or direct user)
   const actualUser = userData?.user || userData || {};
@@ -27,6 +31,35 @@ export default function StoreSales() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const storeId = localStorage.getItem("storeId");
+      if (!storeId) {
+        console.error("No store ID found");
+        return;
+      }
+
+      const response = await axiosAPI.get(`/stores/${storeId}/dashboard/sales/cards`);
+      const data = response.data || response;
+      
+      if (data.success) {
+        setDashboardData(data.data);
+      } else {
+        console.error("Failed to fetch dashboard data:", data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Debug logging
   useEffect(() => {
@@ -391,10 +424,25 @@ export default function StoreSales() {
 
       {/* Mini Dashboards */}
       <Flex wrap="wrap" justify="space-between" px={2}>
-        <ReusableCard title="Today Orders" value={"12"} />
-        <ReusableCard title="Today Sales" value={"₹45,680"} color="green.500" />
-        <ReusableCard title="Returns Today" value={"2"} color="red.500" />
-        <ReusableCard title="This Month" value={"₹3,21,400"} color="blue.500" />
+        <ReusableCard 
+          title="Today Orders" 
+          value={loading ? "..." : (dashboardData?.cards?.todayOrders?.toString() || "0")} 
+        />
+        <ReusableCard 
+          title="Today Sales" 
+          value={loading ? "..." : `₹${(dashboardData?.cards?.todaySales || 0).toLocaleString()}`} 
+          color="green.500" 
+        />
+        <ReusableCard 
+          title="Returns Today" 
+          value={loading ? "..." : (dashboardData?.cards?.returnsToday?.toString() || "0")} 
+          color="red.500" 
+        />
+        <ReusableCard 
+          title="This Month" 
+          value={loading ? "..." : `₹${(dashboardData?.cards?.monthSales || 0).toLocaleString()}`} 
+          color="blue.500" 
+        />
       </Flex>
 
     </div>

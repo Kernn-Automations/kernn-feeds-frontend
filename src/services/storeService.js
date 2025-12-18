@@ -245,7 +245,18 @@ const storeService = {
   
   // Expenditures CRUD operations
   async getStoreExpenditures(storeId, params = {}) {
-    const queryParams = new URLSearchParams(params);
+    const queryParams = new URLSearchParams();
+    
+    // Handle array parameters properly (especially months)
+    Object.entries(params).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        // Append each array element separately for proper array handling
+        value.forEach(item => queryParams.append(key, item));
+      } else if (value !== undefined && value !== null) {
+        queryParams.append(key, value);
+      }
+    });
+    
     const queryString = queryParams.toString();
     const res = await api.request(
       `/stores/${storeId}/expenditures${queryString ? `?${queryString}` : ""}`,

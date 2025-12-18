@@ -2,12 +2,16 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "../../ReusableCard";
+import { useAuth } from "../../../Auth";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
 import { FaFileAlt, FaClock, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 
 export default function StoreIndentsHome() {
   const navigate = useNavigate();
+  const { axiosAPI } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -18,18 +22,33 @@ export default function StoreIndentsHome() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const mockIndentsData = {
-    pending: 3,
-    approved: 12,
-    rejected: 2,
-    totalValue: 125000,
-    recentIndents: [
-      { code: "IND000123", value: 15000, status: "Awaiting Approval", date: "15-01-2024", items: 5 },
-      { code: "IND000124", value: 9800, status: "Awaiting Approval", date: "14-01-2024", items: 3 },
-      { code: "IND000125", value: 21000, status: "Waiting for Stock", date: "13-01-2024", items: 8 },
-      { code: "IND000122", value: 18500, status: "Approved", date: "12-01-2024", items: 6 },
-      { code: "IND000121", value: 12200, status: "Rejected", date: "11-01-2024", items: 4 }
-    ]
+  // Fetch dashboard data
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const storeId = localStorage.getItem("storeId");
+      if (!storeId) {
+        console.error("No store ID found");
+        return;
+      }
+
+      const response = await axiosAPI.get(`/stores/${storeId}/dashboard/indents`);
+      const data = response.data || response;
+      
+      if (data.success) {
+        setDashboardData(data.data);
+      } else {
+        console.error("Failed to fetch dashboard data:", data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -140,10 +159,26 @@ export default function StoreIndentsHome() {
 
       {/* Statistics Cards */}
       <Flex wrap="wrap" justify="space-between" px={2} style={{ marginBottom: '24px' }}>
-        <ReusableCard title="Pending Indents" value={mockIndentsData.pending.toString()} color="yellow.500" />
-        <ReusableCard title="Approved" value={mockIndentsData.approved.toString()} color="green.500" />
-        <ReusableCard title="Rejected" value={mockIndentsData.rejected.toString()} color="red.500" />
-        <ReusableCard title="Total Value" value={`₹${mockIndentsData.totalValue.toLocaleString()}`} color="blue.500" />
+        <ReusableCard 
+          title="Pending Indents" 
+          value={loading ? "..." : (dashboardData?.summary?.pending?.toString() || "0")} 
+          color="yellow.500" 
+        />
+        <ReusableCard 
+          title="Approved" 
+          value={loading ? "..." : (dashboardData?.summary?.approved?.toString() || "0")} 
+          color="green.500" 
+        />
+        <ReusableCard 
+          title="Rejected" 
+          value={loading ? "..." : (dashboardData?.summary?.rejected?.toString() || "0")} 
+          color="red.500" 
+        />
+        <ReusableCard 
+          title="Total Value" 
+          value={loading ? "..." : `₹${(dashboardData?.summary?.totalValue || 0).toLocaleString()}`} 
+          color="blue.500" 
+        />
       </Flex>
 
       {/* Recent Indents Table */}
@@ -164,28 +199,42 @@ export default function StoreIndentsHome() {
               </tr>
             </thead>
             <tbody>
-              {mockIndentsData.recentIndents.map((indent, i) => {
-                const statusInfo = getStatusBadge(indent.status);
-                return (
-                  <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#6b7280' }}>{indent.date}</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
-                      {indent.code}
-                    </td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{indent.items} items</td>
-                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                      ₹{indent.value.toLocaleString()}
-                    </td>
-                    <td>
-                      <span className={`badge ${statusInfo.class}`} style={{ fontFamily: 'Poppins', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        {statusInfo.icon}
-                        {indent.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px', fontFamily: 'Poppins' }}>
+                    Loading...
+                  </td>
+                </tr>
+              ) : !dashboardData?.recentIndents || dashboardData.recentIndents.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px', fontFamily: 'Poppins', color: '#6b7280' }}>
+                    No recent indents found
+                  </td>
+                </tr>
+              ) : (
+                dashboardData.recentIndents.map((indent, i) => {
+                  const statusInfo = getStatusBadge(indent.statusLabel || indent.status);
+                  return (
+                    <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{indent.sNo || i + 1}</td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#6b7280' }}>{indent.date}</td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
+                        {indent.indentCode || indent.code}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{indent.itemsCount || indent.items} items</td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
+                        ₹{(indent.value || 0).toLocaleString()}
+                      </td>
+                      <td>
+                        <span className={`badge ${statusInfo.class}`} style={{ fontFamily: 'Poppins', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          {statusInfo.icon}
+                          {indent.statusLabel || indent.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
