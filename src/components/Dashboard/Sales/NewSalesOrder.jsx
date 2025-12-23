@@ -25,7 +25,20 @@ const ApiUrls = {
   get_customer_details: "/customers",
 };
 
+
 // Utils
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
 const fillUrl = (url, replacements) =>
   Object.entries(replacements || {}).reduce(
     (acc, [key, val]) => acc.replace(`:${key}`, val),
@@ -570,6 +583,295 @@ const keyframes = `
 }
 `;
 
+// === Global Components (outside to prevent focus loss on re-render) ===
+
+const Loader = () => (
+    <div style={styles.loader}></div>
+);
+
+const StepIndicator = ({ step, setStep, selectedCustomer, customerDetails, cartItems, cartId, selectedWarehouseType, dropOffs, reviewData }) => {
+    const steps = [
+        { title: 'Customer', description: 'Select customer' },
+        { title: 'Products', description: 'Add products to cart' },
+        { title: 'Logistics', description: 'Delivery details' },
+        { title: 'Overview', description: 'Review order details' },
+        { title: 'Payment', description: 'Payment information' }
+    ];
+
+    return (
+        <div style={styles.stepIndicator} className="step-indicator">
+            {steps.map((stepItem, index) => {
+                let stepStyle = { ...styles.stepItem };
+
+                if (index < step) {
+                    stepStyle = { ...stepStyle, ...styles.stepItemCompleted };
+                } else if (index === step) {
+                    stepStyle = { ...stepStyle, ...styles.stepItemActive };
+                } else {
+                    stepStyle = { ...stepStyle, ...styles.stepItemPending };
+                }
+
+                return (
+                    <div
+                        key={index}
+                        style={{
+                            ...stepStyle,
+                            cursor: index < step ? 'pointer' : 'default',
+                            transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => {
+                            // Only allow navigation to completed steps (green ones)
+                            if (index < step) {
+                                console.log(`Navigating from step ${step} to step ${index}`);
+                                setStep(index);
+                            }
+                        }}
+                        onMouseEnter={(e) => {
+                            if (index < step) {
+                                e.target.style.transform = 'scale(1.05)';
+                                e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (index < step) {
+                                e.target.style.transform = 'scale(1)';
+                                e.target.style.boxShadow = '';
+                            }
+                        }}
+                        title={index < step ? `Click to go back to ${stepItem.title}` : ''}
+                    >
+                        <div style={styles.stepNumber}>
+                            {index < step ? '✓' : index + 1}
+                        </div>
+                        <div>
+                            <div style={{ fontWeight: '600', fontSize: '12px' }}>{stepItem.title}</div>
+                            <div style={{ fontSize: '10px', opacity: 0.8 }}>{stepItem.description}</div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+const Button = ({ children, onClick, disabled, variant = 'primary', type = 'button', style = {}, ...props }) => {
+    let buttonStyle = { ...styles.button };
+
+    if (disabled) {
+        buttonStyle = { ...buttonStyle, ...styles.buttonDisabled };
+    } else {
+        switch (variant) {
+            case 'primary':
+                buttonStyle = { ...buttonStyle, ...styles.buttonPrimary };
+                break;
+            case 'secondary':
+                buttonStyle = { ...buttonStyle, ...styles.buttonSecondary };
+                break;
+            case 'success':
+                buttonStyle = { ...buttonStyle, ...styles.buttonSuccess };
+                break;
+            case 'danger':
+                buttonStyle = { ...buttonStyle, ...styles.buttonDanger };
+                break;
+            default:
+                buttonStyle = { ...buttonStyle, ...styles.buttonPrimary };
+        }
+    }
+
+    return (
+        <button
+            type={type}
+            onClick={onClick}
+            disabled={disabled}
+            style={{ ...buttonStyle, ...style }}
+            onMouseEnter={(e) => {
+                if (!disabled && variant === 'primary') {
+                    e.target.style.backgroundColor = styles.buttonPrimaryHover.backgroundColor;
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!disabled && variant === 'primary') {
+                    e.target.style.backgroundColor = styles.buttonPrimary.backgroundColor;
+                }
+            }}
+            {...props}
+        >
+            {children}
+        </button>
+    );
+};
+
+const Input = ({ type = 'text', value, onChange, placeholder, disabled, style = {}, ...props }) => {
+    return (
+        <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            style={{ ...styles.input, ...style }}
+            autoComplete="off"
+            spellCheck="false"
+            {...props}
+        />
+    );
+};
+
+const Select = ({ value, onChange, children, disabled, style = {}, ...props }) => (
+    <select
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        style={{ ...styles.select, ...style }}
+        {...props}
+    >
+        {children}
+    </select>
+);
+
+const Card = ({ children, variant, style = {} }) => {
+    let cardStyle = { ...styles.card };
+    if (variant === 'valid') {
+        cardStyle = { ...cardStyle, ...styles.validCard };
+    } else if (variant === 'invalid') {
+        cardStyle = { ...cardStyle, ...styles.invalidCard };
+    }
+    return <div style={{ ...cardStyle, ...style }}>{children}</div>;
+};
+
+const QuantityModal = ({ 
+    showQuantityModal, 
+    selectedProductForQty, 
+    setShowQuantityModal, 
+    setSelectedProductForQty, 
+    setInputQuantity, 
+    inputQuantity, 
+    handleQuantityConfirm 
+}) => {
+    if (!showQuantityModal || !selectedProductForQty) return null;
+
+    return (
+        <div
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+            }}
+            onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                    setShowQuantityModal(false);
+                    setSelectedProductForQty(null);
+                    setInputQuantity('');
+                }
+            }}
+        >
+            <div
+                style={{
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    width: '400px',
+                    maxWidth: '90vw',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: '#2d3748' }}>
+                        Add to Cart
+                    </h3>
+
+                    <div style={{ marginBottom: '12px' }}>
+                        <strong style={{ color: '#2d3748' }}>Product Name:</strong>
+                        <div style={{ color: '#4a5568', marginTop: '4px' }}>
+                            {selectedProductForQty.name}
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: '12px' }}>
+                        <strong style={{ color: '#2d3748' }}>Available:</strong>
+                        <div style={{ color: '#4a5568', marginTop: '4px' }}>
+                            {selectedProductForQty.quantity || selectedProductForQty.stockQuantity || selectedProductForQty.stock || 0} {selectedProductForQty.productType === "packed" ? "packs" : selectedProductForQty.unit}
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: '20px' }}>
+                        <strong style={{ color: '#2d3748' }}>Price:</strong>
+                        <div style={{ color: '#4a5568', marginTop: '4px' }}>
+                            ₹{(selectedProductForQty.basePrice || 0).toLocaleString('en-IN')} per {selectedProductForQty.productType === "packed" ? "pack" : selectedProductForQty.unit}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#2d3748' }}>
+                            Quantity to Add
+                        </label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={inputQuantity}
+                            placeholder="Enter quantity"
+                            onChange={(e) => setInputQuantity(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '12px',
+                                border: '2px solid #e2e8f0',
+                                borderRadius: '8px',
+                                fontSize: '16px',
+                                outline: 'none'
+                            }}
+                            autoFocus
+                        />
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button
+                        onClick={() => {
+                            setShowQuantityModal(false);
+                            setSelectedProductForQty(null);
+                            setInputQuantity('');
+                        }}
+                        style={{
+                            padding: '6px 12px',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            backgroundColor: 'white',
+                            color: '#4a5568',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleQuantityConfirm}
+                        disabled={!inputQuantity || parseInt(inputQuantity) <= 0}
+                        style={{
+                            padding: '6px 12px',
+                            border: 'none',
+                            borderRadius: '4px',
+                            backgroundColor: !inputQuantity || parseInt(inputQuantity) <= 0 ? '#e2e8f0' : '#003176',
+                            color: !inputQuantity || parseInt(inputQuantity) <= 0 ? '#a0aec0' : 'white',
+                            cursor: !inputQuantity || parseInt(inputQuantity) <= 0 ? 'not-allowed' : 'pointer',
+                            fontSize: '14px'
+                        }}
+                    >
+                        Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function SalesOrderWizard() {
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
@@ -615,6 +917,15 @@ export default function SalesOrderWizard() {
     setToast({ message: title, severity: status });
     setTimeout(() => setToast(null), duration);
   }
+
+  // Mobile state
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Step state
   // Step 0: Customer, Step 1: Products, Step 2: Logistics, Step 3: Overview, Step 4: Payment
@@ -671,6 +982,52 @@ export default function SalesOrderWizard() {
   // Step 4: Review
   const [reviewData, setReviewData] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  // Track edited grandTotal values for each item (item index or productId -> editedGrandTotal)
+  const [editedGrandTotals, setEditedGrandTotals] = useState({});
+  // Store original values for each item
+  const [originalItemValues, setOriginalItemValues] = useState({});
+
+  // Function to calculate order totals via backend
+  const calculateOrderTotals = useCallback(debounce(async (updatedItems) => {
+    try {
+      const payload = {
+        customerId: selectedCustomer,
+        cartItems: updatedItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unit: item.unit,
+          grandTotal: editedGrandTotals[item.productId || item.id] !== undefined 
+            ? parseFloat(editedGrandTotals[item.productId || item.id]) 
+            : undefined
+        }))
+      };
+
+      const res = await axiosAPI.post('/sales-orders/calculate', payload);
+      
+      if (res.data.success) {
+        setReviewData(prev => ({
+          ...prev,
+          totals: res.data.data.orderSummary,
+          items: res.data.data.items // Update items if backend returns them with calculated taxes etc.
+        }));
+      }
+    } catch (error) {
+      console.error("Error calculating totals:", error);
+      showToast({
+        title: "Error calculating totals",
+        status: "error",
+        duration: 3000
+      });
+    }
+  }, 500), [selectedCustomer, editedGrandTotals]); // Dependencies for debounce
+
+  // Effect to trigger calculation when edits change
+  useEffect(() => {
+    if (reviewData?.items) {
+      calculateOrderTotals(reviewData.items);
+    }
+  }, [editedGrandTotals, calculateOrderTotals]);
+
 
   // Step 2: Payment
   const [mobileNumber, setMobileNumber] = useState("");
@@ -1468,7 +1825,40 @@ export default function SalesOrderWizard() {
       const res = await axiosAPI.get(
         `${ApiUrls.get_review_details}/${cartId}?warehouseType=${selectedWarehouseType}`
       );
-      setReviewData(res.data);
+      // Use backend response data directly - it includes orderSummary with correct totals
+      const responseData = res.data;
+      
+      // Ensure totals come from backend's orderSummary
+      if (responseData.orderSummary || responseData.summary) {
+        const backendSummary = responseData.orderSummary || responseData.summary;
+        responseData.totals = {
+          subtotal: backendSummary.subtotal || backendSummary.baseAmount || 0,
+          tax: backendSummary.tax || backendSummary.taxAmount || 0,
+          grandTotal: backendSummary.grandTotal || backendSummary.total || backendSummary.totalAmount || 0,
+          discountAmount: backendSummary.discountAmount || 0,
+          freightCharges: backendSummary.freightCharges || 0,
+          ...backendSummary
+        };
+      }
+      
+      setReviewData(responseData);
+      
+      // Store original values for each item
+      if (responseData && responseData.items) {
+        const originalValues = {};
+        responseData.items.forEach((item, index) => {
+          const itemKey = item.productId || index;
+          originalValues[itemKey] = {
+            basePrice: item.basePrice || item.baseAmount || 0,
+            taxAmount: item.taxAmount || 0,
+            totalAmount: item.totalAmount || 0,
+            originalTotal: item.totalAmount || 0, // Original total (base + tax)
+          };
+        });
+        setOriginalItemValues(originalValues);
+        // Clear any edited values when fetching new review data
+        setEditedGrandTotals({});
+      }
     } catch (e) {
       showToast({
         title: "Failed to fetch review data",
@@ -1495,13 +1885,50 @@ export default function SalesOrderWizard() {
         finalizeUrl += `?showAllDivisions=true`;
       }
       
-      const payload = {
-        customerId: customerDetails.customer_id,
-        cartItems: Object.values(cartItems).map((item) => ({
+      // Map items from reviewData and include grandTotal if edited
+      const cartItemsPayload = (reviewData.items || []).map((item, index) => {
+        const itemKey = item.productId || index;
+        const editedGrandTotal = editedGrandTotals[itemKey];
+        
+        const itemPayload = {
           productId: item.productId,
           quantity: item.quantity,
           unit: item.unit,
-        })),
+        };
+        
+        // Include grandTotal only if user edited it
+        if (editedGrandTotal !== undefined && editedGrandTotal !== null) {
+          itemPayload.grandTotal = editedGrandTotal;
+          console.log(`Including grandTotal for product ${item.productId}:`, editedGrandTotal);
+        } else {
+          console.log(`No grandTotal for product ${item.productId} (not edited)`);
+        }
+        
+        return itemPayload;
+      });
+      
+      console.log("Cart items payload with grandTotals:", cartItemsPayload);
+
+      // Final validation before submission
+      for (const item of reviewData.items || []) {
+        const itemKey = item.productId || reviewData.items.indexOf(item);
+        const editedTotal = editedGrandTotals[itemKey];
+        const original = (originalItemValues[itemKey]?.originalTotal || 0);
+        
+        if (editedTotal !== undefined && editedTotal !== null && editedTotal < original) {
+          showToast({
+            title: `Price for ${item.productName} (₹${editedTotal}) is less than original (₹${original}). Updates must be greater than or equal to original price.`,
+            status: "error",
+            duration: 5000
+          });
+          setReviewLoading(false);
+          return;
+        }
+      }
+      
+      const payload = {
+        customerId: customerDetails.customer_id,
+        cartItems: cartItemsPayload,
         selectedWarehouseType,
         dropOffs,
         paymentMethod: payments.length > 0 ? (payments[0].paymentMethod === "bank" ? payments[0].paymentMode : payments[0].paymentMethod) : "cash",
@@ -1537,15 +1964,52 @@ export default function SalesOrderWizard() {
           return;
         }
         
+        // Use backend response data directly - backend has processed edited amounts
+        const backendOrderSummary = res.data.orderSummary || res.data.summary || res.data.totals || {};
+        const responseItems = res.data.items || res.data.order?.items || [];
+        
+        console.log("Backend orderSummary:", backendOrderSummary);
+        console.log("Backend items:", responseItems);
+        
+        // Update reviewData with backend response - backend has already processed edited amounts
         setReviewData(prevData => ({
           ...prevData,
+          // Use backend items - they have updated basePrice and totalAmount reflecting edited grandTotal
+          items: responseItems.length > 0 ? responseItems : prevData?.items || [],
           orderId: String(orderId), // Alphanumeric ID for API calls (e.g., "SO-20251206-000446")
           orderNumber: orderNumber, // Order number for display
           paymentId: res.data.paymentId,
-          totalAmount: res.data.totalAmount || prevData?.totals?.grandTotal,
+          totalAmount: backendOrderSummary.grandTotal || res.data.totalAmount || backendOrderSummary.total,
           upiId: res.data.upiId,
-          bankDetails: res.data.bankDetails
+          bankDetails: res.data.bankDetails,
+          // Use backend's orderSummary/totals - this includes edited amounts processed by backend
+          totals: {
+            subtotal: backendOrderSummary.subtotal || backendOrderSummary.baseAmount || 0,
+            tax: backendOrderSummary.tax || backendOrderSummary.taxAmount || 0,
+            grandTotal: backendOrderSummary.grandTotal || backendOrderSummary.total || backendOrderSummary.totalAmount || 0,
+            discountAmount: backendOrderSummary.discountAmount || 0,
+            freightCharges: backendOrderSummary.freightCharges || 0,
+            ...backendOrderSummary
+          }
         }));
+        
+        // Update originalItemValues with backend response items (they have updated values)
+        if (responseItems.length > 0) {
+          const updatedOriginalValues = {};
+          responseItems.forEach((item, index) => {
+            const itemKey = item.productId || index;
+            updatedOriginalValues[itemKey] = {
+              basePrice: item.basePrice || item.baseAmount || 0,
+              taxAmount: item.taxAmount || 0,
+              totalAmount: item.totalAmount || 0,
+              originalTotal: item.totalAmount || 0, // This is now the updated total from backend
+            };
+          });
+          setOriginalItemValues(updatedOriginalValues);
+        }
+        
+        // Don't clear editedGrandTotals - keep them for display
+        // They will be cleared when new review data is fetched
         
         showToast({
           title: "Order finalized. Proceed to payment.",
@@ -1737,7 +2201,7 @@ export default function SalesOrderWizard() {
       });
       
       const res = await axiosAPI.post(url, payload, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: { "Content-Type": "multipart/form-Type" },
       });
       
       console.log("Payment submission response:", res);
@@ -1792,296 +2256,7 @@ export default function SalesOrderWizard() {
     }
   }
 
-  // === Render Components ===
-  
-  const Loader = () => (
-    <div style={styles.loader}></div>
-  );
 
-  const StepIndicator = () => {
-    const steps = [
-      { title: 'Customer', description: 'Select customer' },
-      { title: 'Products', description: 'Add products to cart' },
-      { title: 'Logistics', description: 'Delivery details' },
-      { title: 'Overview', description: 'Review order details' },
-      { title: 'Payment', description: 'Payment information' }
-    ];
-
-    return (
-      <div style={styles.stepIndicator} className="step-indicator">
-        {steps.map((stepItem, index) => {
-          let stepStyle = { ...styles.stepItem };
-          
-          if (index < step) {
-            stepStyle = { ...stepStyle, ...styles.stepItemCompleted };
-          } else if (index === step) {
-            stepStyle = { ...stepStyle, ...styles.stepItemActive };
-          } else {
-            stepStyle = { ...stepStyle, ...styles.stepItemPending };
-          }
-
-          return (
-            <div 
-              key={index} 
-              style={{
-                ...stepStyle,
-                cursor: index < step ? 'pointer' : 'default',
-                transition: 'all 0.2s ease'
-              }}
-              onClick={() => {
-                // Only allow navigation to completed steps (green ones)
-                if (index < step) {
-                  console.log(`Navigating from step ${step} to step ${index}`);
-                  console.log('Current data state:', {
-                    selectedCustomer,
-                    customerDetails: !!customerDetails,
-                    cartItems: Object.keys(cartItems).length,
-                    cartId,
-                    selectedWarehouseType,
-                    dropOffs: dropOffs.length,
-                    reviewData: !!reviewData
-                  });
-                  setStep(index);
-                }
-              }}
-              onMouseEnter={(e) => {
-                if (index < step) {
-                  e.target.style.transform = 'scale(1.05)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (index < step) {
-                  e.target.style.transform = 'scale(1)';
-                  e.target.style.boxShadow = '';
-                }
-              }}
-              title={index < step ? `Click to go back to ${stepItem.title}` : ''}
-            >
-              <div style={styles.stepNumber}>
-                {index < step ? '✓' : index + 1}
-              </div>
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '12px' }}>{stepItem.title}</div>
-                <div style={{ fontSize: '10px', opacity: 0.8 }}>{stepItem.description}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const Button = ({ children, onClick, disabled, variant = 'primary', type = 'button', style = {}, ...props }) => {
-    let buttonStyle = { ...styles.button };
-    
-    if (disabled) {
-      buttonStyle = { ...buttonStyle, ...styles.buttonDisabled };
-    } else {
-      switch (variant) {
-        case 'primary':
-          buttonStyle = { ...buttonStyle, ...styles.buttonPrimary };
-          break;
-        case 'secondary':
-          buttonStyle = { ...buttonStyle, ...styles.buttonSecondary };
-          break;
-        case 'success':
-          buttonStyle = { ...buttonStyle, ...styles.buttonSuccess };
-          break;
-        case 'danger':
-          buttonStyle = { ...buttonStyle, ...styles.buttonDanger };
-          break;
-        default:
-          buttonStyle = { ...buttonStyle, ...styles.buttonPrimary };
-      }
-    }
-
-    return (
-      <button
-        type={type}
-        onClick={onClick}
-        disabled={disabled}
-        style={{ ...buttonStyle, ...style }}
-        onMouseEnter={(e) => {
-          if (!disabled && variant === 'primary') {
-            e.target.style.backgroundColor = styles.buttonPrimaryHover.backgroundColor;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!disabled && variant === 'primary') {
-            e.target.style.backgroundColor = styles.buttonPrimary.backgroundColor;
-          }
-        }}
-        {...props}
-      >
-        {children}
-      </button>
-    );
-  };
-
-  const Input = ({ type = 'text', value, onChange, placeholder, disabled, style = {}, ...props }) => {
-    return (
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        style={{ ...styles.input, ...style }}
-        autoComplete="off"
-        spellCheck="false"
-        {...props}
-      />
-    );
-  };
-
-  const Select = ({ value, onChange, children, disabled, style = {}, ...props }) => (
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-      style={{ ...styles.select, ...style }}
-      {...props}
-    >
-      {children}
-    </select>
-  );
-
-  const Card = ({ children, variant, style = {} }) => {
-    let cardStyle = { ...styles.card };
-    if (variant === 'valid') {
-      cardStyle = { ...cardStyle, ...styles.validCard };
-    } else if (variant === 'invalid') {
-      cardStyle = { ...cardStyle, ...styles.invalidCard };
-    }
-    return <div style={{ ...cardStyle, ...style }}>{children}</div>;
-  };
-
-  // Simple Quantity Modal Component
-  const QuantityModal = () => {
-    if (!showQuantityModal || !selectedProductForQty) return null;
-
-    return (
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowQuantityModal(false);
-            setSelectedProductForQty(null);
-            setInputQuantity('');
-          }
-        }}
-      >
-        <div 
-          style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '400px',
-            maxWidth: '90vw',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ marginBottom: '20px' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: '#2d3748' }}>
-              Add to Cart
-            </h3>
-            
-            <div style={{ marginBottom: '12px' }}>
-              <strong style={{ color: '#2d3748' }}>Product Name:</strong>
-              <div style={{ color: '#4a5568', marginTop: '4px' }}>
-                {selectedProductForQty.name}
-              </div>
-            </div>
-            
-            <div style={{ marginBottom: '12px' }}>
-              <strong style={{ color: '#2d3748' }}>Available:</strong>
-              <div style={{ color: '#4a5568', marginTop: '4px' }}>
-                {selectedProductForQty.quantity || selectedProductForQty.stockQuantity || selectedProductForQty.stock || 0} {selectedProductForQty.productType === "packed" ? "packs" : selectedProductForQty.unit}
-              </div>
-            </div>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <strong style={{ color: '#2d3748' }}>Price:</strong>
-              <div style={{ color: '#4a5568', marginTop: '4px' }}>
-                ₹{(selectedProductForQty.basePrice || 0).toLocaleString('en-IN')} per {selectedProductForQty.productType === "packed" ? "pack" : selectedProductForQty.unit}
-              </div>
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#2d3748' }}>
-                Quantity to Add
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={inputQuantity}
-                placeholder="Enter quantity"
-                onChange={(e) => setInputQuantity(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  outline: 'none'
-                }}
-                autoFocus
-              />
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => {
-                setShowQuantityModal(false);
-                setSelectedProductForQty(null);
-                setInputQuantity('');
-              }}
-              style={{
-                padding: '6px 12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                backgroundColor: 'white',
-                color: '#4a5568',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleQuantityConfirm}
-              disabled={!inputQuantity || parseInt(inputQuantity) <= 0}
-              style={{
-                padding: '6px 12px',
-                border: 'none',
-                borderRadius: '4px',
-                backgroundColor: !inputQuantity || parseInt(inputQuantity) <= 0 ? '#e2e8f0' : '#003176',
-                color: !inputQuantity || parseInt(inputQuantity) <= 0 ? '#a0aec0' : 'white',
-                cursor: !inputQuantity || parseInt(inputQuantity) <= 0 ? 'not-allowed' : 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Add to Cart
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
 
   // Step 1: Customer Selection
@@ -2939,18 +3114,20 @@ export default function SalesOrderWizard() {
     const w = reviewData.warehouse || {};
     const drops = dropOffs || [];
     const items = reviewData.items || [];
-    const totals = reviewData.totals || {};
+    // Calculate totals accounting for edited grandTotals
+    const baseTotals = reviewData.totals || {};
+    
+    // Use backend's totals from reviewData - don't recalculate on frontend
+    // Backend has already processed edited amounts and returns correct totals
+    const totals = baseTotals || {};
 
     return (
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Review Order</h2>
         <p style={styles.sectionSubtitle}>Please review all order details before proceeding to payment</p>
         
-        {/* Order Information */}
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+        {/* Customer / Sales / Warehouse Information */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
             {/* Customer Information */}
             <div style={{ 
               padding: '16px', 
@@ -3034,7 +3211,6 @@ export default function SalesOrderWizard() {
               </div>
             </div>
           </div>
-        </Card>
 
         {/* Drop-off Points */}
         <Card>
@@ -3081,77 +3257,158 @@ export default function SalesOrderWizard() {
         </Card>
 
         {/* Products */}
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div>
-              <h3 style={{ margin: '0', fontWeight: '700', color: '#2d3748' }}>Products</h3>
-              <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '14px' }}>Order items</p>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gap: '16px' }}>
-            {items.map((item, i) => (
-              <div key={i} style={{ 
-                padding: '16px', 
-                backgroundColor: '#f7fafc', 
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0'
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, marginBottom: 16, overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#f1f5f9', padding: 12, fontWeight: 600, color: '#1e293b' }}>Products</div>
+          {items.map((item, i) => {
+            const itemKey = item.productId || i;
+            const editedGrandTotal = editedGrandTotals[itemKey];
+            const isEdited = editedGrandTotal !== undefined;
+            const originalTotal = parseFloat(item.totalAmount) || 0;
+            // Use edited value if exists, otherwise use original
+            const displayAmount = isEdited 
+              ? editedGrandTotal 
+              : originalTotal;
+
+             if (!originalItemValues[itemKey]) {
+                setOriginalItemValues(prev => ({ ...prev, [itemKey]: item }));
+            }
+            
+            return (
+              <div key={itemKey} style={{ 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr auto', 
+                padding: '12px 16px', 
+                borderTop: '1px solid #e2e8f0', 
+                fontSize: 13, 
+                color: '#475569', 
+                gap: '12px', 
+                alignItems: 'center' 
               }}>
-                <div style={{ fontWeight: '700', color: '#2d3748', marginBottom: '12px', fontSize: '16px' }}>
-                  {item.productName}
+                <div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.productName}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.sku || 'SKU NA'}</div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: '600', color: '#4a5568' }}>Quantity:</span>
-                    <span style={{ color: '#2d3748' }}>
-                      {item.productType === "packed"
-                        ? `${item.quantity} packs`
-                        : `${item.quantity} ${item.unit}`}
-                    </span>
+                <div>Qty: {item.quantity} {item.unit}</div>
+                <div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: '2px' }}>
+                    Unit: ₹{(item.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: '600', color: '#4a5568' }}>Base Price:</span>
-                    <span style={{ color: '#2d3748' }}>₹{item.basePrice}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: '600', color: '#4a5568' }}>Tax:</span>
-                    <span style={{ color: '#2d3748' }}>₹{item.taxAmount}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: '600', color: '#667eea' }}>Total:</span>
-                    <span style={{ color: '#667eea', fontWeight: '700' }}>₹{item.totalAmount}</span>
-                  </div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Tax: ₹{item.taxAmount}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={displayAmount !== undefined && displayAmount !== null ? displayAmount : ''}
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      if (inputValue === '') {
+                         setEditedGrandTotals((prev) => ({ ...prev, [itemKey]: 0 }));
+                         return;
+                      }
+                      
+                      const newValue = parseFloat(inputValue);
+                      if (!isNaN(newValue) && newValue >= 0) {
+                        setEditedGrandTotals((prev) => ({ ...prev, [itemKey]: newValue }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const newValue = parseFloat(e.target.value);
+                      const original = (originalItemValues[itemKey]?.originalTotal || 0);
+                      if (!isNaN(newValue) && newValue > 0 && newValue < original) {
+                        showToast({
+                          title: `Price cannot be less than the original amount (₹${original.toLocaleString('en-IN')})`,
+                          status: "warning",
+                          duration: 4000
+                        });
+                        setEditedGrandTotals((prev) => ({ ...prev, [itemKey]: original }));
+                      }
+                    }}
+                    style={{
+                      width: '100px',
+                      padding: '4px 8px',
+                      border: `1px solid ${
+                        isEdited 
+                          ? (displayAmount < (originalItemValues[itemKey]?.originalTotal || 0) ? '#dc3545' : '#3b82f6') 
+                          : '#e2e8f0'
+                      }`,
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: isEdited && displayAmount < (originalItemValues[itemKey]?.originalTotal || 0) ? '#dc3545' : '#0f172a',
+                      backgroundColor: isEdited ? (displayAmount < (originalItemValues[itemKey]?.originalTotal || 0) ? '#fff5f5' : '#eff6ff') : '#fff',
+                      textAlign: 'right',
+                      outline: 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                    placeholder="0.00"
+                  />
+                  {isEdited && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditedGrandTotals((prev) => {
+                          const updated = { ...prev };
+                          delete updated[itemKey];
+                          return updated;
+                        });
+                        
+                        showToast({
+                          title: "Resetting to original total",
+                          status: "info",
+                          duration: 2000,
+                        });
+                      }}
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                       title="Reset to original"
+                      type="button"
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
           
           {/* Total Quantity and Subtotal */}
           {items.length > 0 && (() => {
             const totalQuantity = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-            const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.totalAmount) || 0), 0);
-            
+            const displaySubtotal = totals.subtotal || 0;
+
             return (
               <div style={{ 
-                marginTop: '20px', 
-                paddingTop: '20px', 
-                borderTop: '2px solid #e2e8f0' 
+                marginTop: '12px', 
+                padding: '16px', 
+                borderTop: '1px solid #e2e8f0',
+                backgroundColor: '#f8fafc'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontWeight: '600', color: '#4a5568', fontSize: '15px' }}>Total Quantity:</span>
-                  <span style={{ color: '#2d3748', fontWeight: '600', fontSize: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: '600', color: '#4a5568', fontSize: '14px' }}>Total Quantity:</span>
+                  <span style={{ color: '#2d3748', fontWeight: '600', fontSize: '14px' }}>
                     {totalQuantity.toLocaleString('en-IN')} {items[0]?.unit || 'units'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: '700', color: '#2d3748', fontSize: '16px' }}>Subtotal:</span>
-                  <span style={{ color: '#2d3748', fontWeight: '700', fontSize: '18px' }}>
-                    ₹{subtotal.toLocaleString('en-IN')}
+                  <span style={{ fontWeight: '700', color: '#2d3748', fontSize: '15px' }}>Subtotal:</span>
+                  <span style={{ color: '#2d3748', fontWeight: '700', fontSize: '16px' }}>
+                    ₹{displaySubtotal.toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>
             );
           })()}
-        </Card>
+        </div>
 
         {/* Order Totals */}
         <Card>
@@ -3164,16 +3421,28 @@ export default function SalesOrderWizard() {
           <div style={styles.flexColumn}>
             <div style={styles.totalsRow}>
               <span style={{ fontWeight: '600', color: '#4a5568' }}>Subtotal</span>
-              <span style={{ color: '#2d3748', fontWeight: '600' }}>₹{totals.subtotal}</span>
+              <span style={{ color: '#2d3748', fontWeight: '600' }}>
+               ₹{(totals.subtotal || 0).toLocaleString('en-IN')}
+              </span>
             </div>
             <div style={styles.totalsRow}>
               <span style={{ fontWeight: '600', color: '#4a5568' }}>Tax</span>
-              <span style={{ color: '#2d3748', fontWeight: '600' }}>₹{totals.tax}</span>
+              <span style={{ color: '#2d3748', fontWeight: '600' }}>
+                ₹{(totals.tax || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div style={styles.totalsRow}>
+              <span style={{ fontWeight: '600', color: '#4a5568' }}>Round Off</span>
+               <span style={{ color: '#2d3748', fontWeight: '600' }}>
+                ₹{(totals.roundOff || 0).toLocaleString('en-IN')}
+              </span>
             </div>
             <hr style={styles.divider} />
             <div style={{ ...styles.totalsRow, ...styles.totalsFinal }}>
               <span>Grand Total</span>
-              <span>₹{totals.grandTotal}</span>
+              <span>
+                ₹{(totals.grandTotal || 0).toLocaleString('en-IN')}
+              </span>
             </div>
           </div>
         </Card>
@@ -3586,7 +3855,17 @@ export default function SalesOrderWizard() {
           <i className="bi bi-chevron-right"></i> New Sales Order
         </p>
         <div style={styles.title} className="title">Create New Sales Order</div>
-        <StepIndicator />
+        <StepIndicator 
+          step={step} 
+          setStep={setStep} 
+          selectedCustomer={selectedCustomer} 
+          customerDetails={customerDetails} 
+          cartItems={cartItems} 
+          cartId={cartId} 
+          selectedWarehouseType={selectedWarehouseType} 
+          dropOffs={dropOffs} 
+          reviewData={reviewData} 
+        />
         {step === 0 && renderCustomerStep()}
         {step === 1 && renderProductStep()}
         {step === 2 && renderLogisticsStep()}
@@ -3594,7 +3873,15 @@ export default function SalesOrderWizard() {
         {step === 4 && renderPaymentStep()}
         
         {/* Quantity Modal */}
-        <QuantityModal />
+        <QuantityModal 
+          showQuantityModal={showQuantityModal}
+          selectedProductForQty={selectedProductForQty}
+          setShowQuantityModal={setShowQuantityModal}
+          setSelectedProductForQty={setSelectedProductForQty}
+          setInputQuantity={setInputQuantity}
+          inputQuantity={inputQuantity}
+          handleQuantityConfirm={handleQuantityConfirm}
+        />
         
         {/* Toast */}
         {toast && (

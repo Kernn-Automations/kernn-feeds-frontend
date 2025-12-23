@@ -44,11 +44,12 @@ export const AuthProvider = ({ children }) => {
     }
     
     // Automatically add division parameters to all requests
-    // Skip division params for auth endpoints and public endpoints
+    // Skip division params for auth endpoints, public endpoints, and supervisors endpoint
     const skipDivisionParams = 
       config.url?.includes('/auth/') || 
       config.url?.includes('/stores/dropdowns/electricity-distributors') ||
-      config.url?.includes('/public/');
+      config.url?.includes('/public/') ||
+      config.url?.includes('/employees/supervisors/');
     
     if (!skipDivisionParams) {
       try {

@@ -45,14 +45,7 @@ const PartialDispatchRequestsList = ({ navigate, canApprove }) => {
       setLoading(true);
       setError(null);
 
-      // For now, since the endpoint doesn't exist, we'll use empty array
-      // This will be replaced when the backend endpoint is ready
-      setRequests([]);
-      setTotalPages(0);
-      setTotal(0);
-
-      // TODO: Uncomment when backend endpoint is ready
-      /*
+      // Build params object
       const params = {
         page,
         limit,
@@ -75,7 +68,6 @@ const PartialDispatchRequestsList = ({ navigate, canApprove }) => {
       } else {
         throw new Error(response.message || 'Failed to fetch requests');
       }
-      */
     } catch (err) {
       console.error('Error fetching requests:', err);
       setError(err.message || 'Failed to fetch partial dispatch requests');

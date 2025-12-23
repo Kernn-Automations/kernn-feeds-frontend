@@ -140,6 +140,7 @@ function DivisionManager() {
     agreementImage: null,
     agreementImagePreview: null
   });
+  const [updatingStoreId, setUpdatingStoreId] = useState(null);
   const [storesPagination, setStoresPagination] = useState({
     page: 1,
     limit: 10,
@@ -1512,6 +1513,115 @@ function DivisionManager() {
       const errorMessage = error.response?.data?.message || error.message || "Failed to delete store";
       setError(errorMessage);
       setIsModalOpen(true);
+    }
+  };
+
+  // Handle store status toggle (activate/deactivate)
+  const handleStoreStatusToggle = async (storeId, currentStatus) => {
+    try {
+      setUpdatingStoreId(storeId);
+      setError("");
+      const newStatus = !currentStatus; // Toggle the status
+      const isActive = newStatus;
+
+      console.log("🔄 Toggle store status called:", {
+        storeId,
+        currentStatus,
+        newStatus,
+        isActive,
+      });
+
+      // Try different endpoint patterns similar to customer status toggle
+      let response;
+      let success = false;
+
+      // Try 1: PUT to /stores/{id} with isActive field
+      try {
+        response = await axiosAPI.put(`/stores/${storeId}`, {
+          isActive: isActive,
+        });
+        console.log("🔄 PUT to /stores/{id} success:", response);
+        success = true;
+      } catch (putError) {
+        console.log(
+          "🔄 PUT to /stores/{id} failed:",
+          putError.response?.status
+        );
+      }
+
+      // Try 2: PUT to /stores/{id} with both isActive and status
+      if (!success) {
+        try {
+          response = await axiosAPI.put(`/stores/${storeId}`, {
+            isActive: isActive,
+            status: isActive ? "Active" : "Inactive",
+          });
+          console.log("🔄 PUT to /stores/{id} with status success:", response);
+          success = true;
+        } catch (patchError) {
+          console.log(
+            "🔄 PUT to /stores/{id} with status failed:",
+            patchError.response?.status
+          );
+        }
+      }
+
+      // Try 3: PUT to /stores/{id}/status
+      if (!success) {
+        try {
+          response = await axiosAPI.put(`/stores/${storeId}/status`, {
+            isActive: isActive,
+            status: isActive ? "Active" : "Inactive",
+          });
+          console.log("🔄 PUT to /stores/{id}/status success:", response);
+          success = true;
+        } catch (statusError) {
+          console.log(
+            "🔄 PUT to /stores/{id}/status failed:",
+            statusError.response?.status
+          );
+        }
+      }
+
+      // Try 4: PUT to /stores/{id}/activate or /stores/{id}/deactivate
+      if (!success) {
+        try {
+          const endpoint = isActive ? "activate" : "deactivate";
+          response = await axiosAPI.put(`/stores/${storeId}/${endpoint}`);
+          console.log(
+            `🔄 PUT to /stores/{id}/${endpoint} success:`,
+            response
+          );
+          success = true;
+        } catch (activateError) {
+          console.log(
+            "🔄 PUT to /stores/{id}/activate|deactivate failed:",
+            activateError.response?.status
+          );
+        }
+      }
+
+      if (!success) {
+        throw new Error("All API endpoints failed");
+      }
+
+      console.log("🔄 API response data:", response.data);
+
+      // Refresh stores list to show updated status
+      await fetchStores(
+        storesPagination.page,
+        storesPagination.limit
+      );
+    } catch (apiError) {
+      console.error("🔄 Store status toggle error:", apiError);
+      const errorMessage =
+        apiError.response?.data?.message ||
+        apiError.message ||
+        "Failed to update store status";
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setUpdatingStoreId(null);
     }
   };
 
@@ -3314,7 +3424,36 @@ function DivisionManager() {
                             <p><strong>Employees:</strong> <span style={{ color: employeeNames === 'No employees assigned' ? '#999' : '#333' }}>{employeeNames}</span></p>
                             <p><strong>District:</strong> {store.district || 'Not specified'}</p>
                             <p><strong>State:</strong> {store.state || 'Not specified'}</p>
-                            <p><strong>Status:</strong> {store.isActive ? 'Active' : 'Inactive'}</p>
+                            <div style={{ marginBottom: '0.5rem' }}>
+                              <strong>Status:</strong>
+                              <div className="form-check form-switch d-inline-block ms-2">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  checked={store.isActive === true}
+                                  onChange={() => {
+                                    handleStoreStatusToggle(store.id, store.isActive);
+                                  }}
+                                  disabled={updatingStoreId === store.id}
+                                  style={{
+                                    opacity: updatingStoreId === store.id ? 0.6 : 1,
+                                    cursor: updatingStoreId === store.id ? "not-allowed" : "pointer",
+                                  }}
+                                />
+                                <label className="form-check-label ms-2">
+                                  {updatingStoreId === store.id ? (
+                                    <span className="badge bg-secondary">
+                                      <i className="bi bi-arrow-clockwise me-1" style={{ animation: "spin 1s linear infinite" }}></i>
+                                      Updating...
+                                    </span>
+                                  ) : (
+                                    <span className={`badge ${store.isActive ? 'bg-success' : 'bg-secondary'}`}>
+                                      {store.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                  )}
+                                </label>
+                              </div>
+                            </div>
                             {store.createdByEmployee && (
                               <p><strong>Created By:</strong> {store.createdByEmployee.name || 'N/A'}</p>
                             )}

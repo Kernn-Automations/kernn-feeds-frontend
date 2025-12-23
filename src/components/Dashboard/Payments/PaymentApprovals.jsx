@@ -38,7 +38,17 @@ function PaymentApprovals({ navigate }) {
 
         const res = await axiosAPI.get(query);
         console.log(res.data);
-        setSalesOrders(res.data.salesOrders || []);
+        const orders = res.data.salesOrders || [];
+        // Sort by date descending (using transactionDate from paymentRequests)
+        orders.sort((a, b) => {
+          const getVal = (o) => {
+            const d = o.paymentRequests?.[0]?.transactionDate || o.createdAt;
+            const date = new Date(d);
+            return isNaN(date.getTime()) ? 0 : date.getTime();
+          };
+          return getVal(b) - getVal(a);
+        });
+        setSalesOrders(orders);
         setTotalPages(res.data.totalPages);
       } catch (e) {
         setError(e.response?.data?.message || "Something went wrong.");
@@ -62,6 +72,13 @@ function PaymentApprovals({ navigate }) {
 
   function calculateTotalAmount(paymentRequests) {
     return paymentRequests.reduce((sum, pr) => sum + (pr.netAmount || 0), 0).toFixed(2);
+  }
+
+  function getDisplayDate(order) {
+    const dateStr = order.paymentRequests?.[0]?.transactionDate || order.createdAt;
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? '-' : date.toLocaleDateString("en-IN");
   }
 
   function openModal(salesOrder) {
@@ -116,6 +133,7 @@ function PaymentApprovals({ navigate }) {
                   <tr>
                     <th>S.No</th>
                     <th>Order Number</th>
+                    <th>Date</th>
                     <th>Customer Name</th>
                     <th>SE Name</th>
                     <th>Warehouse</th>
@@ -126,7 +144,7 @@ function PaymentApprovals({ navigate }) {
                 <tbody>
                   {filteredSalesOrders.length === 0 && (
                     <tr>
-                      <td colSpan={7}>NO DATA FOUND</td>
+                      <td colSpan={8}>NO DATA FOUND</td>
                     </tr>
                   )}
                   {filteredSalesOrders.map((order) => (
@@ -137,6 +155,7 @@ function PaymentApprovals({ navigate }) {
                     >
                       <td>{index++}</td>
                       <td>{order.orderNumber}</td>
+                      <td>{getDisplayDate(order)}</td>
                       <td>{order.customer?.name}</td>
                       <td>{order.salesExecutive?.name}</td>
                       <td>{order.warehouse?.name}</td>
