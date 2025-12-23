@@ -177,6 +177,11 @@ export default function StoreCreateSale() {
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [inputQuantity, setInputQuantity] = useState('');
   const [loadingProductIds, setLoadingProductIds] = useState(new Set());
+  
+  // Track edited final amounts for items (itemId -> editedFinalAmount)
+  const [editedFinalAmounts, setEditedFinalAmounts] = useState({});
+  // Track original values for each item (itemId -> { basePrice, taxAmount, finalAmount })
+  const [originalItemValues, setOriginalItemValues] = useState({});
 
   // Step 2: Payment
   const [mobileNumber, setMobileNumber] = useState("");
@@ -701,10 +706,21 @@ export default function StoreCreateSale() {
         // Prepare items for calculation
         const items = cartItemsList
           .filter((item) => item.productId)
-          .map((item) => ({
-            productId: item.productId,
-            quantity: parseFloat(item.quantity) || 0,
-          }));
+          .map((item) => {
+            const payload = {
+              productId: item.productId,
+              quantity: parseFloat(item.quantity) || 0,
+            };
+            
+            // Add finalAmount if it was edited
+            // Use strict check for undefined as 0 is valid
+            const editedAmount = editedFinalAmounts[item.id];
+            if (editedAmount !== undefined) {
+              payload.finalAmount = editedAmount;
+            }
+            
+            return payload;
+          });
 
         if (items.length === 0) {
           setCalculatedTotal(null);
@@ -792,7 +808,59 @@ export default function StoreCreateSale() {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [cartItemsList, cartItemsCount, totalCartValue, discountAmount, fridgeAmount]);
+  }, [cartItemsList, cartItemsCount, totalCartValue, discountAmount, fridgeAmount, editedFinalAmounts]);
+
+  // Update original item values with tax when calculatedTotal is available
+  useEffect(() => {
+    if (!calculatedTotal || !cartItemsCount) return;
+    
+    const totalTax = calculatedTotal.tax || 0;
+    const totalBase = totalCartValue;
+    
+    // Calculate tax proportionally for each item
+    setOriginalItemValues((prev) => {
+      const updated = { ...prev };
+      let hasChanges = false;
+      
+      cartItemsList.forEach((item) => {
+        if (updated[item.id]) {
+          const itemBaseTotal = item.totalPrice || 0;
+          // Calculate tax proportionally based on item's share of total base
+          const itemTax = totalBase > 0 ? (itemBaseTotal / totalBase) * totalTax : 0;
+          const itemFinalAmount = itemBaseTotal + itemTax;
+          
+          // Only update if values have changed
+          if (updated[item.id].taxAmount !== itemTax || updated[item.id].finalAmount !== itemFinalAmount) {
+            updated[item.id] = {
+              ...updated[item.id],
+              taxAmount: itemTax,
+              finalAmount: itemFinalAmount,
+            };
+            hasChanges = true;
+          }
+        } else {
+          // Initialize if not exists
+          const itemBaseTotal = item.totalPrice || 0;
+          const itemTax = totalBase > 0 ? (itemBaseTotal / totalBase) * totalTax : 0;
+          const itemFinalAmount = itemBaseTotal + itemTax;
+          
+          updated[item.id] = {
+            basePrice: item.price || 0,
+            baseTotal: itemBaseTotal,
+            taxAmount: itemTax,
+            finalAmount: itemFinalAmount,
+          };
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges) {
+        console.log('Updated original item values with tax:', updated);
+      }
+      
+      return updated;
+    });
+  }, [calculatedTotal, cartItemsList, cartItemsCount, totalCartValue]);
 
   const reviewData = useMemo(() => {
     if (!cartItemsCount) return null;
@@ -813,32 +881,72 @@ export default function StoreCreateSale() {
           address: [customerForm.area, customerForm.city, customerForm.pincode].filter(Boolean).join(", "),
         };
 
-    const items = cartItemsList.map((item) => ({
-      id: item.id,
-      name: item.name,
-      sku: item.sku,
-      quantity: item.quantity,
-      unit: item.unit,
-      price: item.price,
-      total: item.totalPrice,
-    }));
+    const items = cartItemsList.map((item) => {
+      const editedFinalAmount = editedFinalAmounts[item.id];
+      const originalValues = originalItemValues[item.id];
+      
+      // If final amount was edited, use it; otherwise calculate from base + tax
+      let finalAmount;
+      if (editedFinalAmount !== undefined) {
+        finalAmount = editedFinalAmount;
+      } else if (originalValues && originalValues.finalAmount) {
+        // Use stored final amount (base + tax)
+        finalAmount = originalValues.finalAmount;
+      } else {
+        // Fallback to totalPrice (base only) if tax not calculated yet
+        finalAmount = item.totalPrice;
+      }
+      
+      // Calculate new base price if edited
+      let newBasePrice = item.price;
+      if (editedFinalAmount !== undefined && originalValues) {
+        // Original: baseTotal + taxAmount = finalAmount
+        // User edits finalAmount to new value
+        // Extra Amount = New finalAmount - Original finalAmount
+        // New baseTotal = Original baseTotal + Extra Amount
+        // taxAmount stays same
+        const originalFinalAmount = originalValues.finalAmount || (originalValues.baseTotal || item.totalPrice) + (originalValues.taxAmount || 0);
+        const extraAmount = editedFinalAmount - originalFinalAmount;
+        const originalBaseTotal = originalValues.baseTotal || item.totalPrice;
+        const newBaseTotal = originalBaseTotal + extraAmount;
+        // Calculate new unit price
+        newBasePrice = item.quantity > 0 ? newBaseTotal / item.quantity : item.price;
+      }
+      
+      return {
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        unit: item.unit,
+        price: newBasePrice, // Updated base price if edited
+        total: finalAmount, // Final amount (edited or original)
+        originalTotal: item.totalPrice, // Keep original for reference
+        editedFinalAmount: editedFinalAmount, // Track if edited
+      };
+    });
 
+    // Calculate subtotal from final amounts (edited or original)
+    // Note: final amounts already include tax, so subtotal here is the sum of all final amounts
     const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
     
     // Calculate total number of bags (sum of all quantities)
     const totalBags = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
     
-    // Use calculated total from backend if available, otherwise use subtotal
+    // Tax amount (from backend calculation)
     const tax = calculatedTotal?.tax || 0;
     const discountAmt = calculatedTotal?.discountAmount || parseFloat(discountAmount) || 0;
     const freightAmt = calculatedTotal?.freightCharges || calculatedTotal?.fridgeAmount || parseFloat(fridgeAmount) || 0;
-    const total = calculatedTotal?.total || (subtotal + tax - discountAmt + freightAmt);
+    
+    // Calculate totals - Prefer usage of backend response for Order Summary
+    const displaySubtotal = calculatedTotal?.subtotal || subtotal;
+    const displayTotal = calculatedTotal?.total || (subtotal - discountAmt + freightAmt);
 
     return {
       orderId: generatedOrderId,
       customer: customerInfo,
       items,
-      totals: { subtotal, tax, discountAmount: discountAmt, freightCharges: freightAmt, total },
+      totals: { subtotal: displaySubtotal, tax, discountAmount: discountAmt, freightCharges: freightAmt, total: displayTotal },
       totalBags: totalBags,
       upiId: "feedbazaar@upi",
       bankDetails: {
@@ -847,7 +955,7 @@ export default function StoreCreateSale() {
         bankName: "Feed Bazaar Bank",
       },
     };
-  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal, discountAmount, fridgeAmount]);
+  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal, discountAmount, fridgeAmount, editedFinalAmounts, originalItemValues]);
 
   const canGoNext = () => {
     if (step === 0) return cartItemsCount > 0; // Products step - need at least one item
@@ -892,17 +1000,40 @@ export default function StoreCreateSale() {
       const unitPrice = selectedProductForQty.basePrice || selectedProductForQty.price || 0;
       const totalPrice = unitPrice * newQuantity;
 
+      const newItem = {
+        ...selectedProductForQty,
+        id: productId, // Ensure id is set to store product ID
+        storeProductId: productId, // Ensure storeProductId is set
+        quantity: newQuantity,
+        unit: selectedProductForQty.productType === "packed" ? "packs" : (selectedProductForQty.unit || "units"),
+        price: unitPrice,
+        totalPrice
+      };
+
+      // Store original values if this is a new item or quantity changed
+      if (!existing.quantity || existing.quantity !== newQuantity) {
+        // Store base price and total price initially
+        // Tax and final amount will be updated when calculatedTotal is available
+        setOriginalItemValues((prev) => ({
+          ...prev,
+          [productId]: {
+            basePrice: unitPrice,
+            baseTotal: totalPrice, // Base price * quantity
+            taxAmount: 0, // Will be updated when tax is calculated
+            finalAmount: totalPrice, // Will be updated when tax is calculated (base + tax)
+          }
+        }));
+        // Clear any edited amount when quantity changes
+        setEditedFinalAmounts((prev) => {
+          const updated = { ...prev };
+          delete updated[productId];
+          return updated;
+        });
+      }
+
       return {
         ...prev,
-        [productId]: {
-          ...selectedProductForQty,
-          id: productId, // Ensure id is set to store product ID
-          storeProductId: productId, // Ensure storeProductId is set
-          quantity: newQuantity,
-          unit: selectedProductForQty.productType === "packed" ? "packs" : (selectedProductForQty.unit || "units"),
-          price: unitPrice,
-          totalPrice
-        }
+        [productId]: newItem
       };
     });
 
@@ -1138,10 +1269,18 @@ export default function StoreCreateSale() {
         })
         .map((item) => {
           // Use actual product ID (productId from the for-sale endpoint response)
-          return {
+          const itemPayload = {
             productId: item.productId, // Actual product ID (e.g., 16), not store product ID
             quantity: parseFloat(item.quantity) || 0,
           };
+          
+          // Include finalAmount only if user edited it
+          const editedFinalAmount = editedFinalAmounts[item.id];
+          if (editedFinalAmount !== undefined) {
+            itemPayload.finalAmount = editedFinalAmount;
+          }
+          
+          return itemPayload;
         });
 
       if (items.length === 0) {
@@ -1641,17 +1780,99 @@ export default function StoreCreateSale() {
 
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, marginBottom: 16, overflow: 'hidden' }}>
                 <div style={{ backgroundColor: '#f1f5f9', padding: 12, fontWeight: 600, color: '#1e293b' }}>Products</div>
-                {reviewData.items.map((item) => (
-                  <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', padding: '12px 16px', borderTop: '1px solid #e2e8f0', fontSize: isMobile ? 12 : 13, color: '#475569', gap: isMobile ? '8px' : '0' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.name}</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.sku || 'SKU NA'}</div>
+                {reviewData.items.map((item) => {
+                  const editedFinalAmount = editedFinalAmounts[item.id];
+                  const isEdited = editedFinalAmount !== undefined;
+                  // Display edited amount if exists, otherwise use item.total (which includes tax)
+                  const displayAmount = editedFinalAmount !== undefined 
+                    ? editedFinalAmount 
+                    : (item.total || 0);
+                  
+                  return (
+                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', padding: '12px 16px', borderTop: '1px solid #e2e8f0', fontSize: isMobile ? 12 : 13, color: '#475569', gap: isMobile ? '8px' : '0', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.name}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.sku || 'SKU NA'}</div>
+                      </div>
+                      <div>Qty: {item.quantity} {item.unit}</div>
+                      <div>Price: ₹{(item.price || 0).toLocaleString('en-IN')}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={displayAmount !== undefined && displayAmount !== null ? displayAmount : ''}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
+                            
+                            // Allow empty input
+                            if (inputValue === '') {
+                              setEditedFinalAmounts((prev) => ({
+                                ...prev,
+                                [item.id]: 0 // Or handle as special 'empty' state if needed, but 0 is usually fine for temp state
+                              }));
+                              return;
+                            }
+
+                            const newValue = parseFloat(inputValue);
+                            if (!isNaN(newValue) && newValue >= 0) {
+                              setEditedFinalAmounts((prev) => ({
+                                ...prev,
+                                [item.id]: newValue
+                              }));
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // Ensure value is properly formatted on blur
+                            const inputValue = e.target.value;
+                            const value = inputValue === '' ? 0 : parseFloat(inputValue) || 0;
+                            setEditedFinalAmounts((prev) => ({
+                              ...prev,
+                              [item.id]: value
+                            }));
+                          }}
+                          style={{
+                            width: '100px',
+                            padding: '4px 8px',
+                            border: `1px solid ${isEdited ? '#3b82f6' : '#e2e8f0'}`,
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            backgroundColor: isEdited ? '#eff6ff' : '#fff'
+                          }}
+                          placeholder="Amount"
+                        />
+                        {isEdited && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setEditedFinalAmounts((prev) => {
+                                const updated = { ...prev };
+                                delete updated[item.id];
+                                return updated;
+                              });
+                            }}
+                            type="button"
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: '11px',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                            title="Reset to original"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div>Qty: {item.quantity} {item.unit}</div>
-                    <div>Price: ₹{(item.price || 0).toLocaleString('en-IN')}</div>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>₹{(item.total || 0).toLocaleString('en-IN')}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, backgroundColor: '#f8fafc', marginBottom: 16 }}>

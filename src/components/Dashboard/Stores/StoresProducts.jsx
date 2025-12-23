@@ -21,7 +21,7 @@ const StoresProducts = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingData, setEditingData] = useState({});
   const [saving, setSaving] = useState(false);
-  
+
   // Filter states
   const [storeTypeFilter, setStoreTypeFilter] = useState("all"); // "all", "own", "franchise"
   const [selectedProducts, setSelectedProducts] = useState([]); // Multiple selected product SKUs

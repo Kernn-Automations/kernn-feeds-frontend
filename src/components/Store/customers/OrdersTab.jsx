@@ -37,7 +37,7 @@ function OrdersTab({ customer }) {
               <th>S.No</th>
               <th>Order ID</th>
               <th>Date</th>
-              <th>Items</th>
+              <th>Products</th>
               <th>Amount</th>
               <th>Status</th>
             </tr>
@@ -52,7 +52,22 @@ function OrdersTab({ customer }) {
                 <td>{index + 1}</td>
                 <td>{order.id}</td>
                 <td>{order.date}</td>
-                <td>{order.items} items</td>
+                <td>
+                  {order.itemsList && order.itemsList.length > 0 ? (
+                    <div style={{ fontSize: '13px' }}>
+                      {order.itemsList.map((item, i) => (
+                        <div key={i} style={{ marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 500 }}>{item.name}</span>
+                          <span style={{ color: '#666', marginLeft: '6px' }}>
+                             x {item.quantity} {item.unit}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span>{order.items} items</span>
+                  )}
+                </td>
                 <td>₹{order.amount.toLocaleString()}</td>
                 <td>
                   <span className={`badge ${order.status === 'Delivered' ? 'bg-success' : order.status === 'Pending' ? 'bg-warning' : 'bg-info'}`}>

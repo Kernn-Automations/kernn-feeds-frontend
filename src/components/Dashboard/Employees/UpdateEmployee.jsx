@@ -106,8 +106,10 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
         setSupervisors(res.data.supervisors || []);
         console.log(res)
       } catch (err) {
-        setError(err?.response?.data?.message || "Failed to load supervisors.");
-        setIsModalOpen(true);
+        // Handle supervisor fetch errors gracefully - supervisors are optional
+        // Only log the error, don't show modal as it doesn't prevent employee update
+        console.warn("Failed to load supervisors:", err?.response?.data?.message || err.message);
+        setSupervisors([]); // Set empty supervisors list on error
       }
     }
 

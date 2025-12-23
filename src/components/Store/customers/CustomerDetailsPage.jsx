@@ -79,7 +79,20 @@ function CustomerDetailsPage() {
           updatedAt: customerData.updatedAt || null,
           createdByEmployee: customerData.createdByEmployee || customerData.createdBy || null,
           noOfCows: customerData.noOfCows || null,
-          noOfBuffaloes: customerData.noOfBuffaloes || null
+          noOfBuffaloes: customerData.noOfBuffaloes || null,
+          // Map sales to orders for OrdersTab
+          orders: (customerData.sales || []).map(sale => ({
+            id: sale.saleCode || sale.id,
+            date: sale.createdAt ? new Date(sale.createdAt).toLocaleDateString('en-IN') : 'N/A',
+            items: sale.items ? sale.items.length : 0,
+            itemsList: sale.items ? sale.items.map(item => ({
+              name: item.product?.name || item.productName || 'Unknown Product',
+              quantity: item.quantity,
+              unit: item.product?.unit || item.unit || ''
+            })) : [],
+            amount: parseFloat(sale.grandTotal || sale.totalAmount || 0),
+            status: 'Completed' // Store sales are completed immediately
+          }))
         };
         
         console.log('Mapped customer data:', mappedCustomer);

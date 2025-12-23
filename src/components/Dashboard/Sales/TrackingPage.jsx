@@ -340,9 +340,12 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       hour12: true,
     };
 
-    const formatted = date.toLocaleString("en-IN", options);
+  const formatted = date.toLocaleString("en-IN", options);
     return `${formatted} IST`;
   }
+
+  // Derive payment info from either singular Request or array Requests
+  const paymentInfo = order?.paymentRequest || (order?.paymentRequests?.[0]);
 
   return (
     <>
@@ -504,7 +507,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
               <h6 className={styles.title}>Order Tracking</h6>
               <div className={styles.container}>
                 {/* If Cancelled show only Cancel step */}
-                {findTracking(order.orderStatus, order.paymentRequest?.status) === 100 ? (
+                {findTracking(order.orderStatus, paymentInfo?.status) === 100 ? (
                   <div className={`${styles.timeline} ${styles.linecomplete}`}>
                     <div className={styles.step}>
                       <div
@@ -524,9 +527,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                   <>
                     <div
                       className={`${styles.timeline} ${
-                        findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                        findTracking(order.orderStatus, paymentInfo?.status) > 0
                           ? styles.linecomplete
-                          : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
+                          : findTracking(order.orderStatus, paymentInfo?.status) === 0
                           ? styles.linecurrent
                           : styles.linepending
                       }`}
@@ -534,9 +537,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                       <div className={styles.step}>
                         <div
                           className={`${styles.circle} ${
-                            findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                            findTracking(order.orderStatus, paymentInfo?.status) > 0
                               ? styles.completed
-                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
+                              : findTracking(order.orderStatus, paymentInfo?.status) === 0
                               ? styles.current
                               : styles.pending
                           }`}
@@ -544,14 +547,14 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                         <div className={styles.stepText}>
                           <p
                             className={`${
-                              findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                              findTracking(order.orderStatus, paymentInfo?.status) > 0
                                 ? styles.completedText
-                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 0
+                                : findTracking(order.orderStatus, paymentInfo?.status) === 0
                                 ? styles.currentText
                                 : styles.pendingText
                             }`}
                           >
-                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 0
+                            {findTracking(order.orderStatus, paymentInfo?.status) > 0
                               ? "Payment Details Submitted"
                               : "Awaiting For Payment Details"}
                           </p>
@@ -560,9 +563,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     </div>
                     <div
                       className={`${styles.timeline} ${
-                        findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                        findTracking(order.orderStatus, paymentInfo?.status) > 1
                           ? styles.linecomplete
-                          : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
+                          : findTracking(order.orderStatus, paymentInfo?.status) === 1
                           ? styles.linecurrent
                           : styles.linepending
                       }`}
@@ -570,9 +573,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                       <div className={styles.step}>
                         <div
                           className={`${styles.circle} ${
-                            findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                            findTracking(order.orderStatus, paymentInfo?.status) > 1
                               ? styles.completed
-                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
+                              : findTracking(order.orderStatus, paymentInfo?.status) === 1
                               ? styles.current
                               : styles.pending
                           }`}
@@ -580,14 +583,14 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                         <div className={styles.stepText}>
                           <p
                             className={`${
-                              findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                              findTracking(order.orderStatus, paymentInfo?.status) > 1
                                 ? styles.completedText
-                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 1
+                                : findTracking(order.orderStatus, paymentInfo?.status) === 1
                                 ? styles.currentText
                                 : styles.pendingText
                             }`}
                           >
-                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 1
+                            {findTracking(order.orderStatus, paymentInfo?.status) > 1
                               ? "Payment Processed"
                               : "Awaiting Payment Processing"}
                           </p>
@@ -596,9 +599,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     </div>
                     <div
                       className={`${styles.timeline} ${
-                        findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                        findTracking(order.orderStatus, paymentInfo?.status) > 2
                           ? styles.linecomplete
-                          : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
+                          : findTracking(order.orderStatus, paymentInfo?.status) === 2
                           ? styles.linecurrent
                           : styles.linepending
                       }`}
@@ -606,9 +609,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                       <div className={styles.step}>
                         <div
                           className={`${styles.circle} ${
-                            findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                            findTracking(order.orderStatus, paymentInfo?.status) > 2
                               ? styles.completed
-                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
+                              : findTracking(order.orderStatus, paymentInfo?.status) === 2
                               ? styles.current
                               : styles.pending
                           }`}
@@ -616,21 +619,21 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                         <div className={styles.stepText}>
                           <p
                             className={`${
-                              findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                              findTracking(order.orderStatus, paymentInfo?.status) > 2
                                 ? styles.completedText
-                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 2
+                                : findTracking(order.orderStatus, paymentInfo?.status) === 2
                                 ? styles.currentText
                                 : styles.pendingText
                             }`}
                           >
-                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 2
+                            {findTracking(order.orderStatus, paymentInfo?.status) > 2
                               ? "Payment Approved"
                               : "Awaiting Payment Approval"}
                           </p>
-                          {findTracking(order.orderStatus, order.paymentRequest?.status) > 2 &&
-                            order.paymentRequest?.updatedAt && (
+                          {findTracking(order.orderStatus, paymentInfo?.status) > 2 &&
+                            paymentInfo?.updatedAt && (
                               <p className={styles.date}>
-                                {formatToIST(order.paymentRequest?.updatedAt)}
+                                {formatToIST(paymentInfo?.updatedAt)}
                               </p>
                             )}
                         </div>
@@ -638,9 +641,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     </div>
                     <div
                       className={`${styles.timeline} ${
-                        findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                        findTracking(order.orderStatus, paymentInfo?.status) > 3
                           ? styles.linecomplete
-                          : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
+                          : findTracking(order.orderStatus, paymentInfo?.status) === 3
                           ? styles.linecurrent
                           : styles.linepending
                       }`}
@@ -648,9 +651,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                       <div className={styles.step}>
                         <div
                           className={`${styles.circle} ${
-                            findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                            findTracking(order.orderStatus, paymentInfo?.status) > 3
                               ? styles.completed
-                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
+                              : findTracking(order.orderStatus, paymentInfo?.status) === 3
                               ? styles.current
                               : styles.pending
                           }`}
@@ -658,18 +661,18 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                         <div className={styles.stepText}>
                           <p
                             className={`${
-                              findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                              findTracking(order.orderStatus, paymentInfo?.status) > 3
                                 ? styles.completedText
-                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 3
+                                : findTracking(order.orderStatus, paymentInfo?.status) === 3
                                 ? styles.currentText
                                 : styles.pendingText
                             }`}
                           >
-                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 3
+                            {findTracking(order.orderStatus, paymentInfo?.status) > 3
                               ? "Order Confirmed"
                               : "Awaiting Order Confirmation"}
                           </p>
-                          {findTracking(order.orderStatus, order.paymentRequest?.status) > 3 &&
+                          {findTracking(order.orderStatus, paymentInfo?.status) > 3 &&
                             order.updatedAt && (
                               <p className={styles.date}>
                                 {formatToIST(order?.updatedAt)}
@@ -680,9 +683,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     </div>
                     <div
                       className={`${styles.timeline} ${
-                        findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                        findTracking(order.orderStatus, paymentInfo?.status) > 4
                           ? styles.linecomplete
-                          : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
+                          : findTracking(order.orderStatus, paymentInfo?.status) === 4
                           ? styles.linecurrent
                           : styles.linepending
                       }`}
@@ -690,9 +693,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                       <div className={styles.step}>
                         <div
                           className={`${styles.circle} ${
-                            findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                            findTracking(order.orderStatus, paymentInfo?.status) > 4
                               ? styles.completed
-                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
+                              : findTracking(order.orderStatus, paymentInfo?.status) === 4
                               ? styles.current
                               : styles.pending
                           }`}
@@ -700,14 +703,14 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                         <div className={styles.stepText}>
                           <p
                             className={`${
-                              findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                              findTracking(order.orderStatus, paymentInfo?.status) > 4
                                 ? styles.completedText
-                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 4
+                                : findTracking(order.orderStatus, paymentInfo?.status) === 4
                                 ? styles.currentText
                                 : styles.pendingText
                             }`}
                           >
-                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 4
+                            {findTracking(order.orderStatus, paymentInfo?.status) > 4
                               ? "Order Dispatched"
                               : "Awaiting Order Dispatch"}
                           </p>
@@ -721,9 +724,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     </div>
                     <div
                       className={`${styles.timelinelast} ${
-                        findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                        findTracking(order.orderStatus, paymentInfo?.status) > 5
                           ? styles.linecomplete
-                          : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
+                          : findTracking(order.orderStatus, paymentInfo?.status) === 5
                           ? styles.linecurrent
                           : styles.linepending
                       }`}
@@ -731,9 +734,9 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                       <div className={styles.step}>
                         <div
                           className={`${styles.circle} ${
-                            findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                            findTracking(order.orderStatus, paymentInfo?.status) > 5
                               ? styles.completed
-                              : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
+                              : findTracking(order.orderStatus, paymentInfo?.status) === 5
                               ? styles.current
                               : styles.pending
                           }`}
@@ -741,14 +744,14 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                         <div className={styles.stepText}>
                           <p
                             className={`${
-                              findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                              findTracking(order.orderStatus, paymentInfo?.status) > 5
                                 ? styles.completedText
-                                : findTracking(order.orderStatus, order.paymentRequest?.status) === 5
+                                : findTracking(order.orderStatus, paymentInfo?.status) === 5
                                 ? styles.currentText
                                 : styles.pendingText
                             }`}
                           >
-                            {findTracking(order.orderStatus, order.paymentRequest?.status) > 5
+                            {findTracking(order.orderStatus, paymentInfo?.status) > 5
                               ? "Order Delivered"
                               : "Awaiting Order to Deliver"}
                           </p>
@@ -950,10 +953,10 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
             </div>
           </div>
 
-          <div className={styles.infoGrid}>
+              <div className={styles.infoGrid}>
             <h6 className={styles.title}>Payment Details </h6>
             <div className={styles.infoCard}>
-              <PaymentInfo info={order.paymentRequest} />
+              <PaymentInfo info={paymentInfo} />
             </div>
           </div>
         </div>
