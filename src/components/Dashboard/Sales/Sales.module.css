@@ -140,6 +140,17 @@
   font-weight: 500;
   font-size: 12px;
 }
+.readOnlySelect {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none !important;
+  cursor: default !important;
+  background-color: #fafafa !important;
+  border-color: #eee !important;
+  box-shadow: none !important;
+  color: #666 !important;
+}
 .longformmdl span {
   font-weight: 600;
   font-size: 12px;

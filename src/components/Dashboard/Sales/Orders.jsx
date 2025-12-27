@@ -15,6 +15,7 @@ import { FaArrowRightLong } from "react-icons/fa6";
 import { useSearchParams } from "react-router-dom";
 import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 import FiltersForSales from "./FiltersForSales";
+import { useDivision } from "../../context/DivisionContext";
 
 function Orders({
   navigate,
@@ -40,11 +41,20 @@ function Orders({
   const [status, setStatus] = useState(getInitialStatus);
 
   // Filters to divisions
-  const [divisionId, setDivisionId] = useState();
+  const { selectedDivision } = useDivision();
+  const [divisionId, setDivisionId] = useState(null);
   const [zoneId, setZoneId] = useState();
   const [subZoneId, setSubZoneId] = useState();
   const [teamsId, setTeamsId] = useState();
   const [employeeId, setEmployeeId] = useState();
+
+  // Sync internal division filter with external DivisionContext
+  useEffect(() => {
+    if (selectedDivision) {
+      const isAll = selectedDivision.id === "all" || selectedDivision.id === 1;
+      setDivisionId(isAll ? null : selectedDivision.id);
+    }
+  }, [selectedDivision]);
 
   // Serial number base will be computed per page for continuous numbering
 
@@ -108,13 +118,17 @@ function Orders({
           warehouseParam = `&warehouseId=${warehouse}`;
         }
 
-        // ✅ Add division parameters to prevent wrong division data
+        // ✅ Consolidate division parameters - prioritize filter state, then global context
         let divisionParam = "";
-        if (currentDivisionId && currentDivisionId !== "1") {
-          divisionParam = `&divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === "1") {
-          divisionParam = `&showAllDivisions=true`;
+        const effectiveDivisionId = divisionId || currentDivisionId;
+        
+        if (effectiveDivisionId && effectiveDivisionId !== "1") {
+          divisionParam = `&divisionId=${effectiveDivisionId}`;
         }
+        // If it's "1" (All Divisions), we send nothing according to user request 
+        // that showAllDivisions causes issues. The backend should handle omission as "all" 
+        // or we just don't force a specific division.
+
 
         console.log(
           "Orders - Fetching orders with warehouse filter:",
@@ -152,7 +166,7 @@ function Orders({
 
         const query = `/sales-orders?fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
           customer ? `&customerId=${customer}` : ""
-        }${statusParamForQuery}&page=${pageNo}&limit=${limit}${divisionId ? `&divisionId=${divisionId}` : ""}${zoneId ? `&zoneId=${zoneId}` : ""}${subZoneId ? `&subZoneId=${subZoneId}` : ""}${teamsId ? `&teamId=${teamsId}` : ""}${employeeId ? `&employeeId=${employeeId}` : ""}`;
+        }${statusParamForQuery}&page=${pageNo}&limit=${limit}${zoneId ? `&zoneId=${zoneId}` : ""}${subZoneId ? `&subZoneId=${subZoneId}` : ""}${teamsId ? `&teamId=${teamsId}` : ""}${employeeId ? `&employeeId=${employeeId}` : ""}`;
 
         console.log("Orders - Final query:", query);
         console.log("Orders - Status filter (raw):", status);
@@ -657,6 +671,7 @@ function Orders({
           subZoneId={subZoneId}
           teamsId={teamsId}
           zoneId={zoneId}
+          isDivisionDisabled={selectedDivision?.id !== "all" && selectedDivision?.id !== 1}
         />
       </div>
 
