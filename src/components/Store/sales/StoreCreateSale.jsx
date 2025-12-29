@@ -661,7 +661,8 @@ export default function StoreCreateSale() {
             quantity: item.stock || 0, // Available stock
             unit: item.unit || 'kg',
             basePrice: item.basePrice || 0,
-            price: item.price || item.basePrice || 0, // Current price
+            customPrice: item.customPrice, // Keep track of custom price
+            price: item.customPrice || item.price || item.basePrice || 0, // Prioritize custom price
             isOutOfStock: item.isOutOfStock || false,
           }));
           console.log("Mapped products for sale:", mappedProducts);
@@ -997,7 +998,7 @@ export default function StoreCreateSale() {
     setCartItems((prev) => {
       const existing = prev[productId] || {};
       const newQuantity = (existing.quantity || 0) + quantity;
-      const unitPrice = selectedProductForQty.basePrice || selectedProductForQty.price || 0;
+      const unitPrice = selectedProductForQty.price || selectedProductForQty.customPrice || selectedProductForQty.basePrice || 0;
       const totalPrice = unitPrice * newQuantity;
 
       const newItem = {
@@ -1675,7 +1676,7 @@ export default function StoreCreateSale() {
                       </div>
                       <div style={styles.productInfo}>
                         <span style={{ fontWeight: 600 }}>Price</span>
-                        <span style={{ color: 'var(--primary-color)', fontWeight: 600 }}>₹{(product.basePrice || 0).toLocaleString('en-IN')}</span>
+                        <span style={{ color: 'var(--primary-color)', fontWeight: 600 }}>₹{(product.price || 0).toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 

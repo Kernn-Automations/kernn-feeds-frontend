@@ -251,6 +251,35 @@ export default function StoreSales() {
             >
               Cash Deposit
             </button>
+            <button 
+              className="homebtn" 
+              onClick={() => navigate("/store/bank-receipts")}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Bank Receipts
+            </button>
           </div>
         </div>
       ) : (
@@ -417,6 +446,35 @@ export default function StoreSales() {
               }}
             >
               Cash Deposit
+            </button>
+            <button 
+              className="homebtn" 
+              onClick={() => navigate("/store/bank-receipts")}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Bank Receipts
             </button>
           </div>
         </div>

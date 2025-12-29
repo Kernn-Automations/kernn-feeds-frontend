@@ -193,6 +193,27 @@ const Divs = () => {
         // Set success state and navigate
         setDivisionSelected(true);
         
+        // Ensure activeView is set to "admin" when selecting All Divisions
+        // This prevents redirect back to stores if the user came from a store view
+        try {
+          const currentActiveView = localStorage.getItem("activeView");
+          if (!currentActiveView || currentActiveView !== "admin") {
+            const userData = JSON.parse(localStorage.getItem("user"));
+            if (userData && userData.roles && Array.isArray(userData.roles)) {
+              const isAdminOrSuperAdmin = userData.roles.some(role => {
+                const roleName = normalizeRoleName(role);
+                return roleName === "admin" || roleName === "super admin" || roleName === "super_admin" || roleName === "superadmin";
+              });
+              if (isAdminOrSuperAdmin) {
+                console.log("Divs.jsx - Setting activeView to 'admin' for All Divisions selection");
+                localStorage.setItem("activeView", "admin");
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error setting activeView in Divs.jsx (All Divisions):", error);
+        }
+        
         // Add a small delay to ensure context state is updated
         setTimeout(() => {
           console.log("Divs.jsx - Navigating to dashboard with All Divisions access...");
