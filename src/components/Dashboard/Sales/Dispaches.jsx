@@ -103,8 +103,6 @@ function Dispaches({ navigate, warehouses, customers }) {
         let divisionParam = "";
         if (currentDivisionId && currentDivisionId !== '1') {
           divisionParam = `&divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          divisionParam = `&showAllDivisions=true`;
         }
         
         console.log('Dispaches - Fetching orders with warehouse filter:', warehouse);

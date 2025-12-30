@@ -137,7 +137,8 @@ const StoresProducts = () => {
   const fetchProductsForFilter = async () => {
     try {
       const response = await axiosAPI.get('/products/list');
-      const products = response.data?.products || response.data || [];
+      const responseData = response.data || response;
+      const products = responseData.products || (Array.isArray(responseData) ? responseData : []);
       
       // Format products for CustomSearchDropdown: {value: id/sku, label: name}
       const productOptions = products
@@ -177,13 +178,13 @@ const StoresProducts = () => {
           
           // Extract products by SKU and map to prices structure
           store.products?.forEach(product => {
-            const sku = product.sku; // e.g., "Fb20", "Fb22", "Fb24"
+            const sku = product.SKU || product.sku; // Handle both SKU and sku
             if (sku) {
               prices[sku] = {
                 sellingPrice: product.currentSellingPrice || product.customPrice || product.basePrice || null,
                 purchasePrice: product.purchasePrice || null,
                 // Store additional product info for reference
-                productId: product.productId,
+                productId: product.productId || product.id,
                 storeProductId: product.storeProductId,
                 basePrice: product.basePrice,
                 stockQuantity: product.stockQuantity,
@@ -194,7 +195,7 @@ const StoresProducts = () => {
           
           // Add row for this store
           flattenedData.push({
-            zone: zone.zone || zone.division || '',
+            zone: zone.zone || zone.division?.name || zone.division || '',
             subZone: subZone.subZone || '',
             store: store.storeName || store.storeCode || '',
             storeId: store.storeId,
@@ -218,9 +219,42 @@ const StoresProducts = () => {
       
       // Extract data from response
       const responseData = response.data || response;
+      let rawData = [];
+      
+      // Handle different response structures
+      if (Array.isArray(responseData)) {
+        rawData = responseData;
+      } else if (responseData.products && Array.isArray(responseData.products)) {
+        // If it's a flat list of products, we might need a dummy zone/store to display it
+        // but the component expects Zones -> SubZones -> Stores structure.
+        // Let's check if there's also zone/store info.
+        rawData = responseData.data || responseData.zones || [];
+        
+        if (rawData.length === 0 && responseData.products.length > 0) {
+          console.warn('Backend returned products but no zone/store structure. Creating fallback structure.');
+          // Fallback: Group products into a "Default" store if no structure provided
+          rawData = [{
+            zone: responseData.divisionInfo?.divisionName || "Default Zone",
+            subZones: [{
+              subZone: "Default SubZone",
+              stores: [{
+                storeName: "All Products",
+                storeId: "default",
+                products: responseData.products.map(p => ({
+                  ...p,
+                  sku: p.SKU || p.sku,
+                  productId: p.id
+                }))
+              }]
+            }]
+          }];
+        }
+      } else if (responseData.data) {
+        rawData = Array.isArray(responseData.data) ? responseData.data : [responseData.data];
+      }
       
       // Transform API data to flat structure (one row per store)
-      const flattenedData = transformApiDataToFlatStructure(Array.isArray(responseData) ? responseData : []);
+      const flattenedData = transformApiDataToFlatStructure(rawData);
       
       // Extract unique SKUs (Fb20, Fb22, Fb24, etc.) from all products for column headers
       // Also create mapping of SKU to Product Name
