@@ -178,16 +178,32 @@ export default function StoreCreateSale() {
   const [inputQuantity, setInputQuantity] = useState('');
   const [loadingProductIds, setLoadingProductIds] = useState(new Set());
   
-  // Track edited final amounts for items (itemId -> editedFinalAmount)
-  const [editedFinalAmounts, setEditedFinalAmounts] = useState({});
   // Track original values for each item (itemId -> { basePrice, taxAmount, finalAmount })
   const [originalItemValues, setOriginalItemValues] = useState({});
+  
+  // Helper to prepare items for API payloads (shared by calculate and create)
+  const prepareItemsForApi = () => {
+    const items = cartItemsList
+      .filter((item) => item.productId)
+      .map((item) => {
+        return {
+          productId: item.productId,
+          quantity: parseFloat(item.quantity) || 0,
+          unitPrice: item.unitPrice !== undefined ? item.unitPrice : (item.price || 0),
+          discountAmount: parseFloat(item.discountAmount) || 0,
+          finalAmount: item.finalAmount, // Backend might use this as a hint or override
+        };
+      });
+    return items;
+  };
 
   // Step 2: Payment
   const [mobileNumber, setMobileNumber] = useState("");
   const [notes, setNotes] = useState("");
-  const [discountAmount, setDiscountAmount] = useState("");
-  const [discountReason, setDiscountReason] = useState("");
+
+  // Replaced single discount with array of discount objects
+  const [discounts, setDiscounts] = useState([]); // [{ id: timestamp, productIds: [], amount: '', reason: '' }]
+  const [activeDiscountDropdown, setActiveDiscountDropdown] = useState(null); // ID of discount row with active product dropdown
   const [fridgeAmount, setFridgeAmount] = useState("");
   const [farmerName, setFarmerName] = useState("");
   const [villageName, setVillageName] = useState("");
@@ -206,9 +222,13 @@ export default function StoreCreateSale() {
   
   // Village search states
   const [villageSearchTerm, setVillageSearchTerm] = useState("");
-  const [villageSearchResults, setVillageSearchResults] = useState([]);
-  const [showVillageDropdown, setShowVillageDropdown] = useState(false);
-  const villageSearchRef = useRef(null);
+  const [storeVillages, setStoreVillages] = useState([]);
+  const [villagesLoading, setVillagesLoading] = useState(false);
+  
+  // Village creation states
+  const [showAddVillageModal, setShowAddVillageModal] = useState(false);
+  const [newVillageNameInput, setNewVillageNameInput] = useState("");
+  const [creatingVillage, setCreatingVillage] = useState(false);
   
   // Dummy customer data - Replace with actual API call later
   const dummyCustomers = [
@@ -431,88 +451,10 @@ export default function StoreCreateSale() {
   };
   
   // Get unique villages from customers - fetch from API when needed
-  const fetchUniqueVillages = async () => {
-    const storeId = getStoreId();
-    if (!storeId) {
-      return [];
-    }
-
-    // Return cached villages if available
-    if (villagesCache.length > 0) {
-      return villagesCache;
-    }
-
-    try {
-      // Fetch all customers to get unique villages
-      // We search with empty term to get all customers, then extract villages
-      const response = await storeService.getStoreCustomers(storeId, { limit: 1000 });
-      const customers = response.data || response.customers || response || [];
-      
-      // Extract unique villages from customers
-      const villageSet = new Set();
-      customers.forEach(customer => {
-        const village = customer.village || customer.villageName || customer.area || '';
-        if (village) {
-          villageSet.add(village);
-        }
-      });
-      
-      const villages = Array.from(villageSet).sort().map(village => ({ value: village, label: village }));
-      
-      // Cache the villages
-      setVillagesCache(villages);
-      
-      return villages;
-    } catch (err) {
-      console.error('Error fetching villages:', err);
-      return [];
-    }
-  };
-  
-  // Search/filter villages using backend API
+  // Filter villages using backend API
   const filterVillages = async (searchTerm = "") => {
-    const storeId = getStoreId();
-    if (!storeId) {
-      console.warn("Store ID not found, cannot search villages");
-      setVillageSearchResults([]);
-      return;
-    }
-
-    try {
-      // Use the backend villages search endpoint: GET /stores/:storeId/villages/search?search=term
-      const response = await storeService.searchStoreVillages(storeId, searchTerm.trim());
-      
-      console.log('Village search response:', response);
-      
-      // Extract villages from response - backend may return data array or villages array
-      const villagesData = response.data || response.villages || response || [];
-      
-      // Transform to match component format: { value: string, label: string }
-      const formattedVillages = Array.isArray(villagesData) ? villagesData.map((village, index) => {
-        // Handle different response formats
-        // If village is a string, use it directly
-        // If village is an object, extract the name/label field
-        if (typeof village === 'string') {
-          return { value: village, label: village };
-        } else if (typeof village === 'object') {
-          const villageName = village.name || village.villageName || village.label || village.value || village.village || String(village);
-          return { value: villageName, label: villageName };
-        }
-        return { value: String(village), label: String(village) };
-      }) : [];
-      
-      console.log('Formatted villages:', formattedVillages);
-      
-      setVillageSearchResults(formattedVillages);
-      if (!showVillageDropdown) {
-        setShowVillageDropdown(true);
-      }
-    } catch (err) {
-      console.error('Error searching villages:', err);
-      console.error('Error details:', err.response?.data || err.message);
-      setVillageSearchResults([]);
-      // Don't show error modal for search failures - just log and continue
-    }
+    // This is now handled by the select dropdown
+    // But keeping it empty if needed for future search within dropdown
   };
 
   // Handle farmer search input with debounce
@@ -547,22 +489,47 @@ export default function StoreCreateSale() {
   // Handle village search input
   const handleVillageSearchChange = (value) => {
     setVillageSearchTerm(value);
-    filterVillages(value);
   };
-  
-  // Handle village field focus - show all villages
-  const handleVillageFieldFocus = () => {
-    if (!showVillageDropdown) {
-      filterVillages("");
+
+  const handleCreateVillage = async () => {
+    if (!newVillageNameInput || !newVillageNameInput.trim()) {
+      setError("Please enter a village name");
+      setIsErrorModalOpen(true);
+      return;
     }
-    setShowVillageDropdown(true);
-  };
-  
-  // Handle village selection
-  const handleVillageSelect = (village) => {
-    setVillageName(village || "");
-    setVillageSearchTerm(village || "");
-    setShowVillageDropdown(false);
+
+    const storeId = getStoreId();
+    if (!storeId) return;
+
+    try {
+      setCreatingVillage(true);
+      const response = await storeService.createStoreVillage(storeId, newVillageNameInput.trim());
+      
+      if (response && response.success) {
+        // Refresh village list
+        const villagesResponse = await storeService.getStoreVillages(storeId);
+        if (villagesResponse && villagesResponse.success) {
+          setStoreVillages(villagesResponse.data || []);
+        }
+        
+        // Select the newly created village
+        const createdVillageName = response.data?.villageName || newVillageNameInput.trim();
+        setVillageName(createdVillageName);
+        setVillageSearchTerm(createdVillageName);
+        
+        // Close modal and reset
+        setShowAddVillageModal(false);
+        setNewVillageNameInput("");
+        setSuccessMessage("Village added successfully!");
+        setTimeout(() => setSuccessMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Error creating village:", err);
+      setError(err.message || "Failed to create village");
+      setIsErrorModalOpen(true);
+    } finally {
+      setCreatingVillage(false);
+    }
   };
 
   // Handle customer selection from dropdown
@@ -594,10 +561,10 @@ export default function StoreCreateSale() {
   
   // Sync villageSearchTerm with villageName when villageName changes externally
   useEffect(() => {
-    if (villageName && !showVillageDropdown && villageSearchTerm !== villageName) {
+    if (villageName && villageSearchTerm !== villageName) {
       setVillageSearchTerm(villageName);
     }
-  }, [villageName, showVillageDropdown]);
+  }, [villageName]);
   
   // Sync farmerSearchTerm with farmerName when farmerName changes externally
   useEffect(() => {
@@ -614,9 +581,6 @@ export default function StoreCreateSale() {
     const handleClickOutside = (event) => {
       if (farmerSearchRef.current && !farmerSearchRef.current.contains(event.target)) {
         setShowFarmerDropdown(false);
-      }
-      if (villageSearchRef.current && !villageSearchRef.current.contains(event.target)) {
-        setShowVillageDropdown(false);
       }
     };
 
@@ -684,6 +648,28 @@ export default function StoreCreateSale() {
     fetchProducts();
   }, []);
 
+  // Fetch villages for the store
+  useEffect(() => {
+    const fetchVillages = async () => {
+      const storeId = getStoreId();
+      if (!storeId) return;
+      
+      try {
+        setVillagesLoading(true);
+        const response = await storeService.getStoreVillages(storeId);
+        if (response && response.success) {
+          setStoreVillages(response.data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching villages:", err);
+      } finally {
+        setVillagesLoading(false);
+      }
+    };
+    
+    fetchVillages();
+  }, []);
+
   const cartItemsList = useMemo(() => Object.values(cartItems), [cartItems]);
   const cartItemsCount = cartItemsList.length;
   const totalCartValue = cartItemsList.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
@@ -704,44 +690,21 @@ export default function StoreCreateSale() {
       try {
         setCalculatingTotal(true);
         
-        // Prepare items for calculation
-        const items = cartItemsList
-          .filter((item) => item.productId)
-          .map((item) => {
-            const payload = {
-              productId: item.productId,
-              quantity: parseFloat(item.quantity) || 0,
-            };
-            
-            // Add finalAmount if it was edited
-            // Use strict check for undefined as 0 is valid
-            const editedAmount = editedFinalAmounts[item.id];
-            if (editedAmount !== undefined) {
-              payload.finalAmount = editedAmount;
-            }
-            
-            return payload;
-          });
+        // Prepare items for calculation and create sale using shared helper
+        const items = prepareItemsForApi();
 
         if (items.length === 0) {
           setCalculatedTotal(null);
           return;
         }
 
-        // Calculate subtotal from cart
-        const subtotal = totalCartValue;
-
         // Try to calculate total using backend
-        // First, try the calculate endpoint
+        const subtotal = totalCartValue;
         const calculateData = {
           storeId: storeId,
           items: items,
+          discountAmount: 0, // Explicitly 0 for per-item discounts
         };
-        
-        // Add discountAmount if provided
-        if (discountAmount && parseFloat(discountAmount) > 0) {
-          calculateData.discountAmount = parseFloat(discountAmount);
-        }
         
         // Add fridgeAmount (freight charges) if provided
         if (fridgeAmount && parseFloat(fridgeAmount) > 0) {
@@ -809,7 +772,8 @@ export default function StoreCreateSale() {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [cartItemsList, cartItemsCount, totalCartValue, discountAmount, fridgeAmount, editedFinalAmounts]);
+    
+  }, [cartItemsList, cartItemsCount, totalCartValue, discounts, fridgeAmount, originalItemValues]);
 
   // Update original item values with tax when calculatedTotal is available
   useEffect(() => {
@@ -825,8 +789,14 @@ export default function StoreCreateSale() {
       
       cartItemsList.forEach((item) => {
         if (updated[item.id]) {
-          const itemBaseTotal = item.totalPrice || 0;
+          const unitPrice = item.unitPrice !== undefined ? item.unitPrice : (item.price || 0);
+          const itemBaseTotal = unitPrice * item.quantity;
           // Calculate tax proportionally based on item's share of total base
+          // Note: totalBase should also reflect edited prices ideally, but for now we use totalCartValue (original) as approximation or re-sum it.
+          // Better: Re-calculate totalBase from effective prices.
+          // However, keeping it simple as per original logic structure, but using itemBaseTotal for this item.
+          // If we want perfect proportion, we need sum of all itemBaseTotals.
+          
           const itemTax = totalBase > 0 ? (itemBaseTotal / totalBase) * totalTax : 0;
           const itemFinalAmount = itemBaseTotal + itemTax;
           
@@ -841,7 +811,8 @@ export default function StoreCreateSale() {
           }
         } else {
           // Initialize if not exists
-          const itemBaseTotal = item.totalPrice || 0;
+          const unitPrice = item.unitPrice !== undefined ? item.unitPrice : (item.price || 0);
+          const itemBaseTotal = unitPrice * item.quantity;
           const itemTax = totalBase > 0 ? (itemBaseTotal / totalBase) * totalTax : 0;
           const itemFinalAmount = itemBaseTotal + itemTax;
           
@@ -883,36 +854,9 @@ export default function StoreCreateSale() {
         };
 
     const items = cartItemsList.map((item) => {
-      const editedFinalAmount = editedFinalAmounts[item.id];
-      const originalValues = originalItemValues[item.id];
-      
-      // If final amount was edited, use it; otherwise calculate from base + tax
-      let finalAmount;
-      if (editedFinalAmount !== undefined) {
-        finalAmount = editedFinalAmount;
-      } else if (originalValues && originalValues.finalAmount) {
-        // Use stored final amount (base + tax)
-        finalAmount = originalValues.finalAmount;
-      } else {
-        // Fallback to totalPrice (base only) if tax not calculated yet
-        finalAmount = item.totalPrice;
-      }
-      
-      // Calculate new base price if edited
-      let newBasePrice = item.price;
-      if (editedFinalAmount !== undefined && originalValues) {
-        // Original: baseTotal + taxAmount = finalAmount
-        // User edits finalAmount to new value
-        // Extra Amount = New finalAmount - Original finalAmount
-        // New baseTotal = Original baseTotal + Extra Amount
-        // taxAmount stays same
-        const originalFinalAmount = originalValues.finalAmount || (originalValues.baseTotal || item.totalPrice) + (originalValues.taxAmount || 0);
-        const extraAmount = editedFinalAmount - originalFinalAmount;
-        const originalBaseTotal = originalValues.baseTotal || item.totalPrice;
-        const newBaseTotal = originalBaseTotal + extraAmount;
-        // Calculate new unit price
-        newBasePrice = item.quantity > 0 ? newBaseTotal / item.quantity : item.price;
-      }
+      const finalAmount = item.finalAmount !== undefined 
+        ? item.finalAmount 
+        : (originalItemValues[item.id]?.finalAmount || item.unitPrice * item.quantity);
       
       return {
         id: item.id,
@@ -920,10 +864,10 @@ export default function StoreCreateSale() {
         sku: item.sku,
         quantity: item.quantity,
         unit: item.unit,
-        price: newBasePrice, // Updated base price if edited
-        total: finalAmount, // Final amount (edited or original)
-        originalTotal: item.totalPrice, // Keep original for reference
-        editedFinalAmount: editedFinalAmount, // Track if edited
+        price: item.unitPrice,
+        total: finalAmount,
+        originalTotal: item.quantity * (item.price || 0),
+        editedFinalAmount: item.finalAmount, // Keep this for UI highlighting
       };
     });
 
@@ -935,8 +879,10 @@ export default function StoreCreateSale() {
     const totalBags = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
     
     // Tax amount (from backend calculation)
+    // For per-line discounts, we sum them up for display
+    const totalItemDiscounts = cartItemsList.reduce((sum, item) => sum + (parseFloat(item.discountAmount) || 0), 0);
     const tax = calculatedTotal?.tax || 0;
-    const discountAmt = calculatedTotal?.discountAmount || parseFloat(discountAmount) || 0;
+    const discountAmt = calculatedTotal?.discountAmount || totalItemDiscounts || 0;
     const freightAmt = calculatedTotal?.freightCharges || calculatedTotal?.fridgeAmount || parseFloat(fridgeAmount) || 0;
     
     // Calculate totals - Prefer usage of backend response for Order Summary
@@ -956,7 +902,7 @@ export default function StoreCreateSale() {
         bankName: "Feed Bazaar Bank",
       },
     };
-  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal, discountAmount, fridgeAmount, editedFinalAmounts, originalItemValues]);
+  }, [cartItemsCount, cartItemsList, customerForm, existingCustomer, generatedOrderId, calculatedTotal, discounts, fridgeAmount, originalItemValues]);
 
   const canGoNext = () => {
     if (step === 0) return cartItemsCount > 0; // Products step - need at least one item
@@ -1007,29 +953,25 @@ export default function StoreCreateSale() {
         storeProductId: productId, // Ensure storeProductId is set
         quantity: newQuantity,
         unit: selectedProductForQty.productType === "packed" ? "packs" : (selectedProductForQty.unit || "units"),
-        price: unitPrice,
-        totalPrice
+        price: unitPrice, // Base price for reference
+        unitPrice: unitPrice, // Editable price
+        totalPrice,
+        discountAmount: 0,
+        finalAmount: undefined
       };
 
       // Store original values if this is a new item or quantity changed
       if (!existing.quantity || existing.quantity !== newQuantity) {
         // Store base price and total price initially
-        // Tax and final amount will be updated when calculatedTotal is available
         setOriginalItemValues((prev) => ({
           ...prev,
           [productId]: {
             basePrice: unitPrice,
-            baseTotal: totalPrice, // Base price * quantity
-            taxAmount: 0, // Will be updated when tax is calculated
-            finalAmount: totalPrice, // Will be updated when tax is calculated (base + tax)
+            baseTotal: totalPrice,
+            taxAmount: 0,
+            finalAmount: totalPrice,
           }
         }));
-        // Clear any edited amount when quantity changes
-        setEditedFinalAmounts((prev) => {
-          const updated = { ...prev };
-          delete updated[productId];
-          return updated;
-        });
       }
 
       return {
@@ -1120,6 +1062,50 @@ export default function StoreCreateSale() {
     }
   };
 
+  // Discount management functions
+  const addDiscount = () => {
+    setDiscounts(prev => [
+      ...prev,
+      { id: Date.now(), productIds: [], amount: '', reason: '' }
+    ]);
+  };
+
+  const removeDiscount = (id) => {
+    setDiscounts(prev => prev.filter(d => d.id !== id));
+  };
+
+  const updateDiscount = (id, field, value) => {
+    setDiscounts(prev => prev.map(d => 
+      d.id === id ? { ...d, [field]: value } : d
+    ));
+  };
+
+  const toggleDiscountProduct = (discountId, productId) => {
+    setDiscounts(prev => prev.map(d => {
+      if (d.id !== discountId) return d;
+      
+      const currentIds = d.productIds || [];
+      const isSelected = currentIds.includes(productId);
+      
+      let newIds;
+      if (productId === 'ALL') {
+        if (currentIds.length === cartItemsList.length) {
+          newIds = []; // Deselect all if all active
+        } else {
+          newIds = cartItemsList.map(item => item.id); // Select all active items
+        }
+      } else {
+        if (isSelected) {
+          newIds = currentIds.filter(pid => pid !== productId);
+        } else {
+          newIds = [...currentIds, productId];
+        }
+      }
+      
+      return { ...d, productIds: newIds };
+    }));
+  };
+
   const handlePaymentProof = async (idx, file) => {
     if (!file) return;
     
@@ -1180,14 +1166,17 @@ export default function StoreCreateSale() {
 
     // Validate payments
     // For "both" payment method, calculate total from cashAmount + bankAmount
-    // For "cash" or "bank", use amount field
+    // For "cash" or "bank", the amount is auto-filled from expectedTotal
+    const expectedTotal = calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
+    
     const totalPaymentAmount = payments.reduce((sum, p) => {
       if (p.paymentMethod === "both") {
         const cashAmt = parseFloat(p.cashAmount) || 0;
         const bankAmt = parseFloat(p.bankAmount) || 0;
         return sum + cashAmt + bankAmt;
       } else {
-        return sum + (parseFloat(p.amount) || 0);
+        // For cash or bank, use the expectedTotal (which is auto-filled in the read-only field)
+        return sum + expectedTotal;
       }
     }, 0);
     
@@ -1210,7 +1199,6 @@ export default function StoreCreateSale() {
     }
 
     // Validate payment amount matches calculated total (with tolerance for rounding)
-    const expectedTotal = calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
     const paymentDifference = Math.abs(totalPaymentAmount - expectedTotal);
     if (paymentDifference > 1) { // Allow 1 rupee difference for rounding
       setError(`Payment amount (₹${totalPaymentAmount.toLocaleString('en-IN')}) does not match order total (₹${expectedTotal.toLocaleString('en-IN')}). Please enter the correct amount.`);
@@ -1256,33 +1244,8 @@ export default function StoreCreateSale() {
       // Only include customer object if it has at least one field
       // If customer object is empty, backend should handle it or we can send null/undefined
 
-      // Step 2: Format items for API (productId and quantity required)
-      // Note: productId should be the actual product ID (not store product ID)
-      const items = cartItemsList
-        .filter((item) => {
-          // Filter out items without valid productId
-          const productId = item.productId; // Actual product ID from for-sale endpoint
-          if (!productId) {
-            console.warn("Cart item missing productId:", item);
-            return false;
-          }
-          return true;
-        })
-        .map((item) => {
-          // Use actual product ID (productId from the for-sale endpoint response)
-          const itemPayload = {
-            productId: item.productId, // Actual product ID (e.g., 16), not store product ID
-            quantity: parseFloat(item.quantity) || 0,
-          };
-          
-          // Include finalAmount only if user edited it
-          const editedFinalAmount = editedFinalAmounts[item.id];
-          if (editedFinalAmount !== undefined) {
-            itemPayload.finalAmount = editedFinalAmount;
-          }
-          
-          return itemPayload;
-        });
+      // Step 2: Use shared helper to prepare items for consistency
+      const items = prepareItemsForApi();
 
       if (items.length === 0) {
         setError("No valid products in cart. Please add products to cart.");
@@ -1291,16 +1254,21 @@ export default function StoreCreateSale() {
         return;
       }
 
-      console.log("Formatted items for API:", items);
+      console.log("SALE CREATE PAYLOAD ITEMS:");
+      console.table(items);
+      console.log("Full items JSON:", JSON.stringify(items, null, 2));
 
       // Step 3: Format payments for API (paymentMethod and amount required)
       // For "both" payment method, split into two separate payment records (one cash, one bank)
       // Payment proof is handled separately via UTR endpoint if needed
       const formattedPayments = [];
       
+      
+      const expectedTotal = calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
+      
       payments.forEach((payment) => {
         if (payment.paymentMethod === "both") {
-          // Split "both" payment into two separate payments
+          // For "both" payment method, split into cash and bank payments
           const cashAmt = parseFloat(payment.cashAmount) || 0;
           const bankAmt = parseFloat(payment.bankAmount) || 0;
           
@@ -1318,8 +1286,8 @@ export default function StoreCreateSale() {
             });
           }
         } else {
-          // Regular cash or bank payment
-          const amount = parseFloat(payment.amount) || 0;
+          // Regular cash or bank payment - use the total amount
+          const amount = expectedTotal;
           if (amount > 0) {
             formattedPayments.push({
               paymentMethod: payment.paymentMethod || "cash",
@@ -1327,6 +1295,7 @@ export default function StoreCreateSale() {
             });
           }
         }
+
       });
 
       if (formattedPayments.length === 0) {
@@ -1337,19 +1306,47 @@ export default function StoreCreateSale() {
       }
 
       // Step 4: Prepare sale request body according to backend API
-      // API expects: { storeId, customer: { name?, mobile? } (optional), items: [{ productId, quantity }], payments: [{ paymentMethod, amount }], notes?, discount?, discountReason?, fridgeAmount? }
       const saleData = {
         storeId: storeId,
-        items: items, // Array of { productId, quantity }
+        items: items, // Array of { productId, quantity, unitPrice, discountAmount }
         payments: formattedPayments, // Array of { paymentMethod, amount }
+        discountAmount: 0, // Explicitly 0 for per-item discounts
         ...(notes && notes.trim() && { notes: notes.trim() }), // Optional notes field
       };
       
-      // Add discountAmount if provided (backend expects discountAmount field)
-      if (discountAmount && parseFloat(discountAmount) > 0) {
-        saleData.discountAmount = parseFloat(discountAmount);
-        if (discountReason && discountReason.trim()) {
-          saleData.discountReason = discountReason.trim();
+      // Removed legacy root discountAmount accumulation logic
+      
+      // Removed complex discount logic as per new per-item requirement
+      if (false) {
+        
+        // Format discount reason with product breakdown
+        // Format: "Reason (Product A, Product B) | Reason 2 (Product C)"
+        const reasonParts = discounts
+          .filter(d => parseFloat(d.amount) > 0)
+          .map(d => {
+            const reasonText = d.reason || 'Discount';
+            let productText = '';
+            
+            if (!d.productIds || d.productIds.length === 0 || d.productIds.length === cartItemsList.length) {
+              productText = 'All Products';
+            } else {
+              // Map IDs to names
+              const names = d.productIds
+                .map(pid => cartItemsList.find(item => item.id === pid)?.name)
+                .filter(Boolean);
+                
+              if (names.length <= 3) {
+                productText = names.join(', ');
+              } else {
+                productText = `${names.length} Products`;
+              }
+            }
+            
+            return `${reasonText} (${productText})`;
+          });
+          
+        if (reasonParts.length > 0) {
+          saleData.discountReason = reasonParts.join(' | ');
         }
       }
       
@@ -1782,13 +1779,6 @@ export default function StoreCreateSale() {
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, marginBottom: 16, overflow: 'hidden' }}>
                 <div style={{ backgroundColor: '#f1f5f9', padding: 12, fontWeight: 600, color: '#1e293b' }}>Products</div>
                 {reviewData.items.map((item) => {
-                  const editedFinalAmount = editedFinalAmounts[item.id];
-                  const isEdited = editedFinalAmount !== undefined;
-                  // Display edited amount if exists, otherwise use item.total (which includes tax)
-                  const displayAmount = editedFinalAmount !== undefined 
-                    ? editedFinalAmount 
-                    : (item.total || 0);
-                  
                   return (
                     <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', padding: '12px 16px', borderTop: '1px solid #e2e8f0', fontSize: isMobile ? 12 : 13, color: '#475569', gap: isMobile ? '8px' : '0', alignItems: 'center' }}>
                       <div>
@@ -1796,64 +1786,73 @@ export default function StoreCreateSale() {
                         <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.sku || 'SKU NA'}</div>
                       </div>
                       <div>Qty: {item.quantity} {item.unit}</div>
-                      <div>Price: ₹{(item.price || 0).toLocaleString('en-IN')}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>Price: ₹</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.price}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCartItems(prev => ({
+                              ...prev,
+                              [item.id]: {
+                                ...prev[item.id],
+                                unitPrice: val === '' ? 0 : parseFloat(val),
+                                finalAmount: undefined // Clear final amount override to let unitPrice take precedence
+                              }
+                            }));
+                          }}
+                          style={{
+                            width: '80px',
+                            padding: '4px',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            fontSize: '13px'
+                          }}
+                        />
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
-                          value={displayAmount !== undefined && displayAmount !== null ? displayAmount : ''}
+                          value={item.total || ''}
                           onChange={(e) => {
-                            const inputValue = e.target.value;
-                            
-                            // Allow empty input
-                            if (inputValue === '') {
-                              setEditedFinalAmounts((prev) => ({
-                                ...prev,
-                                [item.id]: 0 // Or handle as special 'empty' state if needed, but 0 is usually fine for temp state
-                              }));
-                              return;
-                            }
-
-                            const newValue = parseFloat(inputValue);
-                            if (!isNaN(newValue) && newValue >= 0) {
-                              setEditedFinalAmounts((prev) => ({
-                                ...prev,
-                                [item.id]: newValue
-                              }));
-                            }
-                          }}
-                          onBlur={(e) => {
-                            // Ensure value is properly formatted on blur
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : parseFloat(inputValue) || 0;
-                            setEditedFinalAmounts((prev) => ({
+                            const val = e.target.value;
+                            setCartItems(prev => ({
                               ...prev,
-                              [item.id]: value
+                              [item.id]: {
+                                ...prev[item.id],
+                                finalAmount: val === '' ? 0 : parseFloat(val)
+                              }
                             }));
                           }}
                           style={{
                             width: '100px',
                             padding: '4px 8px',
-                            border: `1px solid ${isEdited ? '#3b82f6' : '#e2e8f0'}`,
+                            border: `1px solid ${item.editedFinalAmount !== undefined ? '#3b82f6' : '#e2e8f0'}`,
                             borderRadius: '4px',
                             fontSize: '13px',
                             fontWeight: 600,
                             color: '#0f172a',
-                            backgroundColor: isEdited ? '#eff6ff' : '#fff'
+                            backgroundColor: item.editedFinalAmount !== undefined ? '#eff6ff' : '#fff'
                           }}
                           placeholder="Amount"
                         />
-                        {isEdited && (
+                        {item.editedFinalAmount !== undefined && (
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setEditedFinalAmounts((prev) => {
-                                const updated = { ...prev };
-                                delete updated[item.id];
-                                return updated;
-                              });
+                              setCartItems(prev => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  finalAmount: undefined
+                                }
+                              }));
                             }}
                             type="button"
                             style={{
@@ -2046,64 +2045,95 @@ export default function StoreCreateSale() {
                   )}
                 </div>
                 
-                {/* Village Name - Searchable Dropdown */}
-                <div className="col-4 formcontent" ref={villageSearchRef} style={{ position: 'relative' }}>
+                {/* Village Name - Dropdown */}
+                <div className="col-4 formcontent">
                   <label htmlFor="villageName">Village Name:</label>
-                  <input
+                  <select
                     id="villageName"
-                    type="text"
-                    placeholder="Select or Type"
-                    value={villageSearchTerm || villageName}
+                    value={villageName}
                     onChange={e => {
                       const value = e.target.value;
-                      setVillageName(value);
-                      handleVillageSearchChange(value);
+                      if (value === "ADD_NEW") {
+                        setShowAddVillageModal(true);
+                      } else {
+                        setVillageName(value);
+                        setVillageSearchTerm(value);
+                      }
                     }}
-                    onFocus={handleVillageFieldFocus}
-                    onBlur={() => setTimeout(() => setShowVillageDropdown(false), 200)}
-                  />
-                  {showVillageDropdown && (
-                    <ul
-                      style={{
-                        position: 'absolute',
-                        top: '60px',
-                        left: '80px',
-                        zIndex: 999,
-                        background: 'white',
-                        width: '260px',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        borderRadius: '10px',
-                        boxShadow: '2px 2px 4px #333',
-                        padding: '0',
-                        margin: '0',
-                        listStyle: 'none'
-                      }}
-                    >
-                      {villageSearchResults.length > 0 ? (
-                        villageSearchResults.map((village, index) => (
-                          <li
-                            key={index}
-                            onMouseDown={() => handleVillageSelect(village.value)}
-                            style={{
-                              padding: '5px 10px',
-                              cursor: 'pointer',
-                              fontSize: '15px'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f1f1'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                          >
-                            {village.label}
-                          </li>
-                        ))
-                      ) : (
-                        <li style={{ padding: '5px 10px', fontSize: '14px' }}>
-                          No results
-                        </li>
-                      )}
-                    </ul>
-                  )}
+                  >
+                    <option value="">-- Select Village --</option>
+                    {storeVillages.map((village) => (
+                      <option key={village.id} value={village.villageName}>
+                        {village.villageName}
+                      </option>
+                    ))}
+                    <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>
+                      ➕ Add New Village
+                    </option>
+                  </select>
                 </div>
+                
+                {/* Village Creation Modal */}
+                {showAddVillageModal && (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1001
+                    }}
+                    onClick={() => setShowAddVillageModal(false)}
+                  >
+                    <div
+                      style={{
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        width: isMobile ? '90vw' : '400px',
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>Add New Village</h3>
+                      <div style={{ marginBottom: '20px' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Village Name</label>
+                        <input
+                          type="text"
+                          placeholder="Enter village name"
+                          value={newVillageNameInput}
+                          onChange={e => setNewVillageNameInput(e.target.value)}
+                          className="form-control"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleCreateVillage();
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                        <button
+                          className="btn btn-light"
+                          onClick={() => setShowAddVillageModal(false)}
+                          disabled={creatingVillage}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleCreateVillage}
+                          disabled={creatingVillage || !newVillageNameInput.trim()}
+                        >
+                          {creatingVillage ? 'Adding...' : 'Add Village'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Mobile Number - Auto-populated or manual entry */}
                 <div className="col-4 formcontent">
@@ -2247,37 +2277,54 @@ export default function StoreCreateSale() {
 
               {/* Discount Section */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, backgroundColor: '#f8fafc', marginBottom: 16 }}>
-                <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Discount</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Per-Item Discounts</div>
+                </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                  <div>
-                    <label className="form-label">Discount Amount (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="form-control"
-                      value={discountAmount}
-                      onChange={(e) => setDiscountAmount(e.target.value)}
-                      placeholder="Enter discount amount"
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label">Reason for Discount</label>
-                    <select
-                      className="form-control"
-                      value={discountReason}
-                      onChange={(e) => setDiscountReason(e.target.value)}
-                      style={{ fontFamily: 'Poppins' }}
-                    >
-                      <option value="">Select reason</option>
-                      <option value="fridge">Freight Charges (Farmers)</option>
-                      <option value="promotional">Promotional</option>
-                      <option value="bulk">Bulk Purchase</option>
-                      <option value="loyalty">Loyalty Discount</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  {cartItemsList.map((item) => (
+                    <div key={item.id} style={{ 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: 8, 
+                      padding: 12, 
+                      backgroundColor: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '8px'
+                    }}>
+                      <div style={{ flex: '1 1 200px' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#334155' }}>{item.name}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>
+                           Qty: {item.quantity} | Rate: ₹{(item.unitPrice !== undefined ? item.unitPrice : item.price).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Discount (₹):</label>
+                         <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="form-control"
+                             value={item.discountAmount !== undefined ? item.discountAmount : ''}
+                             onChange={(e) => {
+                               const val = e.target.value;
+                               setCartItems(prev => ({
+                                 ...prev,
+                                 [item.id]: {
+                                   ...prev[item.id],
+                                   discountAmount: val === '' ? '' : parseFloat(val)
+                                 }
+                               }));
+                             }}
+                             placeholder="0"
+                            style={{ width: '100px', fontSize: 13, height: '34px' }}
+                         />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -2329,24 +2376,15 @@ export default function StoreCreateSale() {
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, backgroundColor: '#f8fafc', marginBottom: 16 }}>
                 <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Payment Info</div>
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>Payment Records</div>
-                  <button className="btn btn-success" type="button" onClick={addPayment}>Add Payment</button>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>Payment Record</div>
                 </div>
 
               <div style={{ display: 'grid', gap: 12 }}>
                 {payments.map((payment, idx) => (
                   <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>Payment #{idx + 1}</div>
-                        <div style={{ fontSize: 12, color: '#94a3b8' }}>Enter transaction details</div>
-                      </div>
-                      {payments.length > 1 && (
-                        <button className="btn btn-outline-danger btn-sm" type="button" onClick={() => removePayment(idx)}>
-                          Remove
-                        </button>
-                      )}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>Enter transaction details</div>
                     </div>
                     {/* Payment Method Buttons */}
                     <div style={{ marginBottom: '16px', gridColumn: '1 / -1' }}>
@@ -2487,18 +2525,16 @@ export default function StoreCreateSale() {
                               placeholder="Enter bank amount"
                             />
                           </div>
-                          {idx === 0 && reviewData && (
-                            <div style={{ gridColumn: '1 / -1' }}>
-                              <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                                Total to pay: ₹{reviewData.totals.total.toLocaleString('en-IN')} 
-                                {payment.cashAmount && payment.bankAmount && (
-                                  <span style={{ marginLeft: '8px', color: '#059669' }}>
-                                    (Cash: ₹{(parseFloat(payment.cashAmount) || 0).toLocaleString('en-IN')} + Bank: ₹{(parseFloat(payment.bankAmount) || 0).toLocaleString('en-IN')} = ₹{((parseFloat(payment.cashAmount) || 0) + (parseFloat(payment.bankAmount) || 0)).toLocaleString('en-IN')})
-                                  </span>
-                                )}
-                              </small>
-                            </div>
-                          )}
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                              Total to pay: ₹{(reviewData?.totals?.total || 0).toLocaleString('en-IN')}
+                              {payment.cashAmount && payment.bankAmount && (
+                                <span style={{ marginLeft: '8px', color: '#059669' }}>
+                                  (Cash: ₹{(parseFloat(payment.cashAmount) || 0).toLocaleString('en-IN')} + Bank: ₹{(parseFloat(payment.bankAmount) || 0).toLocaleString('en-IN')} = ₹{((parseFloat(payment.cashAmount) || 0) + (parseFloat(payment.bankAmount) || 0)).toLocaleString('en-IN')})
+                                </span>
+                              )}
+                            </small>
+                          </div>
                         </>
                       ) : (
                         <div>
@@ -2508,15 +2544,13 @@ export default function StoreCreateSale() {
                             className="form-control" 
                             min="0" 
                             step="0.01"
-                            value={payment.amount}
-                            onChange={(e) => updatePaymentField(idx, "amount", e.target.value)}
-                            placeholder={idx === 0 && reviewData ? `Enter ${reviewData.totals.total.toLocaleString('en-IN')} (Total with tax)` : "Enter amount"}
+                            value={reviewData?.totals?.total || 0}
+                            readOnly
+                            style={{ backgroundColor: '#f8f9fa', cursor: 'not-allowed' }}
                           />
-                          {idx === 0 && reviewData && !payment.amount && (
-                            <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                              Total to pay: ₹{reviewData.totals.total.toLocaleString('en-IN')}
-                            </small>
-                          )}
+                          <small className="text-muted" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                            Total amount to pay (auto-filled)
+                          </small>
                         </div>
                       )}
                       

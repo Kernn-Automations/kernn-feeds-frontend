@@ -27,7 +27,15 @@ function StoreStockTransfer() {
   const [currentStock, setCurrentStock] = useState([]);
 
   // Transfer items
+  // Transfer items
   const [transferItems, setTransferItems] = useState({}); // { productId: { quantity, product } }
+
+  // History State
+  const [viewMode, setViewMode] = useState("create"); // "create" or "history"
+  const [transferHistory, setTransferHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedTransfer, setSelectedTransfer] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     fetchCurrentStore();
@@ -39,6 +47,12 @@ function StoreStockTransfer() {
       fetchStores();
     }
   }, [currentStore]);
+
+  useEffect(() => {
+    if (viewMode === "history" && currentStore?.id) {
+      fetchHistory();
+    }
+  }, [viewMode, currentStore]);
 
   const fetchCurrentStore = async () => {
     try {
@@ -282,6 +296,42 @@ function StoreStockTransfer() {
     setError(null);
   };
 
+  const fetchHistory = async () => {
+    if (!currentStore?.id) return;
+    setHistoryLoading(true);
+    try {
+      const res = await storeService.getStockTransfers(currentStore.id);
+      const data = res.data || res.transfers || res || [];
+      setTransferHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching transfer history:", err);
+      // setError("Failed to fetch transfer history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleViewDetails = async (transferId) => {
+    if (!currentStore?.id) return;
+    setLoading(true);
+    try {
+      const res = await storeService.getStockTransferById(currentStore.id, transferId);
+      const data = res.data || res.transfer || res;
+      setSelectedTransfer(data);
+      setShowDetailModal(true);
+    } catch (err) {
+      console.error("Error fetching transfer details:", err);
+      setError("Failed to fetch transfer details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedTransfer(null);
+  };
+
   // Export function
   const onExport = (type) => {
     const arr = [];
@@ -338,6 +388,24 @@ function StoreStockTransfer() {
         </p>
       </div>
 
+      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "flex-end" }}>
+        <button
+          className="homebtn"
+          onClick={() => setViewMode(viewMode === "create" ? "history" : "create")}
+          style={{ fontFamily: "Poppins", display: "flex", alignItems: "center", gap: "8px" }}
+        >
+          {viewMode === "create" ? (
+            <>
+              <i className="bi bi-clock-history"></i> History
+            </>
+          ) : (
+            <>
+              <i className="bi bi-plus-lg"></i> New Transfer
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Loading Animation */}
       {loading && <LoadingAnimation gif={inventoryAni} msg="Loading stock data..." />}
 
@@ -376,7 +444,7 @@ function StoreStockTransfer() {
         </div>
       )}
 
-      {!loading && currentStore && (
+      {!loading && currentStore && viewMode === "create" && (
         <>
           {/* Store Information */}
           <div className={styles.orderStatusCard} style={{ marginBottom: '24px' }}>
@@ -610,6 +678,186 @@ function StoreStockTransfer() {
             </button>
           </div>
         </>
+      )}
+
+      {/* History View */}
+      {!loading && currentStore && viewMode === "history" && (
+        <div className={styles.orderStatusCard}>
+          <h4
+            style={{
+              margin: 0,
+              marginBottom: "16px",
+              fontFamily: "Poppins",
+              fontWeight: 600,
+              fontSize: "20px",
+              color: "var(--primary-color)",
+            }}
+          >
+            Transfer History
+          </h4>
+          {historyLoading ? (
+             <div style={{ textAlign: 'center', padding: '20px' }}>Loading history...</div>
+          ) : transferHistory.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px", color: "#666" }}>
+              <p style={{ fontFamily: "Poppins" }}>No transfer history found</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
+                <thead className="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Transfer Code</th>
+                    <th>To Store</th>
+                    <th>Items</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transferHistory.map((transfer) => (
+                    <tr key={transfer.id}>
+                      <td>{new Date(transfer.createdAt).toLocaleDateString()}</td>
+                      <td>{transfer.transferCode || "-"}</td>
+                      <td>{transfer.toStore?.name || transfer.toStoreName || "-"}</td>
+                      <td>{transfer.items?.length || transfer.itemCount || 0}</td>
+                      <td>
+                        <span
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            backgroundColor:
+                              transfer.status === "completed"
+                                ? "#dcfce7"
+                                : transfer.status === "pending"
+                                ? "#fef9c3"
+                                : "#fee2e2",
+                            color:
+                              transfer.status === "completed"
+                                ? "#166534"
+                                : transfer.status === "pending"
+                                ? "#854d0e"
+                                : "#991b1b",
+                          }}
+                        >
+                          {(transfer.status || "Unknown").toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => handleViewDetails(transfer.id)}
+                          style={{ fontSize: "12px" }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {showDetailModal && selectedTransfer && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            zIndex: 1050,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onClick={closeDetailModal}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "8px",
+              padding: "24px",
+              width: "90%",
+              maxWidth: "600px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+              <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600 }}>Transfer Details</h4>
+              <button
+                onClick={closeDetailModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: "16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div>
+                <small style={{ color: "#666" }}>Transfer Code</small>
+                <div style={{ fontWeight: 600 }}>{selectedTransfer.transferCode || "-"}</div>
+              </div>
+              <div>
+                <small style={{ color: "#666" }}>Date</small>
+                <div style={{ fontWeight: 600 }}>{new Date(selectedTransfer.createdAt).toLocaleString()}</div>
+              </div>
+              <div>
+                <small style={{ color: "#666" }}>From Store</small>
+                <div style={{ fontWeight: 600 }}>{selectedTransfer.fromStore?.name || "-"}</div>
+              </div>
+              <div>
+                <small style={{ color: "#666" }}>To Store</small>
+                <div style={{ fontWeight: 600 }}>{selectedTransfer.toStore?.name || "-"}</div>
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                 <small style={{ color: "#666" }}>Status</small>
+                 <div>{(selectedTransfer.status || "Unknown").toUpperCase()}</div>
+              </div>
+               {selectedTransfer.notes && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                    <small style={{ color: "#666" }}>Notes</small>
+                    <div>{selectedTransfer.notes}</div>
+                </div>
+               )}
+            </div>
+
+            <table className="table table-sm table-bordered" style={{ fontFamily: "Poppins", fontSize: "14px" }}>
+              <thead className="table-light">
+                <tr>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedTransfer.items || []).map((item, idx) => (
+                  <tr key={idx}>
+                    <td>
+                        <div>{item.product?.name || item.productName || "Product"}</div>
+                        <small style={{color: '#666'}}>{item.product?.sku || item.sku || ''}</small>
+                    </td>
+                    <td>{item.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

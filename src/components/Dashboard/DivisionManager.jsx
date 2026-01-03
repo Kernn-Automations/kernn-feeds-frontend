@@ -136,6 +136,8 @@ function DivisionManager() {
     bankName: "",
     ifscCode: "",
     accountNumber: "",
+    storeCodeNumber: "",
+    villages: "",
     // UI state
     agreementImage: null,
     agreementImagePreview: null
@@ -1242,7 +1244,9 @@ function DivisionManager() {
         ...(newStore.beneficiaryName && { beneficiaryName: newStore.beneficiaryName.trim() }),
         ...(newStore.bankName && { bankName: newStore.bankName.trim() }),
         ...(newStore.ifscCode && { ifscCode: newStore.ifscCode.trim().toUpperCase() }),
-        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() })
+        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() }),
+        "storeCodeNumber": newStore.storeCodeNumber || undefined,
+        "villages": newStore.villages ? newStore.villages.split(',').map(v => v.trim()).filter(v => v !== "") : undefined
       };
       
       const response = await axiosAPI.post("/stores", storeData);
@@ -1338,6 +1342,8 @@ function DivisionManager() {
           bankName: "",
           ifscCode: "",
           accountNumber: "",
+          storeCodeNumber: "",
+          villages: "",
           // UI state
           agreementImage: null,
           agreementImagePreview: null
@@ -1427,7 +1433,9 @@ function DivisionManager() {
         ...(newStore.beneficiaryName && { beneficiaryName: newStore.beneficiaryName.trim() }),
         ...(newStore.bankName && { bankName: newStore.bankName.trim() }),
         ...(newStore.ifscCode && { ifscCode: newStore.ifscCode.trim().toUpperCase() }),
-        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() })
+        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() }),
+        "storeCodeNumber": newStore.storeCodeNumber || undefined,
+        "villages": newStore.villages ? newStore.villages.split(',').map(v => v.trim()).filter(v => v !== "") : undefined
       };
       
       const response = await axiosAPI.put(`/stores/${editingStore.id}`, storeData);
@@ -1688,6 +1696,10 @@ function DivisionManager() {
       bankName: storeDetails.bankName || store.bankName || "",
       ifscCode: storeDetails.ifscCode || storeDetails.ifsc || store.ifscCode || store.ifsc || "",
       accountNumber: storeDetails.accountNumber || store.accountNumber || "",
+      storeCodeNumber: storeDetails.storeCodeNumber || store.storeCodeNumber || storeDetails.storeCode || store.storeCode || "",
+      villages: Array.isArray(storeDetails.villages || store.villages) 
+        ? (storeDetails.villages || store.villages).map(v => v.villageName || v).join(', ') 
+        : "",
       // UI state
       agreementImage: null,
       agreementImagePreview: null
@@ -1720,6 +1732,8 @@ function DivisionManager() {
       agreementTimePeriod: "",
       rentAgreementStartDate: "",
       rentAgreementEndDate: "",
+      storeCodeNumber: "",
+      villages: "",
       advancePayOfRent: "",
       rentAgreementDocumentBase64: null,
       // Power bill fields
@@ -2776,6 +2790,28 @@ function DivisionManager() {
                           <option value="own">Own</option>
                           <option value="franchise">Franchise</option>
                         </select>
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="storeCodeNumber">Store Code Number</label>
+                        <input
+                          type="text"
+                          id="storeCodeNumber"
+                          value={newStore.storeCodeNumber}
+                          onChange={(e) => setNewStore({ ...newStore, storeCodeNumber: e.target.value })}
+                          placeholder="e.g., 123 or ABC (Optional)"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="villages">Villages</label>
+                        <input
+                          type="text"
+                          id="villages"
+                          value={newStore.villages}
+                          onChange={(e) => setNewStore({ ...newStore, villages: e.target.value })}
+                          placeholder="Village1, Village2 (Optional, comma separated)"
+                        />
                       </div>
                     </div>
                     <div className={styles.formRow}>
