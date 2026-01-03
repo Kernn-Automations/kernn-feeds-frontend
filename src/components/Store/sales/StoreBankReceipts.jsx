@@ -59,8 +59,8 @@ export default function StoreBankReceipts() {
         if (id) {
           setStoreId(id);
         } else {
-          setError("Store information missing. Please re-login to continue.");
-          setIsErrorModalOpen(true);
+          // setError("Store information missing. Please re-login to continue.");
+          // setIsErrorModalOpen(true);
         }
       } catch (err) {
         console.error("Unable to parse stored user data", err);
@@ -75,46 +75,17 @@ export default function StoreBankReceipts() {
   const fetchStoreBankBalance = useCallback(async () => {
     if (!storeId) return;
     try {
-      // NOTE: Using a hypothetical endpoint or logic as requested. 
-      // If a direct 'bank-balance' endpoint doesn't exist, we might need to aggregrate from sales/payments.
-      // Trying to fetch sales/payment reports to calculate.
-      
-      const res = await axiosAPI.get(`/stores/${storeId}/reports/payments?paymentMode=Bank`);
+      const res = await axiosAPI.get(`/stores/${storeId}/bank-balance`);
       const responseData = res.data || res;
       
-      if (responseData.success && responseData.data) {
-        // Assuming the API returns a list of payments or a summary
-        // If it returns a list, sum it up. If it returns a total, use it.
-        // For now, let's assume we maintain a 'bankBalance' similar to cashBalance in the backend eventually,
-        // but if we are calculating it:
-        
-        let calculatedBalance = 0;
-        if (Array.isArray(responseData.data)) {
-             calculatedBalance = responseData.data.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
-        } else if (responseData.data.totalAmount) {
-             calculatedBalance = parseFloat(responseData.data.totalAmount);
+      if (responseData.success) {
+        setBankBalance(responseData.data?.balance || 0);
+        if (responseData.data?.storeName) {
+            setStoreName(responseData.data.storeName);
         }
-
-        setBankBalance(calculatedBalance);
-        // We typically get storeName from a store details endpoint, let's try to preserve it if we had it, or fetch it.
-        if (responseData.data.storeName) setStoreName(responseData.data.storeName);
-      } else {
-         // Fallback: Try fetching store details to at least get the name
-         const storeRes = await storeService.getStoreById(storeId);
-         if(storeRes && storeRes.data) {
-             setStoreName(storeRes.data.name);
-         }
-      }
-
+      } 
     } catch (err) {
       console.error("Failed to fetch store bank balance", err);
-      // Fallback: Fetch store details for name
-      try {
-        const storeRes = await storeService.getStoreById(storeId);
-        if(storeRes && storeRes.data) {
-             setStoreName(storeRes.data.name);
-        }
-      } catch(e) {}
     }
   }, [storeId, axiosAPI]);
 
@@ -123,16 +94,16 @@ export default function StoreBankReceipts() {
     if (!storeId) return;
     setReceiptsLoading(true);
     try {
-      // Assuming endpoint follows similar pattern to cash-deposits
       const res = await axiosAPI.get(`/stores/${storeId}/bank-receipts`);
       const receiptsData = res.data?.data || res.data || res;
+      // The API might return an array directly or an object with a data property or receipts property
       const receiptsList = Array.isArray(receiptsData) ? receiptsData : (receiptsData.receipts || receiptsData.data || []);
       setReceipts(receiptsList);
     } catch (err) {
       console.error("Failed to fetch bank receipts", err);
-      setReceipts([]);
+      // setReceipts([]);
     } finally {
-      setReceiptsLoading(false);
+        setReceiptsLoading(false);
     }
   }, [storeId, axiosAPI]);
 

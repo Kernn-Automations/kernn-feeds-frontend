@@ -139,6 +139,14 @@ const storeService = {
     const res = await api.request(`/store-indents/stock-transfer/available-stock/${storeId}`, { method: "GET" });
     return res.json();
   },
+  async getStockTransfers(storeId) {
+    const res = await api.request(`/stores/${storeId}/stock-transfers`, { method: "GET" });
+    return res.json();
+  },
+  async getStockTransferById(storeId, transferId) {
+    const res = await api.request(`/stores/${storeId}/stock-transfer/${transferId}`, { method: "GET" });
+    return res.json();
+  },
   async getDestinationStores(excludeStoreId) {
     const queryParams = excludeStoreId ? `?excludeStoreId=${excludeStoreId}` : '';
     const res = await api.request(`/store-indents/stock-transfer/destination-stores${queryParams}`, { method: "GET" });
@@ -529,6 +537,35 @@ const storeService = {
     
     return res.json();
   },
+  async getStoreVillages(storeId) {
+    // GET /stores/:storeId/villages - Get all villages for a specific store
+    const res = await api.request(`/stores/${storeId}/villages`, { method: "GET" });
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
+  async createStoreVillage(storeId, villageName) {
+    // POST /stores/:storeId/villages - Create a new village for a specific store
+    const res = await api.request(`/stores/${storeId}/villages`, {
+      method: "POST",
+      body: JSON.stringify({ villageName })
+    });
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+    
+    return res.json();
+  },
   
   // Store Indents operations
   async getStoreIndents(storeId, params = {}) {
@@ -630,6 +667,11 @@ const storeService = {
   async getStoreStockSummaryStats(params = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/store-stock-summary/stats${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getStoreStockProductSales(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/store-stock-summary/product-sales${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
     return res.json();
   },
   async getStoreStockAuditTrail(params = {}) {

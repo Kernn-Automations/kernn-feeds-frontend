@@ -32,6 +32,39 @@ function StoreStockSummary() {
   const [activeTab, setActiveTab] = useState("summary"); // "summary", "stats", "audit", "opening-closing"
   const [auditTrail, setAuditTrail] = useState([]);
   const [openingClosing, setOpeningClosing] = useState(null);
+  const [expandedRowId, setExpandedRowId] = useState(null);
+  const [productSalesDetails, setProductSalesDetails] = useState({});
+  const [loadingDetails, setLoadingDetails] = useState({});
+  const [summaryTotals, setSummaryTotals] = useState(null);
+
+  const handleRowClick = async (rowId, productId) => {
+    const isExpanded = expandedRowId === rowId;
+    setExpandedRowId(isExpanded ? null : rowId);
+
+    if (!isExpanded && productId) {
+      if (productSalesDetails[rowId]) return; // Already fetched
+
+      setLoadingDetails(prev => ({ ...prev, [rowId]: true }));
+      try {
+        const params = {
+          storeId,
+          productId,
+          fromDate: from,
+          toDate: to
+        };
+        const res = await storeService.getStoreStockProductSales(params);
+        if (res.success && res.data && res.data.salesDetails) {
+          setProductSalesDetails(prev => ({ ...prev, [rowId]: res.data.salesDetails }));
+        }
+      } catch (err) {
+        console.error("Error fetching product sales details:", err);
+      } finally {
+        setLoadingDetails(prev => ({ ...prev, [rowId]: false }));
+      }
+    }
+  };
+
+
   
   const closeModal = () => setIsModalOpen(false);
 
@@ -100,6 +133,9 @@ function StoreStockSummary() {
       const summaryData = res.data || res.summary || res || [];
       const paginationData = res.pagination || {};
       
+      // Extract totals if available (assuming response structure { data: [], pagination: {}, totals: {} })
+      setSummaryTotals(res.totals || res.aggregate || null);
+      
       // Map API response to match table structure
       const mappedData = Array.isArray(summaryData) ? summaryData.map(item => ({
         id: item.id,
@@ -107,11 +143,16 @@ function StoreStockSummary() {
         productName: item.product?.name || item.productName || '-',
         productSKU: item.product?.SKU || item.product?.sku || '-',
         date: item.date,
-        stockIn: item.stockIn || item.inwardStock || 0,
+        stockIn: item.stockIn || 0,
+        inwardStock: item.inwardStock || 0,
         opening: item.openingStock || 0,
-        purchases: item.inwardStock || 0,
         closing: item.closingStock || 0,
-        sale: item.outwardStock || 0,
+        outwardStock: item.outwardStock || 0,
+        stockOut: item.stockOut || 0,
+        inwardPrice: item.inwardStockPrice || 0,
+        outwardPrice: item.outwardStockPrice || 0,
+        stockInPrice: item.stockInPrice || 0,
+        stockOutPrice: item.stockOutPrice || 0,
         unit: item.unit || item.product?.unit || 'kg',
         productType: item.productType || item.product?.productType || 'packed',
         store: item.store,
@@ -185,6 +226,7 @@ function StoreStockSummary() {
         referenceType: item.referenceType,
         referenceId: item.referenceId,
         remarks: item.remarks,
+        totalPrice: item.totalPrice || 0,
         store: item.store,
         product: item.product
       })) : [];
@@ -256,7 +298,10 @@ function StoreStockSummary() {
     
     // Fetch data based on active tab
     setTimeout(() => {
-      if (activeTab === "summary") fetchStock();
+      if (activeTab === "summary") {
+        fetchStock();
+        fetchStats(); // Also fetch stats to get totals for the footer
+      }
       else if (activeTab === "stats") fetchStats();
       else if (activeTab === "audit") fetchAuditTrail();
       else if (activeTab === "opening-closing") fetchOpeningClosing();
@@ -331,8 +376,14 @@ function StoreStockSummary() {
       "SKU",
       "Date",
       "Opening Stock",
+      "Inward Stock",
+      "Inward Value",
+      "Outward Stock",
+      "Outward Value",
       "Stock In",
+      "Stock In Price",
       "Stock Out",
+      "Stock Out Price",
       "Closing Stock",
       "Unit"
     ];
@@ -345,8 +396,14 @@ function StoreStockSummary() {
           "SKU": item.productSKU || '-',
           "Date": item.date || '-',
           "Opening Stock": Number(item.opening || 0).toFixed(2),
+          "Inward Stock": Number(item.inwardStock || 0).toFixed(2),
+          "Inward Value": Number(item.inwardPrice || 0).toFixed(2),
+          "Outward Stock": Number(item.outwardStock || 0).toFixed(2),
+          "Outward Value": Number(item.outwardPrice || 0).toFixed(2),
           "Stock In": Number(item.stockIn || 0).toFixed(2),
-          "Stock Out": Number(item.sale || 0).toFixed(2),
+          "Stock In Price": Number(item.stockInPrice || 0).toFixed(2),
+          "Stock Out": Number(item.stockOut || 0).toFixed(2),
+          "Stock Out Price": Number(item.stockOutPrice || 0).toFixed(2),
           "Closing Stock": Number(item.closing || 0).toFixed(2),
           "Unit": item.unit || 'kg'
         });
@@ -370,8 +427,14 @@ function StoreStockSummary() {
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>SKU</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Opening Stock</th>
+            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Inward</th>
+            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Inward Value</th>
+            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Outward</th>
+            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Outward Value</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock In</th>
+            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock In Value</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock Out</th>
+            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Stock Out Value</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Closing Stock</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Unit</th>
           </tr>
@@ -387,28 +450,158 @@ function StoreStockSummary() {
             dataArray.map((item, index) => {
               const actualIndex = (page - 1) * limit + index + 1;
               return (
-                <tr key={item.id || index} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>{item.productName || '-'}</td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666' }}>{item.productSKU || '-'}</td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.date || '-'}</td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
-                    {Number(item.opening || 0).toFixed(2)}
-                  </td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669' }}>
-                    {Number(item.stockIn || 0).toFixed(2)}
-                  </td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#ef4444' }}>
-                    {Number(item.sale || 0).toFixed(2)}
-                  </td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
-                    {Number(item.closing || 0).toFixed(2)}
-                  </td>
-                  <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.unit || 'kg'}</td>
-                </tr>
+                <React.Fragment key={item.id || index}>
+                  <tr 
+                    onClick={() => handleRowClick(item.id || index, item.productId)}
+                    style={{ 
+                      background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent',
+                      cursor: 'pointer',
+                      borderLeft: expandedRowId === (item.id || index) ? '4px solid var(--primary-color)' : 'none',
+                      transition: 'all 0.2s' 
+                    }}
+                  >
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <i className={`bi bi-chevron-${expandedRowId === (item.id || index) ? 'down' : 'right'}`} style={{ fontSize: '10px' }}></i>
+                        {item.productName || '-'}
+                      </div>
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '12px', color: '#666' }}>{item.productSKU || '-'}</td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.date || '-'}</td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                      {Number(item.opening || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669' }}>
+                      {Number(item.inwardStock || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#059669', fontWeight: 600 }}>
+                      ₹{Number(item.inwardPrice || 0).toLocaleString()}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#ef4444' }}>
+                      {Number(item.outwardStock || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#ef4444', fontWeight: 600 }}>
+                      ₹{Number(item.outwardPrice || 0).toLocaleString()}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#3b82f6' }}>
+                      {Number(item.stockIn || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#3b82f6', fontWeight: 600 }}>
+                      ₹{Number(item.stockInPrice || 0).toLocaleString()}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#f59e0b' }}>
+                      {Number(item.stockOut || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', color: '#f59e0b', fontWeight: 600 }}>
+                      ₹{Number(item.stockOutPrice || 0).toLocaleString()}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: 'var(--primary-color)' }}>
+                      {Number(item.closing || 0).toFixed(2)}
+                    </td>
+                    <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>{item.unit || 'kg'}</td>
+                  </tr>
+                  {expandedRowId === (item.id || index) && (
+                    <tr key={`detail-${item.id || index}`}>
+                      <td colSpan={14} style={{ padding: '0', backgroundColor: '#f9fafb' }}>
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }}>
+                          <h6 style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#374151', marginBottom: '12px' }}>
+                            Sales Details for {item.productName} ({from} to {to})
+                          </h6>
+                          <div style={{ overflowX: 'auto', backgroundColor: 'white', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                            {loadingDetails[item.id || index] ? (
+                              <div className="text-center p-3">Loading details...</div>
+                            ) : (
+                              <table className="table table-sm mb-0" style={{ fontFamily: 'Poppins' }}>
+                                <thead style={{ backgroundColor: '#f3f4f6' }}>
+                                  <tr>
+                                    <th style={{ fontSize: '12px', fontWeight: 600, color: '#000', padding: '8px 16px' }}>Date</th>
+                                    <th style={{ fontSize: '12px', fontWeight: 600, color: '#000', padding: '8px 16px' }}>Order ID</th>
+                                    <th style={{ fontSize: '12px', fontWeight: 600, color: '#000', padding: '8px 16px' }}>Customer</th>
+                                    <th style={{ fontSize: '12px', fontWeight: 600, color: '#000', padding: '8px 16px' }}>Quantity</th>
+                                    <th style={{ fontSize: '12px', fontWeight: 600, color: '#000', padding: '8px 16px' }}>Price</th>
+                                    <th style={{ fontSize: '12px', fontWeight: 600, color: '#000', padding: '8px 16px' }}>Total Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {productSalesDetails[item.id || index] && productSalesDetails[item.id || index].length > 0 ? (
+                                    productSalesDetails[item.id || index].map((sale, i) => (
+                                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                        <td style={{ fontSize: '13px', color: '#111827', padding: '8px 16px' }}>{sale.date}</td>
+                                        <td style={{ fontSize: '13px', color: '#111827', padding: '8px 16px' }}>{sale.orderId}</td>
+                                        <td style={{ fontSize: '13px', color: '#111827', padding: '8px 16px' }}>{sale.customer}</td>
+                                        <td style={{ fontSize: '13px', color: '#111827', padding: '8px 16px' }}>
+                                          {sale.quantity} <span style={{ color: '#6b7280', fontSize: '12px' }}>{sale.unit || item.unit}</span>
+                                        </td>
+                                        <td style={{ fontSize: '13px', color: '#111827', padding: '8px 16px' }}>₹{sale.price}</td>
+                                        <td style={{ fontSize: '13px', color: '#111827', fontWeight: 600, padding: '8px 16px' }}>₹{(sale.totalAmount || sale.total || 0).toLocaleString()}</td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td colSpan={6} className="text-center p-3">No sales found for this period</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })
           )}
         </tbody>
+        {stockData.length > 0 && (
+          <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
+            <tr>
+              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible Rows):</td>
+              <td style={{ fontWeight: 600, color: '#374151', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Opening</div>
+                {stockData.reduce((sum, item) => sum + (Number(item.opening) || 0), 0).toFixed(2)}
+              </td>
+              <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Inward</div>
+                {stockData.reduce((sum, item) => sum + (Number(item.inwardStock) || 0), 0).toFixed(2)}
+              </td>
+              <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Inward Val</div>
+                ₹{stockData.reduce((sum, item) => sum + (Number(item.inwardPrice) || 0), 0).toLocaleString()}
+              </td>
+              <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Outward</div>
+                {stockData.reduce((sum, item) => sum + (Number(item.outwardStock) || 0), 0).toFixed(2)}
+              </td>
+              <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Outward Val</div>
+                ₹{stockData.reduce((sum, item) => sum + (Number(item.outwardPrice) || 0), 0).toLocaleString()}
+              </td>
+              <td style={{ fontWeight: 600, color: '#3b82f6', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Stock In</div>
+                {stockData.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0).toFixed(2)}
+              </td>
+              <td style={{ fontWeight: 600, color: '#3b82f6', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Stock In Val</div>
+                ₹{stockData.reduce((sum, item) => sum + (Number(item.stockInPrice) || 0), 0).toLocaleString()}
+              </td>
+              <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Stock Out</div>
+                {stockData.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0).toFixed(2)}
+              </td>
+              <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Stock Out Val</div>
+                ₹{stockData.reduce((sum, item) => sum + (Number(item.stockOutPrice) || 0), 0).toLocaleString()}
+              </td>
+              <td style={{ fontWeight: 600, color: 'var(--primary-color)', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666' }}>Closing</div>
+                {stockData.reduce((sum, item) => sum + (Number(item.closing) || 0), 0).toFixed(2)}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '12px' }}>
@@ -533,6 +726,7 @@ function StoreStockSummary() {
             Opening/Closing
           </button>
         </div>
+
 
         {/* Filters based on active tab */}
         <div className="row m-0 p-3">
@@ -696,7 +890,9 @@ function StoreStockSummary() {
                       <th>Store Name</th>
                       <th>Store Code</th>
                       <th>Inward Stock</th>
+                      <th>Inward Value</th>
                       <th>Outward Stock</th>
+                      <th>Outward Value</th>
                       <th>Closing Stock</th>
                       <th>Products</th>
                     </tr>
@@ -707,12 +903,39 @@ function StoreStockSummary() {
                         <td>{store.storeName}</td>
                         <td>{store.storeCode}</td>
                         <td style={{ color: '#059669' }}>{Number(store.inwardStock || 0).toFixed(2)}</td>
+                        <td style={{ color: '#059669', fontWeight: 500 }}>₹{Number(store.inwardStockPrice || 0).toLocaleString()}</td>
                         <td style={{ color: '#ef4444' }}>{Number(store.outwardStock || 0).toFixed(2)}</td>
+                        <td style={{ color: '#ef4444', fontWeight: 500 }}>₹{Number(store.outwardStockPrice || 0).toLocaleString()}</td>
                         <td style={{ fontWeight: 600 }}>{Number(store.closingStock || 0).toFixed(2)}</td>
                         <td>{store.products || 0}</td>
                       </tr>
                     ))}
                   </tbody>
+                  {stats.stockByStore.length > 0 && (
+                    <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
+                      <tr>
+                        <td colSpan={2} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible):</td>
+                        <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
+                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.inwardStock) || 0), 0).toFixed(2)}
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
+                          ₹{stats.stockByStore.reduce((sum, s) => sum + (Number(s.inwardStockPrice) || 0), 0).toLocaleString()}
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
+                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.outwardStock) || 0), 0).toFixed(2)}
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
+                          ₹{stats.stockByStore.reduce((sum, s) => sum + (Number(s.outwardStockPrice) || 0), 0).toLocaleString()}
+                        </td>
+                        <td style={{ fontWeight: 600, padding: '12px' }}>
+                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.closingStock) || 0), 0).toFixed(2)}
+                        </td>
+                        <td style={{ fontWeight: 600, padding: '12px' }}>
+                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.products) || 0), 0)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             </div>
@@ -735,6 +958,7 @@ function StoreStockSummary() {
                   <th>Transaction Type</th>
                   <th>Quantity</th>
                   <th>Unit</th>
+                  <th>Total Price</th>
                   <th>Recorded At</th>
                   <th>Reference</th>
                   <th>Remarks</th>
@@ -743,7 +967,7 @@ function StoreStockSummary() {
               <tbody>
                 {auditTrail.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center" style={{ padding: '20px' }}>
+                    <td colSpan={9} className="text-center" style={{ padding: '20px' }}>
                       No audit trail data found
                     </td>
                   </tr>
@@ -768,6 +992,7 @@ function StoreStockSummary() {
                         </td>
                         <td style={{ fontWeight: 600 }}>{Number(item.quantity || 0).toFixed(2)}</td>
                         <td>{item.unit}</td>
+                        <td style={{ fontWeight: 600 }}>₹{Number(item.totalPrice || 0).toLocaleString()}</td>
                         <td>{item.recordedAt ? new Date(item.recordedAt).toLocaleString() : '-'}</td>
                         <td>{item.referenceType ? `${item.referenceType}: ${item.referenceId}` : '-'}</td>
                         <td style={{ fontSize: '12px', color: '#666' }}>{item.remarks || '-'}</td>
@@ -776,6 +1001,18 @@ function StoreStockSummary() {
                   })
                 )}
               </tbody>
+              {auditTrail.length > 0 && (
+                <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
+                  <tr>
+                    <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Totals:</td>
+                    <td style={{ fontWeight: 600, padding: '12px' }}>
+                      <div style={{ color: '#166534' }}>In: {auditTrail.filter(i => i.transactionType === 'inward').reduce((sum, i) => sum + (Number(i.quantity) || 0), 0).toFixed(2)}</div>
+                      <div style={{ color: '#991b1b' }}>Out: {auditTrail.filter(i => i.transactionType !== 'inward').reduce((sum, i) => sum + (Number(i.quantity) || 0), 0).toFixed(2)}</div>
+                    </td>
+                    <td colSpan={4}></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
           {totalPages > 1 && (
@@ -845,9 +1082,17 @@ function StoreStockSummary() {
                     <th>Product</th>
                     <th>SKU</th>
                     <th>Opening Stock</th>
+                    <th>Opening Price</th>
                     <th>Inward Stock</th>
+                    <th>Inward Price</th>
                     <th>Outward Stock</th>
+                    <th>Outward Price</th>
+                    <th>Stock In</th>
+                    <th>Stock In Price</th>
+                    <th>Stock Out</th>
+                    <th>Stock Out Price</th>
                     <th>Closing Stock</th>
+                    <th>Closing Price</th>
                     <th>Unit</th>
                   </tr>
                 </thead>
@@ -857,13 +1102,65 @@ function StoreStockSummary() {
                       <td style={{ fontWeight: 600 }}>{item.product?.name || '-'}</td>
                       <td style={{ fontSize: '12px', color: '#666' }}>{item.product?.SKU || item.product?.sku || '-'}</td>
                       <td>{Number(item.openingStock || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600, color: '#3b82f6' }}>₹{Number(item.openingStockPrice || 0).toLocaleString()}</td>
                       <td style={{ color: '#059669' }}>{Number(item.inwardStock || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600, color: '#059669' }}>₹{Number(item.inwardStockPrice || 0).toLocaleString()}</td>
                       <td style={{ color: '#ef4444' }}>{Number(item.outwardStock || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600, color: '#ef4444' }}>₹{Number(item.outwardStockPrice || 0).toLocaleString()}</td>
+                      <td style={{ color: '#10b981' }}>{Number(item.stockIn || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600, color: '#10b981' }}>₹{Number(item.stockInPrice || 0).toLocaleString()}</td>
+                      <td style={{ color: '#f59e0b' }}>{Number(item.stockOut || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600, color: '#f59e0b' }}>₹{Number(item.stockOutPrice || 0).toLocaleString()}</td>
                       <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>{Number(item.closingStock || 0).toFixed(2)}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>₹{Number(item.closingStockPrice || 0).toLocaleString()}</td>
                       <td>{item.product?.unit || item.unit || 'kg'}</td>
                     </tr>
                   ))}
                 </tbody>
+                {openingClosing.summaries.length > 0 && (
+                  <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
+                    <tr>
+                      <td colSpan={2} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible):</td>
+                      <td style={{ fontWeight: 600, padding: '12px' }}>
+                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.openingStock) || 0), 0).toFixed(2)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#3b82f6', padding: '12px' }}>
+                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.openingStockPrice) || 0), 0).toLocaleString()}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
+                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.inwardStock) || 0), 0).toFixed(2)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
+                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.inwardStockPrice) || 0), 0).toLocaleString()}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
+                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.outwardStock) || 0), 0).toFixed(2)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
+                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.outwardStockPrice) || 0), 0).toLocaleString()}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#10b981', padding: '12px' }}>
+                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0).toFixed(2)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#10b981', padding: '12px' }}>
+                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockInPrice) || 0), 0).toLocaleString()}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
+                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0).toFixed(2)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
+                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockOutPrice) || 0), 0).toLocaleString()}
+                      </td>
+                      <td style={{ fontWeight: 600, color: 'var(--primary-color)', padding: '12px' }}>
+                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.closingStock) || 0), 0).toFixed(2)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: 'var(--primary-color)', padding: '12px' }}>
+                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.closingStockPrice) || 0), 0).toLocaleString()}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}

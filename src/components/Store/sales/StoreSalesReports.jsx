@@ -188,7 +188,8 @@ function StoreSalesReports({ onBack }) {
             phoneNumber: phoneNumber,
             quantity: parseFloat(item.qty || item.quantity || 0),
             amount: parseFloat(item.amount || 0),
-            modeOfPayment: paymentMethod
+            modeOfPayment: paymentMethod,
+            createdBy: item.employeeName || item.createdByEmployee?.name || item.createdByUser?.name || "-"
           });
         });
       }
@@ -441,18 +442,19 @@ function StoreSalesReports({ onBack }) {
                 <th>Qty</th>
                 <th>Amount</th>
                 <th>Mode Of Payment</th>
+                <th>Created By</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="text-center" style={{ padding: '20px' }}>
+                  <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
                     Loading...
                   </td>
                 </tr>
               ) : salesData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="text-center" style={{ padding: '20px' }}>
+                  <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
                     No sales data found
                   </td>
                 </tr>
@@ -470,6 +472,7 @@ function StoreSalesReports({ onBack }) {
                       ₹{formatAmount(row.amount)}
                     </td>
                     <td>{row.modeOfPayment || "-"}</td>
+                    <td>{row.createdBy}</td>
                   </tr>
                 ))
               )}
