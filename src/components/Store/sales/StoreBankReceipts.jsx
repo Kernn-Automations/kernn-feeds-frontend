@@ -1,38 +1,42 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
-import { isStoreEmployee } from "../../../utils/roleUtils";
+// import { isStoreEmployee } from "../../../utils/roleUtils"; // Unused
 import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 import storeService from "../../../services/storeService";
-import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
+import salesStyles from "../../Dashboard/Sales/Sales.module.css";
+import orderStyles from "./StoreSalesOrders.module.css";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 export default function StoreBankReceipts() {
   const navigate = useNavigate();
   const { user, axiosAPI } = useAuth();
   const actualUser = user?.user || user || {};
   const inferredStoreId = actualUser?.storeId || actualUser?.store?.id || null;
-  const isEmployee = isStoreEmployee(actualUser);
+  // const isEmployee = isStoreEmployee(actualUser); // Unused
 
   const [storeId, setStoreId] = useState(inferredStoreId);
   const [bankBalance, setBankBalance] = useState(0);
   const [storeName, setStoreName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [utrNumber, setUtrNumber] = useState("");
-  const [depositDate, setDepositDate] = useState("");
-  const [depositTime, setDepositTime] = useState("");
-  const [notes, setNotes] = useState("");
-  const [depositSlip, setDepositSlip] = useState(null);
-  const [depositSlipPreview, setDepositSlipPreview] = useState(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // Filter state
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  // Separate applied filters to control when filtering happens (on Submit)
+  const [appliedFilters, setAppliedFilters] = useState({ from: "", to: "" });
+
   const [loading, setLoading] = useState(false);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  
   const [receipts, setReceipts] = useState([]);
+  const [sales, setSales] = useState([]); 
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
@@ -58,9 +62,6 @@ export default function StoreBankReceipts() {
         
         if (id) {
           setStoreId(id);
-        } else {
-          // setError("Store information missing. Please re-login to continue.");
-          // setIsErrorModalOpen(true);
         }
       } catch (err) {
         console.error("Unable to parse stored user data", err);
@@ -71,7 +72,6 @@ export default function StoreBankReceipts() {
   }, [storeId]);
 
   // Fetch store bank balance
-  // Logic: "bank balance should fetch whoose payments were bank"
   const fetchStoreBankBalance = useCallback(async () => {
     if (!storeId) return;
     try {
@@ -79,7 +79,7 @@ export default function StoreBankReceipts() {
       const responseData = res.data || res;
       
       if (responseData.success) {
-        setBankBalance(responseData.data?.balance || 0);
+        setBankBalance(responseData.data?.availableBalance || responseData.data?.balance || 0);
         if (responseData.data?.storeName) {
             setStoreName(responseData.data.storeName);
         }
@@ -96,220 +96,44 @@ export default function StoreBankReceipts() {
     try {
       const res = await axiosAPI.get(`/stores/${storeId}/bank-receipts`);
       const receiptsData = res.data?.data || res.data || res;
-      // The API might return an array directly or an object with a data property or receipts property
       const receiptsList = Array.isArray(receiptsData) ? receiptsData : (receiptsData.receipts || receiptsData.data || []);
       setReceipts(receiptsList);
     } catch (err) {
       console.error("Failed to fetch bank receipts", err);
-      // setReceipts([]);
     } finally {
         setReceiptsLoading(false);
     }
   }, [storeId, axiosAPI]);
 
+  // Fetch bank sales
+  const fetchBankSales = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      // Fetching 100 most recent sales
+      const res = await storeService.getStoreSales(storeId, { limit: 100 });
+      if (res && res.success) {
+        const allSales = res.data?.sales || res.data || [];
+        // Filter for bank related payments
+        const bankSales = allSales.filter(sale => {
+            const pm = (sale.paymentMethod || "").toLowerCase();
+            return pm === "bank" || pm === "both" || pm === "online" || pm === "upi";
+        });
+        setSales(bankSales);
+      }
+    } catch (err) {
+      console.error("Failed to fetch store sales", err);
+    }
+  }, [storeId]);
+
   useEffect(() => {
     if (storeId) {
       fetchStoreBankBalance();
       fetchBankReceipts();
+      fetchBankSales();
     }
-  }, [storeId, fetchStoreBankBalance, fetchBankReceipts]);
+  }, [storeId, fetchStoreBankBalance, fetchBankReceipts, fetchBankSales]);
 
-  // Set default date and time when form is opened
-  useEffect(() => {
-    if (showCreateForm) {
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-      setDepositDate(dateStr);
-      setDepositTime(timeStr);
-    }
-  }, [showCreateForm]);
-
-  // Compress image function
-  const compressImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.7) => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        let { width, height } = img;
-        
-        if (width > height) {
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = (width * maxHeight) / height;
-            height = maxHeight;
-          }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to compress image'));
-          }
-        }, file.type || 'image/jpeg', quality);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  // Format base64 data URL
-  const formatBase64DataURL = (base64String) => {
-    if (!base64String) return undefined;
-    
-    if (base64String.startsWith('data:')) {
-      const base64Part = base64String.includes(',') ? base64String.split(',')[1] : base64String;
-      const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
-      
-      if (base64SizeMB > 1.5) {
-        return undefined;
-      }
-      
-      return base64String;
-    }
-    
-    const mimeType = 'image/jpeg';
-    return `data:${mimeType};base64,${base64String}`;
-  };
-
-  const handleDepositSlipChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const maxSize = file.type === 'application/pdf' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
-    if (file.size > maxSize) {
-      showError(`File size should be less than ${maxSize / 1024 / 1024}MB`);
-      e.target.value = '';
-      return;
-    }
-
-    try {
-      let processedFile = file;
-      let previewUrl = null;
-
-      if (file.type.startsWith('image/')) {
-        const compressedBlob = await compressImage(file, 800, 600, 0.7);
-        processedFile = new File([compressedBlob], file.name, { type: file.type });
-        previewUrl = URL.createObjectURL(compressedBlob);
-        
-        if (compressedBlob.size > 1.5 * 1024 * 1024) {
-          showError("Image is still too large after compression. Please use a smaller image.");
-          e.target.value = '';
-          return;
-        }
-      } else if (file.type === 'application/pdf') {
-        if (file.size > 2 * 1024 * 1024) {
-          showError("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
-          e.target.value = '';
-          return;
-        }
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result;
-        setDepositSlip(base64String);
-        setDepositSlipPreview(previewUrl);
-      };
-      reader.onerror = () => {
-        showError("Error reading file");
-        e.target.value = '';
-      };
-      reader.readAsDataURL(processedFile);
-    } catch (error) {
-      console.error("Error processing file:", error);
-      showError("Error processing file: " + error.message);
-      e.target.value = '';
-    }
-  };
-
-  const showError = (message) => {
-    setError(message || "Something went wrong. Please try again.");
-    setIsErrorModalOpen(true);
-  };
-
-  const showSuccess = (message) => {
-    setSuccessMessage(message || "Bank receipt recorded successfully.");
-    setIsSuccessModalOpen(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!storeId) {
-      showError("Store information missing.");
-      return;
-    }
-
-    if (!amount || parseFloat(amount) <= 0) {
-      showError("Please enter a valid amount.");
-      return;
-    }
-    
-    if (!utrNumber) {
-        showError("Please enter UTR Number.");
-        return;
-    }
-
-    const receiptAmount = parseFloat(amount);
-
-    setLoading(true);
-    try {
-      // Combine date and time into ISO string
-      let receiptDateTime = null;
-      if (depositDate && depositTime) {
-        const dateTimeStr = `${depositDate}T${depositTime}:00`;
-        receiptDateTime = new Date(dateTimeStr).toISOString();
-      }
-
-      const payload = {
-        storeId: storeId,
-        amount: receiptAmount,
-        utrNumber: utrNumber.trim(),
-        notes: notes.trim() || "",
-        ...(receiptDateTime && { receiptDate: receiptDateTime }),
-      };
-
-      if (depositSlip) {
-        payload.depositSlipBase64 = formatBase64DataURL(depositSlip);
-      }
-
-      const res = await axiosAPI.post(`/stores/${storeId}/bank-receipts`, payload);
-      // const responseData = res.data || res;
-
-      showSuccess(res.message || "Bank receipt recorded successfully.");
-      setAmount("");
-      setUtrNumber("");
-      setDepositDate("");
-      setDepositTime("");
-      setNotes("");
-      setDepositSlip(null);
-      setDepositSlipPreview(null);
-      setShowCreateForm(false);
-      
-      // Update data
-      await fetchStoreBankBalance();
-      await fetchBankReceipts();
-    } catch (err) {
-      console.error("Failed to record bank receipt", err);
-      showError(err.response?.data?.message || err.message || "Failed to record bank receipt");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Handle image view
   const handleViewImage = (imageUrl) => {
     if (imageUrl) {
       setSelectedImage(imageUrl);
@@ -318,56 +142,139 @@ export default function StoreBankReceipts() {
   };
 
   const closeErrorModal = () => setIsErrorModalOpen(false);
-  const closeSuccessModal = () => {
-    setIsSuccessModalOpen(false);
-  };
 
+  // Helper formats
   const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const formatDate = (dateString) => {
+  const formatDate = (dateString, includeTime = false) => {
     if (!dateString) return '-';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+      if (includeTime) {
+          options.hour = '2-digit';
+          options.minute = '2-digit';
+      }
+      return date.toLocaleDateString('en-IN', options);
     } catch {
       return dateString;
     }
   };
 
+  // Merge, sort, and filter transactions
+  const getUnifiedTransactions = () => {
+    const receiptItems = receipts.map(r => ({
+        id: `receipt-${r.id}`,
+        originalId: r.id,
+        date: r.createdAt || r.date || r.receiptDate,
+        type: 'Receipt (Deposit)',
+        description: r.notes || 'Bank Deposit',
+        amount: parseFloat(r.amount || 0),
+        isCredit: true, 
+        reference: r.utrNumber,
+        proof: r.depositSlip || r.depositSlipUrl || r.image,
+        raw: r
+    }));
+
+    const saleItems = sales.map(s => {
+        let amount = 0;
+        const pm = (s.paymentMethod || "").toLowerCase();
+        if (pm === "both") {
+            amount = parseFloat(s.bankAmount || 0);
+        } else {
+            amount = parseFloat(s.finalAmount || s.totalAmount || 0);
+        }
+
+        return {
+            id: `sale-${s.id}`,
+            originalId: s.id,
+            date: s.createdAt || s.date,
+            type: 'Sale',
+            description: `Order #${s.orderId || s.id}`,
+            amount: amount,
+            isCredit: true,
+            reference: s.paymentMode || s.paymentMethod,
+            proof: null,
+            raw: s
+        };
+    });
+
+    let combined = [...receiptItems, ...saleItems].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Apply Filters based on appliedFilters state
+    if (appliedFilters.from) {
+        const from = new Date(appliedFilters.from);
+        from.setHours(0, 0, 0, 0);
+        combined = combined.filter(item => new Date(item.date) >= from);
+    }
+    if (appliedFilters.to) {
+        const to = new Date(appliedFilters.to);
+        to.setHours(23, 59, 59, 999);
+        combined = combined.filter(item => new Date(item.date) <= to);
+    }
+
+    return combined;
+  };
+
+  const transactions = getUnifiedTransactions();
+
+  const handleFilterSubmit = () => {
+    setAppliedFilters({ from: fromDate, to: toDate });
+  };
+
+  const handleFilterCancel = () => {
+    setFromDate("");
+    setToDate("");
+    setAppliedFilters({ from: "", to: "" });
+  };
+
+  // Export Logic
+  const onExport = (type) => {
+    const arr = [];
+    let x = 1;
+    const columns = [
+      "S.No",
+      "Date",
+      "Type",
+      "Description",
+      "Reference / UTR",
+      "Amount"
+    ];
+
+    if (transactions && transactions.length > 0) {
+      transactions.forEach((item) => {
+        arr.push({
+          "S.No": x++,
+          "Date": formatDate(item.date, true),
+          "Type": item.type,
+          "Description": item.description,
+          "Reference / UTR": item.reference || '-',
+          "Amount": Number(item.amount || 0).toFixed(2)
+        });
+      });
+
+      if (type === "PDF") handleExportPDF(columns, arr, "Bank_Transactions");
+      else if (type === "XLS") handleExportExcel(columns, arr, "BankTransactions");
+    } else {
+      setError("Table is Empty");
+      setIsErrorModalOpen(true);
+    }
+  };
 
   return (
     <div style={{ padding: "20px" }}>
-      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+      <div className={orderStyles.pageHeader}>
         <div>
-          <h2
-            style={{
-              fontFamily: "Poppins",
-              fontWeight: 700,
-              fontSize: "28px",
-              color: "var(--primary-color)",
-              margin: 0,
-              marginBottom: "8px",
-            }}
-          >
+          <h2>Bank Transactions</h2>
+          <p className="path">
+            <span onClick={() => navigate("/store/sales")} style={{ cursor: 'pointer' }}>Sales</span>
+            {" "}<i className="bi bi-chevron-right"></i>{" "}
             Bank Receipts
-          </h2>
-          <p className="path">Record bank receipt</p>
-        </div>
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button 
-            className="homebtn" 
-            onClick={() => setShowCreateForm(!showCreateForm)} 
-            style={{ fontFamily: "Poppins", background: showCreateForm ? "#f3f4f6" : undefined }}
-          >
-            {showCreateForm ? "Cancel" : "Create Receipt"}
-          </button>
-          <button className="homebtn" onClick={() => navigate("/store/sales")} style={{ fontFamily: "Poppins" }}>
-            Back to Sales
-          </button>
+          </p>
         </div>
       </div>
 
       {!storeId && (
-        <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+        <div className={homeStyles.orderStatusCard} style={{ marginBottom: "24px" }}>
           <p style={{ margin: 0, fontFamily: "Poppins" }}>Store details are missing. Please re-login to continue.</p>
         </div>
       )}
@@ -375,7 +282,7 @@ export default function StoreBankReceipts() {
       {storeId && (
         <>
           {/* Store Bank Balance Display */}
-          <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+          <div className={homeStyles.orderStatusCard} style={{ marginBottom: "24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
               <div>
                 <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600, fontSize: "20px", color: "var(--primary-color)" }}>
@@ -393,242 +300,107 @@ export default function StoreBankReceipts() {
             </div>
           </div>
 
-          {/* Create Receipt Form */}
-          {showCreateForm && (
-            <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
-              <h4
-                style={{
-                  margin: 0,
-                  marginBottom: "20px",
-                  fontFamily: "Poppins",
-                  fontWeight: 600,
-                  fontSize: "20px",
-                  color: "var(--primary-color)",
-                }}
-              >
-                Create Bank Receipt
-              </h4>
-              <form onSubmit={handleSubmit}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                    gap: "16px",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <div>
-                    <label>Amount (₹) *</label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      required
-                      placeholder="Enter amount"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
+          <div className={`${homeStyles.orderStatusCard} ${orderStyles.cardWrapper}`}>
+            
+             {/* Filters */}
+            <div className={`row g-3 ${orderStyles.filtersRow}`}>
+                <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
+                    <label>From :</label>
+                    <input 
+                        type="date" 
+                        value={fromDate} 
+                        onChange={(e) => setFromDate(e.target.value)}
                     />
-                  </div>
-                  <div>
-                     <label>UTR Number *</label>
-                     <input
-                       type="text"
-                       value={utrNumber}
-                       onChange={(e) => setUtrNumber(e.target.value)}
-                       required
-                       placeholder="Enter UTR Number"
-                       style={{
-                         width: "100%",
-                         padding: "8px 12px",
-                         border: "1px solid #000",
-                         borderRadius: "4px",
-                         fontSize: "14px",
-                         fontFamily: "Poppins",
-                         backgroundColor: "#fff",
-                         color: "#000",
-                       }}
-                     />
-                  </div>
-                  <div>
-                    <label>Date *</label>
-                    <input
-                      type="date"
-                      value={depositDate}
-                      onChange={(e) => setDepositDate(e.target.value)}
-                      required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label>Time *</label>
-                    <input
-                      type="time"
-                      value={depositTime}
-                      onChange={(e) => setDepositTime(e.target.value)}
-                      required
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
-                    />
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label>Receipt/Slip (Image/PDF)</label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={handleDepositSlipChange}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                      }}
-                    />
-                    {depositSlipPreview && (
-                      <div style={{ marginTop: "8px" }}>
-                        <img
-                          src={depositSlipPreview}
-                          alt="Receipt slip preview"
-                          style={{
-                            maxWidth: "200px",
-                            maxHeight: "150px",
-                            border: "1px solid #ddd",
-                            borderRadius: "4px",
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label>Notes (Optional)</label>
-                    <textarea
-                      rows="3"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Add any additional notes"
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "1px solid #000",
-                        borderRadius: "4px",
-                        fontSize: "14px",
-                        fontFamily: "Poppins",
-                        backgroundColor: "#fff",
-                        color: "#000",
-                        resize: "vertical",
-                      }}
-                    />
-                  </div>
                 </div>
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                  <button className="homebtn" type="submit" disabled={loading}>
-                    {loading ? "Submitting..." : "Submit Receipt"}
-                  </button>
-                  <button
-                    className="homebtn"
-                    type="button"
-                    onClick={() => {
-                      setAmount("");
-                      setUtrNumber("");
-                      const now = new Date();
-                      const dateStr = now.toISOString().split('T')[0];
-                      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-                      setDepositDate(dateStr);
-                      setDepositTime(timeStr);
-                      setNotes("");
-                      setDepositSlip(null);
-                      setDepositSlipPreview(null);
-                    }}
-                    disabled={loading}
-                    style={{ background: "#f3f4f6", color: "#374151" }}
-                  >
-                    Clear
-                  </button>
+                <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
+                    <label>To :</label>
+                    <input 
+                        type="date" 
+                        value={toDate} 
+                        onChange={(e) => setToDate(e.target.value)}
+                    />
                 </div>
-              </form>
             </div>
-          )}
 
-          {/* Bank Receipts Table */}
-          <div className={styles.orderStatusCard}>
-            <h4
-              style={{
-                margin: 0,
-                marginBottom: "20px",
-                fontFamily: "Poppins",
-                fontWeight: 600,
-                fontSize: "20px",
-                color: "var(--primary-color)",
-              }}
-            >
-              Bank Receipt History
-            </h4>
-            {receiptsLoading ? (
-              <p style={{ fontFamily: "Poppins", textAlign: "center", padding: "20px" }}>Loading receipts...</p>
-            ) : receipts.length === 0 ? (
-              <p style={{ fontFamily: "Poppins", textAlign: "center", padding: "20px", color: "#6b7280" }}>
-                No bank receipts found
-              </p>
+            {/* Filter Buttons */}
+            <div className={orderStyles.buttonsRow}>
+                <div className="d-flex gap-3 justify-content-center flex-wrap">
+                    <button className="submitbtn" onClick={handleFilterSubmit}>
+                        Submit
+                    </button>
+                    <button className="cancelbtn" onClick={handleFilterCancel}>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            {/* Export Section */}
+            <div className={orderStyles.exportSection}>
+                <div className={orderStyles.exportButtons}>
+                    <button className={salesStyles.xls} onClick={() => onExport("XLS")}>
+                        <p>Export to </p>
+                        <img src={xls} alt="Export to Excel" />
+                    </button>
+                    <button className={salesStyles.xls} onClick={() => onExport("PDF")}>
+                        <p>Export to </p>
+                        <img src={pdf} alt="Export to PDF" />
+                    </button>
+                </div>
+            </div>
+
+          {/* Unified Transactions Table */}
+          <div className={`${orderStyles.tableContainer} table-responsive`}>
+            {receiptsLoading || loading ? (
+                 <div className="text-center" style={{ padding: '20px' }}><Loading /></div>
+            ) : transactions.length === 0 ? (
+               <div className="text-center" style={{ padding: '40px', color: '#666' }}>
+                  No bank transactions found for the selected period
+               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
-                  <thead className="table-light">
+                <table className="table table-hover table-bordered borderedtable">
+                  <thead>
                     <tr>
                       <th>S.No</th>
                       <th>Date</th>
-                      <th>Store Name</th>
-                      <th>Amount (₹)</th>
-                      <th>UTR Number</th>
-                      <th>Created By</th>
-                      <th>Action</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Reference / UTR</th>
+                      <th className="text-end">Amount (₹)</th>
+                      <th>Proof</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {receipts.map((receipt, index) => (
-                      <tr key={receipt.id || index} style={{ background: index % 2 === 0 ? "rgba(59, 130, 246, 0.03)" : "transparent" }}>
+                    {transactions.map((tx, index) => (
+                      <tr key={tx.id}>
                         <td>{index + 1}</td>
-                        <td>{formatDate(receipt.createdAt || receipt.date || receipt.receiptDate)}</td>
-                        <td>{receipt.store?.name || receipt.storeName || storeName || "-"}</td>
-                        <td style={{ fontWeight: 600 }}>{formatCurrency(receipt.amount)}</td>
-                        <td style={{ fontWeight: 600 }}>{receipt.utrNumber || "-"}</td>
-                        <td>{receipt.createdByEmployee?.name || receipt.createdBy?.name || receipt.employee?.name || receipt.createdBy || "-"}</td>
+                        <td>{formatDate(tx.date, true)}</td>
                         <td>
-                          {receipt.depositSlip || receipt.depositSlipUrl || receipt.image ? (
+                            <span 
+                                className={`${orderStyles.statusBadge} ${
+                                    tx.type.includes('Sale') ? orderStyles.pending : orderStyles.completed
+                                }`}
+                                style={{
+                                    backgroundColor: tx.type.includes('Sale') ? '#e0f2fe' : '#dcfce7',
+                                    color: tx.type.includes('Sale') ? '#0369a1' : '#15803d',
+                                    borderColor: tx.type.includes('Sale') ? '#bae6fd' : '#bbf7d0',
+                                    minWidth: 'auto'
+                                }}
+                            >
+                                {tx.type}
+                            </span>
+                        </td>
+                        <td>{tx.description}</td>
+                        <td style={{ fontFamily: 'monospace' }}>{tx.reference || "-"}</td>
+                        <td className="text-end" style={{ fontWeight: 600, color: '#059669' }}>
+                            {Number(tx.amount || 0).toFixed(2)}
+                        </td>
+                        <td>
+                          {tx.proof ? (
                             <button
-                              className="homebtn"
-                              style={{ fontSize: "11px" }}
-                              onClick={() => handleViewImage(receipt.depositSlip || receipt.depositSlipUrl || receipt.image)}
-                              title="View Receipt Slip"
+                              className="submitbtn"
+                              style={{ padding: "2px 8px", fontSize: "12px", minWidth: "auto" }}
+                              onClick={() => handleViewImage(tx.proof)}
+                              title="View Document"
                             >
                               <i className="bi bi-eye"></i> View
                             </button>
@@ -639,9 +411,18 @@ export default function StoreBankReceipts() {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="table-light" style={{ fontWeight: "bold" }}>
+                    <tr>
+                      <td colSpan="5" className="text-end">Total</td>
+                      <td className="text-end" style={{ color: '#059669' }}>
+                        {formatCurrency(transactions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
                 </table>
-              </div>
-            )}
+               )}
+            </div>
           </div>
         </>
       )}
@@ -750,7 +531,7 @@ export default function StoreBankReceipts() {
 
       {loading && <Loading />}
       <ErrorModal isOpen={isErrorModalOpen} message={error} onClose={closeErrorModal} />
-      <SuccessModal isOpen={isSuccessModalOpen} message={successMessage} onClose={closeSuccessModal} />
+      {/* SuccessModal removed as creation is removed */}
     </div>
   );
 }
