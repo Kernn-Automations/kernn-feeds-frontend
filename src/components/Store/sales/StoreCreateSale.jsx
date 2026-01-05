@@ -2590,7 +2590,7 @@ export default function StoreCreateSale() {
                               // For "both" payment method, use bankAmount; for "bank", use amount
                               const amount = payment.paymentMethod === "both" 
                                 ? (parseFloat(payment.bankAmount) || 0)
-                                : (parseFloat(payment.amount) || 0);
+                                : (reviewData?.totals?.total || parseFloat(payment.amount) || 0);
                               
                               if (amount <= 0) {
                                 setSuccessMessage(payment.paymentMethod === "both" 

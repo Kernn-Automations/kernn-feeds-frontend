@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import styles from "../Dashboard/navs/NavContainer.module.css";
-import { isStoreEmployee, isAdmin } from "../../utils/roleUtils";
+import { isStoreEmployee, isAdmin, isDivisionHead } from "../../utils/roleUtils";
 import LogoutModal from "../Dashboard/LogoutModal";
 
 function StoreNavBg({ hover, setTab, tab, user, closeMobileMenu }) {
@@ -59,7 +59,7 @@ function StoreNavBg({ hover, setTab, tab, user, closeMobileMenu }) {
   // Handle user object structure
   const actualUser = user?.user || user || {};
   const userIsAdmin = isAdmin(actualUser);
-  const showDivisionsOption = userIsAdmin;
+  const showDivisionsOption = userIsAdmin || isDivisionHead(actualUser);
 
   const handleProfileClick = (e) => {
     e.preventDefault();
@@ -317,7 +317,15 @@ function StoreNavBg({ hover, setTab, tab, user, closeMobileMenu }) {
 
             {/* Divisions option - only show for admin on mobile */}
             {isMobile && showDivisionsOption && (
-              <div onClick={() => { navigate('/divs'); handleMenuItemClick(); }} className={`${styles.navMenuItem} ${styles.mobileNavItem}`}>
+              <div onClick={() => {
+                if (isDivisionHead(actualUser) && !userIsAdmin) {
+                  localStorage.setItem("activeView", "admin");
+                  navigate('/');
+                } else {
+                  navigate('/divs');
+                }
+                handleMenuItemClick();
+              }} className={`${styles.navMenuItem} ${styles.mobileNavItem}`}>
                 <svg
                   width="34"
                   height="35"
