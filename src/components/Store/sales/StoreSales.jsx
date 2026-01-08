@@ -162,7 +162,7 @@ export default function StoreSales() {
                 })
               }}
             >
-              Sales Orders
+              Sales
             </button>
             <button 
               className="homebtn" 
