@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "../../Dashboard/Purchases/Purchases.module.css";
-import { FaUserCheck, FaUserClock } from "react-icons/fa";
+import { FaUserCheck, FaUserClock, FaFileExcel, FaFilePdf } from "react-icons/fa";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import storeService from "../../../services/storeService";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
 
 export default function CustomersList() {
   const navigate = useNavigate();
@@ -86,6 +91,70 @@ export default function CustomersList() {
     setError("");
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text("Customers List", 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    // Define columns
+    const columns = [
+      "S.No",
+      "Customer Code",
+      "Name",
+      "Mobile",
+      "Total Purchases",
+      "Created By"
+    ];
+
+    // Define rows
+    const rows = customers.map((customer, index) => {
+      const actualIndex = (pageNo - 1) * limit + index + 1;
+      return [
+        actualIndex,
+        customer.customerCode || `CUST${customer.id}`,
+        customer.name || customer.farmerName || customer.label || customer.customerName || 'N/A',
+        customer.mobile || customer.phone || customer.phoneNo || 'N/A',
+        `Rs. ${customer.totalPurchases?.toLocaleString('en-IN') || '0'}`,
+        customer.createdByEmployee?.name || 'N/A'
+      ];
+    });
+
+    // Generate table
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: 40,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] }, // Primary blue color
+    });
+
+    doc.save("customers_list.pdf");
+  };
+
+  const exportToExcel = () => {
+    // Format data for Excel
+    const dataToExport = customers.map((customer, index) => {
+      const actualIndex = (pageNo - 1) * limit + index + 1;
+      return {
+        "S.No": actualIndex,
+        "Customer Code": customer.customerCode || `CUST${customer.id}`,
+        "Name": customer.name || customer.farmerName || customer.label || customer.customerName || 'N/A',
+        "Mobile": customer.mobile || customer.phone || customer.phoneNo || 'N/A',
+        "Total Purchases": customer.totalPurchases || 0,
+        "Created By": customer.createdByEmployee?.name || 'N/A'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+    XLSX.writeFile(workbook, "customers_list.xlsx");
+  };
+
   return (
     <>
       <p className="path">
@@ -95,8 +164,28 @@ export default function CustomersList() {
 
       <div className="row m-0 p-3">
         <div className="col-12">
-          <div className="row m-0 mb-3 justify-content-end">
-            <div className={`${styles.entity}`} style={{ marginRight: 0 }}>
+          <div className="row m-0 mb-3 justify-content-between align-items-center">
+            {/* Export Buttons */}
+            <div className="col-auto d-flex gap-2">
+              <button 
+                className={styles.xls} 
+                onClick={exportToExcel}
+                disabled={customers.length === 0}
+              >
+                <p>Export to </p>
+                <img src={xls} alt="" />
+              </button>
+              <button 
+                className={styles.xls} 
+                onClick={exportToPDF}
+                disabled={customers.length === 0}
+              >
+                <p>Export to </p>
+                <img src={pdf} alt="" />
+              </button>
+            </div>
+
+            <div className={`${styles.entity} col-auto`} style={{ marginRight: 0 }}>
               <label htmlFor="">Entity :</label>
               <select
                 name=""

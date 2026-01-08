@@ -11,6 +11,7 @@ import ErrorModal from "@/components/ErrorModal";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import storeService from "../../../services/storeService";
 import { isAdmin } from "../../../utils/roleUtils";
+import { handleExportExcel, handleExportPDF } from "../../../utils/PDFndXLSGenerator";
 
 const DEFAULT_FILTERS = {
   from: "",
@@ -422,7 +423,35 @@ function StoreSalesOrders({ onBack }) {
   };
 
   const handleExport = (type) => {
-    console.log(`Exporting ${displayOrders.length} orders as ${type}`);
+    if (!displayOrders || displayOrders.length === 0) return;
+
+    const columns = [
+      "S.No",
+      "Date",
+      "Sale Code",
+      "Farmer Name",
+      "Quantity",
+      "Total Amount",
+      "Payment Method",
+      "Status"
+    ];
+
+    const data = displayOrders.map((order, index) => ({
+      "S.No": index + 1,
+      "Date": formatDate(order.date),
+      "Sale Code": order.saleCode || order.id,
+      "Farmer Name": order.customerName,
+      "Quantity": order.quantity,
+      "Total Amount": order.grandTotal || order.totalAmount,
+      "Payment Method": order.paymentMethod,
+      "Status": order.status || order.paymentStatus
+    }));
+
+    if (type === "XLS") {
+      handleExportExcel(columns, data, "Sales");
+    } else {
+      handleExportPDF(columns, data, "Sales");
+    }
   };
 
   const formatDate = (value) =>
@@ -434,7 +463,7 @@ function StoreSalesOrders({ onBack }) {
     <div style={{ padding: "20px" }}>
       <div className={styles.pageHeader}>
         <div>
-          <h2>Store Sales Orders</h2>
+          <h2>Store Sales</h2>
           <p className="path">
             <span onClick={() => navigate("/store/sales")}>Sales</span>{" "}
             <i className="bi bi-chevron-right"></i> Orders
@@ -466,7 +495,7 @@ function StoreSalesOrders({ onBack }) {
           </div>
           <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent" ref={customerSearchRef} style={{ position: 'relative' }}>
             <label>Customers :</label>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
               <input
                 type="text"
                 value={customerSearchTerm}
@@ -478,12 +507,16 @@ function StoreSalesOrders({ onBack }) {
                 }}
                 placeholder="Search by name or mobile..."
                 style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
+                  width: '160px',
+                  height: '32px',
+                  outline: '1.5px solid var(--primary-color)',
+                  padding: '2px 10px',
+                  borderRadius: '16px',
+                  boxShadow: '2px 2px 4px #333',
                   fontFamily: 'Poppins',
-                  fontSize: '14px'
+                  fontSize: '13px',
+                  border: 'none',
+                  backgroundColor: 'white'
                 }}
               />
               {customerSearchLoading && (

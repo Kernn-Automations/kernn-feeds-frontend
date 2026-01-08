@@ -249,52 +249,67 @@ export default function StoreHome() {
         </div>
 
         {/* Statistics Cards Row */}
-        <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <FaShoppingCart />
+        <div className={storeHomeStyles.statsGrid}>
+          {/* Card 1: Create Sale */}
+          <div className={storeHomeStyles.summaryCard} onClick={() => navigate('/store/sales?mode=create')}>
+            <div className={storeHomeStyles.cardIcon}>
+              <FaShoppingCart />
+            </div>
+            <div className={storeHomeStyles.cardContent}>
+              <h3>Create Sale</h3>
+              <p>New Order</p>
+            </div>
           </div>
-          <div className={styles.statContent}>
-            <h3>{dashboardData.keyMetrics?.todayOrders?.toLocaleString() || 0}</h3>
-            <p>Today Orders</p>
+          
+          {/* Card 2: Today Sales */}
+          <div className={storeHomeStyles.summaryCard} onClick={() => navigate('/store/sales?mode=orders')}>
+            <div className={storeHomeStyles.cardIcon}>
+              <FaRupeeSign />
+            </div>
+            <div className={storeHomeStyles.cardContent}>
+              <h3>₹{dashboardData.keyMetrics?.todaySales?.toLocaleString() || 0}</h3>
+              <p>Today Sales</p>
+            </div>
           </div>
-        </div>
-        
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <FaRupeeSign />
+          
+          {/* Card 3: Stock In */}
+          <div className={storeHomeStyles.summaryCard} onClick={() => navigate('/store/indents/all')}>
+            <div className={storeHomeStyles.cardIcon}>
+              <FaTruck />
+            </div>
+            <div className={storeHomeStyles.cardContent}>
+              <h3>{dashboardData.pendingIndents?.length || 0}</h3>
+              <p>Stock In</p>
+              <span className={storeHomeStyles.alertIndicator} style={{ color: 'var(--primary-color)', background: 'rgba(59, 130, 246, 0.1)' }}>
+                View Available Stock
+              </span>
+            </div>
           </div>
-          <div className={styles.statContent}>
-            <h3>₹{dashboardData.keyMetrics?.todaySales?.toLocaleString() || 0}</h3>
-            <p>Today Sales</p>
+
+          {/* Card 4: Closing Stock */}
+          <div className={storeHomeStyles.summaryCard} onClick={() => navigate('/store/stock-summary')}>
+            <div className={storeHomeStyles.cardIcon}>
+              <FaBoxes />
+            </div>
+            <div className={storeHomeStyles.cardContent}>
+              <h3>Closing Stock</h3>
+              <p>View Summary</p>
+            </div>
           </div>
-        </div>
-        
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <FaBoxes />
+          
+          {/* Card 5: Available Cash */}
+          <div className={storeHomeStyles.summaryCard} onClick={() => navigate('/store/cashdeposit')}>
+            <div className={storeHomeStyles.cardIcon}>
+              <FaWallet />
+            </div>
+            <div className={storeHomeStyles.cardContent}>
+              <h3>₹{(dashboardData.paymentReports?.cashBalance || 0).toLocaleString()}</h3>
+              <p>Available Cash</p>
+              <span className={storeHomeStyles.statusIndicator}>
+                View Details
+              </span>
+            </div>
           </div>
-          <div className={styles.statContent}>
-            <h3>{dashboardData.keyMetrics?.lowStockAlerts?.toLocaleString() || 0}</h3>
-            <p>Low Stock Alerts</p>
-            <span className={styles.alertIndicator}>
-              {dashboardData.keyMetrics?.lowStockAlerts || 0} items need attention
-            </span>
-          </div>
-        </div>
-        
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <FaUsers />
-          </div>
-          <div className={styles.statContent}>
-            <h3>{dashboardData.keyMetrics?.totalCustomers?.toLocaleString() || 0}</h3>
-            <p>Total Customers</p>
-            <span className={styles.statusIndicator}>
-              {dashboardData.keyMetrics?.activeCustomers || 0} active
-            </span>
-          </div>
-        </div>
         </div>
 
       {/* Main Dashboard Content */}

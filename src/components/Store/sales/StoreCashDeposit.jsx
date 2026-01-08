@@ -7,6 +7,10 @@ import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 import storeService from "../../../services/storeService";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import salesStyles from "../../Dashboard/Sales/Sales.module.css";
+import xls from "../../../images/xls-png.png";
+import pdf from "../../../images/pdf-png.png";
+import { handleExportExcel, handleExportPDF } from "../../../utils/PDFndXLSGenerator";
 
 export default function StoreCashDeposit() {
   const navigate = useNavigate();
@@ -34,6 +38,13 @@ export default function StoreCashDeposit() {
   const [deposits, setDeposits] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+
+  // Filter states
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  const [filterFrom, setFilterFrom] = useState(sevenDaysAgo);
+  const [filterTo, setFilterTo] = useState(today);
+  const [triggerFetch, setTriggerFetch] = useState(false);
 
   useEffect(() => {
     if (!storeId) {
@@ -99,7 +110,16 @@ export default function StoreCashDeposit() {
     if (!storeId) return;
     setDepositsLoading(true);
     try {
-      const res = await axiosAPI.get(`/stores/${storeId}/cash-deposits`);
+      let query = `/stores/${storeId}/cash-deposits`;
+      const queryParams = [];
+      if (filterFrom) queryParams.push(`fromDate=${filterFrom}`);
+      if (filterTo) queryParams.push(`toDate=${filterTo}`);
+      
+      if (queryParams.length > 0) {
+        query += `?${queryParams.join('&')}`;
+      }
+
+      const res = await axiosAPI.get(query);
       const depositsData = res.data?.data || res.data || res;
       const depositsList = Array.isArray(depositsData) ? depositsData : (depositsData.deposits || depositsData.data || []);
       setDeposits(depositsList);
@@ -109,14 +129,14 @@ export default function StoreCashDeposit() {
     } finally {
       setDepositsLoading(false);
     }
-  }, [storeId, axiosAPI]);
+  }, [storeId, axiosAPI, filterFrom, filterTo]);
 
   useEffect(() => {
     if (storeId) {
       fetchStoreCash();
       fetchCashDeposits();
     }
-  }, [storeId, fetchStoreCash, fetchCashDeposits]);
+  }, [storeId, fetchStoreCash, fetchCashDeposits, triggerFetch]);
 
   // Set default date and time when form is opened
   useEffect(() => {
@@ -309,6 +329,37 @@ export default function StoreCashDeposit() {
     }
   };
 
+  const handleExport = (type) => {
+    if (!deposits || deposits.length === 0) {
+      showError("No data available to export.");
+      return;
+    }
+
+    const columns = [
+      "S.No",
+      "Date",
+      "Store Name",
+      "Cash Deposited (₹)",
+      "Deposited By",
+      "Notes"
+    ];
+
+    const data = deposits.map((deposit, index) => ({
+      "S.No": index + 1,
+      "Date": formatDate(deposit.createdAt || deposit.date || deposit.depositDate),
+      "Store Name": deposit.store?.name || deposit.storeName || storeName || "-",
+      "Cash Deposited (₹)": deposit.amount,
+      "Deposited By": deposit.depositedByEmployee?.name || deposit.createdByEmployee?.name || deposit.createdBy?.name || deposit.employee?.name || deposit.depositedBy || "-",
+      "Notes": deposit.notes || ""
+    }));
+
+    if (type === "PDF") {
+      handleExportPDF(columns, data, "Cash_Deposits");
+    } else if (type === "XLS") {
+      handleExportExcel(columns, data, "Cash_Deposits");
+    }
+  };
+
   const handleViewImage = (imageUrl) => {
     if (imageUrl) {
       setSelectedImage(imageUrl);
@@ -350,7 +401,10 @@ export default function StoreCashDeposit() {
           >
             Cash Deposit
           </h2>
-          <p className="path">Record cash deposit</p>
+          <p className="path">
+            <span onClick={() => navigate("/store/sales")} style={{ cursor: 'pointer' }}>Sales</span>{" "}
+            <i className="bi bi-chevron-right"></i> Cash Deposit
+          </p>
         </div>
         <div style={{ display: "flex", gap: "12px" }}>
           <button 
@@ -360,8 +414,40 @@ export default function StoreCashDeposit() {
           >
             {showCreateForm ? "Cancel" : "Create Deposit"}
           </button>
-          <button className="homebtn" onClick={() => navigate("/store/sales")} style={{ fontFamily: "Poppins" }}>
-            Back to Sales
+        </div>
+      </div>
+
+      {/* Filter Row */}
+      <div className="row m-0 p-3">
+        <div className="col-lg-3 col-md-4 col-sm-6 formcontent">
+          <label>From :</label>
+          <input
+            type="date"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom(e.target.value)}
+          />
+        </div>
+        <div className="col-lg-3 col-md-4 col-sm-6 formcontent">
+          <label>To :</label>
+          <input
+            type="date"
+            value={filterTo}
+            onChange={(e) => setFilterTo(e.target.value)}
+          />
+        </div>
+        <div className="col-lg-4 col-md-4 col-sm-12 d-flex align-items-center gap-2">
+          <button className="submitbtn" onClick={() => setTriggerFetch(!triggerFetch)}>
+            Submit
+          </button>
+          <button 
+            className="cancelbtn" 
+            onClick={() => {
+              setFilterFrom(sevenDaysAgo);
+              setFilterTo(today);
+              setTriggerFetch(!triggerFetch);
+            }}
+          >
+            Cancel
           </button>
         </div>
       </div>
@@ -588,6 +674,17 @@ export default function StoreCashDeposit() {
             >
               Cash Deposit History
             </h4>
+
+            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+              <button className={salesStyles.xls} onClick={() => handleExport("XLS")}>
+                <p>Export to </p>
+                <img src={xls} alt="Excel" />
+              </button>
+              <button className={salesStyles.xls} onClick={() => handleExport("PDF")}>
+                <p>Export to </p>
+                <img src={pdf} alt="PDF" />
+              </button>
+            </div>
             {depositsLoading ? (
               <p style={{ fontFamily: "Poppins", textAlign: "center", padding: "20px" }}>Loading deposits...</p>
             ) : deposits.length === 0 ? (
