@@ -21,6 +21,114 @@ export default function ViewAllIndents() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Header Search States
+  const [showSearch, setShowSearch] = useState({
+    code: false,
+    status: false
+  });
+
+  const [searchTerms, setSearchTerms] = useState({
+    code: "",
+    status: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close header search if clicked outside
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          code: false,
+          status: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          code: false,
+          status: false
+        });
+        setSearchTerms({
+          code: "",
+          status: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
   
   // Stock In states
   const [showStockIn, setShowStockIn] = useState(false);
@@ -141,6 +249,25 @@ export default function ViewAllIndents() {
       setLoading(false);
     }
   };
+
+  // Memoized filtered indents for header search
+  const displayIndents = React.useMemo(() => {
+    let filtered = indents;
+
+    if (searchTerms.code) {
+      filtered = filtered.filter(indent => 
+        indent.code?.toLowerCase().includes(searchTerms.code.toLowerCase())
+      );
+    }
+
+    if (searchTerms.status) {
+      filtered = filtered.filter(indent => 
+        indent.status?.toLowerCase().includes(searchTerms.status.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [indents, searchTerms]);
 
   // Map backend status to UI status
   const mapStatus = (status) => {
@@ -763,26 +890,33 @@ export default function ViewAllIndents() {
           <table className={`table table-bordered borderedtable`}>
             <thead>
               <tr>
-                <th>S.No</th>
-                <th>Date</th>
-                <th>Indent Code</th>
-                <th>Items</th>
-                <th>Value</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                {renderSearchHeader("Indent Code", "code", "data-code-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Items</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Value</th>
+                {renderSearchHeader("Status", "status", "data-status-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
               </tr>
+              {(searchTerms.code || searchTerms.status) && (
+                <tr>
+                  <td colSpan="7" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {displayIndents.length} indents found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td>
                 </tr>
-              ) : indents.length === 0 ? (
+              ) : displayIndents.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>NO DATA FOUND</td>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '20px' }}>NO DATA FOUND</td>
                 </tr>
               ) : (
-                indents.map((indent, index) => {
+                displayIndents.map((indent, index) => {
                   const statusInfo = getStatusBadge(indent.status);
                   const actualIndex = (pageNo - 1) * limit + index + 1;
                   return (

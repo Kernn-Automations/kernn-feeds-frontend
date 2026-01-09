@@ -24,6 +24,54 @@ function StoreCurrentStock() {
   const [searchTerm, setSearchTerm] = useState("");
   const [storeId, setStoreId] = useState(null);
 
+  // Column search states
+  const [productNameSearchTerm, setProductNameSearchTerm] = useState("");
+  const [showProductNameSearch, setShowProductNameSearch] = useState(false);
+  const [productCodeSearchTerm, setProductCodeSearchTerm] = useState("");
+  const [showProductCodeSearch, setShowProductCodeSearch] = useState(false);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        if (showProductNameSearch) {
+          setShowProductNameSearch(false);
+          setProductNameSearchTerm("");
+        }
+        if (showProductCodeSearch) {
+          setShowProductCodeSearch(false);
+          setProductCodeSearchTerm("");
+        }
+      }
+    };
+
+    if (showProductNameSearch || showProductCodeSearch) {
+      document.addEventListener("keydown", handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, [showProductNameSearch, showProductCodeSearch]);
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowProductNameSearch(false);
+        setShowProductCodeSearch(false);
+      }
+    };
+
+    if (showProductNameSearch || showProductCodeSearch) {
+      document.addEventListener("mousedown", handleClickOutside, true);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, [showProductNameSearch, showProductCodeSearch]);
+
   useEffect(() => {
     // Get store ID from multiple sources
     try {
@@ -68,16 +116,32 @@ function StoreCurrentStock() {
   }, [storeId]);
 
   useEffect(() => {
+    let filtered = currentStock;
+
+    // Filter by global search
     if (searchTerm) {
-      const filtered = currentStock.filter(item =>
+      filtered = filtered.filter(item =>
         item.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.productCode?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredStock(filtered);
-    } else {
-      setFilteredStock(currentStock);
     }
-  }, [searchTerm, currentStock]);
+
+    // Filter by Product Name column search
+    if (productNameSearchTerm) {
+      filtered = filtered.filter(item =>
+        item.productName?.toLowerCase().includes(productNameSearchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by Product Code column search
+    if (productCodeSearchTerm) {
+      filtered = filtered.filter(item =>
+        item.productCode?.toLowerCase().includes(productCodeSearchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredStock(filtered);
+  }, [searchTerm, productNameSearchTerm, productCodeSearchTerm, currentStock]);
 
   const fetchCurrentStock = async () => {
     if (!storeId) return;
@@ -298,8 +362,120 @@ function StoreCurrentStock() {
               <thead className="table-light">
                 <tr>
                   <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
-                  <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product Name</th>
-                  <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product Code</th>
+                  <th
+                    onClick={() => setShowProductNameSearch(!showProductNameSearch)}
+                    style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px', cursor: 'pointer', position: 'relative' }}
+                    data-search-header="true"
+                    data-product-name-header
+                  >
+                    {showProductNameSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search product..."
+                          value={productNameSearchTerm}
+                          onChange={(e) => setProductNameSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {productNameSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductNameSearchTerm("");
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>Product Name</>
+                    )}
+                  </th>
+                  <th
+                    onClick={() => setShowProductCodeSearch(!showProductCodeSearch)}
+                    style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px', cursor: 'pointer', position: 'relative' }}
+                    data-search-header="true"
+                    data-product-code-header
+                  >
+                    {showProductCodeSearch ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search code..."
+                          value={productCodeSearchTerm}
+                          onChange={(e) => setProductCodeSearchTerm(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: "2px 6px",
+                            border: "1px solid #ddd",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            minWidth: "120px",
+                            height: "28px",
+                            color: "#000",
+                            backgroundColor: "#fff",
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {productCodeSearchTerm && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductCodeSearchTerm("");
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              border: "1px solid #dc3545",
+                              borderRadius: "4px",
+                              background: "#dc3545",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              minWidth: "24px",
+                              height: "28px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>Product Code</>
+                    )}
+                  </th>
                   <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Current Stock</th>
                   <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Unit</th>
                   <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Unit Price</th>

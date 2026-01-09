@@ -153,7 +153,7 @@ const StoresAbstract = () => {
                 <th rowSpan="2" className={styles.codeColumn}>Store Code</th>
                 <th rowSpan="2" className={styles.typeColumn}>Type</th>
                 <th rowSpan="2" className={styles.addressColumn}>Address</th>
-                <th colSpan="5" className={styles.sectionHeader}>Agreement Details</th>
+                <th colSpan="6" className={styles.sectionHeader}>Agreement Details</th>
                 <th colSpan="2" className={styles.sectionHeader}>Power Bill Details</th>
                 <th colSpan="7" className={styles.sectionHeader}>Owner Details</th>
               </tr>
@@ -164,6 +164,7 @@ const StoresAbstract = () => {
                 <th className={styles.subHeader}>Start Date</th>
                 <th className={styles.subHeader}>End Date</th>
                 <th className={styles.subHeader}>Agreement</th>
+                <th className={styles.subHeader}>Monthly Rent</th>
                 {/* Power Bill Details Sub-headers */}
                 <th className={styles.subHeader}>Bill Number</th>
                 <th className={styles.subHeader}>Distributor</th>
@@ -263,6 +264,7 @@ const StoresAbstract = () => {
                           return '-';
                         })()}
                       </td>
+                      <td>{store.monthlyRent ? formatCurrency(store.monthlyRent) : '-'}</td>
                       {/* Power Bill Details */}
                       <td>{powerBillDetails.billNumber || '-'}</td>
                       <td>{powerBillDetails.distributor || '-'}</td>

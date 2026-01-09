@@ -9,6 +9,10 @@ import imageBase64 from "@/images/feeds-croped.png";
 export const exportToExcel = (selectedNames, reportData) => {
   if (!reportData || !reportData.dateWise) return;
 
+  // Header rows
+  const companyRow = ["Feed Bazaar"];
+  const titleRow = ["Employee Comparison Report"];
+
   const firstRow = ["S.No", "Date"];
   selectedNames.forEach((name) => {
     firstRow.push(`${name} Qty`, `${name} Increase`, `${name} Decrease`, `${name} Accumulated`);
@@ -25,7 +29,15 @@ export const exportToExcel = (selectedNames, reportData) => {
     return row;
   });
 
-  const ws = XLSX.utils.aoa_to_sheet([firstRow, ...bodyRows]);
+  const ws = XLSX.utils.aoa_to_sheet([companyRow, titleRow, firstRow, ...bodyRows]);
+
+  // Merge cells for Company Heading and Title
+  // columns count = 2 (s.no, date) + (selectedNames.length * 4)
+  const totalCols = 2 + selectedNames.length * 4;
+  if (!ws['!merges']) ws['!merges'] = [];
+  ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } });
+  ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");
   XLSX.writeFile(wb, "EmployeeComparisonReport.xlsx");

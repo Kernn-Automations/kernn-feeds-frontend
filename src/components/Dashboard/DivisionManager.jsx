@@ -136,6 +136,7 @@ function DivisionManager() {
     bankName: "",
     ifscCode: "",
     accountNumber: "",
+    monthlyRent: "",
     storeCodeNumber: "",
     villages: "",
     // UI state
@@ -1232,6 +1233,9 @@ function DivisionManager() {
         ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
           advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
         }),
+        ...(newStore.monthlyBill && parseFloat(newStore.monthlyBill) > 0 && { 
+          monthlyBill: parseFloat(newStore.monthlyBill) 
+        }),
         ...(newStore.rentAgreementDocumentBase64 && { 
           rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
         }),
@@ -1420,6 +1424,9 @@ function DivisionManager() {
         ...(newStore.rentAgreementEndDate && { rentAgreementEndDate: newStore.rentAgreementEndDate }),
         ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
           advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
+        }),
+        ...(newStore.monthlyBill && parseFloat(newStore.monthlyBill) > 0 && { 
+          monthlyBill: parseFloat(newStore.monthlyBill) 
         }),
         ...(newStore.rentAgreementDocumentBase64 && { 
           rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
@@ -1685,6 +1692,7 @@ function DivisionManager() {
       rentAgreementStartDate: storeDetails.rentAgreementStartDate || storeDetails.rentAgreementDateStart || store.rentAgreementStartDate || store.rentAgreementDateStart || "",
       rentAgreementEndDate: storeDetails.rentAgreementEndDate || storeDetails.rentAgreementDateEnd || store.rentAgreementEndDate || store.rentAgreementDateEnd || "",
       advancePayOfRent: storeDetails.advancePayOfRent || store.advancePayOfRent || "",
+      monthlyBill: storeDetails.monthlyBill || store.monthlyBill || "",
       rentAgreementDocumentBase64: null,
       // Power bill fields
       powerBillNumber: storeDetails.powerBillNumber || store.powerBillNumber || "",
@@ -1746,6 +1754,7 @@ function DivisionManager() {
       bankName: "",
       ifscCode: "",
       accountNumber: "",
+      monthlyBill: "",
       // UI state
       agreementImage: null,
       agreementImagePreview: null
@@ -3102,6 +3111,18 @@ function DivisionManager() {
                           placeholder="Enter advance rent amount"
                         />
                       </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="monthlyRent">Monthly Rent (₹)</label>
+                        <input
+                          type="number"
+                          id="monthlyRent"
+                          min="0"
+                          step="0.01"
+                          value={newStore.monthlyRent || ""}
+                          onChange={(e) => setNewStore({ ...newStore, monthlyRent: e.target.value })}
+                          placeholder="Enter monthly rent amount"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -3490,6 +3511,9 @@ function DivisionManager() {
                                 </label>
                               </div>
                             </div>
+                            {store.monthlyBill && (
+                              <p><strong>Monthly Bill:</strong> ₹{parseFloat(store.monthlyBill).toLocaleString('en-IN')}</p>
+                            )}
                             {store.createdByEmployee && (
                               <p><strong>Created By:</strong> {store.createdByEmployee.name || 'N/A'}</p>
                             )}

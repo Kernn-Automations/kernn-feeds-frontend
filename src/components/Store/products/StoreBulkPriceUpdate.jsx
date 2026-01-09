@@ -19,6 +19,113 @@ export default function StoreBulkPriceUpdate({ navigate }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [priceChanges, setPriceChanges] = useState({});
 
+  // Header Search States
+  const [showHeadersSearch, setShowHeadersSearch] = useState({
+    name: false,
+    SKU: false
+  });
+
+  const [headerSearchTerms, setHeaderSearchTerms] = useState({
+    name: "",
+    SKU: ""
+  });
+
+  const toggleHeaderSearch = (key) => {
+    setShowHeadersSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleHeaderSearchChange = (key, value) => {
+    setHeaderSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearHeaderSearch = (key) => {
+    setHeaderSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showHeadersSearch[searchKey];
+    const searchTerm = headerSearchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleHeaderSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleHeaderSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearHeaderSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowHeadersSearch({
+          name: false,
+          SKU: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowHeadersSearch({
+          name: false,
+          SKU: false
+        });
+        setHeaderSearchTerms({
+          name: "",
+          SKU: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
   const closeModal = () => {
     setIsModalOpen(false);
   };
@@ -223,8 +330,17 @@ export default function StoreBulkPriceUpdate({ navigate }) {
     }
   };
 
-  // Products are already filtered by API search, no need for client-side filtering
-  const filteredProducts = products;
+  // Apply client-side header search filters to API results
+  const filteredProducts = products.filter((product) => {
+    // Header search terms check
+    if (headerSearchTerms.name && !product.name?.toLowerCase().includes(headerSearchTerms.name.toLowerCase())) {
+      return false;
+    }
+    if (headerSearchTerms.SKU && !(product.SKU || product.sku)?.toLowerCase().includes(headerSearchTerms.SKU.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div style={{ padding: '20px' }}>
@@ -374,11 +490,18 @@ export default function StoreBulkPriceUpdate({ navigate }) {
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product Name</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>SKU</th>
+                {renderSearchHeader("Product Name", "name", "data-name-header")}
+                {renderSearchHeader("SKU", "SKU", "data-sku-header")}
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Current Price</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>New Price</th>
               </tr>
+              {(headerSearchTerms.name || headerSearchTerms.SKU) && (
+                <tr>
+                  <td colSpan="5" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {filteredProducts.length} products found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {filteredProducts.length === 0 ? (

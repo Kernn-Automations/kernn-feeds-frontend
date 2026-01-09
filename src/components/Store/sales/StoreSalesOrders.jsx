@@ -43,6 +43,78 @@ function StoreSalesOrders({ onBack }) {
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const navigate = useNavigate();
 
+  // Header Search States
+  const [showSearch, setShowSearch] = useState({
+    saleCode: false,
+    customerName: false
+  });
+
+  const [searchTerms, setSearchTerms] = useState({
+    saleCode: "",
+    customerName: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative" }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
   useEffect(() => {
     // Get store ID from multiple sources
     try {
@@ -151,12 +223,37 @@ function StoreSalesOrders({ onBack }) {
       if (customerSearchRef.current && !customerSearchRef.current.contains(event.target)) {
         setShowCustomerDropdown(false);
       }
+      // Close header search if clicked outside
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          saleCode: false,
+          customerName: false
+        });
+      }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside, true);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside, true);
     };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          saleCode: false,
+          customerName: false
+        });
+        setSearchTerms({
+          saleCode: "",
+          customerName: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
   }, []);
 
   const fetchSales = async () => {
@@ -277,6 +374,7 @@ function StoreSalesOrders({ onBack }) {
   }, [orders]);
 
   // Apply client-side filtering for customer and employee (since we're using names)
+  // Also apply header search filters
   const displayOrders = useMemo(() => {
     let filtered = orders;
     
@@ -290,9 +388,22 @@ function StoreSalesOrders({ onBack }) {
     if (appliedFilters.employee) {
       filtered = filtered.filter(order => order.storeEmployee === appliedFilters.employee);
     }
+
+    // Header Search Filters
+    if (searchTerms.saleCode) {
+      filtered = filtered.filter(order => 
+        order.saleCode?.toLowerCase().includes(searchTerms.saleCode.toLowerCase())
+      );
+    }
+
+    if (searchTerms.customerName) {
+      filtered = filtered.filter(order => 
+        order.customerName?.toLowerCase().includes(searchTerms.customerName.toLowerCase())
+      );
+    }
     
     return filtered;
-  }, [orders, appliedFilters.customer, appliedFilters.employee]);
+  }, [orders, appliedFilters.customer, appliedFilters.employee, searchTerms.saleCode, searchTerms.customerName]);
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -665,16 +776,23 @@ function StoreSalesOrders({ onBack }) {
           <table className="table table-hover table-bordered borderedtable">
             <thead>
               <tr>
-                <th>S.No</th>
-                <th>Date</th>
-                <th>Sale Code</th>
-                <th>Farmer Name</th>
-                <th>Quantity</th>
-                <th>Total Amount</th>
-                <th>Payment Method</th>
-                <th>Status</th>
-                <th>Invoice</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                {renderSearchHeader("Sale Code", "saleCode", "data-sale-code-header")}
+                {renderSearchHeader("Farmer Name", "customerName", "data-customer-name-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Quantity</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Total Amount</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Payment Method</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Invoice</th>
               </tr>
+              {(searchTerms.saleCode || searchTerms.customerName) && (
+                <tr>
+                  <td colSpan={9} style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {displayOrders.length} orders found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (

@@ -11,6 +11,7 @@ import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
 import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
+import { handleExportExcel } from "../../../utils/PDFndXLSGenerator";
 
 function StoreSalesReports({ onBack }) {
   const { axiosAPI } = useAuth();
@@ -22,6 +23,84 @@ function StoreSalesReports({ onBack }) {
   const [storeId, setStoreId] = useState(null);
   const [responseData, setResponseData] = useState(null); // Store full response for summary totals
   const [customers, setCustomers] = useState([]);
+  const [filteredSalesData, setFilteredSalesData] = useState([]);
+
+  // Header Search Visibility States
+  const [showSearch, setShowSearch] = useState({
+    productName: false,
+    stockIssuedTo: false,
+    villageName: false,
+    createdBy: false
+  });
+
+  // Header Search Term States
+  const [searchTerms, setSearchTerms] = useState({
+    productName: "",
+    stockIssuedTo: "",
+    villageName: "",
+    createdBy: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
   const [filters, setFilters] = useState({
     fromDate: "",
     toDate: "",
@@ -207,6 +286,70 @@ function StoreSalesReports({ onBack }) {
     }
   };
 
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          productName: false,
+          stockIssuedTo: false,
+          villageName: false,
+          createdBy: false
+        });
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          productName: false,
+          stockIssuedTo: false,
+          villageName: false,
+          createdBy: false
+        });
+        setSearchTerms({
+          productName: "",
+          stockIssuedTo: "",
+          villageName: "",
+          createdBy: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
+  // Filtering Logic
+  useEffect(() => {
+    let filtered = salesData;
+    if (searchTerms.productName) {
+      filtered = filtered.filter(item => 
+        item.productName?.toLowerCase().includes(searchTerms.productName.toLowerCase())
+      );
+    }
+    if (searchTerms.stockIssuedTo) {
+      filtered = filtered.filter(item => 
+        item.stockIssuedTo?.toLowerCase().includes(searchTerms.stockIssuedTo.toLowerCase())
+      );
+    }
+    if (searchTerms.villageName) {
+      filtered = filtered.filter(item => 
+        item.villageName?.toLowerCase().includes(searchTerms.villageName.toLowerCase())
+      );
+    }
+    if (searchTerms.createdBy) {
+      filtered = filtered.filter(item => 
+        item.createdBy?.toLowerCase().includes(searchTerms.createdBy.toLowerCase())
+      );
+    }
+    setFilteredSalesData(filtered);
+  }, [salesData, searchTerms]);
+
   // Format date to DD-Mon-YY format
   // Handles both "DD-MM-YYYY" format from backend and ISO date strings
   const formatDate = (dateString) => {
@@ -297,6 +440,38 @@ function StoreSalesReports({ onBack }) {
       // Build query string for params
       const queryParams = new URLSearchParams(params).toString();
       const fullEndpoint = `${endpoint}${queryParams ? `?${queryParams}` : ''}`;
+
+      if (type === "XLS") {
+        const columns = [
+          "S.No",
+          "Date",
+          "Product Name",
+          "Stock Issued To",
+          "Village Name",
+          "Phone Number",
+          "Qty",
+          "Amount",
+          "Mode Of Payment",
+          "Created By"
+        ];
+        
+        const data = filteredSalesData.map((row, index) => [
+          index + 1,
+          formatDate(row.date),
+          row.productName,
+          row.stockIssuedTo,
+          row.villageName || "-",
+          row.phoneNumber || "-",
+          row.quantity,
+          row.amount,
+          row.modeOfPayment,
+          row.createdBy
+        ]);
+
+        handleExportExcel(columns, data, "Store Sales Report");
+        console.log("XLS export initiated locally");
+        return;
+      }
 
       // Use getpdf method which is configured for blob responses (works for both PDF and Excel)
       const response = await axiosAPI.getpdf(fullEndpoint);
@@ -433,17 +608,24 @@ function StoreSalesReports({ onBack }) {
           <table className="table table-hover table-bordered borderedtable">
             <thead>
               <tr>
-                <th>S.No</th>
-                <th>Date</th>
-                <th>Product Name</th>
-                <th>Stock Issued To</th>
-                <th>Village Name</th>
-                <th>Phone Number</th>
-                <th>Qty</th>
-                <th>Amount</th>
-                <th>Mode Of Payment</th>
-                <th>Created By</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                {renderSearchHeader("Product Name", "productName", "data-product-header")}
+                {renderSearchHeader("Stock Issued To", "stockIssuedTo", "data-customer-header")}
+                {renderSearchHeader("Village Name", "villageName", "data-village-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Phone Number</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Qty</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Amount</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Mode Of Payment</th>
+                {renderSearchHeader("Created By", "createdBy", "data-employee-header")}
               </tr>
+              {(searchTerms.productName || searchTerms.stockIssuedTo || searchTerms.villageName || searchTerms.createdBy) && (
+                <tr>
+                  <td colSpan="10" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {filteredSalesData.length} records found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (
@@ -452,14 +634,14 @@ function StoreSalesReports({ onBack }) {
                     Loading...
                   </td>
                 </tr>
-              ) : salesData.length === 0 ? (
+              ) : filteredSalesData.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
                     No sales data found
                   </td>
                 </tr>
               ) : (
-                salesData.map((row, index) => (
+                filteredSalesData.map((row, index) => (
                   <tr key={index}>
                     <td>{index + 1}</td>
                     <td>{formatDate(row.date)}</td>

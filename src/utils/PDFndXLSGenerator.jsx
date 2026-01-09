@@ -113,16 +113,53 @@ export const handleExportExcel = (columns, data, title) => {
 
   // Step 1: Prepare 2D array (rows)
   const isArrayRows = Array.isArray(data[0]);
-  const worksheetData = isArrayRows
-    ? [columns, ...data]
-    : [columns, ...data.map((row) => columns.map((col) => (row && Object.prototype.hasOwnProperty.call(row, col) ? row[col] : "")))];
+  
+  // Add Company Heading and Title
+  // Header row 0: Company Name
+  // Header row 1: Report Title
+  // Header row 2: Table Columns
+  const headerRow = ["Feed Bazaar"];
+  const titleRow = [title];
+  
+  const formattedData = isArrayRows
+    ? data
+    : data.map((row) => columns.map((col) => (row && Object.prototype.hasOwnProperty.call(row, col) ? row[col] : "")));
+
+  const worksheetData = [headerRow, titleRow, columns, ...formattedData];
 
   // Step 2: Create worksheet
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-  // Step 3: Apply bold style to header cells
+  // Step 3: Merge cells for Company Heading and Title
+  if (!worksheet['!merges']) worksheet['!merges'] = [];
+  worksheet['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: columns.length - 1 } });
+  worksheet['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: columns.length - 1 } });
+
+  // Step 4: Apply styling
+  // Standard sheetjs doesn't support styles in community version, 
+  // but if a styled version is used, we define them here.
+  
+  // Style Company Heading (Row 0)
+  const companyCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+  if (worksheet[companyCell]) {
+    worksheet[companyCell].s = {
+      font: { bold: true, sz: 16 },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+  }
+
+  // Style Title (Row 1)
+  const titleCell = XLSX.utils.encode_cell({ r: 1, c: 0 });
+  if (worksheet[titleCell]) {
+    worksheet[titleCell].s = {
+      font: { bold: true, sz: 12 },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+  }
+
+  // Style Header Row (Row 2)
   columns.forEach((_, index) => {
-    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
+    const cellAddress = XLSX.utils.encode_cell({ r: 2, c: index });
     if (!worksheet[cellAddress]) return;
 
     worksheet[cellAddress].s = {
@@ -132,15 +169,15 @@ export const handleExportExcel = (columns, data, title) => {
     };
   });
 
-  // Step 4: Auto-adjust column widths
+  // Step 5: Auto-adjust column widths
   const colWidths = columns.map((col) => ({
-    wch: Math.max(col.length + 2, 15), // Auto width based on name length
+    wch: Math.max(col.length + 5, 15), // Auto width based on name length
   }));
   worksheet["!cols"] = colWidths;
 
-  // Step 5: Create workbook and save
+  // Step 6: Create workbook and save
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
 
   const excelBuffer = XLSX.write(workbook, {
     bookType: "xlsx",

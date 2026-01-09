@@ -4,7 +4,8 @@ import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 import storeService from "../../../services/storeService";
-import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import styles from "../sales/StoreSalesOrders.module.css";
+import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
 import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
@@ -143,6 +144,113 @@ function StoreExpenditures() {
   const [successMessage, setSuccessMessage] = useState("");
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
+  // Header Search States
+  const [showHeadersSearch, setShowHeadersSearch] = useState({
+    code: false,
+    period: false
+  });
+
+  const [headerSearchTerms, setHeaderSearchTerms] = useState({
+    code: "",
+    period: ""
+  });
+
+  const toggleHeaderSearch = (key) => {
+    setShowHeadersSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleHeaderSearchChange = (key, value) => {
+    setHeaderSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearHeaderSearch = (key) => {
+    setHeaderSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showHeadersSearch[searchKey];
+    const searchTerm = headerSearchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleHeaderSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleHeaderSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearHeaderSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowHeadersSearch({
+          code: false,
+          period: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowHeadersSearch({
+          code: false,
+          period: false
+        });
+        setHeaderSearchTerms({
+          code: "",
+          period: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
 
   const showError = useCallback((message) => {
     setError(message || "Something went wrong. Please try again.");
@@ -382,7 +490,7 @@ function StoreExpenditures() {
       "Custom Fields Total",
       "Total"
     ];
-    const dataToExport = expenditures && expenditures.length > 0 ? expenditures : [];
+    const dataToExport = displayExpenditures && displayExpenditures.length > 0 ? displayExpenditures : [];
     if (dataToExport && dataToExport.length > 0) {
       dataToExport.forEach((item) => {
         const customFieldsTotal = totalCustomFieldsAmount(item.customFields);
@@ -408,6 +516,27 @@ function StoreExpenditures() {
       showError("Table is Empty");
     }
   };
+
+  // Memoized filtered expenditures for header search
+  const displayExpenditures = useMemo(() => {
+    let filtered = expenditures;
+
+    if (headerSearchTerms.code) {
+      filtered = filtered.filter(item => {
+        const code = (item.expenditureCode || `EXP-${item.id}`).toLowerCase();
+        return code.includes(headerSearchTerms.code.toLowerCase());
+      });
+    }
+
+    if (headerSearchTerms.period) {
+      filtered = filtered.filter(item => {
+        const period = `${monthLabel(item.month)} ${item.year}`.toLowerCase();
+        return period.includes(headerSearchTerms.period.toLowerCase());
+      });
+    }
+
+    return filtered;
+  }, [expenditures, headerSearchTerms]);
 
   const handleRemoveCustomField = (index) => {
     setEditForm((prev) => ({
@@ -565,127 +694,108 @@ function StoreExpenditures() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <div style={{ marginBottom: "24px" }}>
-        <h2
-          style={{
-            fontFamily: "Poppins",
-            fontWeight: 700,
-            fontSize: "28px",
-            color: "var(--primary-color)",
-            margin: 0,
-            marginBottom: "8px",
-          }}
-        >
-          Store Expenditures
-        </h2>
-        <p className="path">
-         Expenditures
-        </p>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2>Store Expenditures</h2>
+          <p className="path">
+            Expenditures
+          </p>
+        </div>
       </div>
 
       {!storeId && (
-        <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+        <div className={`${homeStyles.orderStatusCard} ${styles.cardWrapper}`} style={{ marginBottom: "24px" }}>
           <p style={{ margin: 0, fontFamily: "Poppins" }}>Store information missing. Please re-login to continue.</p>
         </div>
       )}
 
       {storeId && (
-        <>
-          <div className="row m-0 p-3">
-            <div className="col-3 formcontent" style={{ position: "relative" }}>
+        <div className={`${homeStyles.orderStatusCard} ${styles.cardWrapper}`}>
+          <div className={`row g-3 ${styles.filtersRow}`} style={{ padding: "0 15px" }}>
+            <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent" style={{ position: "relative" }}>
               <label>Month(s):</label>
-              <input
-                type="text"
-                value={monthSearchTerm}
-                onChange={(e) => {
-                  setMonthSearchTerm(e.target.value);
-                  setShowMonthDropdown(true);
-                }}
-                onFocus={() => setShowMonthDropdown(true)}
-                onBlur={() => setTimeout(() => {
-                  setShowMonthDropdown(false);
-                  if (monthSearchTerm === "") {
-                    setMonthSearchTerm("");
-                  }
-                }, 200)}
-                placeholder={tempFilters.months.length > 0 ? `${tempFilters.months.length} month(s) selected` : "Select or Type"}
-                style={{
-                  cursor: "pointer",
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #000",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  fontFamily: "Poppins",
-                  backgroundColor: "#fff",
-                  color: "#000",
-                }}
-              />
-              {showMonthDropdown && (
-                <ul
-                  style={{
-                    position: "absolute",
-                    top: "60px",
-                    left: "80px",
-                    zIndex: 999,
-                    background: "white",
-                    width: "260px",
-                    maxHeight: "200px",
-                    overflowY: "auto",
-                    borderRadius: "10px",
-                    boxShadow: "2px 2px 4px #333",
-                    padding: "0",
-                    margin: "0",
-                    listStyle: "none",
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={monthSearchTerm}
+                  onChange={(e) => {
+                    setMonthSearchTerm(e.target.value);
+                    setShowMonthDropdown(true);
                   }}
-                >
-                  {MONTH_OPTIONS.filter(option => 
-                    option.label.toLowerCase().includes(monthSearchTerm.toLowerCase())
-                  ).map((option) => {
-                    const isSelected = tempFilters.months.includes(option.value);
-                    return (
-                      <li
-                        key={option.value}
-                        onMouseDown={() => {
-                          const newMonths = isSelected
-                            ? tempFilters.months.filter(m => m !== option.value)
-                            : [...tempFilters.months, option.value];
-                          handleFilterChange("months", newMonths);
-                          setMonthSearchTerm("");
-                        }}
-                        style={{
-                          padding: "5px 10px",
-                          cursor: "pointer",
-                          fontSize: "15px",
-                          backgroundColor: isSelected ? "#2563eb" : "transparent",
-                          color: isSelected ? "#fff" : "#000",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isSelected) {
-                            e.currentTarget.style.background = "#f1f1f1";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isSelected) {
-                            e.currentTarget.style.background = "transparent";
-                          }
-                        }}
-                      >
-                        {option.label}
-                      </li>
-                    );
-                  })}
-                  {MONTH_OPTIONS.filter(option => 
-                    option.label.toLowerCase().includes(monthSearchTerm.toLowerCase())
-                  ).length === 0 && (
-                    <li style={{ padding: "5px 10px", fontSize: "14px", color: "#6b7280" }}>
-                      No results
-                    </li>
-                  )}
-                </ul>
-              )}
+                  onFocus={() => setShowMonthDropdown(true)}
+                  onBlur={() => setTimeout(() => {
+                    setShowMonthDropdown(false);
+                    if (monthSearchTerm === "") {
+                      setMonthSearchTerm("");
+                    }
+                  }, 200)}
+                  placeholder={tempFilters.months.length > 0 ? `${tempFilters.months.length} month(s) selected` : "Select or Type"}
+                  style={{
+                    cursor: "pointer",
+                    width: "100%",
+                    height: '32px',
+                    outline: '1.5px solid var(--primary-color)',
+                    padding: '2px 10px',
+                    borderRadius: '16px',
+                    boxShadow: '2px 2px 4px #333',
+                    fontFamily: 'Poppins',
+                    fontSize: '13px',
+                    border: 'none',
+                    backgroundColor: 'white'
+                  }}
+                />
+                {showMonthDropdown && (
+                  <ul
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: "0",
+                      zIndex: 1000,
+                      background: "white",
+                      width: "100%",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      padding: "4px 0",
+                      margin: "4px 0 0 0",
+                      listStyle: "none",
+                      border: "1px solid #e2e8f0"
+                    }}
+                  >
+                    {MONTH_OPTIONS.filter(option => 
+                      option.label.toLowerCase().includes(monthSearchTerm.toLowerCase())
+                    ).map((option) => {
+                      const isSelected = tempFilters.months.includes(option.value);
+                      return (
+                        <li
+                          key={option.value}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Prevent blur
+                            const newMonths = isSelected
+                              ? tempFilters.months.filter(m => m !== option.value)
+                              : [...tempFilters.months, option.value];
+                            handleFilterChange("months", newMonths);
+                            setMonthSearchTerm("");
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontFamily: "Poppins",
+                            backgroundColor: isSelected ? "var(--primary-color)" : "transparent",
+                            color: isSelected ? "#fff" : "#334155",
+                          }}
+                        >
+                          {option.label}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
-            <div className="col-3 formcontent">
+            <div className="col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent">
               <label>Year:</label>
               <input
                 type="number"
@@ -693,30 +803,34 @@ function StoreExpenditures() {
                 onChange={(e) => handleFilterChange("year", Number(e.target.value) || DEFAULT_FILTERS.year)}
                 style={{
                   width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #000",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  fontFamily: "Poppins",
-                  backgroundColor: "#fff",
-                  color: "#000",
+                  height: '32px',
+                  outline: '1.5px solid var(--primary-color)',
+                  padding: '2px 10px',
+                  borderRadius: '16px',
+                  boxShadow: '2px 2px 4px #333',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px',
+                  border: 'none',
+                  backgroundColor: 'white'
                 }}
               />
             </div>
-            <div className="col-3 formcontent">
+            <div className="col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent">
               <label>Rows per page:</label>
               <select 
                 value={tempFilters.limit} 
                 onChange={(e) => handleFilterChange("limit", Number(e.target.value))}
                 style={{
                   width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid #000",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  fontFamily: "Poppins",
-                  backgroundColor: "#fff",
-                  color: "#000",
+                  height: '32px',
+                  outline: '1.5px solid var(--primary-color)',
+                  padding: '2px 10px',
+                  borderRadius: '16px',
+                  boxShadow: '2px 2px 4px #333',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px',
+                  border: 'none',
+                  backgroundColor: 'white',
                   cursor: "pointer",
                 }}
               >
@@ -728,8 +842,9 @@ function StoreExpenditures() {
               </select>
             </div>
           </div>
-          <div className="row m-0 p-3 pb-5 justify-content-center">
-            <div className="col-4">
+          
+          <div className={styles.buttonsRow}>
+            <div className="d-flex gap-3 justify-content-center flex-wrap">
               <button className="submitbtn" onClick={onSubmit}>
                 Submit
               </button>
@@ -738,15 +853,8 @@ function StoreExpenditures() {
               </button>
             </div>
           </div>
-          <div className="row m-0 p-3">
-            <div className="col-12">
-              <p style={{ margin: 0, fontFamily: "Poppins", color: "#6b7280" }}>
-                Showing page {pagination.page} of {pagination.totalPages || 1}
-              </p>
-            </div>
-          </div>
 
-          <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+          <div style={{ marginTop: "24px" }}>
             <div
               style={{
                 display: "flex",
@@ -777,27 +885,33 @@ function StoreExpenditures() {
                 {showCreateForm ? "Cancel" : "Create New"}
               </button>
             </div>
-            {/* Export buttons */}
-            {expenditures.length > 0 && (
-              <div className="row m-0 p-3 justify-content-around">
-                <div className="col-lg-5">
-                  <button className={inventoryStyles.xls} onClick={() => onExport("XLS")}>
-                    <p>Export to </p>
-                    <img src={xls} alt="" />
-                  </button>
-                  <button className={inventoryStyles.xls} onClick={() => onExport("PDF")}>
-                    <p>Export to </p>
-                    <img src={pdf} alt="" />
-                  </button>
-                </div>
+
+            <div className={styles.exportSection}>
+              <div className={styles.exportButtons}>
+                {expenditures.length > 0 && (
+                  <>
+                    <button className={inventoryStyles.xls} onClick={() => onExport("XLS")} style={{ padding: "6px 12px", height: "auto" }}>
+                      <p>Export to </p>
+                      <img src={xls} alt="" style={{ height: "20px" }} />
+                    </button>
+                    <button className={inventoryStyles.xls} onClick={() => onExport("PDF")} style={{ padding: "6px 12px", height: "auto" }}>
+                      <p>Export to </p>
+                      <img src={pdf} alt="" style={{ height: "20px" }} />
+                    </button>
+                  </>
+                )}
               </div>
-            )}
-            <div style={{ overflowX: "auto" }}>
-              <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
+              <div style={{ fontFamily: "Poppins", color: "#6b7280", fontSize: "13px" }}>
+                Showing page {pagination.page} of {pagination.totalPages || 1}
+              </div>
+            </div>
+
+            <div className={`${styles.tableContainer} table-responsive`}>
+              <table className="table table-bordered borderedtable table-sm table-hover" style={{ fontFamily: "Poppins" }}>
                 <thead className="table-light">
                   <tr>
-                    <th>Code</th>
-                    <th>Period</th>
+                    {renderSearchHeader("Code", "code", "data-code-header")}
+                    {renderSearchHeader("Period", "period", "data-period-header")}
                     <th>Staff Salary</th>
                     <th>Rent</th>
                     <th>Power Bill</th>
@@ -805,16 +919,23 @@ function StoreExpenditures() {
                     <th>Custom Fields</th>
                     <th>Total</th>
                   </tr>
+                  {(headerSearchTerms.code || headerSearchTerms.period) && (
+                    <tr>
+                      <td colSpan="8" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                        {displayExpenditures.length} expenditures found
+                      </td>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {expenditures.length === 0 && (
+                  {displayExpenditures.length === 0 && (
                     <tr>
                       <td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "#6b7280" }}>
                         {listLoading ? "Loading expenditures..." : "No expenditures found for the selected period."}
                       </td>
                     </tr>
                   )}
-                  {expenditures.map((record) => {
+                  {displayExpenditures.map((record) => {
                     const isSelected = record.id === selectedExpenditureId;
                     return (
                       <tr
@@ -852,11 +973,11 @@ function StoreExpenditures() {
                   gap: "12px",
                 }}
               >
-                <p style={{ margin: 0, fontFamily: "Poppins", color: "#374151" }}>
+                <p style={{ margin: 0, fontFamily: "Poppins", color: "#374151", fontSize: "14px" }}>
                   Total records: {pagination.total || expenditures.length}
                 </p>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button className="homebtn" type="button" onClick={() => handlePaginationChange("prev")} disabled={filters.page === 1}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button className="cancelbtn" type="button" onClick={() => handlePaginationChange("prev")} disabled={filters.page === 1} style={{ padding: "4px 12px", fontSize: "14px" }}>
                     Previous
                   </button>
                   <button
@@ -864,6 +985,7 @@ function StoreExpenditures() {
                     type="button"
                     onClick={() => handlePaginationChange("next")}
                     disabled={filters.page >= (pagination.totalPages || 1)}
+                    style={{ padding: "4px 12px", fontSize: "14px" }}
                   >
                     Next
                   </button>
@@ -874,7 +996,7 @@ function StoreExpenditures() {
 
           {/* Create Expenditure Form */}
           {showCreateForm && (
-            <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "24px", padding: "20px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <h4
                 style={{
                   margin: 0,
@@ -1142,7 +1264,7 @@ function StoreExpenditures() {
 
           {/* Expenditure Details - Only show when a row is selected */}
           {selectedExpenditure && (
-            <div className={styles.orderStatusCard}>
+            <div style={{ marginTop: "24px", padding: "24px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <div
                 style={{
                   display: "flex",
@@ -1354,10 +1476,10 @@ function StoreExpenditures() {
                   </button>
                 </div>
               </form>
-              )}
-            </div>
-          )}
-        </>
+            )}
+          </div>
+        )}
+        </div>
       )}
 
       {(listLoading && expenditures.length === 0) && <Loading />}

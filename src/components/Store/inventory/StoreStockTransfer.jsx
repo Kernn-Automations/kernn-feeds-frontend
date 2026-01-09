@@ -37,6 +37,85 @@ function StoreStockTransfer() {
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  // Search Visibility states
+  const [showSearch, setShowSearch] = useState({
+    product: false,
+    historyTransferCode: false,
+    historyToStore: false
+  });
+
+  // Search Term states
+  const [searchTerms, setSearchTerms] = useState({
+    product: "",
+    historyTransferCode: "",
+    historyToStore: ""
+  });
+
+  // Filtered Stock
+  const [filteredStock, setFilteredStock] = useState([]);
+  const [filteredHistory, setFilteredHistory] = useState([]);
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
   useEffect(() => {
     fetchCurrentStore();
   }, []);
@@ -166,6 +245,71 @@ function StoreStockTransfer() {
       setLoading(false);
     }
   };
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({ 
+          product: false, 
+          historyTransferCode: false, 
+          historyToStore: false 
+        });
+        setSearchTerms({ 
+          product: "",
+          historyTransferCode: "",
+          historyToStore: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({ 
+          product: false,
+          historyTransferCode: false,
+          historyToStore: false
+        });
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+  }, []);
+
+  // Filtering Logic for Available Stock
+  useEffect(() => {
+    let filtered = currentStock;
+    if (searchTerms.product) {
+      filtered = filtered.filter(item => 
+        item.productName?.toLowerCase().includes(searchTerms.product.toLowerCase()) ||
+        item.productCode?.toLowerCase().includes(searchTerms.product.toLowerCase())
+      );
+    }
+    setFilteredStock(filtered);
+  }, [currentStock, searchTerms.product]);
+
+  // Filtering Logic for History
+  useEffect(() => {
+    let filtered = transferHistory;
+    if (searchTerms.historyTransferCode) {
+      filtered = filtered.filter(item => 
+        item.transferCode?.toLowerCase().includes(searchTerms.historyTransferCode.toLowerCase())
+      );
+    }
+    if (searchTerms.historyToStore) {
+      filtered = filtered.filter(item => 
+        (item.toStore?.name || item.toStoreName || "")
+          .toLowerCase()
+          .includes(searchTerms.historyToStore.toLowerCase())
+      );
+    }
+    setFilteredHistory(filtered);
+  }, [transferHistory, searchTerms.historyTransferCode, searchTerms.historyToStore]);
 
   const handleQuantityChange = (productId, quantity) => {
     const product = currentStock.find(p => p.id === productId || p.productId === productId);
@@ -332,6 +476,27 @@ function StoreStockTransfer() {
     setSelectedTransfer(null);
   };
 
+  const handleDownloadInvoice = async (transferId) => {
+    if (!transferId) return;
+    setLoading(true);
+    try {
+      const response = await storeService.downloadStockTransferInvoice(transferId);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `stock_transfer_invoice_${transferId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      console.error("Error downloading invoice:", err);
+      setError("Failed to download invoice");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Export function
   const onExport = (type) => {
     const arr = [];
@@ -343,9 +508,9 @@ function StoreStockTransfer() {
       "Available Stock",
       "Unit"
     ];
-    const dataToExport = currentStock && currentStock.length > 0 
-      ? currentStock.filter(product => (product.available || product.currentStock || 0) > 0)
-      : [];
+    const dataToExport = filteredStock && filteredStock.length > 0 
+      ? filteredStock.filter(product => (product.available || product.currentStock || 0) > 0)
+      : (currentStock || []).filter(product => (product.available || product.currentStock || 0) > 0);
     if (dataToExport && dataToExport.length > 0) {
       dataToExport.forEach((item) => {
         arr.push({
@@ -536,15 +701,22 @@ function StoreStockTransfer() {
                 <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: 'Poppins' }}>
                   <thead className="table-light">
                     <tr>
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
+                      {renderSearchHeader("Product", "product", "data-product-header")}
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Available</th>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Unit</th>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Transfer Qty</th>
                       <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
                     </tr>
+                    {searchTerms.product && (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                          {filteredStock.filter(p => (p.available || p.currentStock || 0) > 0).length} products found
+                        </td>
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
-                    {currentStock
+                    {filteredStock
                       .filter(product => (product.available || product.currentStock || 0) > 0)
                       .map((product, index) => {
                         const productId = product.id || product.productId;
@@ -706,16 +878,23 @@ function StoreStockTransfer() {
               <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
                 <thead className="table-light">
                   <tr>
-                    <th>Date</th>
-                    <th>Transfer Code</th>
-                    <th>To Store</th>
-                    <th>Items</th>
-                    <th>Status</th>
-                    <th>Action</th>
+                    <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                    {renderSearchHeader("Transfer Code", "historyTransferCode", "data-history-transfer-code")}
+                    {renderSearchHeader("To Store", "historyToStore", "data-history-to-store")}
+                    <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Items</th>
+                    <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
+                    <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
                   </tr>
+                  {(searchTerms.historyTransferCode || searchTerms.historyToStore) && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                        {filteredHistory.length} transfers found
+                      </td>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {transferHistory.map((transfer) => (
+                  {filteredHistory.map((transfer) => (
                     <tr key={transfer.id}>
                       <td>{new Date(transfer.createdAt).toLocaleDateString()}</td>
                       <td>{transfer.transferCode || "-"}</td>
@@ -856,6 +1035,16 @@ function StoreStockTransfer() {
                 ))}
               </tbody>
             </table>
+            
+            <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleDownloadInvoice(selectedTransfer.id)}
+                style={{ fontFamily: "Poppins" }}
+              >
+                <i className="bi bi-download"></i> Download Invoice
+              </button>
+            </div>
           </div>
         </div>
       )}

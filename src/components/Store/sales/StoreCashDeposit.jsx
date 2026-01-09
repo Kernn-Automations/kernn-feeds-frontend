@@ -38,6 +38,79 @@ export default function StoreCashDeposit() {
   const [deposits, setDeposits] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [filteredHistory, setFilteredHistory] = useState([]);
+
+  // Header Search States
+  const [showSearch, setShowSearch] = useState({
+    storeName: false,
+    depositedBy: false
+  });
+
+  const [searchTerms, setSearchTerms] = useState({
+    storeName: "",
+    depositedBy: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
 
   // Filter states
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -137,6 +210,67 @@ export default function StoreCashDeposit() {
       fetchCashDeposits();
     }
   }, [storeId, fetchStoreCash, fetchCashDeposits, triggerFetch]);
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close header search if clicked outside
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          storeName: false,
+          depositedBy: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          storeName: false,
+          depositedBy: false
+        });
+        setSearchTerms({
+          storeName: "",
+          depositedBy: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
+  // Client-side filtering logic
+  useEffect(() => {
+    let filtered = deposits;
+    
+    if (searchTerms.storeName) {
+      filtered = filtered.filter(deposit => {
+        const sName = deposit.store?.name || deposit.storeName || storeName || "";
+        return sName.toLowerCase().includes(searchTerms.storeName.toLowerCase());
+      });
+    }
+
+    if (searchTerms.depositedBy) {
+      filtered = filtered.filter(deposit => {
+        const empName = deposit.depositedByEmployee?.name || 
+                        deposit.createdByEmployee?.name || 
+                        deposit.createdBy?.name || 
+                        deposit.employee?.name || 
+                        deposit.depositedBy || "";
+        return empName.toLowerCase().includes(searchTerms.depositedBy.toLowerCase());
+      });
+    }
+
+    setFilteredHistory(filtered);
+  }, [deposits, searchTerms, storeName]);
 
   // Set default date and time when form is opened
   useEffect(() => {
@@ -344,7 +478,7 @@ export default function StoreCashDeposit() {
       "Notes"
     ];
 
-    const data = deposits.map((deposit, index) => ({
+    const data = filteredHistory.map((deposit, index) => ({
       "S.No": index + 1,
       "Date": formatDate(deposit.createdAt || deposit.date || deposit.depositDate),
       "Store Name": deposit.store?.name || deposit.storeName || storeName || "-",
@@ -696,16 +830,23 @@ export default function StoreCashDeposit() {
                 <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
                   <thead className="table-light">
                     <tr>
-                      <th>S.No</th>
-                      <th>Date</th>
-                      <th>Store Name</th>
-                      <th>Cash Deposited (₹)</th>
-                      <th>Deposited By</th>
-                      <th>Action</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                      {renderSearchHeader("Store Name", "storeName", "data-store-header")}
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Cash Deposited (₹)</th>
+                      {renderSearchHeader("Deposited By", "depositedBy", "data-employee-header")}
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
                     </tr>
+                    {(searchTerms.storeName || searchTerms.depositedBy) && (
+                      <tr>
+                        <td colSpan="6" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                          {filteredHistory.length} deposits found
+                        </td>
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
-                    {deposits.map((deposit, index) => (
+                    {filteredHistory.map((deposit, index) => (
                       <tr key={deposit.id || index} style={{ background: index % 2 === 0 ? "rgba(59, 130, 246, 0.03)" : "transparent" }}>
                         <td>{index + 1}</td>
                         <td>{formatDate(deposit.createdAt || deposit.date || deposit.depositDate)}</td>
