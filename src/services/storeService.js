@@ -147,6 +147,13 @@ const storeService = {
     const res = await api.request(`/stores/${storeId}/stock-transfer/${transferId}`, { method: "GET" });
     return res.json();
   },
+  async downloadStockTransferInvoice(transferId) {
+    const res = await api.request(`/stock-transfers/${transferId}/pdf`, { method: "GET" });
+    if (!res.ok) {
+      throw new Error(`Failed to download invoice: ${res.status} ${res.statusText}`);
+    }
+    return res;
+  },
   async getDestinationStores(excludeStoreId) {
     const queryParams = excludeStoreId ? `?excludeStoreId=${excludeStoreId}` : '';
     const res = await api.request(`/store-indents/stock-transfer/destination-stores${queryParams}`, { method: "GET" });

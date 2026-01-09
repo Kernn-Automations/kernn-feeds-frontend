@@ -22,9 +22,8 @@ function StoreStockSummary() {
   const [stockData, setStockData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [storeId, setStoreId] = useState(null);
   const [page, setPage] = useState(1);
+  const [summaryTotals, setSummaryTotals] = useState(null);
   const [limit, setLimit] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -35,7 +34,213 @@ function StoreStockSummary() {
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [productSalesDetails, setProductSalesDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState({});
-  const [summaryTotals, setSummaryTotals] = useState(null);
+  const [storeId, setStoreId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Filtered data states
+  const [filteredStockData, setFilteredStockData] = useState([]);
+  const [filteredStatsByStore, setFilteredStatsByStore] = useState([]);
+  const [filteredAuditTrail, setFilteredAuditTrail] = useState([]);
+  const [filteredOpeningClosing, setFilteredOpeningClosing] = useState([]);
+
+  // Search Visibility states
+  const [showSearch, setShowSearch] = useState({
+    summaryProduct: false,
+    summarySku: false,
+    statsStore: false,
+    statsCode: false,
+    auditProduct: false,
+    auditSku: false,
+    auditType: false,
+    auditRef: false,
+    ocProduct: false,
+    ocSku: false
+  });
+
+  // Search Term states
+  const [searchTerms, setSearchTerms] = useState({
+    summaryProduct: "",
+    summarySku: "",
+    statsStore: "",
+    statsCode: "",
+    auditProduct: "",
+    auditSku: "",
+    auditType: "",
+    auditRef: "",
+    ocProduct: "",
+    ocSku: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          summaryProduct: false, summarySku: false,
+          statsStore: false, statsCode: false,
+          auditProduct: false, auditSku: false, auditType: false, auditRef: false,
+          ocProduct: false, ocSku: false
+        });
+        setSearchTerms({
+          summaryProduct: "", summarySku: "",
+          statsStore: "", statsCode: "",
+          auditProduct: "", auditSku: "", auditType: "", auditRef: "",
+          ocProduct: "", ocSku: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          summaryProduct: false, summarySku: false,
+          statsStore: false, statsCode: false,
+          auditProduct: false, auditSku: false, auditType: false, auditRef: false,
+          ocProduct: false, ocSku: false
+        });
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+  }, []);
+
+  // Filtering Logic for each tab
+  useEffect(() => {
+    let filtered = stockData;
+    if (searchTerms.summaryProduct) {
+      filtered = filtered.filter(item => 
+        item.productName?.toLowerCase().includes(searchTerms.summaryProduct.toLowerCase())
+      );
+    }
+    if (searchTerms.summarySku) {
+      filtered = filtered.filter(item => 
+        item.productSKU?.toLowerCase().includes(searchTerms.summarySku.toLowerCase())
+      );
+    }
+    setFilteredStockData(filtered);
+  }, [stockData, searchTerms.summaryProduct, searchTerms.summarySku]);
+
+  useEffect(() => {
+    let filtered = stats?.stockByStore || [];
+    if (searchTerms.statsStore) {
+      filtered = filtered.filter(store => 
+        store.storeName?.toLowerCase().includes(searchTerms.statsStore.toLowerCase())
+      );
+    }
+    if (searchTerms.statsCode) {
+      filtered = filtered.filter(store => 
+        store.storeCode?.toLowerCase().includes(searchTerms.statsCode.toLowerCase())
+      );
+    }
+    setFilteredStatsByStore(filtered);
+  }, [stats, searchTerms.statsStore, searchTerms.statsCode]);
+
+  useEffect(() => {
+    let filtered = auditTrail;
+    if (searchTerms.auditProduct) {
+      filtered = filtered.filter(item => 
+        item.productName?.toLowerCase().includes(searchTerms.auditProduct.toLowerCase())
+      );
+    }
+    if (searchTerms.auditSku) {
+      filtered = filtered.filter(item => 
+        item.productSKU?.toLowerCase().includes(searchTerms.auditSku.toLowerCase())
+      );
+    }
+    if (searchTerms.auditType) {
+      filtered = filtered.filter(item => 
+        item.transactionType?.toLowerCase().includes(searchTerms.auditType.toLowerCase())
+      );
+    }
+    if (searchTerms.auditRef) {
+      filtered = filtered.filter(item => 
+        (item.referenceType + ": " + item.referenceId)?.toLowerCase().includes(searchTerms.auditRef.toLowerCase())
+      );
+    }
+    setFilteredAuditTrail(filtered);
+  }, [auditTrail, searchTerms.auditProduct, searchTerms.auditSku, searchTerms.auditType, searchTerms.auditRef]);
+
+  useEffect(() => {
+    let filtered = openingClosing?.summaries || [];
+    if (searchTerms.ocProduct) {
+      filtered = filtered.filter(item => 
+        item.product?.name?.toLowerCase().includes(searchTerms.ocProduct.toLowerCase())
+      );
+    }
+    if (searchTerms.ocSku) {
+      filtered = filtered.filter(item => 
+        (item.product?.SKU || item.product?.sku)?.toLowerCase().includes(searchTerms.ocSku.toLowerCase())
+      );
+    }
+    setFilteredOpeningClosing(filtered);
+  }, [openingClosing, searchTerms.ocProduct, searchTerms.ocSku]);
+
 
   const handleRowClick = async (rowId, productId) => {
     const isExpanded = expandedRowId === rowId;
@@ -368,27 +573,21 @@ function StoreStockSummary() {
 
   // Export function
   const onExport = (type) => {
-    const arr = [];
-    let x = 1;
-    const columns = [
-      "S.No",
-      "Product",
-      "SKU",
-      "Date",
-      "Opening Stock",
-      "Inward Stock",
-      "Inward Value",
-      "Outward Stock",
-      "Outward Value",
-      "Stock In",
-      "Stock In Price",
-      "Stock Out",
-      "Stock Out Price",
-      "Closing Stock",
-      "Unit"
-    ];
-    const dataToExport = stockData && stockData.length > 0 ? stockData : [];
-    if (dataToExport && dataToExport.length > 0) {
+    let arr = [];
+    let columns = [];
+    let fileName = "";
+    let dataToExport = [];
+
+    if (activeTab === "summary") {
+      columns = [
+        "S.No", "Product", "SKU", "Date", "Opening Stock", "Inward Stock", "Inward Value",
+        "Outward Stock", "Outward Value", "Stock In", "Stock In Price", "Stock Out",
+        "Stock Out Price", "Closing Stock", "Unit"
+      ];
+      dataToExport = filteredStockData.length > 0 ? filteredStockData : stockData;
+      fileName = "Stock_Summary";
+      
+      let x = 1;
       dataToExport.forEach((item) => {
         arr.push({
           "S.No": x++,
@@ -408,10 +607,81 @@ function StoreStockSummary() {
           "Unit": item.unit || 'kg'
         });
       });
+    } else if (activeTab === "stats") {
+      columns = [
+        "Store Name", "Store Code", "Inward Stock", "Inward Value",
+        "Outward Stock", "Outward Value", "Closing Stock", "Products"
+      ];
+      dataToExport = filteredStatsByStore.length > 0 ? filteredStatsByStore : (stats?.stockByStore || []);
+      fileName = "Stock_By_Store_Statistics";
+      
+      dataToExport.forEach((store) => {
+        arr.push({
+          "Store Name": store.storeName,
+          "Store Code": store.storeCode,
+          "Inward Stock": Number(store.inwardStock || 0).toFixed(2),
+          "Inward Value": Number(store.inwardStockPrice || 0).toFixed(2),
+          "Outward Stock": Number(store.outwardStock || 0).toFixed(2),
+          "Outward Value": Number(store.outwardStockPrice || 0).toFixed(2),
+          "Closing Stock": Number(store.closingStock || 0).toFixed(2),
+          "Products": store.products || 0
+        });
+      });
+    } else if (activeTab === "audit") {
+      columns = [
+        "Product", "SKU", "Transaction Type", "Quantity", "Unit",
+        "Total Price", "Recorded At", "Reference", "Remarks"
+      ];
+      dataToExport = filteredAuditTrail.length > 0 ? filteredAuditTrail : (auditTrail || []);
+      fileName = "Stock_Audit_Trail";
+      
+      dataToExport.forEach((item) => {
+        arr.push({
+          "Product": item.productName,
+          "SKU": item.productSKU,
+          "Transaction Type": item.transactionType?.toUpperCase() || '-',
+          "Quantity": Number(item.quantity || 0).toFixed(2),
+          "Unit": item.unit,
+          "Total Price": Number(item.totalPrice || 0).toFixed(2),
+          "Recorded At": item.recordedAt ? new Date(item.recordedAt).toLocaleString() : '-',
+          "Reference": item.referenceType ? `${item.referenceType}: ${item.referenceId}` : '-',
+          "Remarks": item.remarks || '-'
+        });
+      });
+    } else if (activeTab === "opening-closing") {
+      columns = [
+        "Product", "SKU", "Opening Stock", "Opening Price",
+        "Inward Stock", "Inward Price", "Outward Stock", "Outward Price",
+        "Stock In", "Stock In Price", "Stock Out", "Stock Out Price",
+        "Closing Stock", "Closing Price", "Unit"
+      ];
+      dataToExport = filteredOpeningClosing.length > 0 ? filteredOpeningClosing : (openingClosing?.summaries || []);
+      fileName = "Opening_Closing_Stock";
+      
+      dataToExport.forEach((item) => {
+        arr.push({
+          "Product": item.product?.name || '-',
+          "SKU": item.product?.SKU || item.product?.sku || '-',
+          "Opening Stock": Number(item.openingStock || 0).toFixed(2),
+          "Opening Price": Number(item.openingStockPrice || 0).toFixed(2),
+          "Inward Stock": Number(item.inwardStock || 0).toFixed(2),
+          "Inward Price": Number(item.inwardStockPrice || 0).toFixed(2),
+          "Outward Stock": Number(item.outwardStock || 0).toFixed(2),
+          "Outward Price": Number(item.outwardStockPrice || 0).toFixed(2),
+          "Stock In": Number(item.stockIn || 0).toFixed(2),
+          "Stock In Price": Number(item.stockInPrice || 0).toFixed(2),
+          "Stock Out": Number(item.stockOut || 0).toFixed(2),
+          "Stock Out Price": Number(item.stockOutPrice || 0).toFixed(2),
+          "Closing Stock": Number(item.closingStock || 0).toFixed(2),
+          "Closing Price": Number(item.closingStockPrice || 0).toFixed(2),
+          "Unit": item.product?.unit || item.unit || 'kg'
+        });
+      });
+    }
 
-      if (type === "PDF") handleExportPDF(columns, arr, "Stock_Summary");
-      else if (type === "XLS")
-        handleExportExcel(columns, arr, "StockSummary");
+    if (arr.length > 0) {
+      if (type === "PDF") handleExportPDF(columns, arr, fileName);
+      else if (type === "XLS") handleExportExcel(columns, arr, fileName.replace(/_/g, ""));
     } else {
       setError("Table is Empty");
       setIsModalOpen(true);
@@ -423,8 +693,8 @@ function StoreStockSummary() {
       <table className="table table-bordered borderedtable table-sm mt-2" style={{ fontFamily: 'Poppins' }}>
         <thead className="table-light">
           <tr>
-            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
-            <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>SKU</th>
+            {renderSearchHeader("Product", "summaryProduct", "data-summary-product")}
+            {renderSearchHeader("SKU", "summarySku", "data-summary-sku")}
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Opening Stock</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Inward</th>
@@ -438,11 +708,18 @@ function StoreStockSummary() {
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Closing Stock</th>
             <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Unit</th>
           </tr>
+          {(searchTerms.summaryProduct || searchTerms.summarySku) && (
+            <tr>
+              <td colSpan={14} style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                {dataArray.length} items found
+              </td>
+            </tr>
+          )}
         </thead>
         <tbody>
           {dataArray.length === 0 ? (
             <tr>
-              <td colSpan={8} className="text-center" style={{ padding: '20px', fontFamily: 'Poppins' }}>
+              <td colSpan={14} className="text-center" style={{ padding: '20px', fontFamily: 'Poppins' }}>
                 No stock data found
               </td>
             </tr>
@@ -554,49 +831,49 @@ function StoreStockSummary() {
             })
           )}
         </tbody>
-        {stockData.length > 0 && (
+        {dataArray.length > 0 && (
           <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
             <tr>
-              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible Rows):</td>
+              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible):</td>
               <td style={{ fontWeight: 600, color: '#374151', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Opening</div>
-                {stockData.reduce((sum, item) => sum + (Number(item.opening) || 0), 0).toFixed(2)}
+                {dataArray.reduce((sum, item) => sum + (Number(item.opening) || 0), 0).toFixed(2)}
               </td>
               <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Inward</div>
-                {stockData.reduce((sum, item) => sum + (Number(item.inwardStock) || 0), 0).toFixed(2)}
+                {dataArray.reduce((sum, item) => sum + (Number(item.inwardStock) || 0), 0).toFixed(2)}
               </td>
               <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Inward Val</div>
-                ₹{stockData.reduce((sum, item) => sum + (Number(item.inwardPrice) || 0), 0).toLocaleString()}
+                ₹{dataArray.reduce((sum, item) => sum + (Number(item.inwardPrice) || 0), 0).toLocaleString()}
               </td>
               <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Outward</div>
-                {stockData.reduce((sum, item) => sum + (Number(item.outwardStock) || 0), 0).toFixed(2)}
+                {dataArray.reduce((sum, item) => sum + (Number(item.outwardStock) || 0), 0).toFixed(2)}
               </td>
               <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Outward Val</div>
-                ₹{stockData.reduce((sum, item) => sum + (Number(item.outwardPrice) || 0), 0).toLocaleString()}
+                ₹{dataArray.reduce((sum, item) => sum + (Number(item.outwardPrice) || 0), 0).toLocaleString()}
               </td>
               <td style={{ fontWeight: 600, color: '#3b82f6', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Stock In</div>
-                {stockData.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0).toFixed(2)}
+                {dataArray.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0).toFixed(2)}
               </td>
               <td style={{ fontWeight: 600, color: '#3b82f6', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Stock In Val</div>
-                ₹{stockData.reduce((sum, item) => sum + (Number(item.stockInPrice) || 0), 0).toLocaleString()}
+                ₹{dataArray.reduce((sum, item) => sum + (Number(item.stockInPrice) || 0), 0).toLocaleString()}
               </td>
               <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Stock Out</div>
-                {stockData.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0).toFixed(2)}
+                {dataArray.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0).toFixed(2)}
               </td>
               <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Stock Out Val</div>
-                ₹{stockData.reduce((sum, item) => sum + (Number(item.stockOutPrice) || 0), 0).toLocaleString()}
+                ₹{dataArray.reduce((sum, item) => sum + (Number(item.stockOutPrice) || 0), 0).toLocaleString()}
               </td>
               <td style={{ fontWeight: 600, color: 'var(--primary-color)', padding: '12px' }}>
                 <div style={{ fontSize: '11px', color: '#666' }}>Closing</div>
-                {stockData.reduce((sum, item) => sum + (Number(item.closing) || 0), 0).toFixed(2)}
+                {dataArray.reduce((sum, item) => sum + (Number(item.closing) || 0), 0).toFixed(2)}
               </td>
               <td></td>
             </tr>
@@ -836,16 +1113,56 @@ function StoreStockSummary() {
               </button>
             </div>
           </div>
-          {renderSummaryTable(stockData)}
+          {renderSummaryTable(filteredStockData)}
         </div>
       )}
 
       {/* Statistics Tab */}
       {!loading && activeTab === "stats" && stats && (
         <div className={styles.orderStatusCard}>
-          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Overall Statistics
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4 style={{ margin: 0, fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+              Overall Statistics
+            </h4>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => onExport("XLS")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={xls} alt="XLS" style={{ width: '20px', height: '20px' }} />
+                Export XLS
+              </button>
+              <button
+                onClick={() => onExport("PDF")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={pdf} alt="PDF" style={{ width: '20px', height: '20px' }} />
+                Export PDF
+              </button>
+            </div>
+          </div>
           {stats.summary && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
               <div style={{ padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px' }}>
@@ -883,12 +1200,17 @@ function StoreStockSummary() {
           {stats.stockByStore && stats.stockByStore.length > 0 && (
             <div>
               <h5 style={{ fontFamily: 'Poppins', fontWeight: 600, marginBottom: '16px' }}>Stock by Store</h5>
+              { (searchTerms.statsStore || searchTerms.statsCode) && (
+                <div style={{ marginBottom: '10px', fontSize: '13px', color: '#666' }}>
+                  {filteredStatsByStore.length} stores found matching search criteria
+                </div>
+              )}
               <div style={{ overflowX: 'auto' }}>
                 <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
                   <thead className="table-light">
                     <tr>
-                      <th>Store Name</th>
-                      <th>Store Code</th>
+                      {renderSearchHeader("Store Name", "statsStore", "data-stats-store")}
+                      {renderSearchHeader("Store Code", "statsCode", "data-stats-code")}
                       <th>Inward Stock</th>
                       <th>Inward Value</th>
                       <th>Outward Stock</th>
@@ -898,40 +1220,48 @@ function StoreStockSummary() {
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.stockByStore.map((store, index) => (
-                      <tr key={store.storeId || index}>
-                        <td>{store.storeName}</td>
-                        <td>{store.storeCode}</td>
-                        <td style={{ color: '#059669' }}>{Number(store.inwardStock || 0).toFixed(2)}</td>
-                        <td style={{ color: '#059669', fontWeight: 500 }}>₹{Number(store.inwardStockPrice || 0).toLocaleString()}</td>
-                        <td style={{ color: '#ef4444' }}>{Number(store.outwardStock || 0).toFixed(2)}</td>
-                        <td style={{ color: '#ef4444', fontWeight: 500 }}>₹{Number(store.outwardStockPrice || 0).toLocaleString()}</td>
-                        <td style={{ fontWeight: 600 }}>{Number(store.closingStock || 0).toFixed(2)}</td>
-                        <td>{store.products || 0}</td>
+                    {filteredStatsByStore.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center" style={{ padding: '20px' }}>
+                          No stores match your search
+                        </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredStatsByStore.map((store, index) => (
+                        <tr key={store.storeId || index}>
+                          <td>{store.storeName}</td>
+                          <td>{store.storeCode}</td>
+                          <td style={{ color: '#059669' }}>{Number(store.inwardStock || 0).toFixed(2)}</td>
+                          <td style={{ color: '#059669', fontWeight: 500 }}>₹{Number(store.inwardStockPrice || 0).toLocaleString()}</td>
+                          <td style={{ color: '#ef4444' }}>{Number(store.outwardStock || 0).toFixed(2)}</td>
+                          <td style={{ color: '#ef4444', fontWeight: 500 }}>₹{Number(store.outwardStockPrice || 0).toLocaleString()}</td>
+                          <td style={{ fontWeight: 600 }}>{Number(store.closingStock || 0).toFixed(2)}</td>
+                          <td>{store.products || 0}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
-                  {stats.stockByStore.length > 0 && (
+                  {filteredStatsByStore.length > 0 && (
                     <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
                       <tr>
                         <td colSpan={2} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible):</td>
                         <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
-                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.inwardStock) || 0), 0).toFixed(2)}
+                          {filteredStatsByStore.reduce((sum, s) => sum + (Number(s.inwardStock) || 0), 0).toFixed(2)}
                         </td>
                         <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
-                          ₹{stats.stockByStore.reduce((sum, s) => sum + (Number(s.inwardStockPrice) || 0), 0).toLocaleString()}
+                          ₹{filteredStatsByStore.reduce((sum, s) => sum + (Number(s.inwardStockPrice) || 0), 0).toLocaleString()}
                         </td>
                         <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
-                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.outwardStock) || 0), 0).toFixed(2)}
+                          {filteredStatsByStore.reduce((sum, s) => sum + (Number(s.outwardStock) || 0), 0).toFixed(2)}
                         </td>
                         <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
-                          ₹{stats.stockByStore.reduce((sum, s) => sum + (Number(s.outwardStockPrice) || 0), 0).toLocaleString()}
+                          ₹{filteredStatsByStore.reduce((sum, s) => sum + (Number(s.outwardStockPrice) || 0), 0).toLocaleString()}
                         </td>
                         <td style={{ fontWeight: 600, padding: '12px' }}>
-                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.closingStock) || 0), 0).toFixed(2)}
+                          {filteredStatsByStore.reduce((sum, s) => sum + (Number(s.closingStock) || 0), 0).toFixed(2)}
                         </td>
                         <td style={{ fontWeight: 600, padding: '12px' }}>
-                          {stats.stockByStore.reduce((sum, s) => sum + (Number(s.products) || 0), 0)}
+                          {filteredStatsByStore.reduce((sum, s) => sum + (Number(s.products) || 0), 0)}
                         </td>
                       </tr>
                     </tfoot>
@@ -946,33 +1276,80 @@ function StoreStockSummary() {
       {/* Audit Trail Tab */}
       {!loading && activeTab === "audit" && (
         <div className={styles.orderStatusCard}>
-          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Stock Movement History
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4 style={{ margin: 0, fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+              Stock Movement History
+            </h4>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => onExport("XLS")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={xls} alt="XLS" style={{ width: '20px', height: '20px' }} />
+                Export XLS
+              </button>
+              <button
+                onClick={() => onExport("PDF")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={pdf} alt="PDF" style={{ width: '20px', height: '20px' }} />
+                Export PDF
+              </button>
+            </div>
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
               <thead className="table-light">
                 <tr>
-                  <th>Product</th>
-                  <th>SKU</th>
-                  <th>Transaction Type</th>
+                  {renderSearchHeader("Product", "auditProduct", "data-audit-product")}
+                  {renderSearchHeader("SKU", "auditSku", "data-audit-sku")}
+                  {renderSearchHeader("Type", "auditType", "data-audit-type")}
                   <th>Quantity</th>
                   <th>Unit</th>
                   <th>Total Price</th>
                   <th>Recorded At</th>
-                  <th>Reference</th>
+                  {renderSearchHeader("Reference", "auditRef", "data-audit-ref")}
                   <th>Remarks</th>
                 </tr>
+                {(searchTerms.auditProduct || searchTerms.auditSku || searchTerms.auditType || searchTerms.auditRef) && (
+                  <tr>
+                    <td colSpan={9} style={{ padding: '4px 12px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                      {filteredAuditTrail.length} records found
+                    </td>
+                  </tr>
+                )}
               </thead>
               <tbody>
-                {auditTrail.length === 0 ? (
+                {filteredAuditTrail.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="text-center" style={{ padding: '20px' }}>
-                      No audit trail data found
+                      No audit trail data matches your search
                     </td>
                   </tr>
                 ) : (
-                  auditTrail.map((item, index) => {
+                  filteredAuditTrail.map((item, index) => {
                     const actualIndex = (page - 1) * limit + index + 1;
                     return (
                       <tr key={item.id || index} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
@@ -1001,15 +1378,15 @@ function StoreStockSummary() {
                   })
                 )}
               </tbody>
-              {auditTrail.length > 0 && (
+              {filteredAuditTrail.length > 0 && (
                 <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
                   <tr>
-                    <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Totals:</td>
+                    <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Totals (Visible):</td>
                     <td style={{ fontWeight: 600, padding: '12px' }}>
-                      <div style={{ color: '#166534' }}>In: {auditTrail.filter(i => i.transactionType === 'inward').reduce((sum, i) => sum + (Number(i.quantity) || 0), 0).toFixed(2)}</div>
-                      <div style={{ color: '#991b1b' }}>Out: {auditTrail.filter(i => i.transactionType !== 'inward').reduce((sum, i) => sum + (Number(i.quantity) || 0), 0).toFixed(2)}</div>
+                      <div style={{ color: '#166534' }}>In: {filteredAuditTrail.filter(i => i.transactionType === 'inward').reduce((sum, i) => sum + (Number(i.quantity) || 0), 0).toFixed(2)}</div>
+                      <div style={{ color: '#991b1b' }}>Out: {filteredAuditTrail.filter(i => i.transactionType !== 'inward').reduce((sum, i) => sum + (Number(i.quantity) || 0), 0).toFixed(2)}</div>
                     </td>
-                    <td colSpan={4}></td>
+                    <td colSpan={5}></td>
                   </tr>
                 </tfoot>
               )}
@@ -1051,9 +1428,49 @@ function StoreStockSummary() {
       {/* Opening/Closing Tab */}
       {!loading && activeTab === "opening-closing" && openingClosing && (
         <div className={styles.orderStatusCard}>
-          <h4 style={{ margin: 0, marginBottom: '20px', fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
-            Opening and Closing Stock ({from} to {to})
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h4 style={{ margin: 0, fontFamily: 'Poppins', fontWeight: 600, fontSize: '20px', color: 'var(--primary-color)' }}>
+              Opening and Closing Stock ({from} to {to})
+            </h4>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => onExport("XLS")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={xls} alt="XLS" style={{ width: '20px', height: '20px' }} />
+                Export XLS
+              </button>
+              <button
+                onClick={() => onExport("PDF")}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'Poppins',
+                  fontSize: '13px'
+                }}
+              >
+                <img src={pdf} alt="PDF" style={{ width: '20px', height: '20px' }} />
+                Export PDF
+              </button>
+            </div>
+          </div>
           {openingClosing.totals && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>
               <div style={{ padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px' }}>
@@ -1079,8 +1496,8 @@ function StoreStockSummary() {
               <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
                 <thead className="table-light">
                   <tr>
-                    <th>Product</th>
-                    <th>SKU</th>
+                    {renderSearchHeader("Product", "ocProduct", "data-oc-product")}
+                    {renderSearchHeader("SKU", "ocSku", "data-oc-sku")}
                     <th>Opening Stock</th>
                     <th>Opening Price</th>
                     <th>Inward Stock</th>
@@ -1095,67 +1512,82 @@ function StoreStockSummary() {
                     <th>Closing Price</th>
                     <th>Unit</th>
                   </tr>
+                  {(searchTerms.ocProduct || searchTerms.ocSku) && (
+                    <tr>
+                      <td colSpan={15} style={{ padding: '4px 12px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                        {filteredOpeningClosing.length} products found
+                      </td>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {openingClosing.summaries.map((item, index) => (
-                    <tr key={item.id || index} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
-                      <td style={{ fontWeight: 600 }}>{item.product?.name || '-'}</td>
-                      <td style={{ fontSize: '12px', color: '#666' }}>{item.product?.SKU || item.product?.sku || '-'}</td>
-                      <td>{Number(item.openingStock || 0).toFixed(2)}</td>
-                      <td style={{ fontWeight: 600, color: '#3b82f6' }}>₹{Number(item.openingStockPrice || 0).toLocaleString()}</td>
-                      <td style={{ color: '#059669' }}>{Number(item.inwardStock || 0).toFixed(2)}</td>
-                      <td style={{ fontWeight: 600, color: '#059669' }}>₹{Number(item.inwardStockPrice || 0).toLocaleString()}</td>
-                      <td style={{ color: '#ef4444' }}>{Number(item.outwardStock || 0).toFixed(2)}</td>
-                      <td style={{ fontWeight: 600, color: '#ef4444' }}>₹{Number(item.outwardStockPrice || 0).toLocaleString()}</td>
-                      <td style={{ color: '#10b981' }}>{Number(item.stockIn || 0).toFixed(2)}</td>
-                      <td style={{ fontWeight: 600, color: '#10b981' }}>₹{Number(item.stockInPrice || 0).toLocaleString()}</td>
-                      <td style={{ color: '#f59e0b' }}>{Number(item.stockOut || 0).toFixed(2)}</td>
-                      <td style={{ fontWeight: 600, color: '#f59e0b' }}>₹{Number(item.stockOutPrice || 0).toLocaleString()}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>{Number(item.closingStock || 0).toFixed(2)}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>₹{Number(item.closingStockPrice || 0).toLocaleString()}</td>
-                      <td>{item.product?.unit || item.unit || 'kg'}</td>
+                  {filteredOpeningClosing.length === 0 ? (
+                    <tr>
+                      <td colSpan={15} className="text-center" style={{ padding: '20px' }}>
+                        No records match your search
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredOpeningClosing.map((item, index) => (
+                      <tr key={item.id || index} style={{ background: index % 2 === 0 ? 'rgba(59, 130, 246, 0.03)' : 'transparent' }}>
+                        <td style={{ fontWeight: 600 }}>{item.product?.name || '-'}</td>
+                        <td style={{ fontSize: '12px', color: '#666' }}>{item.product?.SKU || item.product?.sku || '-'}</td>
+                        <td>{Number(item.openingStock || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: '#3b82f6' }}>₹{Number(item.openingStockPrice || 0).toLocaleString()}</td>
+                        <td style={{ color: '#059669' }}>{Number(item.inwardStock || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: '#059669' }}>₹{Number(item.inwardStockPrice || 0).toLocaleString()}</td>
+                        <td style={{ color: '#ef4444' }}>{Number(item.outwardStock || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: '#ef4444' }}>₹{Number(item.outwardStockPrice || 0).toLocaleString()}</td>
+                        <td style={{ color: '#10b981' }}>{Number(item.stockIn || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: '#10b981' }}>₹{Number(item.stockInPrice || 0).toLocaleString()}</td>
+                        <td style={{ color: '#f59e0b' }}>{Number(item.stockOut || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: '#f59e0b' }}>₹{Number(item.stockOutPrice || 0).toLocaleString()}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>{Number(item.closingStock || 0).toFixed(2)}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>₹{Number(item.closingStockPrice || 0).toLocaleString()}</td>
+                        <td>{item.product?.unit || item.unit || 'kg'}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
-                {openingClosing.summaries.length > 0 && (
+                {filteredOpeningClosing.length > 0 && (
                   <tfoot className="table-light" style={{ borderTop: '2px solid #e5e7eb', fontFamily: 'Poppins', fontSize: '13px' }}>
                     <tr>
                       <td colSpan={2} style={{ textAlign: 'right', fontWeight: 600, padding: '12px 16px' }}>Total (Visible):</td>
                       <td style={{ fontWeight: 600, padding: '12px' }}>
-                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.openingStock) || 0), 0).toFixed(2)}
+                        {filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.openingStock) || 0), 0).toFixed(2)}
                       </td>
                       <td style={{ fontWeight: 600, color: '#3b82f6', padding: '12px' }}>
-                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.openingStockPrice) || 0), 0).toLocaleString()}
+                        ₹{filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.openingStockPrice) || 0), 0).toLocaleString()}
                       </td>
                       <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
-                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.inwardStock) || 0), 0).toFixed(2)}
+                        {filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.inwardStock) || 0), 0).toFixed(2)}
                       </td>
                       <td style={{ fontWeight: 600, color: '#059669', padding: '12px' }}>
-                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.inwardStockPrice) || 0), 0).toLocaleString()}
+                        ₹{filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.inwardStockPrice) || 0), 0).toLocaleString()}
                       </td>
                       <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
-                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.outwardStock) || 0), 0).toFixed(2)}
+                        {filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.outwardStock) || 0), 0).toFixed(2)}
                       </td>
                       <td style={{ fontWeight: 600, color: '#ef4444', padding: '12px' }}>
-                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.outwardStockPrice) || 0), 0).toLocaleString()}
+                        ₹{filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.outwardPrice || item.outwardStockPrice) || 0), 0).toLocaleString()}
                       </td>
                       <td style={{ fontWeight: 600, color: '#10b981', padding: '12px' }}>
-                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0).toFixed(2)}
+                        {filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.stockIn) || 0), 0).toFixed(2)}
                       </td>
                       <td style={{ fontWeight: 600, color: '#10b981', padding: '12px' }}>
-                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockInPrice) || 0), 0).toLocaleString()}
+                        ₹{filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.stockInPrice) || 0), 0).toLocaleString()}
                       </td>
                       <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
-                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0).toFixed(2)}
+                        {filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.stockOut) || 0), 0).toFixed(2)}
                       </td>
                       <td style={{ fontWeight: 600, color: '#f59e0b', padding: '12px' }}>
-                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.stockOutPrice) || 0), 0).toLocaleString()}
+                        ₹{filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.stockOutPrice) || 0), 0).toLocaleString()}
                       </td>
                       <td style={{ fontWeight: 600, color: 'var(--primary-color)', padding: '12px' }}>
-                        {openingClosing.summaries.reduce((sum, item) => sum + (Number(item.closingStock) || 0), 0).toFixed(2)}
+                        {filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.closingStock) || 0), 0).toFixed(2)}
                       </td>
                       <td style={{ fontWeight: 600, color: 'var(--primary-color)', padding: '12px' }}>
-                        ₹{openingClosing.summaries.reduce((sum, item) => sum + (Number(item.closingStockPrice) || 0), 0).toLocaleString()}
+                        ₹{filteredOpeningClosing.reduce((sum, item) => sum + (Number(item.closingStockPrice) || 0), 0).toLocaleString()}
                       </td>
                       <td></td>
                     </tr>

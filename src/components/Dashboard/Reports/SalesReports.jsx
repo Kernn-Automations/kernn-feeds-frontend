@@ -785,11 +785,51 @@ function SalesReports({ navigate }) {
         setIsErrorOpen(true);
         return;
       }
+
+      if (type === "XLS") {
+        if (isDetailedView) {
+          const columns = [
+            "Order Name", 
+            "Cattle Feed", 
+            "Natu", 
+            "Organic Fertilizer", 
+            "Poultry Feed", 
+            "Test Product #1", 
+            "TESTS WITHOUT SLABS", 
+            "Total Bags", 
+            "Total Tons", 
+            "Total Value (₹)"
+          ];
+          const data = salesData.map(row => [
+            row.orderName || "-",
+            row.cattleFeed || "-",
+            row.natu || "-",
+            row.organicFertilizer || "-",
+            row.poultryFeed || "-",
+            row.testProduct1 || "-",
+            row.testsWithoutSlabs || "-",
+            row.totalBags || 0,
+            row.totalTons ? row.totalTons.toFixed(3) : "0.000",
+            row.totalValue ? row.totalValue.toFixed(2) : "0.00"
+          ]);
+          handleExportExcel(columns, data, "Detailed Sales Report");
+        } else {
+          const columns = ["Date", "Particulars", "Bags", "Tons", "Value (₹)"];
+          const data = salesData.map(row => [
+            row.date || "-",
+            row.particulars || "-",
+            row.bags || 0,
+            row.tons ? row.tons.toFixed(3) : "0.000",
+            row.value ? row.value.toFixed(2) : "0.00"
+          ]);
+          handleExportExcel(columns, data, "Sales Report");
+        }
+        console.log("XLS export initiated locally");
+        return;
+      }
       
-      // Use generic export endpoints
-      const exportEndpoint = type === "PDF" ? 
-        `/reports/sales/export/pdf` : 
-        `/reports/sales/export/excel`;
+      // Use generic export endpoints for PDF
+      const exportEndpoint = `/reports/sales/export/pdf`;
       
       const params = {
         ...filters,
@@ -811,12 +851,12 @@ function SalesReports({ navigate }) {
       
       // Create download
       const blob = new Blob([response.data], { 
-        type: type === "PDF" ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        type: 'application/pdf' 
       });
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `sales_report_${new Date().toISOString().split('T')[0]}.${type === "PDF" ? 'pdf' : 'xlsx'}`;
+      link.download = `sales_report_${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

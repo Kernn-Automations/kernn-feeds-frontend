@@ -40,6 +40,80 @@ export default function StoreBankReceipts() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
+  // Header Search States
+  const [showSearch, setShowSearch] = useState({
+    type: false,
+    description: false,
+    reference: false
+  });
+
+  const [searchTerms, setSearchTerms] = useState({
+    type: "",
+    description: "",
+    reference: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
   useEffect(() => {
     if (!storeId) {
       try {
@@ -133,6 +207,45 @@ export default function StoreBankReceipts() {
     }
   }, [storeId, fetchStoreBankBalance, fetchBankReceipts, fetchBankSales]);
 
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close header search if clicked outside
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          type: false,
+          description: false,
+          reference: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          type: false,
+          description: false,
+          reference: false
+        });
+        setSearchTerms({
+          type: "",
+          description: "",
+          reference: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
   // Handle image view
   const handleViewImage = (imageUrl) => {
     if (imageUrl) {
@@ -199,6 +312,23 @@ export default function StoreBankReceipts() {
     });
 
     let combined = [...receiptItems, ...saleItems].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Apply Column Header Search Filters
+    if (searchTerms.type) {
+        combined = combined.filter(item => 
+            item.type.toLowerCase().includes(searchTerms.type.toLowerCase())
+        );
+    }
+    if (searchTerms.description) {
+        combined = combined.filter(item => 
+            item.description.toLowerCase().includes(searchTerms.description.toLowerCase())
+        );
+    }
+    if (searchTerms.reference) {
+        combined = combined.filter(item => 
+            (item.reference || "").toLowerCase().includes(searchTerms.reference.toLowerCase())
+        );
+    }
 
     // Apply Filters based on appliedFilters state
     if (appliedFilters.from) {
@@ -360,14 +490,21 @@ export default function StoreBankReceipts() {
                 <table className="table table-hover table-bordered borderedtable">
                   <thead>
                     <tr>
-                      <th>S.No</th>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Description</th>
-                      <th>Reference / UTR</th>
-                      <th className="text-end">Amount (₹)</th>
-                      <th>Proof</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                      {renderSearchHeader("Type", "type", "data-type-header")}
+                      {renderSearchHeader("Description", "description", "data-desc-header")}
+                      {renderSearchHeader("Reference / UTR", "reference", "data-ref-header")}
+                      <th className="text-end" style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Amount (₹)</th>
+                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Proof</th>
                     </tr>
+                    {(searchTerms.type || searchTerms.description || searchTerms.reference) && (
+                      <tr>
+                        <td colSpan="7" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                          {transactions.length} records found
+                        </td>
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
                     {transactions.map((tx, index) => (

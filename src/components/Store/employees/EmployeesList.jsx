@@ -19,6 +19,144 @@ export default function EmployeesList() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [backendPaginated, setBackendPaginated] = useState(false);
 
+  // Header Search States
+  const [showSearch, setShowSearch] = useState({
+    employeeId: false,
+    name: false,
+    mobile: false,
+    email: false,
+    storeName: false,
+    roleName: false,
+    status: false,
+    assignedAt: false
+  });
+
+  const [searchTerms, setSearchTerms] = useState({
+    employeeId: "",
+    name: "",
+    mobile: "",
+    email: "",
+    storeName: "",
+    roleName: "",
+    status: "",
+    assignedAt: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close header search if clicked outside
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          employeeId: false,
+          name: false,
+          mobile: false,
+          email: false,
+          storeName: false,
+          roleName: false,
+          status: false,
+          assignedAt: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          employeeId: false,
+          name: false,
+          mobile: false,
+          email: false,
+          storeName: false,
+          roleName: false,
+          status: false,
+          assignedAt: false
+        });
+        setSearchTerms({
+          employeeId: "",
+          name: "",
+          mobile: "",
+          email: "",
+          storeName: "",
+          roleName: "",
+          status: "",
+          assignedAt: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
   // Fetch store employees from API
   const fetchStoreEmployees = async () => {
     try {
@@ -102,6 +240,70 @@ export default function EmployeesList() {
     }
   }, [pageNo, limit, allStoreEmployees, backendPaginated]);
 
+  // Memoized filtered employees for header search
+  const displayEmployees = React.useMemo(() => {
+    let filtered = storeEmployees;
+
+    if (searchTerms.employeeId) {
+      filtered = filtered.filter(item => {
+        const id = (item.employee?.employeeId || '').toLowerCase();
+        return id.includes(searchTerms.employeeId.toLowerCase());
+      });
+    }
+
+    if (searchTerms.name) {
+      filtered = filtered.filter(item => {
+        const name = (item.employee?.name || '').toLowerCase();
+        return name.includes(searchTerms.name.toLowerCase());
+      });
+    }
+
+    if (searchTerms.mobile) {
+      filtered = filtered.filter(item => {
+        const mobile = (item.employee?.mobile || '').toLowerCase();
+        return mobile.includes(searchTerms.mobile.toLowerCase());
+      });
+    }
+
+    if (searchTerms.email) {
+      filtered = filtered.filter(item => {
+        const email = (item.employee?.email || '').toLowerCase();
+        return email.includes(searchTerms.email.toLowerCase());
+      });
+    }
+
+    if (searchTerms.storeName) {
+      filtered = filtered.filter(item => {
+        const store = (item.store?.name || '').toLowerCase();
+        return store.includes(searchTerms.storeName.toLowerCase());
+      });
+    }
+
+    if (searchTerms.roleName) {
+      filtered = filtered.filter(item => {
+        const role = (item.role?.name || '').toLowerCase();
+        return role.includes(searchTerms.roleName.toLowerCase());
+      });
+    }
+
+    if (searchTerms.status) {
+      filtered = filtered.filter(item => {
+        const employee = item.employee || {};
+        const status = (employee.status || (item.isActive ? "Active" : "Inactive")).toLowerCase();
+        return status.includes(searchTerms.status.toLowerCase());
+      });
+    }
+
+    if (searchTerms.assignedAt) {
+      filtered = filtered.filter(item => {
+        const assigned = formatDate(item.assignedAt).toLowerCase();
+        return assigned.includes(searchTerms.assignedAt.toLowerCase());
+      });
+    }
+
+    return filtered;
+  }, [storeEmployees, searchTerms]);
+
   const closeModal = () => {
     setIsModalOpen(false);
     setError("");
@@ -150,17 +352,25 @@ export default function EmployeesList() {
           <table className={`table table-bordered borderedtable`}>
             <thead>
               <tr>
-                <th>S.No</th>
-                <th>Employee ID</th>
-                <th>Employee Name</th>
-                <th>Mobile Number</th>
-                <th>Email</th>
-                <th>Store Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Assigned At</th>
-                <th>Action</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                {renderSearchHeader("Employee ID", "employeeId", "data-id-header")}
+                {renderSearchHeader("Employee Name", "name", "data-name-header")}
+                {renderSearchHeader("Mobile Number", "mobile", "data-mobile-header")}
+                {renderSearchHeader("Email", "email", "data-email-header")}
+                {renderSearchHeader("Store Name", "storeName", "data-store-header")}
+                {renderSearchHeader("Role", "roleName", "data-role-header")}
+                {renderSearchHeader("Status", "status", "data-status-header")}
+                {renderSearchHeader("Assigned At", "assignedAt", "data-assigned-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
               </tr>
+              {(searchTerms.employeeId || searchTerms.name || searchTerms.mobile || searchTerms.email || 
+                searchTerms.storeName || searchTerms.roleName || searchTerms.status || searchTerms.assignedAt) && (
+                <tr>
+                  <td colSpan="10" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {displayEmployees.length} employees found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (
@@ -169,14 +379,14 @@ export default function EmployeesList() {
                     <Loading />
                   </td>
                 </tr>
-              ) : storeEmployees.length === 0 ? (
+              ) : displayEmployees.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', padding: '20px' }}>
                     NO DATA FOUND
                   </td>
                 </tr>
               ) : (
-                getPaginatedData().map((storeEmployee, index) => {
+                displayEmployees.map((storeEmployee, index) => {
                   const actualIndex = (pageNo - 1) * limit + index + 1;
                   const employee = storeEmployee.employee || {};
                   const store = storeEmployee.store || {};
@@ -228,7 +438,7 @@ export default function EmployeesList() {
           <div className="row m-0 p-0 pt-3 justify-content-between align-items-center">
             <div className={`col-6 m-0 p-0`}>
               <p style={{ margin: 0, fontFamily: 'Poppins', fontSize: '14px', color: '#666' }}>
-                Showing {getPaginatedData().length > 0 ? (pageNo - 1) * limit + 1 : 0} to {Math.min(pageNo * limit, total)} of {total} employees
+                Showing {displayEmployees.length > 0 ? (pageNo - 1) * limit + 1 : 0} to {Math.min(pageNo * limit, total)} of {total} employees
               </p>
             </div>
             <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>

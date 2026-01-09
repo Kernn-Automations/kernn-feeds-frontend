@@ -23,6 +23,121 @@ export default function CustomersList() {
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Header Search States
+  const [showSearch, setShowSearch] = useState({
+    code: false,
+    name: false,
+    mobile: false,
+    createdBy: false
+  });
+
+  const [searchTerms, setSearchTerms] = useState({
+    code: "",
+    name: "",
+    mobile: "",
+    createdBy: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close header search if clicked outside
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          code: false,
+          name: false,
+          mobile: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          code: false,
+          name: false,
+          mobile: false
+        });
+        setSearchTerms({
+          code: "",
+          name: "",
+          mobile: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
   // Get current store ID from localStorage
   const getStoreId = () => {
     try {
@@ -81,6 +196,41 @@ export default function CustomersList() {
     }
   };
 
+  // Memoized filtered customers for header search
+  const displayCustomers = React.useMemo(() => {
+    let filtered = customers;
+
+    if (searchTerms.code) {
+      filtered = filtered.filter(customer => {
+        const code = (customer.customerCode || `CUST${customer.id}`).toLowerCase();
+        return code.includes(searchTerms.code.toLowerCase());
+      });
+    }
+
+    if (searchTerms.name) {
+      filtered = filtered.filter(customer => {
+        const name = (customer.name || customer.farmerName || customer.label || customer.customerName || '').toLowerCase();
+        return name.includes(searchTerms.name.toLowerCase());
+      });
+    }
+
+    if (searchTerms.mobile) {
+      filtered = filtered.filter(customer => {
+        const mobile = (customer.mobile || customer.phone || customer.phoneNo || '').toLowerCase();
+        return mobile.includes(searchTerms.mobile.toLowerCase());
+      });
+    }
+
+    if (searchTerms.createdBy) {
+      filtered = filtered.filter(customer => {
+        const creator = (customer.createdByEmployee?.name || '').toLowerCase();
+        return creator.includes(searchTerms.createdBy.toLowerCase());
+      });
+    }
+
+    return filtered;
+  }, [customers, searchTerms]);
+
   // Fetch customers when page or limit changes
   useEffect(() => {
     fetchCustomers();
@@ -100,18 +250,8 @@ export default function CustomersList() {
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
 
-    // Define columns
-    const columns = [
-      "S.No",
-      "Customer Code",
-      "Name",
-      "Mobile",
-      "Total Purchases",
-      "Created By"
-    ];
-
     // Define rows
-    const rows = customers.map((customer, index) => {
+    const rows = displayCustomers.map((customer, index) => {
       const actualIndex = (pageNo - 1) * limit + index + 1;
       return [
         actualIndex,
@@ -137,7 +277,7 @@ export default function CustomersList() {
 
   const exportToExcel = () => {
     // Format data for Excel
-    const dataToExport = customers.map((customer, index) => {
+    const dataToExport = displayCustomers.map((customer, index) => {
       const actualIndex = (pageNo - 1) * limit + index + 1;
       return {
         "S.No": actualIndex,
@@ -204,14 +344,21 @@ export default function CustomersList() {
           <table className={`table table-bordered borderedtable`}>
             <thead>
               <tr>
-                <th>S.No</th>
-                <th>Customer Code</th>
-                <th>Name</th>
-                <th>Mobile</th>
-                <th>Total Purchases</th>
-                <th>Created By</th>
-                <th>Action</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
+                {renderSearchHeader("Customer Code", "code", "data-code-header")}
+                {renderSearchHeader("Name", "name", "data-name-header")}
+                {renderSearchHeader("Mobile", "mobile", "data-mobile-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Total Purchases</th>
+                {renderSearchHeader("Created By", "createdBy", "data-created-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
               </tr>
+              {(searchTerms.code || searchTerms.name || searchTerms.mobile || searchTerms.createdBy) && (
+                <tr>
+                  <td colSpan="7" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {displayCustomers.length} customers found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (
@@ -220,14 +367,14 @@ export default function CustomersList() {
                     <Loading />
                   </td>
                 </tr>
-              ) : customers.length === 0 ? (
+              ) : displayCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '20px' }}>
                     NO DATA FOUND
                   </td>
                 </tr>
               ) : (
-                customers.map((customer, index) => {
+                displayCustomers.map((customer, index) => {
                   const actualIndex = (pageNo - 1) * limit + index + 1;
                   return (
                     <tr

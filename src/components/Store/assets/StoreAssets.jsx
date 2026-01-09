@@ -6,7 +6,8 @@ import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
 import storeService from "../../../services/storeService";
-import styles from "../../Dashboard/HomePage/HomePage.module.css";
+import styles from "../sales/StoreSalesOrders.module.css";
+import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
 import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
@@ -71,6 +72,118 @@ export default function StoreAssets() {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
+  // Header Search States
+  const [showHeadersSearch, setShowHeadersSearch] = useState({
+    assetCode: false,
+    itemName: false,
+    status: false
+  });
+
+  const [headerSearchTerms, setHeaderSearchTerms] = useState({
+    assetCode: "",
+    itemName: "",
+    status: ""
+  });
+
+  const toggleHeaderSearch = (key) => {
+    setShowHeadersSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleHeaderSearchChange = (key, value) => {
+    setHeaderSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearHeaderSearch = (key) => {
+    setHeaderSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showHeadersSearch[searchKey];
+    const searchTerm = headerSearchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleHeaderSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleHeaderSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearHeaderSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowHeadersSearch({
+          assetCode: false,
+          itemName: false,
+          status: false
+        });
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, []);
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowHeadersSearch({
+          assetCode: false,
+          itemName: false,
+          status: false
+        });
+        setHeaderSearchTerms({
+          assetCode: "",
+          itemName: "",
+          status: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
 
   const showError = useCallback((message) => {
     setError(message || "Something went wrong. Please try again.");
@@ -728,6 +841,45 @@ export default function StoreAssets() {
 
   const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // Memoized filtered assets for search and header search
+  const displayAssets = useMemo(() => {
+    let filtered = assets;
+
+    // Apply global search term
+    if (searchTerm) {
+      filtered = filtered.filter(item => {
+        const code = (item.assetCode || `AST-${item.id}`).toLowerCase();
+        const name = (item.itemName || "").toLowerCase();
+        const search = searchTerm.toLowerCase();
+        return code.includes(search) || name.includes(search);
+      });
+    }
+
+    // Apply header search terms
+    if (headerSearchTerms.assetCode) {
+      filtered = filtered.filter(item => {
+        const code = (item.assetCode || `AST-${item.id}`).toLowerCase();
+        return code.includes(headerSearchTerms.assetCode.toLowerCase());
+      });
+    }
+
+    if (headerSearchTerms.itemName) {
+      filtered = filtered.filter(item => {
+        const name = (item.itemName || "").toLowerCase();
+        return name.includes(headerSearchTerms.itemName.toLowerCase());
+      });
+    }
+
+    if (headerSearchTerms.status) {
+      filtered = filtered.filter(item => {
+        const status = (item.status || "pending").toLowerCase();
+        return status.includes(headerSearchTerms.status.toLowerCase());
+      });
+    }
+
+    return filtered;
+  }, [assets, searchTerm, headerSearchTerms]);
+
   // Export function
   const onExport = (type) => {
     const arr = [];
@@ -743,7 +895,7 @@ export default function StoreAssets() {
       "Total",
       "Status"
     ];
-    const dataToExport = filteredAssets && filteredAssets.length > 0 ? filteredAssets : assets;
+    const dataToExport = displayAssets && displayAssets.length > 0 ? displayAssets : assets;
     if (dataToExport && dataToExport.length > 0) {
       dataToExport.forEach((item) => {
         arr.push({
@@ -769,25 +921,14 @@ export default function StoreAssets() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+      <div className={styles.pageHeader}>
         <div>
-          <h2
-            style={{
-              fontFamily: "Poppins",
-              fontWeight: 700,
-              fontSize: "28px",
-              color: "var(--primary-color)",
-              margin: 0,
-              marginBottom: "8px",
-            }}
-          >
-            Store Assets
-          </h2>
+          <h2>Store Assets</h2>
           <p className="path">
-          Assets
+            Assets
           </p>
         </div>
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           {!isEmployee && (
             <>
               <button 
@@ -806,16 +947,16 @@ export default function StoreAssets() {
       </div>
 
       {!storeId && (
-        <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+        <div className={`${homeStyles.orderStatusCard} ${styles.cardWrapper}`} style={{ marginBottom: "24px" }}>
           <p style={{ margin: 0, fontFamily: "Poppins" }}>Store details are missing. Please re-login to continue.</p>
         </div>
       )}
 
       {storeId && (
-        <>
+        <div className={`${homeStyles.orderStatusCard} ${styles.cardWrapper}`}>
           {/* Create Asset Form */}
           {showCreateForm && (
-            <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "24px", padding: "20px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <h4
                 style={{
                   margin: 0,
@@ -1042,7 +1183,7 @@ export default function StoreAssets() {
             </div>
           )}
 
-          <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+          <div style={{ marginBottom: "24px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div>
                 <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600, fontSize: "20px", color: "var(--primary-color)" }}>
@@ -1059,7 +1200,7 @@ export default function StoreAssets() {
               </div>
             </div>
 
-            <div className="row m-0 p-3" style={{ marginBottom: "24px" }}>
+            <div className={`row g-3 ${styles.filtersRow}`} style={{ padding: "0 15px", marginBottom: "24px" }}>
               <div className={`col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent`}>
                 <label>Status</label>
                 <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}>
@@ -1080,24 +1221,36 @@ export default function StoreAssets() {
                   ))}
                 </select>
               </div>
-              <div className={`col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent`}>
+              <div className={`col-xl-3 col-lg-4 col-md-4 col-sm-6 formcontent`}>
                 <label>Search</label>
                 <input
                   type="text"
                   placeholder="Search by name or code"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '32px',
+                    outline: '1.5px solid var(--primary-color)',
+                    padding: '2px 10px',
+                    borderRadius: '16px',
+                    boxShadow: '2px 2px 4px #333',
+                    fontFamily: 'Poppins',
+                    fontSize: '13px',
+                    border: 'none',
+                    backgroundColor: 'white'
+                  }}
                 />
               </div>
-              <div className="col-12 mt-3">
-                <p style={{ margin: 0, fontFamily: "Poppins", color: "#6b7280" }}>
+              <div className="col-12 mt-2">
+                <p style={{ margin: 0, fontFamily: "Poppins", color: "#6b7280", fontSize: "13px" }}>
                   Showing page {pagination.page} of {pagination.totalPages || 1}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={styles.orderStatusCard}>
+          <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
               <h4
                 style={{
@@ -1108,13 +1261,13 @@ export default function StoreAssets() {
                   color: "var(--primary-color)",
                 }}
               >
-                Asset Register ({filteredAssets.length})
+                Asset Register ({displayAssets.length})
               </h4>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <button className="cancelbtn" type="button" onClick={() => handlePageChange("prev")} disabled={query.page <= 1}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                <button className="cancelbtn" type="button" onClick={() => handlePageChange("prev")} disabled={query.page <= 1} style={{ padding: "4px 12px", fontSize: "14px" }}>
                   Prev
                 </button>
-                <span style={{ fontFamily: "Poppins" }}>
+                <span style={{ fontFamily: "Poppins", fontSize: "14px" }}>
                   Page {pagination.page} / {pagination.totalPages || 1}
                 </span>
                 <button
@@ -1122,20 +1275,21 @@ export default function StoreAssets() {
                   type="button"
                   onClick={() => handlePageChange("next")}
                   disabled={pagination.totalPages <= pagination.page}
+                  style={{ padding: "4px 12px", fontSize: "14px" }}
                 >
                   Next
                 </button>
               </div>
             </div>
 
-            <div style={{ overflowX: "auto", marginTop: "16px" }}>
-              <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
+            <div className={`${styles.tableContainer} table-responsive`} style={{ marginTop: "16px" }}>
+              <table className="table table-bordered borderedtable table-sm table-hover" style={{ fontFamily: "Poppins" }}>
                 <thead className="table-light">
                   <tr>
                     <th>S.No</th>
-                    <th>Asset Code</th>
+                    {renderSearchHeader("Asset Code", "assetCode", "data-code-header")}
                     <th>Date</th>
-                    <th>Item Name</th>
+                    {renderSearchHeader("Item Name", "itemName", "data-name-header")}
                     <th>Requested</th>
                     <th>Received</th>
                     <th>Value (₹)</th>
@@ -1143,19 +1297,26 @@ export default function StoreAssets() {
                     <th>Total (₹)</th>
                     <th>Condition</th>
                     <th>Bill</th>
-                    <th>Status</th>
+                    {renderSearchHeader("Status", "status", "data-status-header")}
                     <th>Actions</th>
                   </tr>
+                  {(headerSearchTerms.assetCode || headerSearchTerms.itemName || headerSearchTerms.status) && (
+                    <tr>
+                      <td colSpan="13" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                        {displayAssets.length} assets found
+                      </td>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {filteredAssets.length === 0 ? (
+                  {displayAssets.length === 0 ? (
                     <tr>
                       <td colSpan={13} style={{ textAlign: "center", padding: "32px", color: "#666" }}>
                         {loading ? "Loading assets..." : "No assets found"}
                       </td>
                     </tr>
                   ) : (
-                    filteredAssets.map((asset, index) => (
+                    displayAssets.map((asset, index) => (
                       <tr key={asset.id} style={{ background: index % 2 === 0 ? "rgba(59, 130, 246, 0.03)" : "transparent" }}>
                         <td>{index + 1}</td>
                         <td>{asset.assetCode || "-"}</td>
@@ -1230,7 +1391,7 @@ export default function StoreAssets() {
           </div>
 
           {selectedAsset && (
-            <div className={styles.orderStatusCard} style={{ marginTop: "24px" }}>
+            <div style={{ marginTop: "24px", padding: "24px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
                 <div>
                   <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600, fontSize: "20px", color: "var(--primary-color)" }}>
@@ -1519,7 +1680,7 @@ export default function StoreAssets() {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Bill View Modal */}

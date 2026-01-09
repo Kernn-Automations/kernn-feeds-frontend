@@ -44,6 +44,84 @@ function StoreDamagedStock() {
 
   const [products, setProducts] = useState([]);
 
+  // Filtered data states
+  const [filteredReports, setFilteredReports] = useState([]);
+
+  // Search Visibility states
+  const [showSearch, setShowSearch] = useState({
+    reportCode: false,
+    product: false,
+    reason: false
+  });
+
+  // Search Term states
+  const [searchTerms, setSearchTerms] = useState({
+    reportCode: "",
+    product: "",
+    reason: ""
+  });
+
+  const toggleSearch = (key) => {
+    setShowSearch(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = k === key ? !prev[k] : false;
+      });
+      return next;
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setSearchTerms(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearSearch = (key) => {
+    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const renderSearchHeader = (label, searchKey, dataAttr) => {
+    const isSearching = showSearch[searchKey];
+    const searchTerm = searchTerms[searchKey];
+
+    return (
+      <th
+        onClick={() => toggleSearch(searchKey)}
+        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        data-search-header="true"
+        {...{ [dataAttr]: true }}
+      >
+        {isSearching ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              placeholder={`Search ${label}...`}
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+              style={{
+                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+              }}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
+                style={{
+                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
+                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
+                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+          </div>
+        ) : (
+          <>{label}</>
+        )}
+      </th>
+    );
+  };
+
   // Get store ID from localStorage
   useEffect(() => {
     try {
@@ -158,6 +236,63 @@ function StoreDamagedStock() {
       setLoading(false);
     }
   };
+
+  // ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === "Escape") {
+        setShowSearch({
+          reportCode: false,
+          product: false,
+          reason: false
+        });
+        setSearchTerms({
+          reportCode: "",
+          product: "",
+          reason: ""
+        });
+      }
+    };
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
+
+  // Click outside functionality
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('[data-search-header]')) {
+        setShowSearch({
+          reportCode: false,
+          product: false,
+          reason: false
+        });
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+  }, []);
+
+  // Filtering Logic
+  useEffect(() => {
+    let filtered = damagedReports;
+    if (searchTerms.reportCode) {
+      filtered = filtered.filter(item => 
+        item.reportCode?.toLowerCase().includes(searchTerms.reportCode.toLowerCase())
+      );
+    }
+    if (searchTerms.product) {
+      filtered = filtered.filter(item => 
+        item.productName?.toLowerCase().includes(searchTerms.product.toLowerCase()) ||
+        item.productSKU?.toLowerCase().includes(searchTerms.product.toLowerCase())
+      );
+    }
+    if (searchTerms.reason) {
+      filtered = filtered.filter(item => 
+        item.damageReason?.toLowerCase().includes(searchTerms.reason.toLowerCase())
+      );
+    }
+    setFilteredReports(filtered);
+  }, [damagedReports, searchTerms.reportCode, searchTerms.product, searchTerms.reason]);
 
   const handleProductSelect = (productId) => {
     const product = products.find(p => p.id === productId);
@@ -296,7 +431,7 @@ function StoreDamagedStock() {
       "Status",
       "Reported By"
     ];
-    const dataToExport = damagedReports && damagedReports.length > 0 ? damagedReports : [];
+    const dataToExport = filteredReports.length > 0 ? filteredReports : (damagedReports || []);
     if (dataToExport && dataToExport.length > 0) {
       dataToExport.forEach((item) => {
         arr.push({
@@ -658,14 +793,21 @@ function StoreDamagedStock() {
           <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Report Code</th>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Damage Reason</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                {renderSearchHeader("Report Code", "reportCode", "data-report-code")}
+                {renderSearchHeader("Product", "product", "data-product")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Quantity</th>
+                {renderSearchHeader("Damage Reason", "reason", "data-reason")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
               </tr>
+              {(searchTerms.reportCode || searchTerms.product || searchTerms.reason) && (
+                <tr>
+                  <td colSpan={7} style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                    {filteredReports.length} reports found
+                  </td>
+                </tr>
+              )}
             </thead>
             <tbody>
               {loading ? (
@@ -674,8 +816,8 @@ function StoreDamagedStock() {
                     Loading...
                   </td>
                 </tr>
-              ) : damagedReports.length > 0 ? (
-                damagedReports.map((report, i) => (
+              ) : filteredReports.length > 0 ? (
+                filteredReports.map((report, i) => (
                   <tr key={report.id || i}>
                     <td>
                       {report.reportedAt 

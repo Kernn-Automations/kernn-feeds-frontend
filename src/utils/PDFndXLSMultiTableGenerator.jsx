@@ -138,11 +138,31 @@ export const handleExportMultipleExcel = (tables, mainTitle = "Report") => {
 
   tables.forEach((table) => {
     const { title, columns, data } = table;
+    
+    // Header rows
+    const companyRow = ["Feed Bazaar"];
+    const titleRow = [title];
+    
     const sheetData = [
+      companyRow,
+      titleRow,
       columns,
       ...data.map((row) => columns.map((col) => row[col] ?? "")),
     ];
+    
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    
+    // Merge cells for Company Heading and Title
+    if (!worksheet['!merges']) worksheet['!merges'] = [];
+    worksheet['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: columns.length - 1 } });
+    worksheet['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: columns.length - 1 } });
+
+    // Apply basic styling to columns
+    const colWidths = columns.map((col) => ({
+      wch: Math.max(col.length + 5, 15),
+    }));
+    worksheet["!cols"] = colWidths;
+
     XLSX.utils.book_append_sheet(workbook, worksheet, title.slice(0, 30)); // max 31 chars
   });
 
