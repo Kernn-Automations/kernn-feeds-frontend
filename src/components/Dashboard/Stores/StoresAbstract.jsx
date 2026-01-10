@@ -264,7 +264,7 @@ const StoresAbstract = () => {
                           return '-';
                         })()}
                       </td>
-                      <td>{store.monthlyRent ? formatCurrency(store.monthlyRent) : '-'}</td>
+                      <td>{agreementDetails.monthlyRent ? formatCurrency(agreementDetails.monthlyRent) : '-'}</td>
                       {/* Power Bill Details */}
                       <td>{powerBillDetails.billNumber || '-'}</td>
                       <td>{powerBillDetails.distributor || '-'}</td>

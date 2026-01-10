@@ -1233,8 +1233,8 @@ function DivisionManager() {
         ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
           advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
         }),
-        ...(newStore.monthlyBill && parseFloat(newStore.monthlyBill) > 0 && { 
-          monthlyBill: parseFloat(newStore.monthlyBill) 
+        ...(newStore.monthlyRent && parseFloat(newStore.monthlyRent) > 0 && { 
+          monthlyRent: parseFloat(newStore.monthlyRent) 
         }),
         ...(newStore.rentAgreementDocumentBase64 && { 
           rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
@@ -1425,8 +1425,8 @@ function DivisionManager() {
         ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
           advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
         }),
-        ...(newStore.monthlyBill && parseFloat(newStore.monthlyBill) > 0 && { 
-          monthlyBill: parseFloat(newStore.monthlyBill) 
+        ...(newStore.monthlyRent && parseFloat(newStore.monthlyRent) > 0 && { 
+          monthlyRent: parseFloat(newStore.monthlyRent) 
         }),
         ...(newStore.rentAgreementDocumentBase64 && { 
           rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
@@ -1692,7 +1692,7 @@ function DivisionManager() {
       rentAgreementStartDate: storeDetails.rentAgreementStartDate || storeDetails.rentAgreementDateStart || store.rentAgreementStartDate || store.rentAgreementDateStart || "",
       rentAgreementEndDate: storeDetails.rentAgreementEndDate || storeDetails.rentAgreementDateEnd || store.rentAgreementEndDate || store.rentAgreementDateEnd || "",
       advancePayOfRent: storeDetails.advancePayOfRent || store.advancePayOfRent || "",
-      monthlyBill: storeDetails.monthlyBill || store.monthlyBill || "",
+      monthlyRent: storeDetails.monthlyRent || storeDetails.monthlyBill || store.monthlyRent || store.monthlyBill || "",
       rentAgreementDocumentBase64: null,
       // Power bill fields
       powerBillNumber: storeDetails.powerBillNumber || store.powerBillNumber || "",
@@ -1754,7 +1754,7 @@ function DivisionManager() {
       bankName: "",
       ifscCode: "",
       accountNumber: "",
-      monthlyBill: "",
+      monthlyRent: "",
       // UI state
       agreementImage: null,
       agreementImagePreview: null
