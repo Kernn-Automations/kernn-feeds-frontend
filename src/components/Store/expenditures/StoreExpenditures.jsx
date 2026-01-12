@@ -794,6 +794,41 @@ function StoreExpenditures() {
                   </ul>
                 )}
               </div>
+              {tempFilters.months && tempFilters.months.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "5px" }}>
+                  {tempFilters.months.map((m) => (
+                    <span
+                      key={m}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        backgroundColor: "#e2e8f0",
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        fontFamily: "Poppins",
+                      }}
+                    >
+                      {MONTH_OPTIONS.find((opt) => opt.value === m)?.label}
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newMonths = tempFilters.months.filter((val) => val !== m);
+                          handleFilterChange("months", newMonths);
+                        }}
+                        style={{
+                          marginLeft: "6px",
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                          color: "#ef4444",
+                        }}
+                      >
+                        ×
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="col-xl-2 col-lg-3 col-md-4 col-sm-6 formcontent">
               <label>Year:</label>

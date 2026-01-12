@@ -25,12 +25,16 @@ const StoresProducts = () => {
   // Filter states
   const [storeTypeFilter, setStoreTypeFilter] = useState("all"); // "all", "own", "franchise"
   const [selectedProducts, setSelectedProducts] = useState([]); // Multiple selected product SKUs
+  const [selectedStores, setSelectedStores] = useState([]); // Multiple selected store IDs
   const [allProducts, setAllProducts] = useState([]); // All available products with {value, label}
+  const [allStores, setAllStores] = useState([]); // All available stores with {value, label, zone}
   
   // Temporary filter states (before submit)
   const [tempStoreTypeFilter, setTempStoreTypeFilter] = useState("all");
   const [tempSelectedProducts, setTempSelectedProducts] = useState([]);
+  const [tempSelectedStores, setTempSelectedStores] = useState([]);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [showStoreDropdown, setShowStoreDropdown] = useState(false);
 
   // Search states for table headers
   const [zoneSearchTerm, setZoneSearchTerm] = useState("");
@@ -52,16 +56,19 @@ const StoresProducts = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (showProductDropdown && !e.target.closest('.formcontent')) {
+      if (showProductDropdown && !e.target.closest('.product-filter-dropdown')) {
         setShowProductDropdown(false);
+      }
+      if (showStoreDropdown && !e.target.closest('.store-filter-dropdown')) {
+        setShowStoreDropdown(false);
       }
     };
     
-    if (showProductDropdown) {
+    if (showProductDropdown || showStoreDropdown) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [showProductDropdown]);
+  }, [showProductDropdown, showStoreDropdown]);
 
   // ESC key handler to exit search mode
   useEffect(() => {
@@ -260,6 +267,7 @@ const StoresProducts = () => {
       // Also create mapping of SKU to Product Name
       const allSkus = new Set();
       const skuProductNameMap = {};
+      const uniqueStores = new Map(); // StoreId -> Store Object
       
       flattenedData.forEach(row => {
         Object.keys(row.prices || {}).forEach(sku => {
@@ -269,6 +277,15 @@ const StoresProducts = () => {
             skuProductNameMap[sku] = row.prices[sku].productName;
           }
         });
+        
+        // Collect unique stores for filter
+        if (row.storeId && !uniqueStores.has(row.storeId)) {
+          uniqueStores.set(row.storeId, {
+            value: row.storeId,
+            label: row.store || row.storeCode || `Store ${row.storeId}`,
+            zone: row.zone
+          });
+        }
       });
       const sortedSkus = Array.from(allSkus).sort();
       
@@ -288,6 +305,9 @@ const StoresProducts = () => {
         }));
         setAllProducts(productOptions);
       }
+      
+      // Populate all stores for filter
+      setAllStores(Array.from(uniqueStores.values()).sort((a, b) => a.label.localeCompare(b.label)));
       
       setStoreProductsData(flattenedData);
     } catch (err) {
@@ -309,15 +329,20 @@ const StoresProducts = () => {
   const handleSubmitFilters = () => {
     setStoreTypeFilter(tempStoreTypeFilter);
     setSelectedProducts(tempSelectedProducts);
+    setSelectedStores(tempSelectedStores);
     setShowProductDropdown(false);
+    setShowStoreDropdown(false);
   };
 
   const handleCancelFilters = () => {
     setTempStoreTypeFilter("all");
     setTempSelectedProducts([]);
+    setTempSelectedStores([]);
     setStoreTypeFilter("all");
     setSelectedProducts([]);
+    setSelectedStores([]);
     setShowProductDropdown(false);
+    setShowStoreDropdown(false);
   };
 
   const handleEditClick = () => {
@@ -326,39 +351,25 @@ const StoresProducts = () => {
     // Use the same rowId format as the table uses
     const editData = {};
     
-    // Group data the same way the table does
-    const groupedData = storeProductsData.reduce((acc, row) => {
-      const key = `${row.zone}-${row.subZone}`;
-      if (!acc[key]) {
-        acc[key] = [];
-      }
-      acc[key].push(row);
-      return acc;
-    }, {});
-    
-    // Create rowIds with globalIndex matching the table
+    // Create rowIds using storeId for stability across filters
     // IMPORTANT: Deep copy prices to avoid mutating original data
-    let globalIndex = 0;
-    Object.values(groupedData).forEach((group) => {
-      group.forEach((row) => {
-        const rowKey = `${row.zone}-${row.subZone}-${row.store}-${globalIndex}`;
-        
-        // Deep copy prices object to avoid reference issues
-        const deepCopiedPrices = {};
-        if (row.prices) {
-          Object.keys(row.prices).forEach(sku => {
-            deepCopiedPrices[sku] = {
-              ...row.prices[sku]
-            };
-          });
-        }
-        
-        editData[rowKey] = {
-          ...row,
-          prices: deepCopiedPrices
-        };
-        globalIndex++;
-      });
+    storeProductsData.forEach((row) => {
+      const rowKey = row.storeId;
+      
+      // Deep copy prices object to avoid reference issues
+      const deepCopiedPrices = {};
+      if (row.prices) {
+        Object.keys(row.prices).forEach(sku => {
+          deepCopiedPrices[sku] = {
+            ...row.prices[sku]
+          };
+        });
+      }
+      
+      editData[rowKey] = {
+        ...row,
+        prices: deepCopiedPrices
+      };
     });
     
     console.log('Initialized editing data:', editData);
@@ -375,56 +386,30 @@ const StoresProducts = () => {
       const newData = { ...prev };
       if (!newData[rowKey]) {
         // Find the original row data by matching properties
-        const originalRow = storeProductsData.find(row => {
-          // Try to match by rowId if it exists, or by properties
-          return row.rowId === rowKey || 
-                 (prev[rowKey] && row.storeId === prev[rowKey].storeId && 
-                  row.zone === prev[rowKey].zone && 
-                  row.subZone === prev[rowKey].subZone &&
-                  row.store === prev[rowKey].store);
-        });
+        // Find the original row by matching storeId (rowKey is storeId)
+        const originalRow = storeProductsData.find(row => row.storeId === rowKey);
         
-        // If still not found, try parsing the rowKey
-        if (!originalRow) {
-          const parts = rowKey.split('-');
-          if (parts.length >= 3) {
-            const storeName = parts.slice(2).join('-'); // Store name might contain dashes
-            const originalRowByKey = storeProductsData.find(row => 
-              row.zone === parts[0] && 
-              row.subZone === parts[1] && 
-              row.store === storeName
-            );
-            if (originalRowByKey) {
-              // Deep copy prices
-              const deepCopiedPrices = {};
-              if (originalRowByKey.prices) {
-                Object.keys(originalRowByKey.prices).forEach(sku => {
-                  deepCopiedPrices[sku] = { ...originalRowByKey.prices[sku] };
-                });
-              }
-              newData[rowKey] = {
-                ...originalRowByKey,
-                prices: deepCopiedPrices
-              };
-            } else {
-              console.warn('Could not find original row for key:', rowKey);
-              return prev;
-            }
-          } else {
-            return prev;
-          }
+        // If not found by direct ID match, try property matching as fallback
+        const targetRow = originalRow || storeProductsData.find(row => 
+          (prev[rowKey] && row.storeId === prev[rowKey].storeId)
+        );
+
+        if (targetRow) {
+           // Deep copy prices
+           const deepCopiedPrices = {};
+           if (targetRow.prices) {
+             Object.keys(targetRow.prices).forEach(sku => {
+               deepCopiedPrices[sku] = { ...targetRow.prices[sku] };
+             });
+           }
+           newData[rowKey] = {
+             ...targetRow,
+             prices: deepCopiedPrices
+           };
         } else {
-          // Deep copy prices
-          const deepCopiedPrices = {};
-          if (originalRow.prices) {
-            Object.keys(originalRow.prices).forEach(sku => {
-              deepCopiedPrices[sku] = { ...originalRow.prices[sku] };
-            });
-          }
-          newData[rowKey] = {
-            ...originalRow,
-            prices: deepCopiedPrices
-          };
+             console.warn('Could not find original row for key:', rowKey);
+             // Create a dummy entry to prevent crash, but this shouldn't happen with stable IDs
+             newData[rowKey] = { prices: {} };
         }
       }
       if (!newData[rowKey].prices) {
@@ -662,6 +647,11 @@ const StoresProducts = () => {
       if (storeTypeFilter === "franchise" && storeType !== "franchise") return false;
     }
 
+    // Apply store (from multi-select) filter
+    if (selectedStores.length > 0) {
+      if (!selectedStores.some(id => id === row.storeId)) return false;
+    }
+
     // Apply zone search filter
     if (zoneSearchTerm) {
       const zone = (row.zone || "").toString().toLowerCase();
@@ -777,13 +767,104 @@ const StoresProducts = () => {
           </select>
         </div>
 
-        <div className="col-4 formcontent" style={{ position: 'relative' }}>
+        {/* Store Filter - New */}
+        <div className="col-3 formcontent" style={{ position: 'relative' }}>
+          <label htmlFor="">Stores:</label>
+          <select
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowStoreDropdown(!showStoreDropdown);
+              setShowProductDropdown(false); // Close other dropdown
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            value=""
+            readOnly
+            style={{
+              cursor: 'pointer',
+              appearance: 'auto',
+              pointerEvents: 'auto'
+            }}
+          >
+            <option value="">
+              {tempSelectedStores.length > 0 
+                ? `${tempSelectedStores.length} store(s) selected` 
+                : "All Stores"}
+            </option>
+          </select>
+          
+          {showStoreDropdown && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '0',
+                right: '0',
+                zIndex: 999,
+                background: 'white',
+                border: '1px solid #000',
+                borderRadius: '4px',
+                marginTop: '4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {allStores.map(store => {
+                const isSelected = tempSelectedStores.includes(store.value);
+                return (
+                  <div
+                    key={store.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTempSelectedStores(prev => {
+                        if (prev.includes(store.value)) {
+                          return prev.filter(s => s !== store.value);
+                        } else {
+                          return [...prev, store.value];
+                        }
+                      });
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      fontFamily: 'Poppins',
+                      fontSize: '14px',
+                      backgroundColor: isSelected ? '#2563eb' : 'transparent',
+                      color: isSelected ? '#fff' : '#000',
+                      transition: 'all 0.2s ease',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    {store.label}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="col-3 formcontent" style={{ position: 'relative' }}>
           <label htmlFor="">Products:</label>
           <select
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setShowProductDropdown(!showProductDropdown);
+              setShowStoreDropdown(false); // Close other dropdown
             }}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -802,6 +883,7 @@ const StoresProducts = () => {
                 : 'Select products'}
             </option>
           </select>
+
           {showProductDropdown && (
             <div
               style={{
@@ -818,6 +900,7 @@ const StoresProducts = () => {
                 overflowY: 'auto',
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               {allProducts.map((product) => {
                 const isSelected = tempSelectedProducts.includes(product.value);
@@ -861,7 +944,7 @@ const StoresProducts = () => {
           )}
         </div>
 
-        <div className="col-4 formcontent" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+      <div className="col-4 formcontent" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
           <button 
             className="submitbtn"
             onClick={handleSubmitFilters}
@@ -878,6 +961,95 @@ const StoresProducts = () => {
           </button>
         </div>
       </div>
+
+      {/* Selected Filters Display */}
+      {(selectedStores.length > 0 || selectedProducts.length > 0) && (
+        <div className="row mt-2 mb-2">
+          <div className="col-12" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {selectedStores.map(storeId => {
+              const store = allStores.find(s => s.value === storeId);
+              return (
+                <div 
+                  key={storeId}
+                  style={{
+                    backgroundColor: '#e0f2fe',
+                    color: '#0369a1',
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    border: '1px solid #bae6fd'
+                  }}
+                >
+                  <span style={{ fontWeight: '500' }}>Store:</span>
+                  <span>{store?.label || storeId}</span>
+                  <i 
+                    className="bi bi-x" 
+                    style={{ cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center' }}
+                    onClick={() => {
+                      setSelectedStores(prev => prev.filter(id => id !== storeId));
+                      setTempSelectedStores(prev => prev.filter(id => id !== storeId));
+                    }}
+                  ></i>
+                </div>
+              );
+            })}
+            
+            {selectedProducts.map(prodId => {
+              const product = allProducts.find(p => p.value === prodId);
+              return (
+                <div 
+                  key={prodId}
+                  style={{
+                    backgroundColor: '#f0fdf4',
+                    color: '#15803d',
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    border: '1px solid #bbf7d0'
+                  }}
+                >
+                  <span style={{ fontWeight: '500' }}>Product:</span>
+                  <span>{product?.label || prodId}</span>
+                  <i 
+                    className="bi bi-x" 
+                    style={{ cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center' }}
+                    onClick={() => {
+                      setSelectedProducts(prev => prev.filter(id => id !== prodId));
+                      setTempSelectedProducts(prev => prev.filter(id => id !== prodId));
+                    }}
+                  ></i>
+                </div>
+              );
+            })}
+            
+             <button
+              onClick={() => {
+                setSelectedStores([]);
+                setTempSelectedStores([]);
+                setSelectedProducts([]);
+                setTempSelectedProducts([]);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#dc2626',
+                fontSize: '13px',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: '4px 8px'
+              }}
+            >
+              Clear all
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.tableContainer}>
         <div className={styles.tableWrapper}>
@@ -1264,16 +1436,14 @@ const StoresProducts = () => {
 
                 // Flatten grouped data with rowspan information
                 const rowsWithRowspan = [];
-                let globalIndex = 0;
                 Object.values(groupedData).forEach((group) => {
                   group.forEach((row, index) => {
                     rowsWithRowspan.push({
                       ...row,
                       isFirstInGroup: index === 0,
                       rowspan: group.length,
-                      rowId: `${row.zone}-${row.subZone}-${row.store}-${globalIndex}`
+                      rowId: row.storeId // Use stable storeId as key
                     });
-                    globalIndex++;
                   });
                 });
 
