@@ -312,8 +312,11 @@ function StoreStockSummary() {
     }
   }, []);
 
-  const fetchStock = async () => {
-    if (!from || !to || !storeId) {
+  const fetchStock = async (dates) => {
+    const fromDate = dates?.fromDate || from;
+    const toDate = dates?.toDate || to;
+
+    if (!fromDate || !toDate || !storeId) {
       if (!storeId) {
         setError("Store information missing. Please re-login to continue.");
       } else {
@@ -327,8 +330,8 @@ function StoreStockSummary() {
     setError(null);
     try {
       const params = {
-        fromDate: from,
-        toDate: to,
+        fromDate,
+        toDate,
         storeId: storeId,
         page,
         limit
@@ -378,14 +381,17 @@ function StoreStockSummary() {
     }
   };
 
-  const fetchStats = async () => {
-    if (!from || !to || !storeId) return;
+  const fetchStats = async (dates) => {
+    const fromDate = dates?.fromDate || from;
+    const toDate = dates?.toDate || to;
+
+    if (!fromDate || !toDate || !storeId) return;
     
     setLoading(true);
     try {
       const params = {
-        fromDate: from,
-        toDate: to,
+        fromDate,
+        toDate,
         storeId: storeId
       };
       
@@ -401,14 +407,17 @@ function StoreStockSummary() {
     }
   };
 
-  const fetchAuditTrail = async () => {
-    if (!from || !to || !storeId) return;
+  const fetchAuditTrail = async (dates) => {
+    const fromDate = dates?.fromDate || from;
+    const toDate = dates?.toDate || to;
+
+    if (!fromDate || !toDate || !storeId) return;
     
     setLoading(true);
     try {
       const params = {
-        fromDate: from,
-        toDate: to,
+        fromDate,
+        toDate,
         storeId: storeId,
         page,
         limit
@@ -448,14 +457,17 @@ function StoreStockSummary() {
     }
   };
 
-  const fetchOpeningClosing = async () => {
-    if (!from || !to || !storeId) return;
+  const fetchOpeningClosing = async (dates) => {
+    const fromDate = dates?.fromDate || from;
+    const toDate = dates?.toDate || to;
+
+    if (!fromDate || !toDate || !storeId) return;
     
     setLoading(true);
     try {
       const params = {
-        fromDate: from,
-        toDate: to,
+        fromDate,
+        toDate,
         storeId: storeId
       };
       
@@ -501,16 +513,16 @@ function StoreStockSummary() {
     setTo(tempTo);
     setPage(1); // Reset to first page
     
-    // Fetch data based on active tab
-    setTimeout(() => {
-      if (activeTab === "summary") {
-        fetchStock();
-        fetchStats(); // Also fetch stats to get totals for the footer
-      }
-      else if (activeTab === "stats") fetchStats();
-      else if (activeTab === "audit") fetchAuditTrail();
-      else if (activeTab === "opening-closing") fetchOpeningClosing();
-    }, 100);
+    // Fetch data based on active tab immediately using the temp values
+    const dateParams = { fromDate: tempFrom, toDate: tempTo };
+    
+    if (activeTab === "summary") {
+      fetchStock(dateParams);
+      fetchStats(dateParams); // Also fetch stats to get totals for the footer
+    }
+    else if (activeTab === "stats") fetchStats(dateParams);
+    else if (activeTab === "audit") fetchAuditTrail(dateParams);
+    else if (activeTab === "opening-closing") fetchOpeningClosing(dateParams);
   };
 
   const onCancel = () => {
