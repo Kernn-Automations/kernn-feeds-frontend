@@ -207,7 +207,22 @@ function ModifyProductForm({ onViewClick, productId, isAdmin }) {
         {renderInput("Product Name", "name")}
         {renderInput("SKU", "SKU")}
         {renderInput("Category", "categoryId", "select", categories)}
-        {renderInput("Unit", "unit")}
+        {renderInput("Unit", "unit", "select", 
+          fields.productType === "packed" 
+            ? [
+                { id: "bags", name: "bags" },
+                { id: "packets", name: "packets" },
+              ]
+            : [
+                { id: "mg", name: "mg" },
+                { id: "g", name: "g" },
+                { id: "kg", name: "kg" },
+                { id: "ton", name: "ton" },
+                { id: "ml", name: "ml" },
+                { id: "l", name: "litre" },
+                { id: "gal", name: "gallons" },
+              ]
+        )}
         {renderInput("Product Type", "productType", "select", [
           { id: "packed", name: "Packed" },
           { id: "loose", name: "Loose" },
@@ -215,7 +230,14 @@ function ModifyProductForm({ onViewClick, productId, isAdmin }) {
         {fields.productType === "packed" && (
           <>
             {renderInput("Package Weight", "packageWeight")}
-            {renderInput("Package Weight Unit", "packageWeightUnit")}
+            {renderInput("Package Weight Unit", "packageWeightUnit", "select", [
+              { id: "mg", name: "mg" },
+              { id: "g", name: "g" },
+              { id: "kg", name: "kg" },
+              { id: "ton", name: "ton" },
+              { id: "ml", name: "ml" },
+              { id: "litre", name: "litre" },
+            ])}
           </>
         )}
         {renderInput("Base Price", "basePrice")}

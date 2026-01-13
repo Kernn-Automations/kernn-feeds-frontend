@@ -402,14 +402,33 @@ function AddProduct({ navigate }) {
             </div>
             <div className={`col-3 ${styles.longform}`}>
               <label htmlFor="">Package Wt Unit :</label>
-              <input
-                type="text"
-                value={packageWeightUnit}
+              <select
+                value={packageWeightUnit || ""}
                 onChange={(e) =>
                   onError(e, packageWeightUnit, setPackageWeightUnit)
                 }
                 required
-              />
+              >
+                <option value="">--select--</option>
+                <option value="mg">mg</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ton">ton</option>
+                <option value="ml">ml</option>
+                <option value="litre">litre</option>
+              </select>
+            </div>
+            <div className={`col-3 ${styles.longform}`}>
+              <label htmlFor="">Unit :</label>
+              <select
+                value={units || ""}
+                onChange={(e) => onError(e, units, setUnits)}
+                required
+              >
+                <option value="">--select--</option>
+                <option value="bags">bags</option>
+                <option value="packets">packets</option>
+              </select>
             </div>
           </>
         )}
@@ -426,11 +445,11 @@ function AddProduct({ navigate }) {
           >
             <option value="null">--select--</option>
             <option value="mg">mg</option>
-            <option value="g">grams</option>
-            <option value="kg">Kgs</option>
-            <option value="ton">Tons</option>
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="ton">ton</option>
             <option value="ml">ml</option>
-            <option value="l">litres</option>
+            <option value="l">litre</option>
             <option value="gal">gallons</option>
           </select>
         </div>
