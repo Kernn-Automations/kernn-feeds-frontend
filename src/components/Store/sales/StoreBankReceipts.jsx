@@ -23,7 +23,7 @@ export default function StoreBankReceipts() {
   const [storeId, setStoreId] = useState(inferredStoreId);
   const [bankBalance, setBankBalance] = useState(0);
   const [storeName, setStoreName] = useState("");
-  
+
   // Filter state
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -34,9 +34,9 @@ export default function StoreBankReceipts() {
   const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
-  
+
   const [receipts, setReceipts] = useState([]);
-  const [sales, setSales] = useState([]); 
+  const [sales, setSales] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
@@ -44,19 +44,19 @@ export default function StoreBankReceipts() {
   const [showSearch, setShowSearch] = useState({
     type: false,
     description: false,
-    reference: false
+    reference: false,
   });
 
   const [searchTerms, setSearchTerms] = useState({
     type: "",
     description: "",
-    reference: ""
+    reference: "",
   });
 
   const toggleSearch = (key) => {
-    setShowSearch(prev => {
+    setShowSearch((prev) => {
       const next = { ...prev };
-      Object.keys(next).forEach(k => {
+      Object.keys(next).forEach((k) => {
         next[k] = k === key ? !prev[k] : false;
       });
       return next;
@@ -64,11 +64,11 @@ export default function StoreBankReceipts() {
   };
 
   const handleSearchChange = (key, value) => {
-    setSearchTerms(prev => ({ ...prev, [key]: value }));
+    setSearchTerms((prev) => ({ ...prev, [key]: value }));
   };
 
   const clearSearch = (key) => {
-    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+    setSearchTerms((prev) => ({ ...prev, [key]: "" }));
   };
 
   const renderSearchHeader = (label, searchKey, dataAttr) => {
@@ -78,33 +78,63 @@ export default function StoreBankReceipts() {
     return (
       <th
         onClick={() => toggleSearch(searchKey)}
-        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        style={{
+          cursor: "pointer",
+          position: "relative",
+          fontFamily: "Poppins",
+          fontWeight: 600,
+          fontSize: "13px",
+        }}
         data-search-header="true"
         {...{ [dataAttr]: true }}
       >
         {isSearching ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <input
               type="text"
               placeholder={`Search ${label}...`}
               value={searchTerm}
               onChange={(e) => handleSearchChange(searchKey, e.target.value)}
               style={{
-                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
-                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+                flex: 1,
+                padding: "2px 6px",
+                border: "1px solid #ddd",
+                borderRadius: "4px",
+                fontSize: "12px",
+                minWidth: "120px",
+                height: "28px",
+                color: "#000",
+                backgroundColor: "#fff",
               }}
               autoFocus
             />
             {searchTerm && (
               <button
-                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
-                style={{
-                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
-                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
-                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
-                  alignItems: "center", justifyContent: "center",
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearSearch(searchKey);
                 }}
-              >✕</button>
+                style={{
+                  padding: "4px 8px",
+                  border: "1px solid #dc3545",
+                  borderRadius: "4px",
+                  background: "#dc3545",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  minWidth: "24px",
+                  height: "28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
             )}
           </div>
         ) : (
@@ -120,7 +150,7 @@ export default function StoreBankReceipts() {
         const userData = JSON.parse(localStorage.getItem("user") || "{}");
         const user = userData.user || userData;
         let id = user?.storeId || user?.store?.id;
-        
+
         if (!id) {
           const selectedStore = localStorage.getItem("selectedStore");
           if (selectedStore) {
@@ -128,12 +158,12 @@ export default function StoreBankReceipts() {
             id = store.id;
           }
         }
-        
+
         if (!id) {
           const currentStoreId = localStorage.getItem("currentStoreId");
           id = currentStoreId ? parseInt(currentStoreId) : null;
         }
-        
+
         if (id) {
           setStoreId(id);
         }
@@ -150,14 +180,17 @@ export default function StoreBankReceipts() {
     if (!storeId) return;
     try {
       const res = await axiosAPI.get(`/stores/${storeId}/bank-balance`);
+      console.log(res);
       const responseData = res.data || res;
-      
+
       if (responseData.success) {
-        setBankBalance(responseData.data?.availableBalance || responseData.data?.balance || 0);
+        setBankBalance(
+          responseData.data?.availableBalance || responseData.data?.balance || 0
+        );
         if (responseData.data?.storeName) {
-            setStoreName(responseData.data.storeName);
+          setStoreName(responseData.data.storeName);
         }
-      } 
+      }
     } catch (err) {
       console.error("Failed to fetch store bank balance", err);
     }
@@ -170,12 +203,15 @@ export default function StoreBankReceipts() {
     try {
       const res = await axiosAPI.get(`/stores/${storeId}/bank-receipts`);
       const receiptsData = res.data?.data || res.data || res;
-      const receiptsList = Array.isArray(receiptsData) ? receiptsData : (receiptsData.receipts || receiptsData.data || []);
+      const receiptsList = Array.isArray(receiptsData)
+        ? receiptsData
+        : receiptsData.receipts || receiptsData.data || [];
+      console.log(res);
       setReceipts(receiptsList);
     } catch (err) {
       console.error("Failed to fetch bank receipts", err);
     } finally {
-        setReceiptsLoading(false);
+      setReceiptsLoading(false);
     }
   }, [storeId, axiosAPI]);
 
@@ -188,9 +224,11 @@ export default function StoreBankReceipts() {
       if (res && res.success) {
         const allSales = res.data?.sales || res.data || [];
         // Filter for bank related payments
-        const bankSales = allSales.filter(sale => {
-            const pm = (sale.paymentMethod || "").toLowerCase();
-            return pm === "bank" || pm === "both" || pm === "online" || pm === "upi";
+        const bankSales = allSales.filter((sale) => {
+          const pm = (sale.paymentMethod || "").toLowerCase();
+          return (
+            pm === "bank" || pm === "both" || pm === "online" || pm === "upi"
+          );
         });
         setSales(bankSales);
       }
@@ -211,11 +249,11 @@ export default function StoreBankReceipts() {
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Close header search if clicked outside
-      if (!event.target.closest('[data-search-header]')) {
+      if (!event.target.closest("[data-search-header]")) {
         setShowSearch({
           type: false,
           description: false,
-          reference: false
+          reference: false,
         });
       }
     };
@@ -233,12 +271,12 @@ export default function StoreBankReceipts() {
         setShowSearch({
           type: false,
           description: false,
-          reference: false
+          reference: false,
         });
         setSearchTerms({
           type: "",
           description: "",
-          reference: ""
+          reference: "",
         });
       }
     };
@@ -257,17 +295,18 @@ export default function StoreBankReceipts() {
   const closeErrorModal = () => setIsErrorModalOpen(false);
 
   // Helper formats
-  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatDate = (dateString, includeTime = false) => {
-    if (!dateString) return '-';
+    if (!dateString) return "-";
     try {
       const date = new Date(dateString);
-      const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+      const options = { day: "2-digit", month: "2-digit", year: "numeric" };
       if (includeTime) {
-          options.hour = '2-digit';
-          options.minute = '2-digit';
+        options.hour = "2-digit";
+        options.minute = "2-digit";
       }
-      return date.toLocaleDateString('en-IN', options);
+      return date.toLocaleDateString("en-IN", options);
     } catch {
       return dateString;
     }
@@ -275,71 +314,77 @@ export default function StoreBankReceipts() {
 
   // Merge, sort, and filter transactions
   const getUnifiedTransactions = () => {
-    const receiptItems = receipts.map(r => ({
-        id: `receipt-${r.id}`,
-        originalId: r.id,
-        date: r.createdAt || r.date || r.receiptDate,
-        type: 'Receipt (Deposit)',
-        description: r.notes || 'Bank Deposit',
-        amount: parseFloat(r.amount || 0),
-        isCredit: true, 
-        reference: r.utrNumber,
-        proof: r.depositSlip || r.depositSlipUrl || r.image,
-        raw: r
+    const receiptItems = receipts.map((r) => ({
+      id: `receipt-${r.id}`,
+      originalId: r.id,
+      date: r.createdAt || r.date || r.receiptDate,
+      type: "Receipt (Deposit)",
+      description: r.notes || "Bank Deposit",
+      amount: parseFloat(r.amount || 0),
+      isCredit: true,
+      reference: r.utrNumber,
+      proof: r.depositSlip || r.depositSlipUrl || r.image,
+      raw: r,
     }));
 
-    const saleItems = sales.map(s => {
-        let amount = 0;
-        const pm = (s.paymentMethod || "").toLowerCase();
-        if (pm === "both") {
-            amount = parseFloat(s.bankAmount || 0);
-        } else {
-            amount = parseFloat(s.finalAmount || s.totalAmount || 0);
-        }
+    const saleItems = sales.map((s) => {
+      let amount = 0;
+      const pm = (s.paymentMethod || "").toLowerCase();
+      if (pm === "both") {
+        amount = parseFloat(s.bankAmount || 0);
+      } else {
+        amount = parseFloat(s.finalAmount || s.totalAmount || 0);
+      }
 
-        return {
-            id: `sale-${s.id}`,
-            originalId: s.id,
-            date: s.createdAt || s.date,
-            type: 'Sale',
-            description: `Order #${s.orderId || s.id}`,
-            amount: amount,
-            isCredit: true,
-            reference: s.paymentMode || s.paymentMethod,
-            proof: null,
-            raw: s
-        };
+      return {
+        id: `sale-${s.id}`,
+        originalId: s.id,
+        date: s.createdAt || s.date,
+        type: "Sale",
+        description: `Order #${s.orderId || s.id}`,
+        amount: amount,
+        isCredit: true,
+        reference: s.paymentMode || s.paymentMethod,
+        proof: null,
+        raw: s,
+      };
     });
 
-    let combined = [...receiptItems, ...saleItems].sort((a, b) => new Date(b.date) - new Date(a.date));
+    let combined = [...receiptItems, ...saleItems].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
 
     // Apply Column Header Search Filters
     if (searchTerms.type) {
-        combined = combined.filter(item => 
-            item.type.toLowerCase().includes(searchTerms.type.toLowerCase())
-        );
+      combined = combined.filter((item) =>
+        item.type.toLowerCase().includes(searchTerms.type.toLowerCase())
+      );
     }
     if (searchTerms.description) {
-        combined = combined.filter(item => 
-            item.description.toLowerCase().includes(searchTerms.description.toLowerCase())
-        );
+      combined = combined.filter((item) =>
+        item.description
+          .toLowerCase()
+          .includes(searchTerms.description.toLowerCase())
+      );
     }
     if (searchTerms.reference) {
-        combined = combined.filter(item => 
-            (item.reference || "").toLowerCase().includes(searchTerms.reference.toLowerCase())
-        );
+      combined = combined.filter((item) =>
+        (item.reference || "")
+          .toLowerCase()
+          .includes(searchTerms.reference.toLowerCase())
+      );
     }
 
     // Apply Filters based on appliedFilters state
     if (appliedFilters.from) {
-        const from = new Date(appliedFilters.from);
-        from.setHours(0, 0, 0, 0);
-        combined = combined.filter(item => new Date(item.date) >= from);
+      const from = new Date(appliedFilters.from);
+      from.setHours(0, 0, 0, 0);
+      combined = combined.filter((item) => new Date(item.date) >= from);
     }
     if (appliedFilters.to) {
-        const to = new Date(appliedFilters.to);
-        to.setHours(23, 59, 59, 999);
-        combined = combined.filter(item => new Date(item.date) <= to);
+      const to = new Date(appliedFilters.to);
+      to.setHours(23, 59, 59, 999);
+      combined = combined.filter((item) => new Date(item.date) <= to);
     }
 
     return combined;
@@ -367,23 +412,24 @@ export default function StoreBankReceipts() {
       "Type",
       "Description",
       "Reference / UTR",
-      "Amount"
+      "Amount",
     ];
 
     if (transactions && transactions.length > 0) {
       transactions.forEach((item) => {
         arr.push({
           "S.No": x++,
-          "Date": formatDate(item.date, true),
-          "Type": item.type,
-          "Description": item.description,
-          "Reference / UTR": item.reference || '-',
-          "Amount": Number(item.amount || 0).toFixed(2)
+          Date: formatDate(item.date, true),
+          Type: item.type,
+          Description: item.description,
+          "Reference / UTR": item.reference || "-",
+          Amount: Number(item.amount || 0).toFixed(2),
         });
       });
 
       if (type === "PDF") handleExportPDF(columns, arr, "Bank_Transactions");
-      else if (type === "XLS") handleExportExcel(columns, arr, "BankTransactions");
+      else if (type === "XLS")
+        handleExportExcel(columns, arr, "BankTransactions");
     } else {
       setError("Table is Empty");
       setIsErrorModalOpen(true);
@@ -396,111 +442,217 @@ export default function StoreBankReceipts() {
         <div>
           <h2>Bank Transactions</h2>
           <p className="path">
-            <span onClick={() => navigate("/store/sales")} style={{ cursor: 'pointer' }}>Sales</span>
-            {" "}<i className="bi bi-chevron-right"></i>{" "}
-            Bank Receipts
+            <span
+              onClick={() => navigate("/store/sales")}
+              style={{ cursor: "pointer" }}
+            >
+              Sales
+            </span>{" "}
+            <i className="bi bi-chevron-right"></i> Bank Receipts
           </p>
         </div>
       </div>
 
       {!storeId && (
-        <div className={homeStyles.orderStatusCard} style={{ marginBottom: "24px" }}>
-          <p style={{ margin: 0, fontFamily: "Poppins" }}>Store details are missing. Please re-login to continue.</p>
+        <div
+          className={homeStyles.orderStatusCard}
+          style={{ marginBottom: "24px" }}
+        >
+          <p style={{ margin: 0, fontFamily: "Poppins" }}>
+            Store details are missing. Please re-login to continue.
+          </p>
         </div>
       )}
 
       {storeId && (
         <>
           {/* Store Bank Balance Display */}
-          <div className={homeStyles.orderStatusCard} style={{ marginBottom: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+          <div
+            className={homeStyles.orderStatusCard}
+            style={{ marginBottom: "24px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "16px",
+              }}
+            >
               <div>
-                <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600, fontSize: "20px", color: "var(--primary-color)" }}>
+                <h4
+                  style={{
+                    margin: 0,
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "20px",
+                    color: "var(--primary-color)",
+                  }}
+                >
                   Store Bank Balance
                 </h4>
-                <p style={{ margin: "8px 0 0", fontFamily: "Poppins", color: "#6b7280" }}>
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontFamily: "Poppins",
+                    color: "#6b7280",
+                  }}
+                >
                   {storeName || "Current Store"} (Estimated from Bank Payments)
                 </p>
               </div>
               <div style={{ textAlign: "right" }}>
-                <p style={{ margin: 0, fontFamily: "Poppins", fontSize: "24px", fontWeight: 700, color: "#059669" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: "Poppins",
+                    fontSize: "24px",
+                    fontWeight: 700,
+                    color: "#059669",
+                  }}
+                >
                   {formatCurrency(bankBalance)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`${homeStyles.orderStatusCard} ${orderStyles.cardWrapper}`}>
-            
-             {/* Filters */}
+          <div
+            className={`${homeStyles.orderStatusCard} ${orderStyles.cardWrapper}`}
+          >
+            {/* Filters */}
             <div className={`row g-3 ${orderStyles.filtersRow}`}>
-                <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
-                    <label>From :</label>
-                    <input 
-                        type="date" 
-                        value={fromDate} 
-                        onChange={(e) => setFromDate(e.target.value)}
-                    />
-                </div>
-                <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
-                    <label>To :</label>
-                    <input 
-                        type="date" 
-                        value={toDate} 
-                        onChange={(e) => setToDate(e.target.value)}
-                    />
-                </div>
+              <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
+                <label>From :</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+              </div>
+              <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
+                <label>To :</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+              </div>
             </div>
 
             {/* Filter Buttons */}
             <div className={orderStyles.buttonsRow}>
-                <div className="d-flex gap-3 justify-content-center flex-wrap">
-                    <button className="submitbtn" onClick={handleFilterSubmit}>
-                        Submit
-                    </button>
-                    <button className="cancelbtn" onClick={handleFilterCancel}>
-                        Cancel
-                    </button>
-                </div>
+              <div className="d-flex gap-3 justify-content-center flex-wrap">
+                <button className="submitbtn" onClick={handleFilterSubmit}>
+                  Submit
+                </button>
+                <button className="cancelbtn" onClick={handleFilterCancel}>
+                  Cancel
+                </button>
+              </div>
             </div>
 
             {/* Export Section */}
             <div className={orderStyles.exportSection}>
-                <div className={orderStyles.exportButtons}>
-                    <button className={salesStyles.xls} onClick={() => onExport("XLS")}>
-                        <p>Export to </p>
-                        <img src={xls} alt="Export to Excel" />
-                    </button>
-                    <button className={salesStyles.xls} onClick={() => onExport("PDF")}>
-                        <p>Export to </p>
-                        <img src={pdf} alt="Export to PDF" />
-                    </button>
-                </div>
+              <div className={orderStyles.exportButtons}>
+                <button
+                  className={salesStyles.xls}
+                  onClick={() => onExport("XLS")}
+                >
+                  <p>Export to </p>
+                  <img src={xls} alt="Export to Excel" />
+                </button>
+                <button
+                  className={salesStyles.xls}
+                  onClick={() => onExport("PDF")}
+                >
+                  <p>Export to </p>
+                  <img src={pdf} alt="Export to PDF" />
+                </button>
+              </div>
             </div>
 
-          {/* Unified Transactions Table */}
-          <div className={`${orderStyles.tableContainer} table-responsive`}>
-            {receiptsLoading || loading ? (
-                 <div className="text-center" style={{ padding: '20px' }}><Loading /></div>
-            ) : transactions.length === 0 ? (
-               <div className="text-center" style={{ padding: '40px', color: '#666' }}>
+            {/* Unified Transactions Table */}
+            <div className={`${orderStyles.tableContainer} table-responsive`}>
+              {receiptsLoading || loading ? (
+                <div className="text-center" style={{ padding: "20px" }}>
+                  <Loading />
+                </div>
+              ) : transactions.length === 0 ? (
+                <div
+                  className="text-center"
+                  style={{ padding: "40px", color: "#666" }}
+                >
                   No bank transactions found for the selected period
-               </div>
-            ) : (
+                </div>
+              ) : (
                 <table className="table table-hover table-bordered borderedtable">
                   <thead>
                     <tr>
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        S.No
+                      </th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Date
+                      </th>
                       {renderSearchHeader("Type", "type", "data-type-header")}
-                      {renderSearchHeader("Description", "description", "data-desc-header")}
-                      {renderSearchHeader("Reference / UTR", "reference", "data-ref-header")}
-                      <th className="text-end" style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Amount (₹)</th>
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Proof</th>
+                      {renderSearchHeader(
+                        "Description",
+                        "description",
+                        "data-desc-header"
+                      )}
+                      {renderSearchHeader(
+                        "Reference / UTR",
+                        "reference",
+                        "data-ref-header"
+                      )}
+                      <th
+                        className="text-end"
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Amount (₹)
+                      </th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Proof
+                      </th>
                     </tr>
-                    {(searchTerms.type || searchTerms.description || searchTerms.reference) && (
+                    {(searchTerms.type ||
+                      searchTerms.description ||
+                      searchTerms.reference) && (
                       <tr>
-                        <td colSpan="7" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                        <td
+                          colSpan="7"
+                          style={{
+                            padding: "4px 12px",
+                            fontSize: "12px",
+                            borderRadius: "0",
+                            backgroundColor: "#f8f9fa",
+                            color: "#666",
+                          }}
+                        >
                           {transactions.length} records found
                         </td>
                       </tr>
@@ -512,30 +664,47 @@ export default function StoreBankReceipts() {
                         <td>{index + 1}</td>
                         <td>{formatDate(tx.date, true)}</td>
                         <td>
-                            <span 
-                                className={`${orderStyles.statusBadge} ${
-                                    tx.type.includes('Sale') ? orderStyles.pending : orderStyles.completed
-                                }`}
-                                style={{
-                                    backgroundColor: tx.type.includes('Sale') ? '#e0f2fe' : '#dcfce7',
-                                    color: tx.type.includes('Sale') ? '#0369a1' : '#15803d',
-                                    borderColor: tx.type.includes('Sale') ? '#bae6fd' : '#bbf7d0',
-                                    minWidth: 'auto'
-                                }}
-                            >
-                                {tx.type}
-                            </span>
+                          <span
+                            className={`${orderStyles.statusBadge} ${
+                              tx.type.includes("Sale")
+                                ? orderStyles.pending
+                                : orderStyles.completed
+                            }`}
+                            style={{
+                              backgroundColor: tx.type.includes("Sale")
+                                ? "#e0f2fe"
+                                : "#dcfce7",
+                              color: tx.type.includes("Sale")
+                                ? "#0369a1"
+                                : "#15803d",
+                              borderColor: tx.type.includes("Sale")
+                                ? "#bae6fd"
+                                : "#bbf7d0",
+                              minWidth: "auto",
+                            }}
+                          >
+                            {tx.type}
+                          </span>
                         </td>
                         <td>{tx.description}</td>
-                        <td style={{ fontFamily: 'monospace' }}>{tx.reference || "-"}</td>
-                        <td className="text-end" style={{ fontWeight: 600, color: '#059669' }}>
-                            {Number(tx.amount || 0).toFixed(2)}
+                        <td style={{ fontFamily: "monospace" }}>
+                          {tx.reference || "-"}
+                        </td>
+                        <td
+                          className="text-end"
+                          style={{ fontWeight: 600, color: "#059669" }}
+                        >
+                          {Number(tx.amount || 0).toFixed(2)}
                         </td>
                         <td>
                           {tx.proof ? (
                             <button
                               className="submitbtn"
-                              style={{ padding: "2px 8px", fontSize: "12px", minWidth: "auto" }}
+                              style={{
+                                padding: "2px 8px",
+                                fontSize: "12px",
+                                minWidth: "auto",
+                              }}
                               onClick={() => handleViewImage(tx.proof)}
                               title="View Document"
                             >
@@ -550,15 +719,22 @@ export default function StoreBankReceipts() {
                   </tbody>
                   <tfoot className="table-light" style={{ fontWeight: "bold" }}>
                     <tr>
-                      <td colSpan="5" className="text-end">Total</td>
-                      <td className="text-end" style={{ color: '#059669' }}>
-                        {formatCurrency(transactions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))}
+                      <td colSpan="5" className="text-end">
+                        Total
+                      </td>
+                      <td className="text-end" style={{ color: "#059669" }}>
+                        {formatCurrency(
+                          transactions.reduce(
+                            (sum, item) => sum + (Number(item.amount) || 0),
+                            0
+                          )
+                        )}
                       </td>
                       <td></td>
                     </tr>
                   </tfoot>
                 </table>
-               )}
+              )}
             </div>
           </div>
         </>
@@ -607,7 +783,8 @@ export default function StoreBankReceipts() {
                 alignItems: "center",
                 padding: "20px",
                 zIndex: 10001,
-                background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent)",
+                background:
+                  "linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent)",
               }}
             >
               <button
@@ -657,8 +834,8 @@ export default function StoreBankReceipts() {
                   display: "block",
                 }}
                 onError={(e) => {
-                  e.target.src = '';
-                  e.target.alt = 'Failed to load image';
+                  e.target.src = "";
+                  e.target.alt = "Failed to load image";
                 }}
               />
             </div>
@@ -667,7 +844,11 @@ export default function StoreBankReceipts() {
       )}
 
       {loading && <Loading />}
-      <ErrorModal isOpen={isErrorModalOpen} message={error} onClose={closeErrorModal} />
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        message={error}
+        onClose={closeErrorModal}
+      />
       {/* SuccessModal removed as creation is removed */}
     </div>
   );

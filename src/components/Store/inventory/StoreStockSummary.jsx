@@ -39,6 +39,9 @@ function StoreStockSummary() {
   const [storeId, setStoreId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [showInvoicePopup, setShowInvoicePopup] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+
   // Filtered data states
   const [filteredStockData, setFilteredStockData] = useState([]);
   const [filteredStatsByStore, setFilteredStatsByStore] = useState([]);
@@ -46,6 +49,29 @@ function StoreStockSummary() {
   const [filteredOpeningClosing, setFilteredOpeningClosing] = useState([]);
 
   const [showPrices, setShowPrices] = useState(true);
+
+  const openInvoicePopup = (saleCode, invoices = []) => {
+    const invoice = invoices.find(
+      (inv) => inv.saleCode === saleCode || inv.storeSaleId === saleCode
+    );
+
+    if (invoice) {
+      setSelectedInvoice(invoice);
+      setShowInvoicePopup(true);
+    }
+  };
+
+  const formatInvoiceDate = (isoDate) => {
+    if (!isoDate) return "-";
+
+    const date = new Date(isoDate);
+
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   // Search Visibility states
   const [showSearch, setShowSearch] = useState({
@@ -324,10 +350,12 @@ function StoreStockSummary() {
     const isExpanded = expandedRowId === rowId;
     setExpandedRowId(isExpanded ? null : rowId);
 
-    if (!isExpanded && productId) {
-      if (productSalesDetails[rowId]) return; // Already fetched
+    // Already fetched → just toggle
+    if (productSalesDetails[rowId]) return;
 
+    if (!isExpanded && productId) {
       setLoadingDetails((prev) => ({ ...prev, [rowId]: true }));
+
       try {
         const params = {
           storeId,
@@ -335,15 +363,21 @@ function StoreStockSummary() {
           fromDate: from,
           toDate: to,
         };
+
         const res = await storeService.getStoreStockProductSales(params);
-        if (res.success && res.data && res.data.salesDetails) {
+        console.log("📦 Product Sales API:", res);
+
+        if (res.success && res.data) {
           setProductSalesDetails((prev) => ({
             ...prev,
-            [rowId]: res.data.salesDetails,
+            [rowId]: {
+              salesDetails: res.data.salesDetails || [],
+              invoices: res.data.invoices || [],
+            },
           }));
         }
       } catch (err) {
-        console.error("Error fetching product sales details:", err);
+        console.error("❌ Error fetching product sales details:", err);
       } finally {
         setLoadingDetails((prev) => ({ ...prev, [rowId]: false }));
       }
@@ -560,6 +594,48 @@ function StoreStockSummary() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const thStyle = {
+    fontSize: "12px",
+    fontWeight: 600,
+    padding: "8px 16px",
+  };
+
+  const tdStyle = {
+    fontSize: "13px",
+    padding: "8px 16px",
+  };
+
+  const backdropStyle = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  };
+
+  const modalStyle = {
+    background: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    width: 480,
+    maxWidth: "95%",
+    fontFamily: "Poppins",
+  };
+
+  const gridStyle = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  };
+
+  const paymentRow = {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "6px 0",
   };
 
   const fetchOpeningClosing = async (dates) => {
@@ -1184,7 +1260,7 @@ function StoreStockSummary() {
                     <tr key={`detail-${item.id || index}`}>
                       <td
                         colSpan={14}
-                        style={{ padding: "0", backgroundColor: "#f9fafb" }}
+                        style={{ padding: 0, backgroundColor: "#f9fafb" }}
                       >
                         <div
                           style={{
@@ -1205,6 +1281,7 @@ function StoreStockSummary() {
                             Sales Details for {item.productName} ({from} to {to}
                             )
                           </h6>
+
                           <div
                             style={{
                               overflowX: "auto",
@@ -1218,169 +1295,93 @@ function StoreStockSummary() {
                                 Loading details...
                               </div>
                             ) : (
-                              <table
-                                className="table table-sm mb-0"
-                                style={{ fontFamily: "Poppins" }}
-                              >
-                                <thead style={{ backgroundColor: "#f3f4f6" }}>
-                                  <tr>
-                                    <th
-                                      style={{
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        color: "#000",
-                                        padding: "8px 16px",
-                                      }}
+                              (() => {
+                                const rowData =
+                                  productSalesDetails[item.id || index];
+                                const salesRows = rowData?.salesDetails || [];
+
+                                return (
+                                  <table
+                                    className="table table-sm mb-0"
+                                    style={{ fontFamily: "Poppins" }}
+                                  >
+                                    <thead
+                                      style={{ backgroundColor: "#f3f4f6" }}
                                     >
-                                      Date
-                                    </th>
-                                    <th
-                                      style={{
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        color: "#000",
-                                        padding: "8px 16px",
-                                      }}
-                                    >
-                                      Order ID
-                                    </th>
-                                    <th
-                                      style={{
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        color: "#000",
-                                        padding: "8px 16px",
-                                      }}
-                                    >
-                                      Customer
-                                    </th>
-                                    <th
-                                      style={{
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        color: "#000",
-                                        padding: "8px 16px",
-                                      }}
-                                    >
-                                      Quantity
-                                    </th>
-                                    <th
-                                      style={{
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        color: "#000",
-                                        padding: "8px 16px",
-                                      }}
-                                    >
-                                      Price
-                                    </th>
-                                    <th
-                                      style={{
-                                        fontSize: "12px",
-                                        fontWeight: 600,
-                                        color: "#000",
-                                        padding: "8px 16px",
-                                      }}
-                                    >
-                                      Total Amount
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {productSalesDetails[item.id || index] &&
-                                  productSalesDetails[item.id || index].length >
-                                    0 ? (
-                                    productSalesDetails[item.id || index].map(
-                                      (sale, i) => (
-                                        <tr
-                                          key={i}
-                                          style={{
-                                            borderBottom: "1px solid #f3f4f6",
-                                          }}
-                                        >
-                                          <td
-                                            style={{
-                                              fontSize: "13px",
-                                              color: "#111827",
-                                              padding: "8px 16px",
-                                            }}
-                                          >
-                                            {sale.date}
-                                          </td>
-                                          <td
-                                            style={{
-                                              fontSize: "13px",
-                                              color: "#111827",
-                                              padding: "8px 16px",
-                                            }}
-                                          >
-                                            {sale.orderId}
-                                          </td>
-                                          <td
-                                            style={{
-                                              fontSize: "13px",
-                                              color: "#111827",
-                                              padding: "8px 16px",
-                                            }}
-                                          >
-                                            {sale.customer}
-                                          </td>
-                                          <td
-                                            style={{
-                                              fontSize: "13px",
-                                              color: "#111827",
-                                              padding: "8px 16px",
-                                            }}
-                                          >
-                                            {sale.quantity}{" "}
-                                            <span
+                                      <tr>
+                                        <th style={thStyle}>Date</th>
+                                        <th style={thStyle}>Order ID</th>
+                                        <th style={thStyle}>Customer</th>
+                                        <th style={thStyle}>Quantity</th>
+                                        <th style={thStyle}>Price</th>
+                                        <th style={thStyle}>Total</th>
+                                        <th style={thStyle}>Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {salesRows.length > 0 ? (
+                                        salesRows.map((sale, i) => (
+                                          <tr key={i}>
+                                            <td style={tdStyle}>{sale.date}</td>
+                                            <td style={tdStyle}>
+                                              {sale.orderId}
+                                            </td>
+                                            <td style={tdStyle}>
+                                              {sale.customer}
+                                            </td>
+                                            <td style={tdStyle}>
+                                              {sale.quantity}{" "}
+                                              <span
+                                                style={{
+                                                  color: "#6b7280",
+                                                  fontSize: 12,
+                                                }}
+                                              >
+                                                {sale.unit || item.unit}
+                                              </span>
+                                            </td>
+                                            <td style={tdStyle}>
+                                              ₹{sale.price}
+                                            </td>
+                                            <td
                                               style={{
-                                                color: "#6b7280",
-                                                fontSize: "12px",
+                                                ...tdStyle,
+                                                fontWeight: 600,
                                               }}
                                             >
-                                              {sale.unit || item.unit}
-                                            </span>
-                                          </td>
+                                              ₹
+                                              {sale.totalAmount.toLocaleString()}
+                                            </td>
+                                            <td style={tdStyle}>
+                                              <button
+                                                className="homebtn"
+                                                style={{ fontSize: "11px" }}
+                                                onClick={() =>
+                                                  openInvoicePopup(
+                                                    sale.orderId,
+                                                    rowData?.invoices
+                                                  )
+                                                }
+                                              >
+                                                View
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
                                           <td
-                                            style={{
-                                              fontSize: "13px",
-                                              color: "#111827",
-                                              padding: "8px 16px",
-                                            }}
+                                            colSpan={7}
+                                            className="text-center p-3"
                                           >
-                                            ₹{sale.price}
-                                          </td>
-                                          <td
-                                            style={{
-                                              fontSize: "13px",
-                                              color: "#111827",
-                                              fontWeight: 600,
-                                              padding: "8px 16px",
-                                            }}
-                                          >
-                                            ₹
-                                            {(
-                                              sale.totalAmount ||
-                                              sale.total ||
-                                              0
-                                            ).toLocaleString()}
+                                            No sales found for this period
                                           </td>
                                         </tr>
-                                      )
-                                    )
-                                  ) : (
-                                    <tr>
-                                      <td
-                                        colSpan={6}
-                                        className="text-center p-3"
-                                      >
-                                        No sales found for this period
-                                      </td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </table>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                );
+                              })()
                             )}
                           </div>
                         </div>
@@ -3135,6 +3136,58 @@ function StoreStockSummary() {
             </div>
           </div>
         )}
+
+      {showInvoicePopup && selectedInvoice && (
+        <div style={backdropStyle}>
+          <div style={modalStyle}>
+            <h5 style={{ marginBottom: 12 }}>Invoice Details</h5>
+
+            <div style={gridStyle}>
+              <div>
+                <strong>Invoice No:</strong>{" "}
+                {selectedInvoice.invoice.invoiceNumber}
+              </div>
+              <div>
+                <strong>Date:</strong> {}
+              </div>
+              <div>
+                <strong>Customer:</strong> {selectedInvoice.customer.name}
+              </div>
+              <div>
+                <strong>Status:</strong> {selectedInvoice.paymentStatus}
+              </div>
+            </div>
+
+            <hr />
+
+            <h6>Payments</h6>
+            {selectedInvoice.payments.map((p, i) => (
+              <div key={i} style={paymentRow}>
+                <span>{p.method.toUpperCase()}</span>
+                <span>₹{p.amount.toLocaleString()}</span>
+              </div>
+            ))}
+
+            <hr />
+
+            <div style={{ textAlign: "right", fontWeight: 700 }}>
+              Total: ₹
+              {Number(
+                selectedInvoice?.totals?.invoiceTotal || 0
+              ).toLocaleString()}
+            </div>
+
+            <div style={{ textAlign: "right", marginTop: 16 }}>
+              <button
+                className="homebtn"
+                onClick={() => setShowInvoicePopup(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

@@ -10,7 +10,11 @@ import styles from "../../Dashboard/HomePage/HomePage.module.css";
 import salesStyles from "../../Dashboard/Sales/Sales.module.css";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import { handleExportExcel, handleExportPDF } from "../../../utils/PDFndXLSGenerator";
+import {
+  handleExportExcel,
+  handleExportPDF,
+} from "../../../utils/PDFndXLSGenerator";
+import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
 
 export default function StoreCashDeposit() {
   const navigate = useNavigate();
@@ -43,18 +47,18 @@ export default function StoreCashDeposit() {
   // Header Search States
   const [showSearch, setShowSearch] = useState({
     storeName: false,
-    depositedBy: false
+    depositedBy: false,
   });
 
   const [searchTerms, setSearchTerms] = useState({
     storeName: "",
-    depositedBy: ""
+    depositedBy: "",
   });
 
   const toggleSearch = (key) => {
-    setShowSearch(prev => {
+    setShowSearch((prev) => {
       const next = { ...prev };
-      Object.keys(next).forEach(k => {
+      Object.keys(next).forEach((k) => {
         next[k] = k === key ? !prev[k] : false;
       });
       return next;
@@ -62,11 +66,11 @@ export default function StoreCashDeposit() {
   };
 
   const handleSearchChange = (key, value) => {
-    setSearchTerms(prev => ({ ...prev, [key]: value }));
+    setSearchTerms((prev) => ({ ...prev, [key]: value }));
   };
 
   const clearSearch = (key) => {
-    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+    setSearchTerms((prev) => ({ ...prev, [key]: "" }));
   };
 
   const renderSearchHeader = (label, searchKey, dataAttr) => {
@@ -76,33 +80,63 @@ export default function StoreCashDeposit() {
     return (
       <th
         onClick={() => toggleSearch(searchKey)}
-        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        style={{
+          cursor: "pointer",
+          position: "relative",
+          fontFamily: "Poppins",
+          fontWeight: 600,
+          fontSize: "13px",
+        }}
         data-search-header="true"
         {...{ [dataAttr]: true }}
       >
         {isSearching ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <input
               type="text"
               placeholder={`Search ${label}...`}
               value={searchTerm}
               onChange={(e) => handleSearchChange(searchKey, e.target.value)}
               style={{
-                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
-                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+                flex: 1,
+                padding: "2px 6px",
+                border: "1px solid #ddd",
+                borderRadius: "4px",
+                fontSize: "12px",
+                minWidth: "120px",
+                height: "28px",
+                color: "#000",
+                backgroundColor: "#fff",
               }}
               autoFocus
             />
             {searchTerm && (
               <button
-                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
-                style={{
-                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
-                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
-                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
-                  alignItems: "center", justifyContent: "center",
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearSearch(searchKey);
                 }}
-              >✕</button>
+                style={{
+                  padding: "4px 8px",
+                  border: "1px solid #dc3545",
+                  borderRadius: "4px",
+                  background: "#dc3545",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  minWidth: "24px",
+                  height: "28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
             )}
           </div>
         ) : (
@@ -113,8 +147,10 @@ export default function StoreCashDeposit() {
   };
 
   // Filter states
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const today = new Date().toISOString().split('T')[0];
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
   const [filterFrom, setFilterFrom] = useState(sevenDaysAgo);
   const [filterTo, setFilterTo] = useState(today);
   const [triggerFetch, setTriggerFetch] = useState(false);
@@ -125,7 +161,7 @@ export default function StoreCashDeposit() {
         const userData = JSON.parse(localStorage.getItem("user") || "{}");
         const user = userData.user || userData;
         let id = user?.storeId || user?.store?.id;
-        
+
         if (!id) {
           const selectedStore = localStorage.getItem("selectedStore");
           if (selectedStore) {
@@ -133,12 +169,12 @@ export default function StoreCashDeposit() {
             id = store.id;
           }
         }
-        
+
         if (!id) {
           const currentStoreId = localStorage.getItem("currentStoreId");
           id = currentStoreId ? parseInt(currentStoreId) : null;
         }
-        
+
         if (id) {
           setStoreId(id);
         } else {
@@ -159,7 +195,7 @@ export default function StoreCashDeposit() {
     try {
       const res = await axiosAPI.get(`/stores/${storeId}/cash-balance`);
       const responseData = res.data || res;
-      
+
       // Handle response structure: { success: true, data: { availableBalance, storeName, ... } }
       if (responseData.success && responseData.data) {
         const balanceData = responseData.data;
@@ -168,7 +204,15 @@ export default function StoreCashDeposit() {
       } else {
         // Fallback for different response structure
         const balanceData = responseData.data || responseData;
-        setStoreCash(parseFloat(balanceData.availableBalance || balanceData.balance || balanceData.cashBalance || balanceData.cash || 0));
+        setStoreCash(
+          parseFloat(
+            balanceData.availableBalance ||
+              balanceData.balance ||
+              balanceData.cashBalance ||
+              balanceData.cash ||
+              0
+          )
+        );
         setStoreName(balanceData.storeName || balanceData.name || "");
       }
     } catch (err) {
@@ -187,14 +231,17 @@ export default function StoreCashDeposit() {
       const queryParams = [];
       if (filterFrom) queryParams.push(`fromDate=${filterFrom}`);
       if (filterTo) queryParams.push(`toDate=${filterTo}`);
-      
+
       if (queryParams.length > 0) {
-        query += `?${queryParams.join('&')}`;
+        query += `?${queryParams.join("&")}`;
       }
 
       const res = await axiosAPI.get(query);
+      console.log(res);
       const depositsData = res.data?.data || res.data || res;
-      const depositsList = Array.isArray(depositsData) ? depositsData : (depositsData.deposits || depositsData.data || []);
+      const depositsList = Array.isArray(depositsData)
+        ? depositsData
+        : depositsData.deposits || depositsData.data || [];
       setDeposits(depositsList);
     } catch (err) {
       console.error("Failed to fetch cash deposits", err);
@@ -215,10 +262,10 @@ export default function StoreCashDeposit() {
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Close header search if clicked outside
-      if (!event.target.closest('[data-search-header]')) {
+      if (!event.target.closest("[data-search-header]")) {
         setShowSearch({
           storeName: false,
-          depositedBy: false
+          depositedBy: false,
         });
       }
     };
@@ -235,11 +282,11 @@ export default function StoreCashDeposit() {
       if (event.key === "Escape") {
         setShowSearch({
           storeName: false,
-          depositedBy: false
+          depositedBy: false,
         });
         setSearchTerms({
           storeName: "",
-          depositedBy: ""
+          depositedBy: "",
         });
       }
     };
@@ -250,22 +297,29 @@ export default function StoreCashDeposit() {
   // Client-side filtering logic
   useEffect(() => {
     let filtered = deposits;
-    
+
     if (searchTerms.storeName) {
-      filtered = filtered.filter(deposit => {
-        const sName = deposit.store?.name || deposit.storeName || storeName || "";
-        return sName.toLowerCase().includes(searchTerms.storeName.toLowerCase());
+      filtered = filtered.filter((deposit) => {
+        const sName =
+          deposit.store?.name || deposit.storeName || storeName || "";
+        return sName
+          .toLowerCase()
+          .includes(searchTerms.storeName.toLowerCase());
       });
     }
 
     if (searchTerms.depositedBy) {
-      filtered = filtered.filter(deposit => {
-        const empName = deposit.depositedByEmployee?.name || 
-                        deposit.createdByEmployee?.name || 
-                        deposit.createdBy?.name || 
-                        deposit.employee?.name || 
-                        deposit.depositedBy || "";
-        return empName.toLowerCase().includes(searchTerms.depositedBy.toLowerCase());
+      filtered = filtered.filter((deposit) => {
+        const empName =
+          deposit.depositedByEmployee?.name ||
+          deposit.createdByEmployee?.name ||
+          deposit.createdBy?.name ||
+          deposit.employee?.name ||
+          deposit.depositedBy ||
+          "";
+        return empName
+          .toLowerCase()
+          .includes(searchTerms.depositedBy.toLowerCase());
       });
     }
 
@@ -276,120 +330,66 @@ export default function StoreCashDeposit() {
   useEffect(() => {
     if (showCreateForm) {
       const now = new Date();
-      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+      const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
+      const timeStr = now.toTimeString().split(" ")[0].substring(0, 5); // HH:MM
       setDepositDate(dateStr);
       setDepositTime(timeStr);
     }
   }, [showCreateForm]);
 
-  // Compress image function
-  const compressImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.7) => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        let { width, height } = img;
-        
-        if (width > height) {
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = (width * maxHeight) / height;
-            height = maxHeight;
-          }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to compress image'));
-          }
-        }, file.type || 'image/jpeg', quality);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  // Format base64 data URL
-  const formatBase64DataURL = (base64String) => {
-    if (!base64String) return undefined;
-    
-    if (base64String.startsWith('data:')) {
-      const base64Part = base64String.includes(',') ? base64String.split(',')[1] : base64String;
-      const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
-      
-      if (base64SizeMB > 1.5) {
-        return undefined;
-      }
-      
-      return base64String;
-    }
-    
-    const mimeType = 'image/jpeg';
-    return `data:${mimeType};base64,${base64String}`;
-  };
-
   const handleDepositSlipChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const maxSize = file.type === 'application/pdf' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
-    if (file.size > maxSize) {
-      showError(`File size should be less than ${maxSize / 1024 / 1024}MB`);
-      e.target.value = '';
-      return;
-    }
 
     try {
       let processedFile = file;
       let previewUrl = null;
 
-      if (file.type.startsWith('image/')) {
-        const compressedBlob = await compressImage(file, 800, 600, 0.7);
-        processedFile = new File([compressedBlob], file.name, { type: file.type });
-        previewUrl = URL.createObjectURL(compressedBlob);
-        
-        if (compressedBlob.size > 1.5 * 1024 * 1024) {
-          showError("Image is still too large after compression. Please use a smaller image.");
-          e.target.value = '';
+      // ✅ IMAGE HANDLING (use util)
+      if (file.type.startsWith("image/")) {
+        const compressedBlob = await compressImageToUnder100KB(file);
+
+        if (compressedBlob.size > 100 * 1024) {
+          showError(
+            "Image could not be compressed under 100KB. Please try another image."
+          );
+          e.target.value = "";
           return;
         }
-      } else if (file.type === 'application/pdf') {
+
+        processedFile = new File([compressedBlob], file.name, {
+          type: "image/jpeg",
+        });
+
+        previewUrl = URL.createObjectURL(compressedBlob);
+      }
+
+      // ✅ PDF HANDLING (unchanged)
+      if (file.type === "application/pdf") {
         if (file.size > 2 * 1024 * 1024) {
-          showError("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
-          e.target.value = '';
+          showError("PDF size should be less than 2MB.");
+          e.target.value = "";
           return;
         }
       }
 
+      // ✅ Convert to base64
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result;
-        setDepositSlip(base64String);
+        setDepositSlip(base64String); // base64
         setDepositSlipPreview(previewUrl);
       };
       reader.onerror = () => {
         showError("Error reading file");
-        e.target.value = '';
+        e.target.value = "";
       };
+
       reader.readAsDataURL(processedFile);
     } catch (error) {
-      console.error("Error processing file:", error);
-      showError("Error processing file: " + error.message);
-      e.target.value = '';
+      console.error("Deposit slip processing failed:", error);
+      showError("Failed to process image. Please try another file.");
+      e.target.value = "";
     }
   };
 
@@ -405,7 +405,7 @@ export default function StoreCashDeposit() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!storeId) {
       showError("Store information missing.");
       return;
@@ -418,7 +418,9 @@ export default function StoreCashDeposit() {
 
     const depositAmount = parseFloat(amount);
     if (depositAmount > storeCash) {
-      showError(`Insufficient cash in store. Available: ₹${storeCash.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+      showError(
+        `Insufficient cash in store. Available: ₹${storeCash.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+      );
       return;
     }
 
@@ -439,10 +441,13 @@ export default function StoreCashDeposit() {
       };
 
       if (depositSlip) {
-        payload.depositSlipBase64 = formatBase64DataURL(depositSlip);
+        payload.depositSlipBase64 = depositSlip;
       }
 
-      const res = await axiosAPI.post(`/stores/${storeId}/cash-deposits`, payload);
+      const res = await axiosAPI.post(
+        `/stores/${storeId}/cash-deposits`,
+        payload
+      );
       const responseData = res.data || res;
 
       showSuccess(res.message || "Cash deposit recorded successfully.");
@@ -457,7 +462,11 @@ export default function StoreCashDeposit() {
       await fetchCashDeposits();
     } catch (err) {
       console.error("Failed to record cash deposit", err);
-      showError(err.response?.data?.message || err.message || "Failed to record cash deposit");
+      showError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to record cash deposit"
+      );
     } finally {
       setLoading(false);
     }
@@ -475,16 +484,25 @@ export default function StoreCashDeposit() {
       "Store Name",
       "Cash Deposited (₹)",
       "Deposited By",
-      "Notes"
+      "Notes",
     ];
 
     const data = filteredHistory.map((deposit, index) => ({
       "S.No": index + 1,
-      "Date": formatDate(deposit.createdAt || deposit.date || deposit.depositDate),
-      "Store Name": deposit.store?.name || deposit.storeName || storeName || "-",
+      Date: formatDate(
+        deposit.createdAt || deposit.date || deposit.depositDate
+      ),
+      "Store Name":
+        deposit.store?.name || deposit.storeName || storeName || "-",
       "Cash Deposited (₹)": deposit.amount,
-      "Deposited By": deposit.depositedByEmployee?.name || deposit.createdByEmployee?.name || deposit.createdBy?.name || deposit.employee?.name || deposit.depositedBy || "-",
-      "Notes": deposit.notes || ""
+      "Deposited By":
+        deposit.depositedByEmployee?.name ||
+        deposit.createdByEmployee?.name ||
+        deposit.createdBy?.name ||
+        deposit.employee?.name ||
+        deposit.depositedBy ||
+        "-",
+      Notes: deposit.notes || "",
     }));
 
     if (type === "PDF") {
@@ -506,12 +524,17 @@ export default function StoreCashDeposit() {
     setIsSuccessModalOpen(false);
   };
 
-  const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatDate = (dateString) => {
-    if (!dateString) return '-';
+    if (!dateString) return "-";
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
     } catch {
       return dateString;
     }
@@ -521,7 +544,16 @@ export default function StoreCashDeposit() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+      <div
+        style={{
+          marginBottom: "24px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}
+      >
         <div>
           <h2
             style={{
@@ -536,15 +568,23 @@ export default function StoreCashDeposit() {
             Cash Deposit
           </h2>
           <p className="path">
-            <span onClick={() => navigate("/store/sales")} style={{ cursor: 'pointer' }}>Sales</span>{" "}
+            <span
+              onClick={() => navigate("/store/sales")}
+              style={{ cursor: "pointer" }}
+            >
+              Sales
+            </span>{" "}
             <i className="bi bi-chevron-right"></i> Cash Deposit
           </p>
         </div>
         <div style={{ display: "flex", gap: "12px" }}>
-          <button 
-            className="homebtn" 
-            onClick={() => setShowCreateForm(!showCreateForm)} 
-            style={{ fontFamily: "Poppins", background: showCreateForm ? "#f3f4f6" : undefined }}
+          <button
+            className="homebtn"
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            style={{
+              fontFamily: "Poppins",
+              background: showCreateForm ? "#f3f4f6" : undefined,
+            }}
           >
             {showCreateForm ? "Cancel" : "Create Deposit"}
           </button>
@@ -570,11 +610,14 @@ export default function StoreCashDeposit() {
           />
         </div>
         <div className="col-lg-4 col-md-4 col-sm-12 d-flex align-items-center gap-2">
-          <button className="submitbtn" onClick={() => setTriggerFetch(!triggerFetch)}>
+          <button
+            className="submitbtn"
+            onClick={() => setTriggerFetch(!triggerFetch)}
+          >
             Submit
           </button>
-          <button 
-            className="cancelbtn" 
+          <button
+            className="cancelbtn"
             onClick={() => {
               setFilterFrom(sevenDaysAgo);
               setFilterTo(today);
@@ -587,34 +630,87 @@ export default function StoreCashDeposit() {
       </div>
 
       {!storeId && (
-        <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
-          <p style={{ margin: 0, fontFamily: "Poppins" }}>Store details are missing. Please re-login to continue.</p>
+        <div
+          className={styles.orderStatusCard}
+          style={{ marginBottom: "24px" }}
+        >
+          <p style={{ margin: 0, fontFamily: "Poppins" }}>
+            Store details are missing. Please re-login to continue.
+          </p>
         </div>
       )}
 
       {storeId && (
         <>
           {/* Store Cash Balance Display */}
-          <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+          <div
+            className={styles.orderStatusCard}
+            style={{ marginBottom: "24px" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "16px",
+              }}
+            >
               <div>
-                <h4 style={{ margin: 0, fontFamily: "Poppins", fontWeight: 600, fontSize: "20px", color: "var(--primary-color)" }}>
+                <h4
+                  style={{
+                    margin: 0,
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "20px",
+                    color: "var(--primary-color)",
+                  }}
+                >
                   Store Cash Balance
                 </h4>
-                <p style={{ margin: "8px 0 0", fontFamily: "Poppins", color: "#6b7280" }}>
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontFamily: "Poppins",
+                    color: "#6b7280",
+                  }}
+                >
                   {storeName || "Current Store"}
                 </p>
               </div>
               <div style={{ textAlign: "right" }}>
-                <p style={{ margin: 0, fontFamily: "Poppins", fontSize: "24px", fontWeight: 700, color: "#059669" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: "Poppins",
+                    fontSize: "24px",
+                    fontWeight: 700,
+                    color: "#059669",
+                  }}
+                >
                   {formatCurrency(storeCash)}
                 </p>
                 {showCreateForm && amount && parseFloat(amount) > 0 && (
                   <div style={{ marginTop: "8px" }}>
-                    <p style={{ margin: "4px 0", fontFamily: "Poppins", fontSize: "14px", color: "#6b7280" }}>
+                    <p
+                      style={{
+                        margin: "4px 0",
+                        fontFamily: "Poppins",
+                        fontSize: "14px",
+                        color: "#6b7280",
+                      }}
+                    >
                       Deposit Amount: {formatCurrency(amount)}
                     </p>
-                    <p style={{ margin: "4px 0", fontFamily: "Poppins", fontSize: "16px", fontWeight: 600, color: remainingCash >= 0 ? "#059669" : "#dc2626" }}>
+                    <p
+                      style={{
+                        margin: "4px 0",
+                        fontFamily: "Poppins",
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        color: remainingCash >= 0 ? "#059669" : "#dc2626",
+                      }}
+                    >
                       Remaining: {formatCurrency(remainingCash)}
                     </p>
                   </div>
@@ -625,7 +721,10 @@ export default function StoreCashDeposit() {
 
           {/* Create Deposit Form */}
           {showCreateForm && (
-            <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+            <div
+              className={styles.orderStatusCard}
+              style={{ marginBottom: "24px" }}
+            >
               <h4
                 style={{
                   margin: 0,
@@ -670,7 +769,14 @@ export default function StoreCashDeposit() {
                       }}
                     />
                     {amount && parseFloat(amount) > storeCash && (
-                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#dc2626", fontFamily: "Poppins" }}>
+                      <p
+                        style={{
+                          margin: "4px 0 0",
+                          fontSize: "12px",
+                          color: "#dc2626",
+                          fontFamily: "Poppins",
+                        }}
+                      >
                         Amount exceeds available cash
                       </p>
                     )}
@@ -767,7 +873,13 @@ export default function StoreCashDeposit() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                  <button className="homebtn" type="submit" disabled={loading || (amount && parseFloat(amount) > storeCash)}>
+                  <button
+                    className="homebtn"
+                    type="submit"
+                    disabled={
+                      loading || (amount && parseFloat(amount) > storeCash)
+                    }
+                  >
                     {loading ? "Submitting..." : "Submit Deposit"}
                   </button>
                   <button
@@ -776,8 +888,11 @@ export default function StoreCashDeposit() {
                     onClick={() => {
                       setAmount("");
                       const now = new Date();
-                      const dateStr = now.toISOString().split('T')[0];
-                      const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+                      const dateStr = now.toISOString().split("T")[0];
+                      const timeStr = now
+                        .toTimeString()
+                        .split(" ")[0]
+                        .substring(0, 5);
                       setDepositDate(dateStr);
                       setDepositTime(timeStr);
                       setNotes("");
@@ -810,36 +925,109 @@ export default function StoreCashDeposit() {
             </h4>
 
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-              <button className={salesStyles.xls} onClick={() => handleExport("XLS")}>
+              <button
+                className={salesStyles.xls}
+                onClick={() => handleExport("XLS")}
+              >
                 <p>Export to </p>
                 <img src={xls} alt="Excel" />
               </button>
-              <button className={salesStyles.xls} onClick={() => handleExport("PDF")}>
+              <button
+                className={salesStyles.xls}
+                onClick={() => handleExport("PDF")}
+              >
                 <p>Export to </p>
                 <img src={pdf} alt="PDF" />
               </button>
             </div>
             {depositsLoading ? (
-              <p style={{ fontFamily: "Poppins", textAlign: "center", padding: "20px" }}>Loading deposits...</p>
+              <p
+                style={{
+                  fontFamily: "Poppins",
+                  textAlign: "center",
+                  padding: "20px",
+                }}
+              >
+                Loading deposits...
+              </p>
             ) : deposits.length === 0 ? (
-              <p style={{ fontFamily: "Poppins", textAlign: "center", padding: "20px", color: "#6b7280" }}>
+              <p
+                style={{
+                  fontFamily: "Poppins",
+                  textAlign: "center",
+                  padding: "20px",
+                  color: "#6b7280",
+                }}
+              >
                 No cash deposits found
               </p>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table className="table table-bordered borderedtable table-sm" style={{ fontFamily: "Poppins" }}>
+                <table
+                  className="table table-bordered borderedtable table-sm"
+                  style={{ fontFamily: "Poppins" }}
+                >
                   <thead className="table-light">
                     <tr>
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
-                      {renderSearchHeader("Store Name", "storeName", "data-store-header")}
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Cash Deposited (₹)</th>
-                      {renderSearchHeader("Deposited By", "depositedBy", "data-employee-header")}
-                      <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        S.No
+                      </th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Date
+                      </th>
+                      {renderSearchHeader(
+                        "Store Name",
+                        "storeName",
+                        "data-store-header"
+                      )}
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Cash Deposited (₹)
+                      </th>
+                      {renderSearchHeader(
+                        "Deposited By",
+                        "depositedBy",
+                        "data-employee-header"
+                      )}
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Action
+                      </th>
                     </tr>
                     {(searchTerms.storeName || searchTerms.depositedBy) && (
                       <tr>
-                        <td colSpan="6" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                        <td
+                          colSpan="6"
+                          style={{
+                            padding: "4px 12px",
+                            fontSize: "12px",
+                            borderRadius: "0",
+                            backgroundColor: "#f8f9fa",
+                            color: "#666",
+                          }}
+                        >
                           {filteredHistory.length} deposits found
                         </td>
                       </tr>
@@ -847,18 +1035,54 @@ export default function StoreCashDeposit() {
                   </thead>
                   <tbody>
                     {filteredHistory.map((deposit, index) => (
-                      <tr key={deposit.id || index} style={{ background: index % 2 === 0 ? "rgba(59, 130, 246, 0.03)" : "transparent" }}>
+                      <tr
+                        key={deposit.id || index}
+                        style={{
+                          background:
+                            index % 2 === 0
+                              ? "rgba(59, 130, 246, 0.03)"
+                              : "transparent",
+                        }}
+                      >
                         <td>{index + 1}</td>
-                        <td>{formatDate(deposit.createdAt || deposit.date || deposit.depositDate)}</td>
-                        <td>{deposit.store?.name || deposit.storeName || storeName || "-"}</td>
-                        <td style={{ fontWeight: 600 }}>{formatCurrency(deposit.amount)}</td>
-                        <td>{deposit.depositedByEmployee?.name || deposit.createdByEmployee?.name || deposit.createdBy?.name || deposit.employee?.name || deposit.depositedBy || "-"}</td>
                         <td>
-                          {deposit.depositSlip || deposit.depositSlipUrl || deposit.image ? (
+                          {formatDate(
+                            deposit.createdAt ||
+                              deposit.date ||
+                              deposit.depositDate
+                          )}
+                        </td>
+                        <td>
+                          {deposit.store?.name ||
+                            deposit.storeName ||
+                            storeName ||
+                            "-"}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>
+                          {formatCurrency(deposit.amount)}
+                        </td>
+                        <td>
+                          {deposit.depositedByEmployee?.name ||
+                            deposit.createdByEmployee?.name ||
+                            deposit.createdBy?.name ||
+                            deposit.employee?.name ||
+                            deposit.depositedBy ||
+                            "-"}
+                        </td>
+                        <td>
+                          {deposit.depositSlip ||
+                          deposit.depositSlipUrl ||
+                          deposit.image ? (
                             <button
                               className="homebtn"
                               style={{ fontSize: "11px" }}
-                              onClick={() => handleViewImage(deposit.depositSlip || deposit.depositSlipUrl || deposit.image)}
+                              onClick={() =>
+                                handleViewImage(
+                                  deposit.depositSlip ||
+                                    deposit.depositSlipUrl ||
+                                    deposit.image
+                                )
+                              }
                               title="View Deposit Slip"
                             >
                               <i className="bi bi-eye"></i> View
@@ -920,7 +1144,8 @@ export default function StoreCashDeposit() {
                 alignItems: "center",
                 padding: "20px",
                 zIndex: 10001,
-                background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent)",
+                background:
+                  "linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent)",
               }}
             >
               <button
@@ -970,8 +1195,8 @@ export default function StoreCashDeposit() {
                   display: "block",
                 }}
                 onError={(e) => {
-                  e.target.src = '';
-                  e.target.alt = 'Failed to load image';
+                  e.target.src = "";
+                  e.target.alt = "Failed to load image";
                 }}
               />
             </div>
@@ -980,8 +1205,16 @@ export default function StoreCashDeposit() {
       )}
 
       {loading && <Loading />}
-      <ErrorModal isOpen={isErrorModalOpen} message={error} onClose={closeErrorModal} />
-      <SuccessModal isOpen={isSuccessModalOpen} message={successMessage} onClose={closeSuccessModal} />
+      <ErrorModal
+        isOpen={isErrorModalOpen}
+        message={error}
+        onClose={closeErrorModal}
+      />
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        message={successMessage}
+        onClose={closeSuccessModal}
+      />
     </div>
   );
 }
