@@ -1084,7 +1084,7 @@ function StoreSalesReports({ onBack }) {
                     0
                   )
               )}
-              {filteredSalesData.length}
+              {/*filteredSalesData.length*/}
             </div>
             <div>
               <strong>Total Quantity: </strong>
