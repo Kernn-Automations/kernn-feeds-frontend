@@ -812,144 +812,81 @@ export default function StoreCreateSale() {
     0
   );
 
-  // Calculate total with tax from backend when cart changes
+  // 1. Stringify the cart items to create a stable dependency
+  // This only changes if IDs or quantities actually change
+  // 1. Create a stable "Fingerprint" of your cart data.
+  // This string only changes if a specific value that affects the total changes.
+  const cartFingerprint = JSON.stringify(
+    Object.values(cartItems).map((item) => ({
+      id: item.id,
+      qty: item.quantity,
+      price: item.unitPrice,
+      discount: item.discountAmount, // Included the per-item discount here
+    }))
+  );
+
+  // 2. Add a similar stable dependency for discounts and freight
+  const discountDependency = JSON.stringify(discounts);
+
   useEffect(() => {
-    if (submitting) {
+    if (submitting || cartItemsCount === 0) {
+      setCalculatedTotal(null);
       return;
     }
 
     const calculateTotal = async () => {
-      if (cartItemsCount === 0) {
-        setCalculatedTotal(null);
-        return;
-      }
-
       const storeId = getStoreId();
-      if (!storeId) {
-        return;
-      }
+      if (!storeId) return;
 
       try {
         setCalculatingTotal(true);
+        const items = prepareItemsForApi(); // This uses your existing helper
 
-        // Prepare items for calculation and create sale using shared helper
-        const items = prepareItemsForApi();
-
-        if (items.length === 0) {
-          setCalculatedTotal(null);
-          return;
-        }
-
-        // Try to calculate total using backend
-        const subtotal = totalCartValue;
         const calculateData = {
           storeId: storeId,
           items: items,
-          discountAmount: 0, // Explicitly 0 for per-item discounts
+          discountAmount: 0, // Per-item discounts are already inside 'items'
+          fridgeAmount: parseFloat(fridgeAmount) || 0,
+          freightCharges: parseFloat(fridgeAmount) || 0,
         };
 
-        // Add fridgeAmount (freight charges) if provided
-        if (fridgeAmount && parseFloat(fridgeAmount) > 0) {
-          calculateData.fridgeAmount = parseFloat(fridgeAmount);
-          // Also send as freightCharges for backend compatibility
-          calculateData.freightCharges = parseFloat(fridgeAmount);
-        }
+        const response = await storeService.calculateSaleTotal(calculateData);
 
-        try {
-          const response = await storeService.calculateSaleTotal(calculateData);
+        if (response && response.success && response.data) {
+          const data = response.data.summary || response.data;
 
-          if (response && response.success && response.data) {
-            // Backend returned calculated total with discount and freight charges included
-            const data = response.data.summary || response.data;
-            setCalculatedTotal({
-              subtotal: data.subtotal || data.totalAmount || subtotal,
+          // Prevent re-setting state if values are identical
+          setCalculatedTotal((prev) => {
+            const isSame =
+              prev &&
+              prev.total === (data.grandTotal || data.total) &&
+              prev.tax === (data.taxAmount || data.tax);
+
+            if (isSame) return prev;
+
+            return {
+              subtotal: data.subtotal || data.totalAmount,
               tax: data.taxAmount || data.tax || 0,
               discountAmount: data.discountAmount || 0,
               freightCharges: data.freightCharges || data.fridgeAmount || 0,
-              total:
-                data.grandTotal ||
-                data.total ||
-                subtotal + (data.taxAmount || data.tax || 0),
-            });
-          } else if (
-            response &&
-            (response.subtotal !== undefined || response.total !== undefined)
-          ) {
-            // Response might be directly in the data object
-            const summary = response.summary || response;
-            setCalculatedTotal({
-              subtotal: summary.subtotal || summary.totalAmount || subtotal,
-              tax: summary.taxAmount || summary.tax || 0,
-              discountAmount: summary.discountAmount || 0,
-              freightCharges:
-                summary.freightCharges || summary.fridgeAmount || 0,
-              total:
-                summary.grandTotal ||
-                summary.total ||
-                subtotal + (summary.taxAmount || summary.tax || 0),
-            });
-          } else {
-            // Calculate endpoint returned unexpected format, use fallback
-            console.warn(
-              "Calculate endpoint returned unexpected format, using estimated tax (5%)"
-            );
-            const tax = Math.round(subtotal * 0.05);
-            const discount = parseFloat(discountAmount) || 0;
-            const freight = parseFloat(fridgeAmount) || 0;
-            const total = subtotal + tax - discount + freight;
-            setCalculatedTotal({
-              subtotal,
-              tax,
-              discountAmount: discount,
-              freightCharges: freight,
-              total,
-            });
-          }
-        } catch (calcErr) {
-          // Calculate endpoint not available or error occurred, use fallback
-          console.log(
-            "Calculate endpoint error or not available, using estimated tax (5%):",
-            calcErr.message
-          );
-          const tax = Math.round(subtotal * 0.05);
-          const discount = parseFloat(discountAmount) || 0;
-          const freight = parseFloat(fridgeAmount) || 0;
-          const total = subtotal + tax - discount + freight;
-          setCalculatedTotal({
-            subtotal,
-            tax,
-            discountAmount: discount,
-            freightCharges: freight,
-            total,
+              total: data.grandTotal || data.total,
+            };
           });
         }
       } catch (err) {
         console.error("Error calculating total:", err);
-        // Fallback to estimated tax
-        const subtotal = totalCartValue;
-        const tax = Math.round(subtotal * 0.05);
-        const total = subtotal + tax;
-        setCalculatedTotal({ subtotal, tax, total });
       } finally {
         setCalculatingTotal(false);
       }
     };
 
-    // Debounce calculation to avoid too many API calls
-    const timeoutId = setTimeout(() => {
-      calculateTotal();
-    }, 1000);
-
+    // Debounce to prevent rapid typing from hitting the server
+    const timeoutId = setTimeout(calculateTotal, 1000);
     return () => clearTimeout(timeoutId);
-  }, [
-    cartItemsCount,
-    totalCartValue,
-    discounts,
-    fridgeAmount,
-    originalItemValues,
-    submitting,
-  ]);
 
+    // We only re-run if the fingerprint changes or freight changes
+    // We EXCLUDE 'originalItemValues' from here to stop the infinite loop
+  }, [cartFingerprint, fridgeAmount, submitting]);
   // Update original item values with tax when calculatedTotal is available
   useEffect(() => {
     if (!calculatedTotal || !cartItemsCount) return;
