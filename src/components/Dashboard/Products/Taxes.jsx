@@ -93,7 +93,14 @@ function Taxes({ navigate, isAdmin }) {
                         <td>{index++}</td>
                         <td>{tax.createdAt.slice(0, 10)}</td>
                         <td>{tax.name}</td>
-                        <td>{tax.percentage}%</td>
+                        <td>
+                          {tax.taxNature === "Exempt"
+                            ? "Exempted"
+                            : tax.percentage !== null
+                              ? `${tax.percentage}%`
+                              : "-"}
+                        </td>
+
                         {isAdmin && (
                           <td>
                             <TaxViewModal

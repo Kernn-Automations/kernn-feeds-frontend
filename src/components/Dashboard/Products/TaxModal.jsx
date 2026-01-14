@@ -41,14 +41,24 @@ function TaxModal({ tax, trigger, setTrigger }) {
     try {
       setLoading(true);
 
-      const res = await axiosAPI.put(`/tax/${tax.id}`, {
+      const payload = {
         name,
-        percentage: taxNature === "Exempt" ? 0 : percentage,
         description,
         hsnCode,
         taxNature,
         applicableOn,
-      });
+      };
+
+      // Percentage handling based on tax nature
+      if (taxNature === "Exempt") {
+        payload.percentage = null;
+      } else if (taxNature === "Nil Rated") {
+        payload.percentage = 0;
+      } else {
+        payload.percentage = Number(percentage);
+      }
+
+      const res = await axiosAPI.put(`/tax/${tax.id}`, payload);
 
       setTrigger(!trigger);
       setSuccessfull(res.data.message);
