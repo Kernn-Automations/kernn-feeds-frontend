@@ -474,12 +474,6 @@ function StoreSalesReports({ onBack }) {
             saleCode: item.saleCode,
             paymentDetails: item.paymentDetails || [], // <-- contains transactionNumber & proof
             invoiceDetails: item.invoiceDetails || [], // <-- array of invoices
-            createdBy:
-              item.employeeName ||
-              item.createdByEmployee?.name ||
-              item.createdByUser?.name ||
-              "-",
-            saleCode: item.saleCode || "",
             invoiceNumber:
               item.invoiceNumber || item.invoice?.invoiceNumber || "",
           });
@@ -923,82 +917,6 @@ function StoreSalesReports({ onBack }) {
                     fontSize: "13px",
                   }}
                 >
-                  Qty
-                </th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Amount
-                </th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Mode Of Payment
-                </th>
-                <th>Transaction No</th>
-                {renderSearchHeader(
-                  "Created By",
-                  "createdBy",
-                  "data-employee-header"
-                )}
-                <th>Details</th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  S.No
-                </th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Date
-                </th>
-                {renderSearchHeader(
-                  "Product Name",
-                  "productName",
-                  "data-product-header"
-                )}
-                {renderSearchHeader(
-                  "Stock Issued To",
-                  "stockIssuedTo",
-                  "data-customer-header"
-                )}
-                {renderSearchHeader(
-                  "Village Name",
-                  "villageName",
-                  "data-village-header"
-                )}
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Phone Number
-                </th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
                   UTR Number
                 </th>
                 <th
@@ -1028,6 +946,7 @@ function StoreSalesReports({ onBack }) {
                 >
                   Mode Of Payment
                 </th>
+                <th>Transaction Number</th>
                 {renderSearchHeader(
                   "Created By",
                   "createdBy",
