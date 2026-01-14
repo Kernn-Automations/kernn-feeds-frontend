@@ -265,10 +265,13 @@ function StoreSalesReports({ onBack }) {
             stockIssuedTo: item.customerName || item.customer?.farmerName || item.customer?.name || "Customer",
             villageName: villageName,
             phoneNumber: phoneNumber,
+            utrNumber: item.utrNumber || item.transactionNumber || item.transactionId || item.utr || "-",
             quantity: parseFloat(item.qty || item.quantity || 0),
             amount: parseFloat(item.amount || 0),
             modeOfPayment: paymentMethod,
-            createdBy: item.employeeName || item.createdByEmployee?.name || item.createdByUser?.name || "-"
+            createdBy: item.employeeName || item.createdByEmployee?.name || item.createdByUser?.name || "-",
+            saleCode: item.saleCode || "",
+            invoiceNumber: item.invoiceNumber || item.invoice?.invoiceNumber || ""
           });
         });
       }
@@ -563,8 +566,7 @@ function StoreSalesReports({ onBack }) {
               <option value="">All</option>
               <option value="CASH">CASH</option>
               <option value="BANK">BANK</option>
-              <option value="PHONE PAY">PHONE PAY</option>
-              <option value="UPI">UPI</option>
+              <option value="BOTH">BOTH</option>
             </select>
           </div>
         </div>
@@ -614,14 +616,16 @@ function StoreSalesReports({ onBack }) {
                 {renderSearchHeader("Stock Issued To", "stockIssuedTo", "data-customer-header")}
                 {renderSearchHeader("Village Name", "villageName", "data-village-header")}
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Phone Number</th>
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>UTR Number</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Qty</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Amount</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Mode Of Payment</th>
                 {renderSearchHeader("Created By", "createdBy", "data-employee-header")}
+                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Action</th>
               </tr>
               {(searchTerms.productName || searchTerms.stockIssuedTo || searchTerms.villageName || searchTerms.createdBy) && (
                 <tr>
-                  <td colSpan="10" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                  <td colSpan="12" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
                     {filteredSalesData.length} records found
                   </td>
                 </tr>
@@ -630,13 +634,13 @@ function StoreSalesReports({ onBack }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
+                  <td colSpan="12" className="text-center" style={{ padding: '20px' }}>
                     Loading...
                   </td>
                 </tr>
               ) : filteredSalesData.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
+                  <td colSpan="12" className="text-center" style={{ padding: '20px' }}>
                     No sales data found
                   </td>
                 </tr>
@@ -649,12 +653,22 @@ function StoreSalesReports({ onBack }) {
                     <td>{row.stockIssuedTo}</td>
                     <td>{row.villageName || "-"}</td>
                     <td>{row.phoneNumber || "-"}</td>
+                    <td>{row.utrNumber || "-"}</td>
                     <td style={{ textAlign: 'right' }}>{row.quantity}</td>
                     <td style={{ textAlign: 'right' }}>
                       ₹{formatAmount(row.amount)}
                     </td>
                     <td>{row.modeOfPayment || "-"}</td>
                     <td>{row.createdBy}</td>
+                    <td>
+                      <button
+                        className="submitbtn"
+                        style={{ padding: '4px 12px', fontSize: '12px', minWidth: '60px' }}
+                        onClick={() => navigate(`/store/sales?mode=orders&search=${row.invoiceNumber || row.saleCode || ""}`)}
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -677,15 +691,15 @@ function StoreSalesReports({ onBack }) {
           }}>
             <div>
               <strong>Total Records: </strong>
-              {responseData?.totals?.totalRecords || responseData?.pagination?.total || salesData.length}
+              {filteredSalesData.length}
             </div>
             <div>
               <strong>Total Quantity: </strong>
-              {responseData?.totals?.totalQuantity || salesData.reduce((sum, row) => sum + (parseFloat(row.quantity) || 0), 0)}
+              {filteredSalesData.reduce((sum, row) => sum + (parseFloat(row.quantity) || 0), 0)}
             </div>
             <div>
               <strong>Total Amount: </strong>
-              ₹{formatAmount(responseData?.totals?.totalAmount || responseData?.totals?.totalValue || salesData.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0))}
+              ₹{formatAmount(filteredSalesData.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0))}
             </div>
           </div>
         )}

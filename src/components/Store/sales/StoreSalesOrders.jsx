@@ -4,7 +4,7 @@ import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
 import salesStyles from "../../Dashboard/Sales/Sales.module.css";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
@@ -42,15 +42,17 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
 
   // Header Search States
   const [showSearch, setShowSearch] = useState({
-    saleCode: false,
+    invoiceNumber: false,
     customerName: false
   });
 
   const [searchTerms, setSearchTerms] = useState({
-    saleCode: "",
+    invoiceNumber: initialSearch,
     customerName: ""
   });
 
@@ -226,7 +228,7 @@ function StoreSalesOrders({ onBack }) {
       // Close header search if clicked outside
       if (!event.target.closest('[data-search-header]')) {
         setShowSearch({
-          saleCode: false,
+          invoiceNumber: false,
           customerName: false
         });
       }
@@ -243,11 +245,11 @@ function StoreSalesOrders({ onBack }) {
     const handleEscKey = (event) => {
       if (event.key === "Escape") {
         setShowSearch({
-          saleCode: false,
+          invoiceNumber: false,
           customerName: false
         });
         setSearchTerms({
-          saleCode: "",
+          invoiceNumber: "",
           customerName: ""
         });
       }
@@ -390,9 +392,9 @@ function StoreSalesOrders({ onBack }) {
     }
 
     // Header Search Filters
-    if (searchTerms.saleCode) {
+    if (searchTerms.invoiceNumber) {
       filtered = filtered.filter(order => 
-        order.saleCode?.toLowerCase().includes(searchTerms.saleCode.toLowerCase())
+        order.invoiceNumber?.toLowerCase().includes(searchTerms.invoiceNumber.toLowerCase())
       );
     }
 
@@ -403,7 +405,7 @@ function StoreSalesOrders({ onBack }) {
     }
     
     return filtered;
-  }, [orders, appliedFilters.customer, appliedFilters.employee, searchTerms.saleCode, searchTerms.customerName]);
+  }, [orders, appliedFilters.customer, appliedFilters.employee, searchTerms.invoiceNumber, searchTerms.customerName]);
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -539,7 +541,7 @@ function StoreSalesOrders({ onBack }) {
     const columns = [
       "S.No",
       "Date",
-      "Sale Code",
+      "Invoice Number",
       "Farmer Name",
       "Quantity",
       "Total Amount",
@@ -550,7 +552,7 @@ function StoreSalesOrders({ onBack }) {
     const data = displayOrders.map((order, index) => ({
       "S.No": index + 1,
       "Date": formatDate(order.date),
-      "Sale Code": order.saleCode || order.id,
+      "Invoice Number": order.invoiceNumber || order.saleCode || order.id,
       "Farmer Name": order.customerName,
       "Quantity": order.quantity,
       "Total Amount": order.grandTotal || order.totalAmount,
@@ -778,7 +780,7 @@ function StoreSalesOrders({ onBack }) {
               <tr>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
-                {renderSearchHeader("Sale Code", "saleCode", "data-sale-code-header")}
+                {renderSearchHeader("Invoice Number", "invoiceNumber", "data-invoice-number-header")}
                 {renderSearchHeader("Farmer Name", "customerName", "data-customer-name-header")}
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Quantity</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Total Amount</th>
@@ -786,7 +788,7 @@ function StoreSalesOrders({ onBack }) {
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Status</th>
                 <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Invoice</th>
               </tr>
-              {(searchTerms.saleCode || searchTerms.customerName) && (
+              {(searchTerms.invoiceNumber || searchTerms.customerName) && (
                 <tr>
                   <td colSpan={9} style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
                     {displayOrders.length} orders found
@@ -814,7 +816,7 @@ No sales orders found.
                     <tr key={order.id || index}>
                       <td>{actualIndex}</td>
                     <td>{formatDate(order.date)}</td>
-                      <td style={{ fontWeight: 600 }}>{order.saleCode || order.id}</td>
+                      <td style={{ fontWeight: 600 }}>{order.invoiceNumber || order.saleCode || order.id}</td>
                     <td>{order.customerName}</td>
                     <td>{order.quantity}</td>
                       <td>₹{Number(order.grandTotal || order.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
