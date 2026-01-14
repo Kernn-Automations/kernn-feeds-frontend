@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Modal, Button, Table } from "react-bootstrap";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
@@ -38,6 +39,11 @@ function StoreStockSummary() {
   const [loadingDetails, setLoadingDetails] = useState({});
   const [storeId, setStoreId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Invoice Details Modal States
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedInvoiceData, setSelectedInvoiceData] = useState(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
 
   const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -492,6 +498,42 @@ function StoreStockSummary() {
   };
 
   const closeModal = () => setIsModalOpen(false);
+
+  const handleInvoiceClick = async (invoiceId, orderId) => {
+    if (!invoiceId && !orderId) return;
+    
+    setSelectedInvoiceData(null);
+    setShowInvoiceModal(true);
+    setLoadingInvoice(true);
+    
+    try {
+      // Mocking backend call for now as requested
+      // In real implementation: const res = await storeService.getInvoiceDetails(invoiceId || orderId);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const mockData = {
+        invoiceNumber: invoiceId || `INV-${orderId}`,
+        date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
+        customerName: "Customer Name", // Will be updated when real data is available
+        items: [
+          { productName: "Product 1", quantity: 2, price: 500, total: 1000 },
+          { productName: "Product 2", quantity: 1, price: 1500, total: 1500 }
+        ],
+        subtotal: 2500,
+        tax: 0,
+        discount: 0,
+        total: 2500
+      };
+      
+      setSelectedInvoiceData(mockData);
+    } catch (err) {
+      console.error("Error fetching invoice details:", err);
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
 
   useEffect(() => {
     // Get store ID from multiple sources
@@ -3367,6 +3409,76 @@ function StoreStockSummary() {
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
+
+      {/* Invoice Details Modal */}
+      <Modal show={showInvoiceModal} onHide={() => setShowInvoiceModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title style={{ fontFamily: 'Poppins', fontWeight: 600 }}>Invoice Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ fontFamily: 'Poppins' }}>
+          {loadingInvoice ? (
+            <div className="text-center p-5">
+              <Loading />
+              <p className="mt-2">Fetching invoice details...</p>
+            </div>
+          ) : selectedInvoiceData ? (
+            <div>
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <p className="mb-1 text-muted" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Invoice Number</p>
+                  <h5 className="mb-3" style={{ fontWeight: 600, color: 'var(--primary-color)' }}>{selectedInvoiceData.invoiceNumber}</h5>
+                  <p className="mb-1 text-muted" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Date</p>
+                  <h6>{selectedInvoiceData.date}</h6>
+                </div>
+                <div className="col-md-6 text-md-end">
+                  <p className="mb-1 text-muted" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Customer</p>
+                  <h5 style={{ fontWeight: 600 }}>{selectedInvoiceData.customerName}</h5>
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <Table bordered hover className="mt-3">
+                  <thead style={{ backgroundColor: '#f8f9fa' }}>
+                    <tr style={{ fontSize: '13px' }}>
+                      <th style={{ fontWeight: 600 }}>Product Name</th>
+                      <th className="text-end" style={{ fontWeight: 600 }}>Quantity</th>
+                      <th className="text-end" style={{ fontWeight: 600 }}>Price</th>
+                      <th className="text-end" style={{ fontWeight: 600 }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ fontSize: '13px' }}>
+                    {selectedInvoiceData.items.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.productName}</td>
+                        <td className="text-end">{item.quantity}</td>
+                        <td className="text-end">₹{item.price.toLocaleString('en-IN')}</td>
+                        <td className="text-end">₹{item.total.toLocaleString('en-IN')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot style={{ borderTop: '2px solid #dee2e6' }}>
+                    <tr>
+                      <td colSpan="3" className="text-end" style={{ fontWeight: 600 }}>Subtotal</td>
+                      <td className="text-end" style={{ fontWeight: 600 }}>₹{selectedInvoiceData.subtotal.toLocaleString('en-IN')}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan="3" className="text-end" style={{ fontWeight: 700 }}>Grand Total</td>
+                      <td className="text-end" style={{ fontWeight: 700, color: 'var(--primary-color)', fontSize: '1.2rem' }}>₹{selectedInvoiceData.total.toLocaleString('en-IN')}</td>
+                    </tr>
+                  </tfoot>
+                </Table>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center p-3 text-muted">No details available.</div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowInvoiceModal(false)} style={{ fontFamily: 'Poppins' }}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

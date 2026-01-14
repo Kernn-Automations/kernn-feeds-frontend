@@ -454,6 +454,12 @@ function StoreSalesReports({ onBack }) {
               "Customer",
             villageName: villageName,
             phoneNumber: phoneNumber,
+            utrNumber:
+              item.utrNumber ||
+              item.transactionNumber ||
+              item.transactionId ||
+              item.utr ||
+              "-",
             quantity: parseFloat(item.qty || item.quantity || 0),
             amount: parseFloat(item.amount || 0),
             freightCharges: parseFloat(item.freightCharges || 0),
@@ -468,6 +474,14 @@ function StoreSalesReports({ onBack }) {
             saleCode: item.saleCode,
             paymentDetails: item.paymentDetails || [], // <-- contains transactionNumber & proof
             invoiceDetails: item.invoiceDetails || [], // <-- array of invoices
+            createdBy:
+              item.employeeName ||
+              item.createdByEmployee?.name ||
+              item.createdByUser?.name ||
+              "-",
+            saleCode: item.saleCode || "",
+            invoiceNumber:
+              item.invoiceNumber || item.invoice?.invoiceNumber || "",
           });
         });
       }
@@ -816,8 +830,7 @@ function StoreSalesReports({ onBack }) {
               <option value="">All</option>
               <option value="CASH">CASH</option>
               <option value="BANK">BANK</option>
-              <option value="PHONE PAY">PHONE PAY</option>
-              <option value="UPI">UPI</option>
+              <option value="BOTH">BOTH</option>
             </select>
           </div>
         </div>
@@ -937,6 +950,98 @@ function StoreSalesReports({ onBack }) {
                   "data-employee-header"
                 )}
                 <th>Details</th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  S.No
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Date
+                </th>
+                {renderSearchHeader(
+                  "Product Name",
+                  "productName",
+                  "data-product-header"
+                )}
+                {renderSearchHeader(
+                  "Stock Issued To",
+                  "stockIssuedTo",
+                  "data-customer-header"
+                )}
+                {renderSearchHeader(
+                  "Village Name",
+                  "villageName",
+                  "data-village-header"
+                )}
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Phone Number
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  UTR Number
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Qty
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Amount
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Mode Of Payment
+                </th>
+                {renderSearchHeader(
+                  "Created By",
+                  "createdBy",
+                  "data-employee-header"
+                )}
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Action
+                </th>
               </tr>
               {(searchTerms.productName ||
                 searchTerms.stockIssuedTo ||
@@ -944,7 +1049,7 @@ function StoreSalesReports({ onBack }) {
                 searchTerms.createdBy) && (
                 <tr>
                   <td
-                    colSpan="10"
+                    colSpan="12"
                     style={{
                       padding: "4px 12px",
                       fontSize: "12px",
@@ -988,6 +1093,7 @@ function StoreSalesReports({ onBack }) {
                     <td>{row.stockIssuedTo}</td>
                     <td>{row.villageName || "-"}</td>
                     <td>{row.phoneNumber || "-"}</td>
+                    <td>{row.utrNumber || "-"}</td>
                     <td style={{ textAlign: "right" }}>{row.quantity}</td>
                     <td style={{ textAlign: "right" }}>
                       ₹{formatAmount(row.amount)}
@@ -1058,6 +1164,23 @@ function StoreSalesReports({ onBack }) {
                     (sum, row) => sum + (parseFloat(row.amount) || 0),
                     0
                   )
+              )}
+              {filteredSalesData.length}
+            </div>
+            <div>
+              <strong>Total Quantity: </strong>
+              {filteredSalesData.reduce(
+                (sum, row) => sum + (parseFloat(row.quantity) || 0),
+                0
+              )}
+            </div>
+            <div>
+              <strong>Total Amount: </strong>₹
+              {formatAmount(
+                filteredSalesData.reduce(
+                  (sum, row) => sum + (parseFloat(row.amount) || 0),
+                  0
+                )
               )}
             </div>
           </div>

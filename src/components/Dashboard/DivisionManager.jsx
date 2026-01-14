@@ -2803,13 +2803,14 @@ function DivisionManager() {
                     </div>
                     <div className={styles.formRow}>
                       <div className={styles.formGroup}>
-                        <label htmlFor="storeCodeNumber">Store Code Number</label>
+                        <label htmlFor="storeCodeNumber">Store Code Number (max length 3 digit character used for invoice length)</label>
                         <input
                           type="text"
                           id="storeCodeNumber"
                           value={newStore.storeCodeNumber}
-                          onChange={(e) => setNewStore({ ...newStore, storeCodeNumber: e.target.value })}
-                          placeholder="e.g., 123 or ABC (Optional)"
+                          onChange={(e) => setNewStore({ ...newStore, storeCodeNumber: e.target.value.slice(0, 3) })}
+                          placeholder="e.g., ABC"
+                          maxLength="3"
                         />
                       </div>
                       <div className={styles.formGroup}>

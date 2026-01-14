@@ -23,6 +23,7 @@ import {
   FaUniversity,
   FaWallet,
   FaStore,
+  FaExchangeAlt
 } from "react-icons/fa";
 
 export default function StoreHome() {
@@ -335,6 +336,17 @@ export default function StoreHome() {
             </div>
           </div>
 
+          {/* Card: Stock Transfer */}
+          <div className={storeHomeStyles.summaryCard} onClick={() => navigate('/store/stock-transfer')}>
+            <div className={storeHomeStyles.cardIcon}>
+              <FaExchangeAlt />
+            </div>
+            <div className={storeHomeStyles.cardContent}>
+              <h3>Stock Transfer</h3>
+              <p>Manage Transfers</p>
+            </div>
+          </div>
+          
           {/* Card 5: Available Cash */}
           <div
             className={storeHomeStyles.summaryCard}

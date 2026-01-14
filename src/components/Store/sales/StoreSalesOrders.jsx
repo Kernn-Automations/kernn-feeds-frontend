@@ -10,7 +10,7 @@ import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
 import salesStyles from "../../Dashboard/Sales/Sales.module.css";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
@@ -51,6 +51,8 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
 
   // Header Search States
   const [showSearch, setShowSearch] = useState({
@@ -59,7 +61,7 @@ function StoreSalesOrders({ onBack }) {
   });
 
   const [searchTerms, setSearchTerms] = useState({
-    invoiceNumber: "",
+    invoiceNumber: initialSearch,
     customerName: "",
   });
 
@@ -288,11 +290,11 @@ function StoreSalesOrders({ onBack }) {
     const handleEscKey = (event) => {
       if (event.key === "Escape") {
         setShowSearch({
-          saleCode: false,
+          invoiceNumber: false,
           customerName: false,
         });
         setSearchTerms({
-          saleCode: "",
+          invoiceNumber: "",
           customerName: "",
         });
       }
@@ -501,7 +503,7 @@ function StoreSalesOrders({ onBack }) {
     orders,
     appliedFilters.customer,
     appliedFilters.employee,
-    searchTerms.saleCode,
+    searchTerms.invoiceNumber,
     searchTerms.customerName,
   ]);
 
@@ -657,7 +659,7 @@ function StoreSalesOrders({ onBack }) {
     const data = displayOrders.map((order, index) => ({
       "S.No": index + 1,
       Date: formatDate(order.date),
-      "Invoice Number": order.invoiceNumber || "N/A",
+      "Invoice Number": order.invoiceNumber || order.saleCode || order.id,
       "Farmer Name": order.customerName,
       Quantity: order.quantity,
       "Total Amount": order.grandTotal || order.totalAmount,
@@ -1000,7 +1002,7 @@ function StoreSalesOrders({ onBack }) {
                   Invoice
                 </th>
               </tr>
-              {(searchTerms.saleCode || searchTerms.customerName) && (
+              {(searchTerms.invoiceNumber || searchTerms.customerName) && (
                 <tr>
                   <td
                     colSpan={9}
@@ -1046,7 +1048,7 @@ function StoreSalesOrders({ onBack }) {
                       <td>{actualIndex}</td>
                       <td>{formatDate(order.date)}</td>
                       <td style={{ fontWeight: 600 }}>
-                        {order.invoiceNumber || "N/A"}
+                        {order.invoiceNumber || order.invoiceNumber || "N/A"}
                       </td>
 
                       <td>{order.customerName}</td>
