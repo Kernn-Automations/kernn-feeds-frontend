@@ -26,6 +26,12 @@ export default function ViewAllIndents() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = ({ title, status, duration = 3000 }) => {
+    setToast({ message: title, severity: status });
+    setTimeout(() => setToast(null), duration);
+  };
 
   // Header Search States
   const [showSearch, setShowSearch] = useState({
@@ -580,7 +586,11 @@ export default function ViewAllIndents() {
         res.message ||
         res.data?.message ||
         "Manual stock in processed successfully";
-      alert(successMessage);
+      showToast({
+        title: successMessage,
+        status: "success",
+        duration: 3000,
+      });
 
       // Reset form
       handleCloseManualStockIn();
@@ -924,7 +934,11 @@ export default function ViewAllIndents() {
 
       const successMessage =
         res.message || res.data?.message || "Stock in processed successfully";
-      alert(successMessage);
+      showToast({
+        title: successMessage,
+        status: "success",
+        duration: 3000,
+      });
 
       // Update selected indent status to reflect stock in completion
       if (selectedIndent) {
@@ -2113,6 +2127,38 @@ export default function ViewAllIndents() {
           onClose={() => setIsModalOpen(false)}
         />
       )}
+
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            padding: "12px 20px",
+            borderRadius: "4px",
+            color: "white",
+            fontWeight: "500",
+            zIndex: 200000,
+            minWidth: "250px",
+            fontSize: "14px",
+            backgroundColor: toast.severity === "success" ? "#28a745" : "#dc3545",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            fontFamily: "Poppins",
+            animation: "fadeIn 0.3s ease-in-out",
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      <style>
+        {`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        `}
+      </style>
     </>
   );
 }
