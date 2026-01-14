@@ -24,13 +24,16 @@ function StoreSalesReports({ onBack }) {
   const [responseData, setResponseData] = useState(null); // Store full response for summary totals
   const [customers, setCustomers] = useState([]);
   const [filteredSalesData, setFilteredSalesData] = useState([]);
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [zoomImage, setZoomImage] = useState(null);
 
   // Header Search Visibility States
   const [showSearch, setShowSearch] = useState({
     productName: false,
     stockIssuedTo: false,
     villageName: false,
-    createdBy: false
+    createdBy: false,
   });
 
   // Header Search Term States
@@ -38,25 +41,149 @@ function StoreSalesReports({ onBack }) {
     productName: "",
     stockIssuedTo: "",
     villageName: "",
-    createdBy: ""
+    createdBy: "",
   });
 
   const toggleSearch = (key) => {
-    setShowSearch(prev => {
+    setShowSearch((prev) => {
       const next = { ...prev };
-      Object.keys(next).forEach(k => {
+      Object.keys(next).forEach((k) => {
         next[k] = k === key ? !prev[k] : false;
       });
       return next;
     });
   };
 
+  const openPaymentPopup = (row) => {
+    setSelectedSale(row);
+    setShowPaymentPopup(true);
+  };
+
+  const closePaymentPopup = () => {
+    setSelectedSale(null);
+    setShowPaymentPopup(false);
+  };
+
   const handleSearchChange = (key, value) => {
-    setSearchTerms(prev => ({ ...prev, [key]: value }));
+    setSearchTerms((prev) => ({ ...prev, [key]: value }));
   };
 
   const clearSearch = (key) => {
-    setSearchTerms(prev => ({ ...prev, [key]: "" }));
+    setSearchTerms((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const sectionBox = {
+    marginBottom: 16,
+    padding: 12,
+    background: "#f9fafb",
+    borderRadius: 6,
+    border: "1px solid #e5e7eb",
+  };
+
+  const sectionTitle = {
+    fontWeight: 600,
+    marginBottom: 8,
+  };
+
+  const invoiceCard = {
+    padding: 10,
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 6,
+    marginBottom: 10,
+  };
+
+  const amountRow = {
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: 8,
+    fontWeight: 600,
+  };
+
+  const proofThumb = {
+    width: 70,
+    height: 70,
+    objectFit: "cover",
+    cursor: "zoom-in",
+    borderRadius: 6,
+    border: "1px solid #ddd",
+    marginTop: 8,
+  };
+
+  const backdropStyle = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  };
+
+  const modalWideStyle = {
+    background: "#fff",
+    width: "90vw",
+    maxWidth: "1100px",
+    maxHeight: "85vh",
+    overflowY: "auto",
+    borderRadius: "10px",
+    padding: "20px",
+    fontFamily: "Poppins",
+  };
+
+  const popupHeader = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  };
+
+  const closeBtn = {
+    border: "none",
+    background: "transparent",
+    fontSize: "18px",
+    cursor: "pointer",
+  };
+
+  const infoGrid = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "10px",
+    fontSize: "13px",
+  };
+
+  const paymentCard = {
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    padding: "12px",
+    marginBottom: "12px",
+  };
+
+  const paymentRow = {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "6px",
+  };
+
+  const badge = (method) => ({
+    padding: "4px 8px",
+    borderRadius: "6px",
+    fontSize: "11px",
+    fontWeight: 600,
+    background:
+      method === "cash" ? "rgba(16,185,129,0.15)" : "rgba(59,130,246,0.15)",
+    color: method === "cash" ? "#047857" : "#1d4ed8",
+  });
+
+  const mutedText = {
+    fontSize: "12px",
+    color: "#6b7280",
+  };
+
+  const proofImg = {
+    width: "140px",
+    borderRadius: "6px",
+    cursor: "zoom-in",
+    border: "1px solid #e5e7eb",
   };
 
   const renderSearchHeader = (label, searchKey, dataAttr) => {
@@ -66,33 +193,63 @@ function StoreSalesReports({ onBack }) {
     return (
       <th
         onClick={() => toggleSearch(searchKey)}
-        style={{ cursor: "pointer", position: "relative", fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}
+        style={{
+          cursor: "pointer",
+          position: "relative",
+          fontFamily: "Poppins",
+          fontWeight: 600,
+          fontSize: "13px",
+        }}
         data-search-header="true"
         {...{ [dataAttr]: true }}
       >
         {isSearching ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <input
               type="text"
               placeholder={`Search ${label}...`}
               value={searchTerm}
               onChange={(e) => handleSearchChange(searchKey, e.target.value)}
               style={{
-                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
-                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+                flex: 1,
+                padding: "2px 6px",
+                border: "1px solid #ddd",
+                borderRadius: "4px",
+                fontSize: "12px",
+                minWidth: "120px",
+                height: "28px",
+                color: "#000",
+                backgroundColor: "#fff",
               }}
               autoFocus
             />
             {searchTerm && (
               <button
-                onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
-                style={{
-                  padding: "4px 8px", border: "1px solid #dc3545", borderRadius: "4px",
-                  background: "#dc3545", color: "#fff", cursor: "pointer", fontSize: "12px",
-                  fontWeight: "bold", minWidth: "24px", height: "28px", display: "flex",
-                  alignItems: "center", justifyContent: "center",
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearSearch(searchKey);
                 }}
-              >✕</button>
+                style={{
+                  padding: "4px 8px",
+                  border: "1px solid #dc3545",
+                  borderRadius: "4px",
+                  background: "#dc3545",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  minWidth: "24px",
+                  height: "28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
             )}
           </div>
         ) : (
@@ -105,14 +262,14 @@ function StoreSalesReports({ onBack }) {
     fromDate: "",
     toDate: "",
     customerId: null,
-    modeOfPayment: ""
+    modeOfPayment: "",
   });
 
   useEffect(() => {
     // Get store ID from multiple sources (same as StoreSalesOrders)
     try {
       let id = null;
-      
+
       // Try from selectedStore in localStorage
       const selectedStore = localStorage.getItem("selectedStore");
       if (selectedStore) {
@@ -123,20 +280,20 @@ function StoreSalesReports({ onBack }) {
           console.error("Error parsing selectedStore:", e);
         }
       }
-      
+
       // Fallback to currentStoreId
       if (!id) {
         const currentStoreId = localStorage.getItem("currentStoreId");
         id = currentStoreId ? parseInt(currentStoreId) : null;
       }
-      
+
       // Fallback to user object
       if (!id) {
         const userData = JSON.parse(localStorage.getItem("user") || "{}");
         const user = userData.user || userData;
         id = user?.storeId || user?.store?.id;
       }
-      
+
       if (id) {
         setStoreId(id);
       } else {
@@ -165,57 +322,65 @@ function StoreSalesReports({ onBack }) {
 
   const fetchCustomers = async () => {
     if (!storeId) return;
-    
+
     try {
-      const response = await storeService.getStoreCustomers(storeId, { limit: 1000 });
+      const response = await storeService.getStoreCustomers(storeId, {
+        limit: 1000,
+      });
       const customersData = response.data || response.customers || [];
       setCustomers(Array.isArray(customersData) ? customersData : []);
     } catch (err) {
-      console.error('Error fetching customers:', err);
+      console.error("Error fetching customers:", err);
       setCustomers([]);
     }
   };
 
   const fetchSalesData = async () => {
     if (!storeId) return;
-    
+
     setLoading(true);
     setError(null);
     try {
       const params = {};
-      
+
       if (filters.fromDate) params.fromDate = filters.fromDate;
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.customerId) params.customerId = filters.customerId;
       if (filters.modeOfPayment) params.modeOfPayment = filters.modeOfPayment;
       params.limit = 1000; // Get all records for report
-      
+
       // Check if user is admin to use admin endpoint
       const userData = JSON.parse(localStorage.getItem("user") || "{}");
       const user = userData.user || userData;
       const isAdminUser = isAdmin(user);
-      
+
       // Use the new sales reports endpoints
-      const response = isAdminUser 
+      const response = isAdminUser
         ? await storeService.getStoreSalesReportsAdmin(storeId, params)
         : await storeService.getStoreSalesReports(storeId, params);
-      
+
+      console.log(response);
       // Handle backend response format
       // New backend structure: response.data is an array with simplified fields
       const salesData = response.data || response.sales || response || [];
-      
-      console.log('Sales Reports - Backend response:', response);
-      console.log('Sales Reports - Sales data array:', salesData);
-      
+
+      console.log("Sales Reports - Backend response:", response);
+      console.log("Sales Reports - Sales data array:", salesData);
+
       // Transform data to match table format
       // Backend now returns: { date, productName, customerName, villageName, phoneNumber, qty, amount, modeOfPayment }
       // May also have nested customer object: { customer: { villageName, mobile, farmerName } }
       const mappedData = [];
-      
+
       if (Array.isArray(salesData)) {
         salesData.forEach((item, index) => {
           console.log(`Sales Reports - Processing item ${index}:`, item);
-          console.log(`Sales Reports - Item ${index} villageName:`, item.villageName, 'customer:', item.customer);
+          console.log(
+            `Sales Reports - Item ${index} villageName:`,
+            item.villageName,
+            "customer:",
+            item.customer
+          );
           // Map payment method to uppercase display format
           let paymentMethod = "";
           const method = (item.modeOfPayment || "").toUpperCase();
@@ -223,61 +388,99 @@ function StoreSalesReports({ onBack }) {
             paymentMethod = "CASH";
           } else if (method === "BANK") {
             paymentMethod = "BANK";
-          } else if (method === "PHONE PAY" || method === "PHONEPAY" || method === "UPI") {
+          } else if (
+            method === "PHONE PAY" ||
+            method === "PHONEPAY" ||
+            method === "UPI"
+          ) {
             paymentMethod = "PHONE PAY";
           } else if (method && method !== "") {
             paymentMethod = method;
           } else {
             paymentMethod = "NEED TO COLLECT";
           }
-          
+
           // Handle village name - check multiple possible field names and formats
           let villageName = "";
           if (item.villageName) {
             villageName = item.villageName.trim();
-            if (villageName === "" || villageName === "-" || villageName.toLowerCase() === "null") {
+            if (
+              villageName === "" ||
+              villageName === "-" ||
+              villageName.toLowerCase() === "null"
+            ) {
               villageName = "";
             }
           } else if (item.customer?.villageName) {
             villageName = item.customer.villageName.trim();
-            if (villageName === "" || villageName === "-" || villageName.toLowerCase() === "null") {
+            if (
+              villageName === "" ||
+              villageName === "-" ||
+              villageName.toLowerCase() === "null"
+            ) {
               villageName = "";
             }
           }
-          
+
           // Handle phone number - check multiple possible field names and formats
           let phoneNumber = "";
           if (item.phoneNumber) {
             phoneNumber = item.phoneNumber.trim();
-            if (phoneNumber === "" || phoneNumber === "-" || phoneNumber.toLowerCase() === "null") {
+            if (
+              phoneNumber === "" ||
+              phoneNumber === "-" ||
+              phoneNumber.toLowerCase() === "null"
+            ) {
               phoneNumber = "";
             }
           } else if (item.customer?.mobile) {
             phoneNumber = item.customer.mobile.trim();
-            if (phoneNumber === "" || phoneNumber === "-" || phoneNumber.toLowerCase() === "null") {
+            if (
+              phoneNumber === "" ||
+              phoneNumber === "-" ||
+              phoneNumber.toLowerCase() === "null"
+            ) {
               phoneNumber = "";
             }
           }
-          
+
           mappedData.push({
             date: item.date || "",
             productName: item.productName || "N/A",
-            stockIssuedTo: item.customerName || item.customer?.farmerName || item.customer?.name || "Customer",
+            stockIssuedTo:
+              item.customerName ||
+              item.customer?.farmerName ||
+              item.customer?.name ||
+              "Customer",
             villageName: villageName,
             phoneNumber: phoneNumber,
             quantity: parseFloat(item.qty || item.quantity || 0),
             amount: parseFloat(item.amount || 0),
+            freightCharges: parseFloat(item.freightCharges || 0),
             modeOfPayment: paymentMethod,
-            createdBy: item.employeeName || item.createdByEmployee?.name || item.createdByUser?.name || "-"
+            createdBy:
+              item.employeeName ||
+              item.createdByEmployee?.name ||
+              item.createdByUser?.name ||
+              "-",
+            // ✅ NEW (IMPORTANT)
+            saleId: item.saleId,
+            saleCode: item.saleCode,
+            paymentDetails: item.paymentDetails || [], // <-- contains transactionNumber & proof
+            invoiceDetails: item.invoiceDetails || [], // <-- array of invoices
           });
         });
       }
-      
+
       setSalesData(mappedData);
       setResponseData(response); // Store full response for summary totals
     } catch (err) {
-      console.error('Error fetching sales data:', err);
-      setError(err.response?.data?.message || err.message || "Failed to fetch sales data.");
+      console.error("Error fetching sales data:", err);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch sales data."
+      );
       setIsModalOpen(true);
       setSalesData([]);
       setResponseData(null);
@@ -289,17 +492,18 @@ function StoreSalesReports({ onBack }) {
   // Click outside functionality
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('[data-search-header]')) {
+      if (!event.target.closest("[data-search-header]")) {
         setShowSearch({
           productName: false,
           stockIssuedTo: false,
           villageName: false,
-          createdBy: false
+          createdBy: false,
         });
       }
     };
     document.addEventListener("mousedown", handleClickOutside, true);
-    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside, true);
   }, []);
 
   // ESC key functionality
@@ -310,13 +514,13 @@ function StoreSalesReports({ onBack }) {
           productName: false,
           stockIssuedTo: false,
           villageName: false,
-          createdBy: false
+          createdBy: false,
         });
         setSearchTerms({
           productName: "",
           stockIssuedTo: "",
           villageName: "",
-          createdBy: ""
+          createdBy: "",
         });
       }
     };
@@ -328,23 +532,31 @@ function StoreSalesReports({ onBack }) {
   useEffect(() => {
     let filtered = salesData;
     if (searchTerms.productName) {
-      filtered = filtered.filter(item => 
-        item.productName?.toLowerCase().includes(searchTerms.productName.toLowerCase())
+      filtered = filtered.filter((item) =>
+        item.productName
+          ?.toLowerCase()
+          .includes(searchTerms.productName.toLowerCase())
       );
     }
     if (searchTerms.stockIssuedTo) {
-      filtered = filtered.filter(item => 
-        item.stockIssuedTo?.toLowerCase().includes(searchTerms.stockIssuedTo.toLowerCase())
+      filtered = filtered.filter((item) =>
+        item.stockIssuedTo
+          ?.toLowerCase()
+          .includes(searchTerms.stockIssuedTo.toLowerCase())
       );
     }
     if (searchTerms.villageName) {
-      filtered = filtered.filter(item => 
-        item.villageName?.toLowerCase().includes(searchTerms.villageName.toLowerCase())
+      filtered = filtered.filter((item) =>
+        item.villageName
+          ?.toLowerCase()
+          .includes(searchTerms.villageName.toLowerCase())
       );
     }
     if (searchTerms.createdBy) {
-      filtered = filtered.filter(item => 
-        item.createdBy?.toLowerCase().includes(searchTerms.createdBy.toLowerCase())
+      filtered = filtered.filter((item) =>
+        item.createdBy
+          ?.toLowerCase()
+          .includes(searchTerms.createdBy.toLowerCase())
       );
     }
     setFilteredSalesData(filtered);
@@ -354,29 +566,55 @@ function StoreSalesReports({ onBack }) {
   // Handles both "DD-MM-YYYY" format from backend and ISO date strings
   const formatDate = (dateString) => {
     if (!dateString) return "";
-    
+
     // Check if date is in "DD-MM-YYYY" format (from backend)
     const ddmmyyyyPattern = /^(\d{2})-(\d{2})-(\d{4})$/;
     const match = dateString.match(ddmmyyyyPattern);
-    
+
     if (match) {
       // Already in DD-MM-YYYY format, convert to DD-Mon-YY
       const [, day, month, year] = match;
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       const monthIndex = parseInt(month, 10) - 1;
       const monthName = months[monthIndex] || month;
       const yearShort = year.slice(-2);
       return `${day}-${monthName}-${yearShort}`;
     }
-    
+
     // Try parsing as ISO date or other format
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
         return dateString; // Return as-is if can't parse
       }
-      const day = String(date.getDate()).padStart(2, '0');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = String(date.getDate()).padStart(2, "0");
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       const month = months[date.getMonth()];
       const year = String(date.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
@@ -388,11 +626,11 @@ function StoreSalesReports({ onBack }) {
   // Format amount with Indian number format
   const formatAmount = (amount) => {
     if (!amount) return "0";
-    return parseFloat(amount).toLocaleString('en-IN');
+    return parseFloat(amount).toLocaleString("en-IN");
   };
 
   const handleFilterChange = (field, value) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
+    setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = () => {
@@ -400,7 +638,12 @@ function StoreSalesReports({ onBack }) {
   };
 
   const handleCancel = () => {
-    setFilters({ fromDate: "", toDate: "", customerId: null, modeOfPayment: "" });
+    setFilters({
+      fromDate: "",
+      toDate: "",
+      customerId: null,
+      modeOfPayment: "",
+    });
   };
 
   const closeModal = () => setIsModalOpen(false);
@@ -418,7 +661,7 @@ function StoreSalesReports({ onBack }) {
 
     try {
       const params = {};
-      
+
       if (filters.fromDate) params.fromDate = filters.fromDate;
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.customerId) params.customerId = filters.customerId;
@@ -434,12 +677,12 @@ function StoreSalesReports({ onBack }) {
         ? `/stores/admin/${storeId}/reports/sales/export/${type === "PDF" ? "pdf" : "excel"}`
         : `/stores/${storeId}/reports/sales/export/${type === "PDF" ? "pdf" : "excel"}`;
 
-      console.log('Export endpoint:', endpoint);
-      console.log('Export params:', params);
+      console.log("Export endpoint:", endpoint);
+      console.log("Export params:", params);
 
       // Build query string for params
       const queryParams = new URLSearchParams(params).toString();
-      const fullEndpoint = `${endpoint}${queryParams ? `?${queryParams}` : ''}`;
+      const fullEndpoint = `${endpoint}${queryParams ? `?${queryParams}` : ""}`;
 
       if (type === "XLS") {
         const columns = [
@@ -452,9 +695,9 @@ function StoreSalesReports({ onBack }) {
           "Qty",
           "Amount",
           "Mode Of Payment",
-          "Created By"
+          "Created By",
         ];
-        
+
         const data = filteredSalesData.map((row, index) => [
           index + 1,
           formatDate(row.date),
@@ -465,7 +708,7 @@ function StoreSalesReports({ onBack }) {
           row.quantity,
           row.amount,
           row.modeOfPayment,
-          row.createdBy
+          row.createdBy,
         ]);
 
         handleExportExcel(columns, data, "Store Sales Report");
@@ -475,29 +718,29 @@ function StoreSalesReports({ onBack }) {
 
       // Use getpdf method which is configured for blob responses (works for both PDF and Excel)
       const response = await axiosAPI.getpdf(fullEndpoint);
-      
+
       // Check if we got a valid response
       if (!response.data) {
-        throw new Error('No data received from server');
+        throw new Error("No data received from server");
       }
 
       // Check if it's a proper blob
       if (!(response.data instanceof Blob)) {
-        console.error('Response is not a blob:', response.data);
-        throw new Error('Invalid response format - expected blob');
+        console.error("Response is not a blob:", response.data);
+        throw new Error("Invalid response format - expected blob");
       }
 
       // Check if blob has content
       if (response.data.size === 0) {
-        throw new Error('Received empty file from server');
+        throw new Error("Received empty file from server");
       }
 
       // Create download link
       const downloadUrl = window.URL.createObjectURL(response.data);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
-      const dateStr = new Date().toISOString().split('T')[0];
-      link.download = `store-sales-report-${dateStr}.${type === "PDF" ? 'pdf' : 'xlsx'}`;
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.download = `store-sales-report-${dateStr}.${type === "PDF" ? "pdf" : "xlsx"}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -506,7 +749,11 @@ function StoreSalesReports({ onBack }) {
       console.log(`${type} download initiated successfully`);
     } catch (err) {
       console.error(`Error exporting ${type}:`, err);
-      setError(err.response?.data?.message || err.message || `Failed to export ${type}. Please try again.`);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          `Failed to export ${type}. Please try again.`
+      );
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -544,13 +791,17 @@ function StoreSalesReports({ onBack }) {
               onChange={(e) => handleFilterChange("toDate", e.target.value)}
             />
           </div>
-          
+
           <CustomSearchDropdown
             label="Customer"
             onSelect={(value) => handleFilterChange("customerId", value)}
             options={customers.map((customer) => ({
               value: customer.id,
-              label: customer.farmerName || customer.name || customer.customerName || `Customer ${customer.id}`
+              label:
+                customer.farmerName ||
+                customer.name ||
+                customer.customerName ||
+                `Customer ${customer.id}`,
             }))}
           />
 
@@ -558,7 +809,9 @@ function StoreSalesReports({ onBack }) {
             <label>Mode of Payment :</label>
             <select
               value={filters.modeOfPayment}
-              onChange={(e) => handleFilterChange("modeOfPayment", e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("modeOfPayment", e.target.value)
+              }
             >
               <option value="">All</option>
               <option value="CASH">CASH</option>
@@ -584,16 +837,16 @@ function StoreSalesReports({ onBack }) {
         {salesData.length > 0 && (
           <div className="row m-0 p-3 justify-content-around">
             <div className="col-lg-5">
-              <button 
-                className={inventoryStyles.xls} 
+              <button
+                className={inventoryStyles.xls}
                 onClick={() => handleExport("XLS")}
                 disabled={loading}
               >
                 <p>Export to </p>
                 <img src={xls} alt="" />
               </button>
-              <button 
-                className={inventoryStyles.xls} 
+              <button
+                className={inventoryStyles.xls}
                 onClick={() => handleExport("PDF")}
                 disabled={loading}
               >
@@ -608,20 +861,98 @@ function StoreSalesReports({ onBack }) {
           <table className="table table-hover table-bordered borderedtable">
             <thead>
               <tr>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>S.No</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
-                {renderSearchHeader("Product Name", "productName", "data-product-header")}
-                {renderSearchHeader("Stock Issued To", "stockIssuedTo", "data-customer-header")}
-                {renderSearchHeader("Village Name", "villageName", "data-village-header")}
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Phone Number</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Qty</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Amount</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Mode Of Payment</th>
-                {renderSearchHeader("Created By", "createdBy", "data-employee-header")}
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  S.No
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Date
+                </th>
+                {renderSearchHeader(
+                  "Product Name",
+                  "productName",
+                  "data-product-header"
+                )}
+                {renderSearchHeader(
+                  "Stock Issued To",
+                  "stockIssuedTo",
+                  "data-customer-header"
+                )}
+                {renderSearchHeader(
+                  "Village Name",
+                  "villageName",
+                  "data-village-header"
+                )}
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Phone Number
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Qty
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Amount
+                </th>
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Mode Of Payment
+                </th>
+                <th>Transaction No</th>
+                {renderSearchHeader(
+                  "Created By",
+                  "createdBy",
+                  "data-employee-header"
+                )}
+                <th>Details</th>
               </tr>
-              {(searchTerms.productName || searchTerms.stockIssuedTo || searchTerms.villageName || searchTerms.createdBy) && (
+              {(searchTerms.productName ||
+                searchTerms.stockIssuedTo ||
+                searchTerms.villageName ||
+                searchTerms.createdBy) && (
                 <tr>
-                  <td colSpan="10" style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '0', backgroundColor: '#f8f9fa', color: '#666' }}>
+                  <td
+                    colSpan="10"
+                    style={{
+                      padding: "4px 12px",
+                      fontSize: "12px",
+                      borderRadius: "0",
+                      backgroundColor: "#f8f9fa",
+                      color: "#666",
+                    }}
+                  >
                     {filteredSalesData.length} records found
                   </td>
                 </tr>
@@ -630,13 +961,21 @@ function StoreSalesReports({ onBack }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
+                  <td
+                    colSpan="10"
+                    className="text-center"
+                    style={{ padding: "20px" }}
+                  >
                     Loading...
                   </td>
                 </tr>
               ) : filteredSalesData.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="text-center" style={{ padding: '20px' }}>
+                  <td
+                    colSpan="10"
+                    className="text-center"
+                    style={{ padding: "20px" }}
+                  >
                     No sales data found
                   </td>
                 </tr>
@@ -649,12 +988,31 @@ function StoreSalesReports({ onBack }) {
                     <td>{row.stockIssuedTo}</td>
                     <td>{row.villageName || "-"}</td>
                     <td>{row.phoneNumber || "-"}</td>
-                    <td style={{ textAlign: 'right' }}>{row.quantity}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: "right" }}>{row.quantity}</td>
+                    <td style={{ textAlign: "right" }}>
                       ₹{formatAmount(row.amount)}
                     </td>
                     <td>{row.modeOfPayment || "-"}</td>
+                    <td style={{ fontSize: "12px" }}>
+                      {row.paymentDetails?.length > 0
+                        ? row.paymentDetails
+                            .map((p) => p.transactionNumber)
+                            .filter(Boolean)
+                            .join(", ")
+                        : "-"}
+                    </td>
+
                     <td>{row.createdBy}</td>
+
+                    <td style={{ textAlign: "center" }}>
+                      <button
+                        className="homebtn"
+                        style={{ fontSize: "11px", padding: "4px 10px" }}
+                        onClick={() => openPaymentPopup(row)}
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -664,39 +1022,210 @@ function StoreSalesReports({ onBack }) {
 
         {/* Summary */}
         {salesData.length > 0 && (
-          <div style={{ 
-            marginTop: '20px', 
-            padding: '16px', 
-            backgroundColor: '#f5f5f5',
-            borderRadius: '4px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
-            fontFamily: 'Poppins'
-          }}>
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "16px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "16px",
+              fontFamily: "Poppins",
+            }}
+          >
             <div>
               <strong>Total Records: </strong>
-              {responseData?.totals?.totalRecords || responseData?.pagination?.total || salesData.length}
+              {responseData?.totals?.totalRecords ||
+                responseData?.pagination?.total ||
+                salesData.length}
             </div>
             <div>
               <strong>Total Quantity: </strong>
-              {responseData?.totals?.totalQuantity || salesData.reduce((sum, row) => sum + (parseFloat(row.quantity) || 0), 0)}
+              {responseData?.totals?.totalQuantity ||
+                salesData.reduce(
+                  (sum, row) => sum + (parseFloat(row.quantity) || 0),
+                  0
+                )}
             </div>
             <div>
-              <strong>Total Amount: </strong>
-              ₹{formatAmount(responseData?.totals?.totalAmount || responseData?.totals?.totalValue || salesData.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0))}
+              <strong>Total Amount: </strong>₹
+              {formatAmount(
+                responseData?.totals?.totalAmount ||
+                  responseData?.totals?.totalValue ||
+                  salesData.reduce(
+                    (sum, row) => sum + (parseFloat(row.amount) || 0),
+                    0
+                  )
+              )}
             </div>
           </div>
         )}
       </div>
 
+      {showPaymentPopup && selectedSale && (
+        <div style={backdropStyle}>
+          <div style={modalWideStyle}>
+            {/* HEADER */}
+            <div style={popupHeader}>
+              <h5>Sale • Invoice • Payment Details</h5>
+              <button onClick={closePaymentPopup} style={closeBtn}>
+                ✕
+              </button>
+            </div>
+
+            {/* SALE DETAILS */}
+            <div style={sectionBox}>
+              <h6 style={sectionTitle}>Sale Details</h6>
+              <div style={infoGrid}>
+                <div>
+                  <strong>Sale Code:</strong> {selectedSale.saleCode}
+                </div>
+                <div>
+                  <strong>Date:</strong> {formatDate(selectedSale.date)}
+                </div>
+                <div>
+                  <strong>Customer:</strong>{" "}
+                  {selectedSale.customerName || selectedSale.stockIssuedTo}
+                </div>
+                <div>
+                  <strong>Mode:</strong> {selectedSale.modeOfPayment}
+                </div>
+                <div>
+                  <strong>Freight Charges:</strong> ₹
+                  {Number(selectedSale.freightCharges || 0).toLocaleString(
+                    "en-IN"
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* INVOICE DETAILS */}
+            <div style={sectionBox}>
+              <h6 style={sectionTitle}>Invoice Details</h6>
+              {console.log("selectedSale", selectedSale)}
+              {selectedSale.invoiceDetails?.length > 0 ? (
+                selectedSale.invoiceDetails.map((inv, i) => (
+                  <div key={i} style={invoiceCard}>
+                    <div>
+                      <strong>Invoice No:</strong> {inv.invoiceNumber}
+                    </div>
+                    <div>
+                      <strong>Date:</strong> {formatDate(inv.invoiceDate)}
+                    </div>
+                    <div>
+                      <strong>Type:</strong> {inv.type}
+                    </div>
+                    <div>
+                      <strong>Status:</strong> {inv.paymentStatus}
+                    </div>
+
+                    <div style={amountRow}>
+                      <span>
+                        Subtotal: ₹
+                        {Number(inv.totalAmount || 0).toLocaleString("en-IN")}
+                      </span>
+                      <span>
+                        Tax: ₹
+                        {Number(inv.taxAmount || 0).toLocaleString("en-IN")}
+                      </span>
+                      <strong>
+                        Total: ₹
+                        {Number(inv.grandTotal || 0).toLocaleString("en-IN")}
+                      </strong>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={mutedText}>No invoice available</div>
+              )}
+            </div>
+
+            {/* PAYMENT DETAILS */}
+            <div style={sectionBox}>
+              <h6 style={sectionTitle}>Payment Details</h6>
+
+              {selectedSale.paymentDetails?.length > 0 ? (
+                selectedSale.paymentDetails.map((p, i) => {
+                  const imgSrc = p.paymentProof
+                    ? p.paymentProof.startsWith("data:image")
+                      ? p.paymentProof
+                      : `data:image/jpeg;base64,${p.paymentProof}`
+                    : null;
+
+                  return (
+                    <div key={i} style={paymentCard}>
+                      <div style={paymentRow}>
+                        <span style={badge(p.method)}>
+                          {(p.method || "").toUpperCase()}
+                        </span>
+                        <strong>
+                          ₹{Number(p.amount || 0).toLocaleString("en-IN")}
+                        </strong>
+                      </div>
+
+                      {p.transactionNumber && (
+                        <div style={mutedText}>
+                          Txn No: {p.transactionNumber}
+                        </div>
+                      )}
+
+                      {p.transactionDate && (
+                        <div style={mutedText}>
+                          Date: {formatDate(p.transactionDate)}
+                        </div>
+                      )}
+
+                      {imgSrc && (
+                        <img
+                          src={imgSrc}
+                          alt="Payment Proof"
+                          style={proofThumb}
+                          onClick={() => setZoomImage(imgSrc)}
+                        />
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={mutedText}>No payment records</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {zoomImage && (
+        <div
+          onClick={() => setZoomImage(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.85)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={zoomImage}
+            alt="Zoomed Payment Proof"
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              borderRadius: 8,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {isModalOpen && (
-        <ErrorModal
-          isOpen={isModalOpen}
-          message={error}
-          onClose={closeModal}
-        />
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </div>
   );
