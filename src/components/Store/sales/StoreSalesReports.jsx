@@ -359,7 +359,7 @@ function StoreSalesReports({ onBack }) {
         ? await storeService.getStoreSalesReportsAdmin(storeId, params)
         : await storeService.getStoreSalesReports(storeId, params);
 
-      console.log(response);
+      console.log("Sales Reports :", response);
       // Handle backend response format
       // New backend structure: response.data is an array with simplified fields
       const salesData = response.data || response.sales || response || [];
@@ -461,7 +461,7 @@ function StoreSalesReports({ onBack }) {
               item.utr ||
               "-",
             quantity: parseFloat(item.qty || item.quantity || 0),
-            amount: parseFloat(item.amount || 0),
+            amount: parseFloat(item.itemAmount || 0),
             freightCharges: parseFloat(item.freightCharges || 0),
             modeOfPayment: paymentMethod,
             createdBy:
@@ -942,6 +942,17 @@ function StoreSalesReports({ onBack }) {
                     fontFamily: "Poppins",
                     fontWeight: 600,
                     fontSize: "13px",
+                    textAlign: "right",
+                  }}
+                >
+                  Other Amount
+                </th>
+
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
                   }}
                 >
                   Mode Of Payment
@@ -1017,6 +1028,14 @@ function StoreSalesReports({ onBack }) {
                     <td style={{ textAlign: "right" }}>
                       ₹{formatAmount(row.amount)}
                     </td>
+                    <td style={{ textAlign: "right" }}>
+                      ₹
+                      {formatAmount(
+                        (parseFloat(row.freightCharges) || 0) +
+                          (parseFloat(row.fridgeAmount) || 0)
+                      )}
+                    </td>
+
                     <td>{row.modeOfPayment || "-"}</td>
                     <td style={{ fontSize: "12px" }}>
                       {row.paymentDetails?.length > 0
@@ -1062,7 +1081,7 @@ function StoreSalesReports({ onBack }) {
           >
             <div>
               <strong>Total Records: </strong>
-              {responseData?.totals?.totalRecords ||
+              {responseData?.totals?.saleCount ||
                 responseData?.pagination?.total ||
                 salesData.length}
             </div>
@@ -1073,6 +1092,43 @@ function StoreSalesReports({ onBack }) {
                   (sum, row) => sum + (parseFloat(row.quantity) || 0),
                   0
                 )}
+              bags
+            </div>
+            <div>
+              <strong>Total Tonns: </strong>
+              {responseData?.totals?.totalTons ||
+                salesData.reduce(
+                  (sum, row) => sum + (parseFloat(row.quantity) || 0),
+                  0
+                )}
+              tns
+            </div>
+            <div>
+              <strong>Sub Total Amount: </strong>₹
+              {formatAmount(
+                (responseData?.totals?.totalAmount ||
+                  responseData?.totals?.totalValue ||
+                  salesData.reduce(
+                    (sum, row) => sum + (parseFloat(row.amount) || 0),
+                    0
+                  )) -
+                  (responseData?.totals?.totalFreight ||
+                    salesData.reduce(
+                      (sum, row) => sum + (parseFloat(row.freightCharges) || 0),
+                      0
+                    ))
+              )}
+              {/*filteredSalesData.length*/}
+            </div>
+            <div>
+              <strong>Total Freight Amount: </strong>₹
+              {formatAmount(
+                responseData?.totals?.totalFreightAmount ||
+                  salesData.reduce(
+                    (sum, row) => sum + (parseFloat(row.freightCharges) || 0),
+                    0
+                  )
+              )}
             </div>
             <div>
               <strong>Total Amount: </strong>₹
@@ -1083,23 +1139,6 @@ function StoreSalesReports({ onBack }) {
                     (sum, row) => sum + (parseFloat(row.amount) || 0),
                     0
                   )
-              )}
-              {/*filteredSalesData.length*/}
-            </div>
-            <div>
-              <strong>Total Quantity: </strong>
-              {filteredSalesData.reduce(
-                (sum, row) => sum + (parseFloat(row.quantity) || 0),
-                0
-              )}
-            </div>
-            <div>
-              <strong>Total Amount: </strong>₹
-              {formatAmount(
-                filteredSalesData.reduce(
-                  (sum, row) => sum + (parseFloat(row.amount) || 0),
-                  0
-                )
               )}
             </div>
           </div>

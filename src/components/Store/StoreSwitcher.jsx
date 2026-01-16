@@ -2,7 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../Auth";
 import { useNavigate } from "react-router-dom";
 import styles from "./StoreSwitcher.module.css";
-import { isStoreManager, isAdmin, isSuperAdmin } from "../../utils/roleUtils";
+import {
+  isStoreManager,
+  isAdmin,
+  isSuperAdmin,
+  isDivisionHead,
+} from "../../utils/roleUtils";
 
 function StoreSwitcher() {
   const { axiosAPI } = useAuth();
@@ -14,7 +19,11 @@ function StoreSwitcher() {
   const user = JSON.parse(localStorage.getItem("user")) || {};
 
   // Check if user has the required role
-  const hasRequiredRole = isStoreManager(user) || isAdmin(user) || isSuperAdmin(user);
+  const hasRequiredRole =
+    isStoreManager(user) ||
+    isAdmin(user) ||
+    isSuperAdmin(user) ||
+    isDivisionHead(user);
 
   useEffect(() => {
     if (!hasRequiredRole) {
@@ -98,7 +107,7 @@ function StoreSwitcher() {
         setCurrentStore(event.detail.store);
         return;
       }
-      
+
       // Otherwise, read from localStorage
       const selectedStoreData = localStorage.getItem("selectedStore");
       if (selectedStoreData) {
@@ -112,16 +121,16 @@ function StoreSwitcher() {
     };
 
     // Listen for custom store change events (same window)
-    window.addEventListener('storeChanged', handleStoreChange);
+    window.addEventListener("storeChanged", handleStoreChange);
     // Listen for storage events (other windows/tabs)
-    window.addEventListener('storage', handleStoreChange);
-    
+    window.addEventListener("storage", handleStoreChange);
+
     // Also check localStorage on mount
     handleStoreChange();
-    
+
     return () => {
-      window.removeEventListener('storeChanged', handleStoreChange);
-      window.removeEventListener('storage', handleStoreChange);
+      window.removeEventListener("storeChanged", handleStoreChange);
+      window.removeEventListener("storage", handleStoreChange);
     };
   }, []);
 
@@ -143,30 +152,33 @@ function StoreSwitcher() {
   return (
     <div className={styles.container}>
       {error && (
-        <div className="alert alert-danger" style={{ marginBottom: '10px', fontSize: '12px' }}>
+        <div
+          className="alert alert-danger"
+          style={{ marginBottom: "10px", fontSize: "12px" }}
+        >
           {error}
-          <button 
+          <button
             onClick={() => {
               setError(null);
-              fetchStoresCount().catch(err => {
+              fetchStoresCount().catch((err) => {
                 console.error("Failed to reload stores:", err);
                 setError("Failed to reload stores");
               });
             }}
-            style={{ marginLeft: '10px', padding: '2px 8px', fontSize: '10px' }}
+            style={{ marginLeft: "10px", padding: "2px 8px", fontSize: "10px" }}
           >
             Retry
           </button>
         </div>
       )}
       <div className={styles.selector}>
-        <div 
+        <div
           className={styles.storeDisplay}
           onClick={handleStoreClick}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: "pointer" }}
         >
           <span className={styles.storeName}>
-            {loading ? "Loading..." : (currentStore?.name || "Select Store")}
+            {loading ? "Loading..." : currentStore?.name || "Select Store"}
           </span>
           <button
             className={styles.backArrowButton}
@@ -176,9 +188,7 @@ function StoreSwitcher() {
             }}
             disabled={loading}
           >
-            <span className={styles.backArrow}>
-              ←
-            </span>
+            <span className={styles.backArrow}>←</span>
           </button>
         </div>
       </div>
@@ -187,4 +197,3 @@ function StoreSwitcher() {
 }
 
 export default StoreSwitcher;
-

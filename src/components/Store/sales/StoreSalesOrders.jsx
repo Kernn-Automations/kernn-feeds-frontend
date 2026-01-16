@@ -662,7 +662,7 @@ function StoreSalesOrders({ onBack }) {
       "Invoice Number": order.invoiceNumber || order.saleCode || order.id,
       "Farmer Name": order.customerName,
       Quantity: order.quantity,
-      "Total Amount": order.grandTotal || order.totalAmount,
+      "Total Amount": order.totalAmount,
       "Payment Method": order.paymentMethod,
       Status: order.status || order.paymentStatus,
     }));
@@ -1055,12 +1055,13 @@ function StoreSalesOrders({ onBack }) {
                       <td>{order.quantity}</td>
                       <td>
                         ₹
-                        {Number(
-                          order.grandTotal || order.totalAmount || 0
-                        ).toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {Number(order.totalAmount || 0).toLocaleString(
+                          "en-IN",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}
                       </td>
                       <td style={{ textTransform: "capitalize" }}>
                         {order.paymentMethod || "N/A"}
