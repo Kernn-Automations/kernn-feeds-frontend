@@ -265,7 +265,7 @@ export default function ViewAllIndents() {
       };
 
       const res = await storeService.getStoreIndents(storeId, params);
-
+      console.log(res);
       // Handle different response formats
       const indentsData =
         res.data?.indents || res.data || res.indents || res || [];
@@ -348,6 +348,13 @@ export default function ViewAllIndents() {
     } catch (e) {
       return dateString;
     }
+  };
+
+  const needsStockInAttention = (indent) => {
+    return (
+      indent?.originalStatus === "approved" ||
+      indent?.status === "Waiting for Stock"
+    );
   };
 
   const getStatusBadge = (status) => {
@@ -1142,7 +1149,34 @@ export default function ViewAllIndents() {
                           {indent.status}
                         </span>
                       </td>
-                      <td>
+                      <td
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        {needsStockInAttention(indent) && (
+                          <span
+                            title="Action required – Stock In pending"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "18px",
+                              height: "18px",
+                              borderRadius: "50%",
+                              backgroundColor: "#f59e0b",
+                              color: "#fff",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                              animation: "pulse 1.5s infinite",
+                            }}
+                          >
+                            !
+                          </span>
+                        )}
+
                         <button
                           className="btn btn-sm btn-outline-primary"
                           onClick={() => handleViewClick(indent)}
@@ -2141,7 +2175,8 @@ export default function ViewAllIndents() {
             zIndex: 200000,
             minWidth: "250px",
             fontSize: "14px",
-            backgroundColor: toast.severity === "success" ? "#28a745" : "#dc3545",
+            backgroundColor:
+              toast.severity === "success" ? "#28a745" : "#dc3545",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
             fontFamily: "Poppins",
             animation: "fadeIn 0.3s ease-in-out",
