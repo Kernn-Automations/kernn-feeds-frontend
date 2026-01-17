@@ -5,6 +5,7 @@ import StoreProfileAvatar from "./StoreProfileAvatar";
 import SearchBar from "../Dashboard/SearchBar";
 import Logo from "../Dashboard/navs/Logo";
 import StoreSwitcher from "./StoreSwitcher";
+import { storeOptions } from "../../utils/searchOptions";
 
 function StoreDashHeader({
   notifications,
@@ -44,7 +45,7 @@ function StoreDashHeader({
             <div className={`col-auto ${styles.headcontent}`}>
               <div className={styles.headerRight}>
                 <div className={styles.searchContainer}>
-                  <SearchBar />
+                  <SearchBar options={storeOptions} />
                 </div>
                 
                 <div className={styles.storeContainer}>
@@ -69,7 +70,7 @@ function StoreDashHeader({
           <div className={`col-auto ${styles.headcontent}`}>
             <div className={styles.headerRight}>
               <div className={styles.searchContainer}>
-                <SearchBar />
+                <SearchBar options={storeOptions} />
               </div>
               
               <div className={styles.storeContainer}>

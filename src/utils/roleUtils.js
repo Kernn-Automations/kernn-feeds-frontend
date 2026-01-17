@@ -140,6 +140,16 @@ export const isAreaBusinessManager = (userLike) => {
   });
 };
 
+export const isZBM = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "zbm" || n === "zone business manager" || n === "zone_business_manager" || 
+           (n.includes("zone") && n.includes("business") && n.includes("manager"));
+  });
+};
+
 /**
  * Get all roles for a user as an array of normalized role names
  * @param {Object} userLike - User object or null to get from storage

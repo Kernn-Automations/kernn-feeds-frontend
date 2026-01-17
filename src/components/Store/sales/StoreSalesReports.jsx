@@ -347,6 +347,7 @@ function StoreSalesReports({ onBack }) {
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.customerId) params.customerId = filters.customerId;
       if (filters.modeOfPayment) params.modeOfPayment = filters.modeOfPayment;
+      console.log('SALE PARAMS:', params);
       params.limit = 1000; // Get all records for report
 
       // Check if user is admin to use admin endpoint

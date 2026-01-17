@@ -3,42 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./SearchBar.module.css";
 import { IoSearch } from "react-icons/io5";
 
-const options = [
-  { name: "Home", path: "/" },
-  { name: "Inventory", path: "/inventory" },
-  { name: "Inventory - Incoming Stock", path: "/inventory/incoming-stock" },
-  { name: "Inventory - Outgoing Stock", path: "/inventory/outgoing-stock" },
-  { name: "Inventory - Stock Summary", path: "/inventory/stock-summary" },
-  { name: "Purchases", path: "/purchases" },
-  { name: "Purchases - New Purchase", path: "/purchases/new-purchase" },
-  { name: "Purchases - Purchase Report", path: "/purchases/purchase-report" },
-  { name: "Sales", path: "/sales" },
-  { name: "Sales - Orders", path: "/sales/orders" },
-  { name: "Sales - Dispatches", path: "/sales/dispatches" },
-  { name: "Sales - Deliveries", path: "/sales/deliveries" },
-  { name: "Sales - Partial Dispatch Requests", path: "/sales/partial-dispatch-requests" },
-  { name: "Customers", path: "/customers" },
-  { name: "Customers - List", path: "/customers/customer-list" },
-  { name: "Customers - KYC Approvals", path: "/customers/kyc-approvals" },
-  { name: "Payments", path: "/payments" },
-  { name: "Payments - Reports", path: "/payments/payment-reports" },
-  { name: "Payments - Approvals", path: "/payments/payment-approvals" },
-  { name: "Employees", path: "/employees" },
-  { name: "Employees - Create", path: "/employees/create-employee" },
-  { name: "Employees - Assign Role", path: "/employees/assign-role" },
-  { name: "Employees - Manage", path: "/employees/manage-employees" },
-  { name: "Live Locations", path: "/location" },
-  { name: "Warehouse", path: "/warehouses" },
-  { name: "Warehouse - Ongoing", path: "/warehouses/ongoing" },
-  { name: "Products", path: "/products" },
-  { name: "Products - Add", path: "/products/add" },
-  { name: "Products - Modify", path: "/products/modify" },
-  { name: "Targets", path: "/targets" },
-  { name: "Targets - Sales", path: "/targets/sales-target" },
-  { name: "Targets - Customers", path: "/targets/customer-target" },
-];
-
-const SearchBar = () => {
+const SearchBar = ({ options = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredOptions, setFilteredOptions] = useState([]);
   const [activeIndex, setActiveIndex] = useState(-1);

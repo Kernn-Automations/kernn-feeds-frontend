@@ -10,14 +10,15 @@ const AssignRole = lazy(() => import("./AssignRole"));
 const ManageEmployees = lazy(() => import("./ManageEmployees"));
 const TeamTransfer = lazy(() => import("./TeamTransfer"));
 
+import { isAdmin as checkAdmin, isDivisionHead } from "../../../utils/roleUtils";
+
 function EmployeeRoutes() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
 
-  const roles = JSON.stringify(user.roles);
-
-  const isAdmin = roles.includes("Admin");
+  // Allow Admin OR Division Head
+  const isAdmin = checkAdmin(user) || isDivisionHead(user);
 
   return (
     <Routes>
