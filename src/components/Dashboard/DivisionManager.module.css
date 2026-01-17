@@ -13,6 +13,20 @@
   border-bottom: 2px solid #f0f0f0;
 }
 
+.searchInput {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
 .headerActions {
   display: flex;
   gap: 15px;
@@ -341,34 +355,34 @@
   .container {
     padding: 15px;
   }
-  
+
   .header {
     flex-direction: column;
     gap: 15px;
     align-items: flex-start;
   }
-  
+
   .header h1 {
     font-size: 24px;
   }
-  
+
   .divisionsGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .formActions {
     flex-direction: column;
   }
-  
+
   .createForm {
     padding: 20px;
   }
-  
+
   .formRow {
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   .formSection {
     padding: 15px;
   }
@@ -378,23 +392,23 @@
   .container {
     padding: 10px;
   }
-  
+
   .header h1 {
     font-size: 22px;
   }
-  
+
   .createForm {
     padding: 15px;
   }
-  
+
   .divisionCard {
     padding: 15px;
   }
-  
+
   .formSection {
     padding: 10px;
   }
-  
+
   .sectionTitle {
     font-size: 14px;
   }
@@ -473,4 +487,4 @@
 
 .divisionDetails {
   margin-top: 10px;
-} 
+}

@@ -12,6 +12,8 @@ const StoreSelector = () => {
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [user, setUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
 
@@ -57,6 +59,10 @@ const StoreSelector = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const filteredStores = stores.filter((store) =>
+    store.name?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
   const loadStoresFromUserData = async () => {
     try {
       setLoading(true);
@@ -72,7 +78,7 @@ const StoreSelector = () => {
         storesList = currentUser?.assignedStores || [];
         console.log("StoreSelector.jsx - Stores from user data:", storesList);
       }
-      
+
       // Get authMeData from localStorage as fallback
       if (storesList.length === 0) {
         try {
@@ -80,7 +86,10 @@ const StoreSelector = () => {
           if (authMeData) {
             const parsed = JSON.parse(authMeData);
             storesList = parsed.assignedStores || parsed.stores || [];
-            console.log("StoreSelector.jsx - Stores from authMeData:", storesList);
+            console.log(
+              "StoreSelector.jsx - Stores from authMeData:",
+              storesList,
+            );
           }
         } catch (e) {
           console.error("Error parsing authMeData:", e);
@@ -94,8 +103,12 @@ const StoreSelector = () => {
           if (userData) {
             const parsed = JSON.parse(userData);
             const currentUser = parsed.user || parsed;
-            storesList = currentUser?.assignedStores || currentUser?.stores || [];
-            console.log("StoreSelector.jsx - Stores from user localStorage:", storesList);
+            storesList =
+              currentUser?.assignedStores || currentUser?.stores || [];
+            console.log(
+              "StoreSelector.jsx - Stores from user localStorage:",
+              storesList,
+            );
           }
         } catch (e) {
           console.error("Error parsing user localStorage:", e);
@@ -104,7 +117,9 @@ const StoreSelector = () => {
 
       // If no stores from user data, fetch from API (for admin/division head)
       if (storesList.length === 0) {
-        console.log("StoreSelector.jsx - No stores in user data, fetching from API...");
+        console.log(
+          "StoreSelector.jsx - No stores in user data, fetching from API...",
+        );
         try {
           const response = await axiosAPI.get("/auth/available-stores");
           const data = response.data;
@@ -112,19 +127,38 @@ const StoreSelector = () => {
 
           if (data.success && Array.isArray(data.data)) {
             storesList = data.data;
-            console.log("StoreSelector.jsx - Stores from API (data.data):", storesList);
+            console.log(
+              "StoreSelector.jsx - Stores from API (data.data):",
+              storesList,
+            );
           } else if (Array.isArray(data.stores)) {
             storesList = data.stores;
-            console.log("StoreSelector.jsx - Stores from API (data.stores):", storesList);
+            console.log(
+              "StoreSelector.jsx - Stores from API (data.stores):",
+              storesList,
+            );
           } else if (Array.isArray(data)) {
             storesList = data;
-            console.log("StoreSelector.jsx - Stores from API (direct array):", storesList);
+            console.log(
+              "StoreSelector.jsx - Stores from API (direct array):",
+              storesList,
+            );
           } else {
-            console.warn("StoreSelector.jsx - Unexpected API response structure:", data);
+            console.warn(
+              "StoreSelector.jsx - Unexpected API response structure:",
+              data,
+            );
           }
         } catch (err) {
-          console.error("StoreSelector.jsx - Error fetching stores from API:", err);
-          setError(err?.response?.data?.message || err.message || "Error fetching stores. Please try refreshing the page.");
+          console.error(
+            "StoreSelector.jsx - Error fetching stores from API:",
+            err,
+          );
+          setError(
+            err?.response?.data?.message ||
+              err.message ||
+              "Error fetching stores. Please try refreshing the page.",
+          );
           setStores([]);
           setLoading(false);
           return;
@@ -191,12 +225,17 @@ const StoreSelector = () => {
         localStorage.setItem("currentStoreId", store.id.toString());
         localStorage.setItem("currentStoreName", store.name);
 
-        console.log("StoreSelector.jsx - Store stored in localStorage:", storeData);
+        console.log(
+          "StoreSelector.jsx - Store stored in localStorage:",
+          storeData,
+        );
 
         // Dispatch custom event to notify components that store has changed
-        window.dispatchEvent(new CustomEvent('storeChanged', { 
-          detail: { storeId: store.id, store: storeData } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("storeChanged", {
+            detail: { storeId: store.id, store: storeData },
+          }),
+        );
 
         // Set success state
         setStoreSelected(true);
@@ -209,13 +248,13 @@ const StoreSelector = () => {
       } else {
         const errorData = response.data || {};
         setError(
-          `Failed to select store: ${errorData.message || "Unknown error"}`
+          `Failed to select store: ${errorData.message || "Unknown error"}`,
         );
       }
     } catch (error) {
       console.error("StoreSelector.jsx - Error selecting store:", error);
       setError(
-        error?.response?.data?.message || "Network error while selecting store"
+        error?.response?.data?.message || "Network error while selecting store",
       );
     } finally {
       setSelectingStore(false);
@@ -270,8 +309,20 @@ const StoreSelector = () => {
 
         {error && <div className={styles.error}>{error}</div>}
 
+        <input
+          type="text"
+          placeholder="Search store by name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className={styles.searchInput}
+        />
+
         <div className={styles.storesList}>
-          {stores.map((store, index) => (
+          {filteredStores.length === 0 && (
+            <div className={styles.noResults}>No stores found</div>
+          )}
+
+          {filteredStores.map((store, index) => (
             <div
               key={store.id}
               className={`${styles.storeCard} ${selectingStore ? styles.disabled : ""}`}
@@ -296,4 +347,3 @@ const StoreSelector = () => {
 };
 
 export default StoreSelector;
-
