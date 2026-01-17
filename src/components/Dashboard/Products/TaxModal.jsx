@@ -8,121 +8,177 @@ import Loading from "@/components/Loading";
 function TaxModal({ tax, trigger, setTrigger }) {
   const [editclick, setEditclick] = useState(false);
 
-  const onEditClick = () => setEditclick(!editclick);
-
   const [name, setName] = useState(tax.name);
-  const [percentage, setPercentage] = useState(tax.percentage);
-  const [description, setDescription] = useState(tax.description);
+  const [percentage, setPercentage] = useState(tax.percentage || "");
+  const [description, setDescription] = useState(tax.description || "");
+  const [hsnCode, setHsnCode] = useState(tax.hsnCode || "");
+  const [taxNature, setTaxNature] = useState(tax.taxNature || "Taxable");
+  const [applicableOn, setApplicableOn] = useState(tax.applicableOn || "Both");
 
   const [successfull, setSuccessfull] = useState(null);
-
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const [errors, setErrors] = useState({});
-
-  const today = new Date(Date.now()).toISOString().slice(0, 10);
-
-  const validateFields = () => {
-    const newErrors = {};
-    if (!name) newErrors.name = true;
-    if (!percentage) newErrors.percentage = true;
-    if (!description) newErrors.description = true;
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // form subbmission
 
   const { axiosAPI } = useAuth();
+  const closeModal = () => setIsModalOpen(false);
 
-  const onSubmitClick = () => {
-    // console.log(name, percentage, description);
+  const onEditClick = () => setEditclick(true);
 
-    //  if (!validateFields()) {
-    //    setError("Please Fill all feilds");
-    //    setIsModalOpen(true);
-    //    return;
-    //  }
-    async function create() {
-      try {
-        setLoading(true);
-        const res = await axiosAPI.put(`/tax/${tax.id}`, {
-          name: name,
-          percentage: percentage,
-          description: description,
-        });
+  const validateFields = () => {
+    if (!name || !hsnCode) return false;
+    if (taxNature !== "Exempt" && percentage === "") return false;
+    return true;
+  };
 
-        // console.log(res);
-        setTrigger(!trigger);
-        setSuccessfull(res.data.message);
-      } catch (e) {
-        console.log(e);
-        setError(e.response.data.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
+  const onSubmitClick = async () => {
+    if (!validateFields()) {
+      setError("Please fill all required fields");
+      setIsModalOpen(true);
+      return;
     }
 
-    create();
+    try {
+      setLoading(true);
+
+      const payload = {
+        name,
+        description,
+        hsnCode,
+        taxNature,
+        applicableOn,
+      };
+
+      // Percentage handling based on tax nature
+      if (taxNature === "Exempt") {
+        payload.percentage = null;
+      } else if (taxNature === "Nil Rated") {
+        payload.percentage = 0;
+      } else {
+        payload.percentage = Number(percentage);
+      }
+
+      const res = await axiosAPI.put(`/tax/${tax.id}`, payload);
+
+      setTrigger(!trigger);
+      setSuccessfull(res.data.message);
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to update tax");
+      setIsModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
-      <h3 className={`px-3 pb-3 mdl-title`}>Taxes</h3>
+      <h3 className="px-3 pb-3 mdl-title">Taxes</h3>
+
+      {/* DATE */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Date :</label>
-          <input
-            type="date"
-            value={tax.createdAt.slice(0, 10)}
-            disabled={!editclick}
-          />
+        <div className="col-4 inputcolumn-mdl">
+          <label>Date :</label>
+          <input type="date" value={tax.createdAt.slice(0, 10)} disabled />
         </div>
-      </div>{" "}
+      </div>
+
+      {/* TAX NAME */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Tax Name :</label>
+        <div className="col-4 inputcolumn-mdl">
+          <label>Tax Name :</label>
           <input
             type="text"
             value={name}
-            required
             onChange={(e) => setName(e.target.value)}
             disabled={!editclick}
           />
         </div>
-      </div>{" "}
+      </div>
+
+      {/* TAX NATURE */}
       <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Percentage :</label>
+        <div className="col-4 inputcolumn-mdl">
+          <label>Tax Nature :</label>
+          <select
+            value={taxNature}
+            onChange={(e) => setTaxNature(e.target.value)}
+            disabled={!editclick}
+          >
+            {[
+              "Taxable",
+              "Exempt",
+              "Nil Rated",
+              "Non-GST",
+              "Reverse Charge",
+            ].map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* HSN CODE */}
+      <div className="row justify-content-center">
+        <div className="col-4 inputcolumn-mdl">
+          <label>HSN Code :</label>
           <input
-            type="number"
-            value={percentage}
-            onChange={(e) => setPercentage(e.target.value)}
+            type="text"
+            value={hsnCode}
+            onChange={(e) => setHsnCode(e.target.value)}
             disabled={!editclick}
           />
         </div>
       </div>
-      <div className="row justify-content-center">
-        <div className={`col-4  inputcolumn-mdl`}>
-          <label htmlFor="">Description :</label>
-          <textarea
-            name=""
-            id=""
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            disabled={!editclick}
-          ></textarea>
-        </div>
-      </div>
+
+      {/* CONDITIONAL FIELDS */}
+      {taxNature !== "Exempt" && (
+        <>
+          {/* PERCENTAGE */}
+          <div className="row justify-content-center">
+            <div className="col-4 inputcolumn-mdl">
+              <label>Percentage :</label>
+              <input
+                type="number"
+                value={percentage}
+                onChange={(e) => setPercentage(e.target.value)}
+                disabled={!editclick}
+              />
+            </div>
+          </div>
+
+          {/* APPLICABLE ON */}
+          <div className="row justify-content-center">
+            <div className="col-4 inputcolumn-mdl">
+              <label>Applicable On :</label>
+              <select
+                value={applicableOn}
+                onChange={(e) => setApplicableOn(e.target.value)}
+                disabled={!editclick}
+              >
+                {["Sale", "Purchase", "Both"].map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* DESCRIPTION */}
+          <div className="row justify-content-center">
+            <div className="col-4 inputcolumn-mdl">
+              <label>Description :</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={!editclick}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ACTION BUTTONS */}
       {!editclick && (
-        <div className="row m-0 p-3 justify-content-center">
+        <div className="row p-3 justify-content-center">
           <div className="col-5">
             <button className="submitbtn" onClick={onEditClick}>
               Edit
@@ -133,51 +189,38 @@ function TaxModal({ tax, trigger, setTrigger }) {
           </div>
         </div>
       )}
+
       {editclick && !loading && !successfull && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-5`}>
-            <button
-              type="submit"
-              className={`submitbtn`}
-              data-bs-dismiss="modal"
-              onClick={onSubmitClick}
-            >
+        <div className="row pt-3 justify-content-center">
+          <div className="col-5">
+            <button className="submitbtn" onClick={onSubmitClick}>
               Update
             </button>
             <DialogActionTrigger asChild>
-              <button
-                type="button"
-                className={`cancelbtn`}
-                data-bs-dismiss="modal"
-              >
-                Close
-              </button>
+              <button className="cancelbtn">Close</button>
             </DialogActionTrigger>
           </div>
         </div>
       )}
+
       {successfull && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-6`}>
+        <div className="row pt-3 justify-content-center">
+          <div className="col-6">
             <DialogActionTrigger asChild>
-              <button
-                type="submit"
-                className={`submitbtn`}
-                data-bs-dismiss="modal"
-              >
-                {successfull}
-              </button>
+              <button className="submitbtn">{successfull}</button>
             </DialogActionTrigger>
           </div>
         </div>
       )}
+
       {loading && (
-        <div className="row pt-3 mt-3 justify-content-center">
-          <div className={`col-5`}>
+        <div className="row pt-3 justify-content-center">
+          <div className="col-5">
             <Loading />
           </div>
         </div>
       )}
+
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}

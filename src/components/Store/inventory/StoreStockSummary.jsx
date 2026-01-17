@@ -48,13 +48,15 @@ function StoreStockSummary() {
   const [showInvoicePopup, setShowInvoicePopup] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
+  const [zoomImage, setZoomImage] = useState(null);
+
   // Filtered data states
   const [filteredStockData, setFilteredStockData] = useState([]);
   const [filteredStatsByStore, setFilteredStatsByStore] = useState([]);
   const [filteredAuditTrail, setFilteredAuditTrail] = useState([]);
   const [filteredOpeningClosing, setFilteredOpeningClosing] = useState([]);
 
-  const [showPrices, setShowPrices] = useState(true);
+  const [showPrices, setShowPrices] = useState(false);
 
   const openInvoicePopup = (saleCode, invoices = []) => {
     const invoice = invoices.find(
@@ -67,16 +69,121 @@ function StoreStockSummary() {
     }
   };
 
-  const formatInvoiceDate = (isoDate) => {
+  const formatDate = (isoDate) => {
     if (!isoDate) return "-";
-
-    const date = new Date(isoDate);
-
-    return date.toLocaleDateString("en-IN", {
+    return new Date(isoDate).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
+  };
+
+  const renderBase64Image = (base64) => {
+    if (!base64) return null;
+
+    // If backend sends raw base64 (no prefix)
+    const src = base64.startsWith("data:")
+      ? base64
+      : `data:image/jpeg;base64,${base64}`;
+
+    return (
+      <img
+        src={src}
+        alt="Payment Proof"
+        style={{
+          maxWidth: "120px",
+          maxHeight: "120px",
+          borderRadius: 6,
+          border: "1px solid #e5e7eb",
+        }}
+      />
+    );
+  };
+
+  const getBase64Src = (b64) =>
+    b64?.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
+
+  const imgSrc = (b64) =>
+    b64?.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
+
+  const bodyStyle = {
+    display: "grid",
+    gridTemplateColumns: "1.2fr 1fr",
+    gap: 20,
+    overflow: "hidden",
+  };
+
+  const columnScroll = {
+    overflowY: "auto",
+    paddingRight: 6,
+  };
+
+  const sectionTitle = {
+    fontWeight: 600,
+    marginBottom: 8,
+  };
+
+  const divider = {
+    borderTop: "1px solid #e5e7eb",
+    margin: "14px 0",
+  };
+
+  const paymentCard = {
+    border: "1px solid #e5e7eb",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  };
+
+  const proofThumb = {
+    width: 120,
+    borderRadius: 8,
+    cursor: "zoom-in",
+    border: "1px solid #e5e7eb",
+    marginTop: 6,
+  };
+
+  const totalBox = {
+    background: "#f9fafb",
+    padding: 14,
+    borderRadius: 10,
+    textAlign: "right",
+    fontWeight: 700,
+  };
+
+  const closeBtn = {
+    marginTop: 14,
+    padding: "10px",
+    borderRadius: 8,
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+    fontWeight: 600,
+    cursor: "pointer",
+  };
+
+  /* Image Zoom */
+  const zoomBackdrop = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10000,
+  };
+
+  const zoomImage1 = {
+    maxWidth: "90vw",
+    maxHeight: "90vh",
+    borderRadius: 12,
+  };
+  const zoomImageStyle = {
+    maxWidth: "90vw",
+    maxHeight: "90vh",
+    objectFit: "contain",
+    borderRadius: 12,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
   };
 
   // Search Visibility states
@@ -1352,7 +1459,7 @@ function StoreStockSummary() {
                                 const rowData =
                                   productSalesDetails[item.id || index];
                                 const salesRows = rowData?.salesDetails || [];
-
+                                const invoiceRows = rowData?.invoices || [];
                                 return (
                                   <table
                                     className="table table-sm mb-0"
@@ -1363,7 +1470,7 @@ function StoreStockSummary() {
                                     >
                                       <tr>
                                         <th style={thStyle}>Date</th>
-                                        <th style={thStyle}>Order ID</th>
+                                        <th style={thStyle}>Invoice ID</th>
                                         <th style={thStyle}>Customer</th>
                                         <th style={thStyle}>Quantity</th>
                                         <th style={thStyle}>Price</th>
@@ -1377,7 +1484,10 @@ function StoreStockSummary() {
                                           <tr key={i}>
                                             <td style={tdStyle}>{sale.date}</td>
                                             <td style={tdStyle}>
-                                              {sale.orderId}
+                                              {rowData?.invoices?.find(
+                                                (inv) =>
+                                                  inv.saleId === sale.saleId
+                                              )?.invoice?.invoiceNumber || "-"}
                                             </td>
                                             <td style={tdStyle}>
                                               {sale.customer}
@@ -3191,55 +3301,120 @@ function StoreStockSummary() {
         )}
 
       {showInvoicePopup && selectedInvoice && (
-        <div style={backdropStyle}>
-          <div style={modalStyle}>
-            <h5 style={{ marginBottom: 12 }}>Invoice Details</h5>
+        <>
+          <div style={backdropStyle}>
+            <div style={modalStyle}>
+              <h3>Invoice Details</h3>
 
-            <div style={gridStyle}>
-              <div>
-                <strong>Invoice No:</strong>{" "}
-                {selectedInvoice.invoice.invoiceNumber}
+              <div style={bodyStyle}>
+                {/* LEFT COLUMN */}
+                <div style={columnScroll}>
+                  <div>
+                    <strong>Invoice No:</strong>{" "}
+                    {selectedInvoice.invoice?.invoiceNumber}
+                  </div>
+                  <div>
+                    <strong>Date:</strong>{" "}
+                    {formatDate(selectedInvoice.invoice?.invoiceDate)}
+                  </div>
+                  <div>
+                    <strong>Customer:</strong> {selectedInvoice.customer?.name}
+                  </div>
+                  <div>
+                    <strong>Status:</strong> Paid
+                  </div>
+
+                  <div style={divider} />
+
+                  <div style={sectionTitle}>Items</div>
+                  <table width="100%">
+                    <thead>
+                      <tr>
+                        <th align="left">Qty</th>
+                        <th align="left">Unit</th>
+                        <th align="left">Price</th>
+                        <th align="right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedInvoice.items.map((i, idx) => (
+                        <tr key={idx}>
+                          <td>{i.quantity}</td>
+                          <td>{i.unit}</td>
+                          <td>₹{i.unitPrice.toLocaleString()}</td>
+                          <td align="right">₹{i.amount.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div style={divider} />
+
+                  <div style={totalBox}>
+                    Invoice Total: ₹
+                    {Number(
+                      selectedInvoice.totals.invoiceTotal
+                    ).toLocaleString()}
+                    <div style={{ fontSize: 12, fontWeight: 500 }}>
+                      Paid: ₹
+                      {Number(
+                        selectedInvoice.totals.totalPaid
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div style={columnScroll}>
+                  <div style={sectionTitle}>Payments</div>
+
+                  {selectedInvoice.payments.map((p, i) => (
+                    <div key={i} style={paymentCard}>
+                      <div style={{ fontWeight: 600 }}>
+                        {p.method.toUpperCase()} – ₹{p.amount.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        {formatDate(p.date)}
+                        {p.transactionNumber &&
+                          ` | Ref: ${p.transactionNumber}`}
+                      </div>
+
+                      {p.paymentProof && (
+                        <img
+                          src={p.paymentProof}
+                          alt="Payment Proof"
+                          style={{
+                            width: 70,
+                            height: 70,
+                            objectFit: "cover",
+                            borderRadius: 8,
+                            cursor: "zoom-in",
+                            border: "1px solid #e5e7eb",
+                          }}
+                          onClick={() => setZoomImage(p.paymentProof)}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <strong>Date:</strong> {}
-              </div>
-              <div>
-                <strong>Customer:</strong> {selectedInvoice.customer.name}
-              </div>
-              <div>
-                <strong>Status:</strong> {selectedInvoice.paymentStatus}
-              </div>
-            </div>
 
-            <hr />
-
-            <h6>Payments</h6>
-            {selectedInvoice.payments.map((p, i) => (
-              <div key={i} style={paymentRow}>
-                <span>{p.method.toUpperCase()}</span>
-                <span>₹{p.amount.toLocaleString()}</span>
-              </div>
-            ))}
-
-            <hr />
-
-            <div style={{ textAlign: "right", fontWeight: 700 }}>
-              Total: ₹
-              {Number(
-                selectedInvoice?.totals?.invoiceTotal || 0
-              ).toLocaleString()}
-            </div>
-
-            <div style={{ textAlign: "right", marginTop: 16 }}>
               <button
-                className="homebtn"
+                style={closeBtn}
                 onClick={() => setShowInvoicePopup(false)}
               >
                 Close
               </button>
             </div>
           </div>
-        </div>
+
+          {/* IMAGE ZOOM */}
+          {zoomImage && (
+            <div style={zoomBackdrop} onClick={() => setZoomImage(null)}>
+              <img src={zoomImage} style={zoomImageStyle} />
+            </div>
+          )}
+        </>
       )}
 
       {isModalOpen && (
