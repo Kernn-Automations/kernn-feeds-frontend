@@ -1,5 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import styles from "./NavContainer.module.css";
+import { isAdmin, isDivisionHead } from "../../../utils/roleUtils";
+
 
 function NavBg({ hover, setTab, tab }) {
   const location = useLocation();
@@ -713,7 +715,8 @@ function NavBg({ hover, setTab, tab }) {
           </div>
         )}
 
-        {roles.includes("Admin") && (
+
+        {(isAdmin(user) || isDivisionHead(user)) && (
           <div
             className={`${
               location.pathname.includes("divisions") ? styles.active : ""

@@ -307,6 +307,12 @@ function Login() {
         }
       }
     }
+
+    // Fallback: If login is successful but no other condition matched, go to home
+    if (login) {
+      console.warn("Login.jsx - No specific route matched, executing fallback redirection to /");
+      navigate("/");
+    }
   }, [login, user, navigate, axiosAPI, checkAndRedirectToStoreSelector]);
 
   return (

@@ -6,10 +6,14 @@ import ErrorModal from "../ErrorModal";
 import zonesService from "../../services/zonesService";
 import subZonesService from "../../services/subZonesService";
 import styles from "./DivisionManager.module.css";
+import { isDivisionHead } from "../../utils/roleUtils";
+
 
 function DivisionManager() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const user = JSON.parse(localStorage.getItem("user"));
+
   const { axiosAPI } = useAuth();
   const [divisions, setDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,17 +195,27 @@ function DivisionManager() {
       // Try different endpoints as per the backend routes
       let response;
       try {
-        // First try the main divisions endpoint
+        if (isDivisionHead(user)) {
+           response = await axiosAPI.get("/divisions/user-divisions");  
+           console.log("Divisions response (user-divisions):", response);
+        } else {
+             // First try the main divisions endpoint
         response = await axiosAPI.get("/divisions");
         console.log("Divisions response (main):", response);
+        }
+       
       } catch (mainError) {
+        if (isDivisionHead(user)) {
+           // If user-divisions fails, rethrow to catch block
+           throw mainError;
+        }
         console.log("Main endpoint failed, trying /divisions/all");
         // If main endpoint fails, try the alternative
         response = await axiosAPI.get("/divisions/all");
         console.log("Divisions response (all):", response);
       }
       
-      if (response.status === 200) {
+      if (response && response.status === 200) {
         // Handle different possible response structures
         const divisionsData = response.data.divisions || response.data.data || response.data || [];
         console.log("Divisions data:", divisionsData);
@@ -1802,7 +1816,7 @@ function DivisionManager() {
             >
               {loading || zonesLoading || subZonesLoading || storesLoading ? "Refreshing..." : "Refresh"}
             </button>
-            {activeTab === "divisions" && (
+            {activeTab === "divisions" && !isDivisionHead(user) && (
           <button
                 className="homebtn"
             onClick={() => setShowCreateForm(!showCreateForm)}
@@ -2157,12 +2171,14 @@ function DivisionManager() {
                     </div>
                   </div>
                   <div className={styles.divisionActions}>
+                    {!isDivisionHead(user) && (
                     <button
                           className="homebtn"
                       onClick={() => handleDeleteDivision(division.id)}
                     >
                       Delete
                     </button>
+                    )}
                   </div>
                 </div>
               ))}

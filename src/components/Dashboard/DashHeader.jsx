@@ -8,6 +8,7 @@ import ProfileAvthar from "./ProfileAvthar";
 import { IoSearch } from "react-icons/io5";
 import SearchBar from "./SearchBar";
 import DivisionSwitcher from "./DivisionSwitcher";
+import { dashboardOptions } from "../../utils/searchOptions";
 
 function DashHeader({
   notifications,
@@ -40,7 +41,7 @@ function DashHeader({
           <div className={`col-8 ${styles.headcontent}`}>
             <div className={styles.headerRight}>
               <div className={styles.searchContainer}>
-                <SearchBar />
+                <SearchBar options={dashboardOptions} />
               </div>
               
               <div 

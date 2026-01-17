@@ -609,40 +609,29 @@ function StoreStockSummary() {
 
       // Map API response to match table structure
       const mappedData = Array.isArray(summaryData)
-        ? summaryData
-            .map((item) => ({
-              id: item.id,
-              productId: item.productId,
-              productName: item.product?.name || item.productName || "-",
-              productSKU: item.product?.SKU || item.product?.sku || "-",
-              date: item.date,
-              stockIn: item.stockIn || 0,
-              inwardStock: item.inwardStock || 0,
-              opening: item.openingStock || 0,
-              closing: item.closingStock || 0,
-              outwardStock: item.outwardStock || 0,
-              stockOut: item.stockOut || 0,
-              inwardPrice: item.inwardStockPrice || 0,
-              outwardPrice: item.outwardStockPrice || 0,
-              stockInPrice: item.stockInPrice || 0,
-              stockOutPrice: item.stockOutPrice || 0,
-              unit: item.unit || item.product?.unit || "kg",
-              productType:
-                item.productType || item.product?.productType || "packed",
-              store: item.store,
-              product: item.product,
-              division: item.division,
-            }))
-            .filter((item) => {
-              // Only show products that have transaction activity
-              // A product has activity if any of these fields are non-zero
-              return (
-                item.inwardStock !== 0 ||
-                item.outwardStock !== 0 ||
-                item.stockIn !== 0 ||
-                item.stockOut !== 0
-              );
-            })
+        ? summaryData.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product?.name || item.productName || "-",
+            productSKU: item.product?.SKU || item.product?.sku || "-",
+            date: item.date,
+            stockIn: item.stockIn || 0,
+            inwardStock: item.inwardStock || 0,
+            opening: item.openingStock || 0,
+            closing: item.closingStock || 0,
+            outwardStock: item.outwardStock || 0,
+            stockOut: item.stockOut || 0,
+            inwardPrice: item.inwardStockPrice || 0,
+            outwardPrice: item.outwardStockPrice || 0,
+            stockInPrice: item.stockInPrice || 0,
+            stockOutPrice: item.stockOutPrice || 0,
+            unit: item.unit || item.product?.unit || "kg",
+            productType:
+              item.productType || item.product?.productType || "packed",
+            store: item.store,
+            product: item.product,
+            division: item.division,
+          }))
         : [];
 
       setStockData(mappedData);

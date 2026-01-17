@@ -8,12 +8,15 @@ const CreateSample = lazy(() => import("./CreateSample"));
 const ViewSamples = lazy(() => import("./ViewSamples"));
 const EditSample = lazy(() => import("./EditSample"));
 
+import { isAdmin as checkAdmin, isDivisionHead } from "../../../utils/roleUtils";
+
 function SampleRoutes() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
-  const roles = JSON.stringify(user.roles);
-  const isAdmin = roles.includes("Admin");
+  
+  // Allow Admin OR Division Head
+  const isAdmin = checkAdmin(user) || isDivisionHead(user);
 
   return (
     <Routes>

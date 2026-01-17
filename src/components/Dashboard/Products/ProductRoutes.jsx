@@ -10,14 +10,15 @@ const ProductHome = lazy(() => import("./ProductHome"));
 const PricingList = lazy(() => import("./PricingList"));
 const Taxes = lazy(() => import("./Taxes"));
 
+import { isAdmin as checkAdmin, isDivisionHead } from "../../../utils/roleUtils";
+
 function ProductRoutes() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
 
-  const roles = JSON.stringify(user.roles);
-
-  const isAdmin = roles.includes("Admin");
+  // Allow Admin OR Division Head
+  const isAdmin = checkAdmin(user) || isDivisionHead(user);
 
 
   return (
