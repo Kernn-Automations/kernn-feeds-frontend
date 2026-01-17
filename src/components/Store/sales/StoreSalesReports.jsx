@@ -188,6 +188,7 @@ function StoreSalesReports({ onBack }) {
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.customerId) params.customerId = filters.customerId;
       if (filters.modeOfPayment) params.modeOfPayment = filters.modeOfPayment;
+      console.log('SALE PARAMS:', params);
       params.limit = 1000; // Get all records for report
       
       // Check if user is admin to use admin endpoint
@@ -200,12 +201,9 @@ function StoreSalesReports({ onBack }) {
         ? await storeService.getStoreSalesReportsAdmin(storeId, params)
         : await storeService.getStoreSalesReports(storeId, params);
       
-      // Handle backend response format
-      // New backend structure: response.data is an array with simplified fields
-      const salesData = response.data || response.sales || response || [];
-      
       console.log('Sales Reports - Backend response:', response);
-      console.log('Sales Reports - Sales data array:', salesData);
+      const salesData = response.data || response.sales || response || [];
+      console.log('SALE DATA:', salesData);
       
       // Transform data to match table format
       // Backend now returns: { date, productName, customerName, villageName, phoneNumber, qty, amount, modeOfPayment }
@@ -223,6 +221,8 @@ function StoreSalesReports({ onBack }) {
             paymentMethod = "CASH";
           } else if (method === "BANK") {
             paymentMethod = "BANK";
+          } else if (method === "BOTH") {
+            paymentMethod = "BOTH";
           } else if (method === "PHONE PAY" || method === "PHONEPAY" || method === "UPI") {
             paymentMethod = "PHONE PAY";
           } else if (method && method !== "") {
@@ -438,7 +438,7 @@ function StoreSalesReports({ onBack }) {
         : `/stores/${storeId}/reports/sales/export/${type === "PDF" ? "pdf" : "excel"}`;
 
       console.log('Export endpoint:', endpoint);
-      console.log('Export params:', params);
+      console.log('EXPORT PARAMS:', params);
 
       // Build query string for params
       const queryParams = new URLSearchParams(params).toString();
