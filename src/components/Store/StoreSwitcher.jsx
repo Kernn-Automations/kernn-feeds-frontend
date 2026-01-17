@@ -7,6 +7,7 @@ import {
   isAdmin,
   isSuperAdmin,
   isDivisionHead,
+  isStoreEmployee,
 } from "../../utils/roleUtils";
 
 function StoreSwitcher() {
@@ -17,10 +18,12 @@ function StoreSwitcher() {
   const [storesCount, setStoresCount] = useState(0);
   const [currentStore, setCurrentStore] = useState(null);
   const user = JSON.parse(localStorage.getItem("user")) || {};
+  console.log("StoreSwitcher user:", user);
 
   // Check if user has the required role
   const hasRequiredRole =
     isStoreManager(user) ||
+    isStoreEmployee(user) ||
     isAdmin(user) ||
     isSuperAdmin(user) ||
     isDivisionHead(user);
@@ -145,7 +148,15 @@ function StoreSwitcher() {
   }
 
   // Don't show if user has only one or zero stores
-  if (storesCount <= 1) {
+  // Decide visibility based on role + store count
+  const shouldShowSwitcher =
+    // Store Manager & Store Employee: show even with 1 store
+    ((isStoreManager(user) || isStoreEmployee(user)) && storesCount >= 1) ||
+    // Admin / Super Admin / Division Head: only if multiple stores
+    ((isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user)) &&
+      storesCount > 1);
+
+  if (!shouldShowSwitcher) {
     return null;
   }
 
