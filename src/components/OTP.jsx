@@ -82,7 +82,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
     // Detect if running on mobile device
     const isMobileDevice =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
+        navigator.userAgent,
       );
     const isMobileBrowser = window.innerWidth <= 768 || isMobileDevice;
 
@@ -100,7 +100,7 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
             "X-Allow-Mobile": "true", // Header to indicate mobile access should be allowed
             "X-Device-Type": isMobileBrowser ? "mobile" : "web",
           },
-        }
+        },
       );
 
       if (res.status === 200) {
@@ -183,16 +183,38 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
                 assignedStores: assignedStores,
                 defaultStore: defaultStore,
                 isStoreManager: profileData.isStoreManager || false,
-              })
+              }),
             );
 
             if (resolvedStore || resolvedStoreId) {
+              const finalStoreId = resolvedStoreId;
+
+              // Existing logic (keep this)
               persistActiveStore(
                 resolvedStore || userPayload.store,
-                resolvedStoreId
+                finalStoreId,
               );
+
+              // 🔴 ADD THESE LINES (NORMALIZATION FIX)
+              if (finalStoreId) {
+                localStorage.setItem("currentStoreId", finalStoreId.toString());
+
+                localStorage.setItem(
+                  "selectedStore",
+                  JSON.stringify({
+                    id: finalStoreId,
+                    name: resolvedStore?.name || userPayload.store?.name || "",
+                  }),
+                );
+              }
             } else if (userPayload.storeId) {
               persistActiveStore(userPayload.store, userPayload.storeId);
+
+              // 🔴 ADD THIS TOO (fallback path)
+              localStorage.setItem(
+                "currentStoreId",
+                userPayload.storeId.toString(),
+              );
             } else {
               persistActiveStore(null, null);
             }
