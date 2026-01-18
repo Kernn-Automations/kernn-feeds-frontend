@@ -18,7 +18,7 @@ function StoreStockSummary() {
   const [from, setFrom] = useState(new Date().toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [tempFrom, setTempFrom] = useState(
-    new Date().toISOString().slice(0, 10)
+    new Date().toISOString().slice(0, 10),
   );
   const [tempTo, setTempTo] = useState(new Date().toISOString().slice(0, 10));
   const [dateRange, setDateRange] = useState("custom");
@@ -39,7 +39,7 @@ function StoreStockSummary() {
   const [loadingDetails, setLoadingDetails] = useState({});
   const [storeId, setStoreId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Invoice Details Modal States
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedInvoiceData, setSelectedInvoiceData] = useState(null);
@@ -58,14 +58,21 @@ function StoreStockSummary() {
 
   const [showPrices, setShowPrices] = useState(false);
 
-  const openInvoicePopup = (saleCode, invoices = []) => {
+  const openInvoicePopup = (orderIdOrTransferNum, invoices = []) => {
+    // Find by orderId (for sales) or transferNumber (for transfers)
     const invoice = invoices.find(
-      (inv) => inv.saleCode === saleCode || inv.storeSaleId === saleCode
+      (inv) =>
+        inv.saleCode === orderIdOrTransferNum ||
+        inv.transferNumber === orderIdOrTransferNum ||
+        inv.saleId === orderIdOrTransferNum ||
+        inv.transferId === orderIdOrTransferNum,
     );
 
     if (invoice) {
       setSelectedInvoice(invoice);
       setShowInvoicePopup(true);
+    } else {
+      console.error("Invoice details not found for:", orderIdOrTransferNum);
     }
   };
 
@@ -369,14 +376,14 @@ function StoreStockSummary() {
       filtered = filtered.filter((item) =>
         item.productName
           ?.toLowerCase()
-          .includes(searchTerms.summaryProduct.toLowerCase())
+          .includes(searchTerms.summaryProduct.toLowerCase()),
       );
     }
     if (searchTerms.summarySku) {
       filtered = filtered.filter((item) =>
         item.productSKU
           ?.toLowerCase()
-          .includes(searchTerms.summarySku.toLowerCase())
+          .includes(searchTerms.summarySku.toLowerCase()),
       );
     }
     setFilteredStockData(filtered);
@@ -388,14 +395,14 @@ function StoreStockSummary() {
       filtered = filtered.filter((store) =>
         store.storeName
           ?.toLowerCase()
-          .includes(searchTerms.statsStore.toLowerCase())
+          .includes(searchTerms.statsStore.toLowerCase()),
       );
     }
     if (searchTerms.statsCode) {
       filtered = filtered.filter((store) =>
         store.storeCode
           ?.toLowerCase()
-          .includes(searchTerms.statsCode.toLowerCase())
+          .includes(searchTerms.statsCode.toLowerCase()),
       );
     }
     setFilteredStatsByStore(filtered);
@@ -407,28 +414,28 @@ function StoreStockSummary() {
       filtered = filtered.filter((item) =>
         item.productName
           ?.toLowerCase()
-          .includes(searchTerms.auditProduct.toLowerCase())
+          .includes(searchTerms.auditProduct.toLowerCase()),
       );
     }
     if (searchTerms.auditSku) {
       filtered = filtered.filter((item) =>
         item.productSKU
           ?.toLowerCase()
-          .includes(searchTerms.auditSku.toLowerCase())
+          .includes(searchTerms.auditSku.toLowerCase()),
       );
     }
     if (searchTerms.auditType) {
       filtered = filtered.filter((item) =>
         item.transactionType
           ?.toLowerCase()
-          .includes(searchTerms.auditType.toLowerCase())
+          .includes(searchTerms.auditType.toLowerCase()),
       );
     }
     if (searchTerms.auditRef) {
       filtered = filtered.filter((item) =>
         (item.referenceType + ": " + item.referenceId)
           ?.toLowerCase()
-          .includes(searchTerms.auditRef.toLowerCase())
+          .includes(searchTerms.auditRef.toLowerCase()),
       );
     }
     setFilteredAuditTrail(filtered);
@@ -446,14 +453,14 @@ function StoreStockSummary() {
       filtered = filtered.filter((item) =>
         item.product?.name
           ?.toLowerCase()
-          .includes(searchTerms.ocProduct.toLowerCase())
+          .includes(searchTerms.ocProduct.toLowerCase()),
       );
     }
     if (searchTerms.ocSku) {
       filtered = filtered.filter((item) =>
         (item.product?.SKU || item.product?.sku)
           ?.toLowerCase()
-          .includes(searchTerms.ocSku.toLowerCase())
+          .includes(searchTerms.ocSku.toLowerCase()),
       );
     }
     setFilteredOpeningClosing(filtered);
@@ -501,32 +508,32 @@ function StoreStockSummary() {
 
   const handleInvoiceClick = async (invoiceId, orderId) => {
     if (!invoiceId && !orderId) return;
-    
+
     setSelectedInvoiceData(null);
     setShowInvoiceModal(true);
     setLoadingInvoice(true);
-    
+
     try {
       // Mocking backend call for now as requested
       // In real implementation: const res = await storeService.getInvoiceDetails(invoiceId || orderId);
-      
+
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       const mockData = {
         invoiceNumber: invoiceId || `INV-${orderId}`,
-        date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
+        date: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"),
         customerName: "Customer Name", // Will be updated when real data is available
         items: [
           { productName: "Product 1", quantity: 2, price: 500, total: 1000 },
-          { productName: "Product 2", quantity: 1, price: 1500, total: 1500 }
+          { productName: "Product 2", quantity: 1, price: 1500, total: 1500 },
         ],
         subtotal: 2500,
         tax: 0,
         discount: 0,
-        total: 2500
+        total: 2500,
       };
-      
+
       setSelectedInvoiceData(mockData);
     } catch (err) {
       console.error("Error fetching invoice details:", err);
@@ -639,14 +646,14 @@ function StoreStockSummary() {
       setTotalPages(
         paginationData.totalPages ||
           Math.ceil((paginationData.total || mappedData.length) / limit) ||
-          1
+          1,
       );
     } catch (err) {
       console.error("StoreStockSummary - Error:", err);
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to fetch stock data."
+          "Failed to fetch stock data.",
       );
       setIsModalOpen(true);
       setStockData([]);
@@ -677,7 +684,7 @@ function StoreStockSummary() {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to fetch statistics."
+          "Failed to fetch statistics.",
       );
       setIsModalOpen(true);
     } finally {
@@ -730,14 +737,14 @@ function StoreStockSummary() {
       setTotalPages(
         paginationData.totalPages ||
           Math.ceil((paginationData.total || mappedAudit.length) / limit) ||
-          1
+          1,
       );
     } catch (err) {
       console.error("Error fetching audit trail:", err);
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to fetch audit trail."
+          "Failed to fetch audit trail.",
       );
       setIsModalOpen(true);
     } finally {
@@ -809,7 +816,7 @@ function StoreStockSummary() {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to fetch opening/closing stock."
+          "Failed to fetch opening/closing stock.",
       );
       setIsModalOpen(true);
     } finally {
@@ -897,7 +904,7 @@ function StoreStockSummary() {
         const thisMonthStart = new Date(
           today.getFullYear(),
           today.getMonth(),
-          1
+          1,
         );
         fromDate = thisMonthStart.toISOString().slice(0, 10);
         break;
@@ -905,7 +912,7 @@ function StoreStockSummary() {
         const lastMonthStart = new Date(
           today.getFullYear(),
           today.getMonth() - 1,
-          1
+          1,
         );
         const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
         fromDate = lastMonthStart.toISOString().slice(0, 10);
@@ -1101,7 +1108,7 @@ function StoreStockSummary() {
             {renderSearchHeader(
               "Product",
               "summaryProduct",
-              "data-summary-product"
+              "data-summary-product",
             )}
             {renderSearchHeader("SKU", "summarySku", "data-summary-sku")}
             <th
@@ -1475,7 +1482,7 @@ function StoreStockSummary() {
                                             <td style={tdStyle}>
                                               {rowData?.invoices?.find(
                                                 (inv) =>
-                                                  inv.saleId === sale.saleId
+                                                  inv.saleId === sale.saleId,
                                               )?.invoice?.invoiceNumber || "-"}
                                             </td>
                                             <td style={tdStyle}>
@@ -1510,8 +1517,10 @@ function StoreStockSummary() {
                                                 style={{ fontSize: "11px" }}
                                                 onClick={() =>
                                                   openInvoicePopup(
-                                                    sale.orderId,
-                                                    rowData?.invoices
+                                                    sale.type === "sale"
+                                                      ? sale.orderId
+                                                      : sale.transferNumber,
+                                                    rowData?.invoices,
                                                   )
                                                 }
                                               >
@@ -1580,7 +1589,7 @@ function StoreStockSummary() {
                 {dataArray
                   .reduce(
                     (sum, item) => sum + (Number(item.inwardStock) || 0),
-                    0
+                    0,
                   )
                   .toFixed(2)}
               </td>
@@ -1595,7 +1604,7 @@ function StoreStockSummary() {
                   {dataArray
                     .reduce(
                       (sum, item) => sum + (Number(item.inwardPrice) || 0),
-                      0
+                      0,
                     )
                     .toLocaleString()}
                 </td>
@@ -1607,7 +1616,7 @@ function StoreStockSummary() {
                 {dataArray
                   .reduce(
                     (sum, item) => sum + (Number(item.outwardStock) || 0),
-                    0
+                    0,
                   )
                   .toFixed(2)}
               </td>
@@ -1622,7 +1631,7 @@ function StoreStockSummary() {
                   {dataArray
                     .reduce(
                       (sum, item) => sum + (Number(item.outwardPrice) || 0),
-                      0
+                      0,
                     )
                     .toLocaleString()}
                 </td>
@@ -1646,7 +1655,7 @@ function StoreStockSummary() {
                   {dataArray
                     .reduce(
                       (sum, item) => sum + (Number(item.stockInPrice) || 0),
-                      0
+                      0,
                     )
                     .toLocaleString()}
                 </td>
@@ -1670,7 +1679,7 @@ function StoreStockSummary() {
                   {dataArray
                     .reduce(
                       (sum, item) => sum + (Number(item.stockOutPrice) || 0),
-                      0
+                      0,
                     )
                     .toLocaleString()}
                 </td>
@@ -2288,12 +2297,12 @@ function StoreStockSummary() {
                       {renderSearchHeader(
                         "Store Name",
                         "statsStore",
-                        "data-stats-store"
+                        "data-stats-store",
                       )}
                       {renderSearchHeader(
                         "Store Code",
                         "statsCode",
-                        "data-stats-code"
+                        "data-stats-code",
                       )}
                       <th>Inward Stock</th>
                       {showPrices && <th>Inward Value</th>}
@@ -2325,7 +2334,7 @@ function StoreStockSummary() {
                           <td style={{ color: "#059669", fontWeight: 500 }}>
                             ₹
                             {Number(
-                              store.inwardStockPrice || 0
+                              store.inwardStockPrice || 0,
                             ).toLocaleString()}
                           </td>
                           <td style={{ color: "#ef4444" }}>
@@ -2334,7 +2343,7 @@ function StoreStockSummary() {
                           <td style={{ color: "#ef4444", fontWeight: 500 }}>
                             ₹
                             {Number(
-                              store.outwardStockPrice || 0
+                              store.outwardStockPrice || 0,
                             ).toLocaleString()}
                           </td>
                           <td style={{ fontWeight: 600 }}>
@@ -2375,7 +2384,7 @@ function StoreStockSummary() {
                           {filteredStatsByStore
                             .reduce(
                               (sum, s) => sum + (Number(s.inwardStock) || 0),
-                              0
+                              0,
                             )
                             .toFixed(2)}
                         </td>
@@ -2391,7 +2400,7 @@ function StoreStockSummary() {
                             .reduce(
                               (sum, s) =>
                                 sum + (Number(s.inwardStockPrice) || 0),
-                              0
+                              0,
                             )
                             .toLocaleString()}
                         </td>
@@ -2405,7 +2414,7 @@ function StoreStockSummary() {
                           {filteredStatsByStore
                             .reduce(
                               (sum, s) => sum + (Number(s.outwardStock) || 0),
-                              0
+                              0,
                             )
                             .toFixed(2)}
                         </td>
@@ -2421,7 +2430,7 @@ function StoreStockSummary() {
                             .reduce(
                               (sum, s) =>
                                 sum + (Number(s.outwardStockPrice) || 0),
-                              0
+                              0,
                             )
                             .toLocaleString()}
                         </td>
@@ -2429,14 +2438,14 @@ function StoreStockSummary() {
                           {filteredStatsByStore
                             .reduce(
                               (sum, s) => sum + (Number(s.closingStock) || 0),
-                              0
+                              0,
                             )
                             .toFixed(2)}
                         </td>
                         <td style={{ fontWeight: 600, padding: "12px" }}>
                           {filteredStatsByStore.reduce(
                             (sum, s) => sum + (Number(s.products) || 0),
-                            0
+                            0,
                           )}
                         </td>
                       </tr>
@@ -2528,7 +2537,7 @@ function StoreStockSummary() {
                   {renderSearchHeader(
                     "Product",
                     "auditProduct",
-                    "data-audit-product"
+                    "data-audit-product",
                   )}
                   {renderSearchHeader("SKU", "auditSku", "data-audit-sku")}
                   {renderSearchHeader("Type", "auditType", "data-audit-type")}
@@ -2539,7 +2548,7 @@ function StoreStockSummary() {
                   {renderSearchHeader(
                     "Reference",
                     "auditRef",
-                    "data-audit-ref"
+                    "data-audit-ref",
                   )}
                   <th>Remarks</th>
                 </tr>
@@ -2662,7 +2671,7 @@ function StoreStockSummary() {
                           .filter((i) => i.transactionType === "inward")
                           .reduce(
                             (sum, i) => sum + (Number(i.quantity) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </div>
@@ -2672,7 +2681,7 @@ function StoreStockSummary() {
                           .filter((i) => i.transactionType !== "inward")
                           .reduce(
                             (sum, i) => sum + (Number(i.quantity) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </div>
@@ -2942,7 +2951,7 @@ function StoreStockSummary() {
                     {renderSearchHeader(
                       "Product",
                       "ocProduct",
-                      "data-oc-product"
+                      "data-oc-product",
                     )}
                     {renderSearchHeader("SKU", "ocSku", "data-oc-sku")}
                     <th>Opening Stock</th>
@@ -3080,7 +3089,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.openingStock) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </td>
@@ -3096,7 +3105,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.openingStockPrice) || 0),
-                            0
+                            0,
                           )
                           .toLocaleString()}
                       </td>
@@ -3111,7 +3120,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.inwardStock) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </td>
@@ -3127,7 +3136,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.inwardStockPrice) || 0),
-                            0
+                            0,
                           )
                           .toLocaleString()}
                       </td>
@@ -3142,7 +3151,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.outwardStock) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </td>
@@ -3159,9 +3168,9 @@ function StoreStockSummary() {
                             (sum, item) =>
                               sum +
                               (Number(
-                                item.outwardPrice || item.outwardStockPrice
+                                item.outwardPrice || item.outwardStockPrice,
                               ) || 0),
-                            0
+                            0,
                           )
                           .toLocaleString()}
                       </td>
@@ -3175,7 +3184,7 @@ function StoreStockSummary() {
                         {filteredOpeningClosing
                           .reduce(
                             (sum, item) => sum + (Number(item.stockIn) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </td>
@@ -3191,7 +3200,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.stockInPrice) || 0),
-                            0
+                            0,
                           )
                           .toLocaleString()}
                       </td>
@@ -3205,7 +3214,7 @@ function StoreStockSummary() {
                         {filteredOpeningClosing
                           .reduce(
                             (sum, item) => sum + (Number(item.stockOut) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </td>
@@ -3221,7 +3230,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.stockOutPrice) || 0),
-                            0
+                            0,
                           )
                           .toLocaleString()}
                       </td>
@@ -3236,7 +3245,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.closingStock) || 0),
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </td>
@@ -3252,7 +3261,7 @@ function StoreStockSummary() {
                           .reduce(
                             (sum, item) =>
                               sum + (Number(item.closingStockPrice) || 0),
-                            0
+                            0,
                           )
                           .toLocaleString()}
                       </td>
@@ -3292,46 +3301,92 @@ function StoreStockSummary() {
       {showInvoicePopup && selectedInvoice && (
         <>
           <div style={backdropStyle}>
-            <div style={modalStyle}>
-              <h3>Invoice Details</h3>
+            <div style={{ ...modalStyle, width: "800px", maxWidth: "95%" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "15px",
+                }}
+              >
+                <h4 style={{ margin: 0 }}>
+                  {selectedInvoice.type === "sale"
+                    ? "Sale Invoice"
+                    : "Transfer Note"}
+                </h4>
+                <button
+                  onClick={() => setShowInvoicePopup(false)}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    fontSize: "20px",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
 
               <div style={bodyStyle}>
-                {/* LEFT COLUMN */}
+                {/* LEFT COLUMN: Details and Items */}
                 <div style={columnScroll}>
                   <div>
-                    <strong>Invoice No:</strong>{" "}
-                    {selectedInvoice.invoice?.invoiceNumber}
+                    <strong>
+                      {selectedInvoice.type === "sale"
+                        ? "Invoice No: "
+                        : "Transfer No: "}
+                    </strong>
+                    {selectedInvoice.type === "sale"
+                      ? selectedInvoice.invoice?.invoiceNumber
+                      : selectedInvoice.transferNumber}
                   </div>
                   <div>
                     <strong>Date:</strong>{" "}
-                    {formatDate(selectedInvoice.invoice?.invoiceDate)}
+                    {formatDate(
+                      selectedInvoice.saleDate || selectedInvoice.transferDate,
+                    )}
                   </div>
-                  <div>
-                    <strong>Customer:</strong> {selectedInvoice.customer?.name}
-                  </div>
-                  <div>
-                    <strong>Status:</strong> Paid
-                  </div>
+                  {selectedInvoice.customer && (
+                    <div>
+                      <strong>Customer:</strong> {selectedInvoice.customer.name}
+                    </div>
+                  )}
+                  {selectedInvoice.toStore && (
+                    <div>
+                      <strong>To Store:</strong> {selectedInvoice.toStore.name}{" "}
+                      ({selectedInvoice.toStore.storeCode})
+                    </div>
+                  )}
 
                   <div style={divider} />
 
                   <div style={sectionTitle}>Items</div>
-                  <table width="100%">
+                  <table className="table table-sm" width="100%">
                     <thead>
-                      <tr>
+                      <tr
+                        style={{
+                          fontSize: "12px",
+                          borderBottom: "1px solid #eee",
+                        }}
+                      >
+                        <th align="left">Product</th>
                         <th align="left">Qty</th>
-                        <th align="left">Unit</th>
                         <th align="left">Price</th>
-                        <th align="right">Amount</th>
+                        <th align="right">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedInvoice.items.map((i, idx) => (
-                        <tr key={idx}>
-                          <td>{i.quantity}</td>
-                          <td>{i.unit}</td>
-                          <td>₹{i.unitPrice.toLocaleString()}</td>
-                          <td align="right">₹{i.amount.toLocaleString()}</td>
+                      {/* SAFE MAPPING: Check if items exists */}
+                      {selectedInvoice.items?.map((i, idx) => (
+                        <tr key={idx} style={{ fontSize: "12px" }}>
+                          <td>{i.productName}</td>
+                          <td>
+                            {i.quantity} {i.unit}
+                          </td>
+                          <td>₹{Number(i.unitPrice || 0).toLocaleString()}</td>
+                          <td align="right">
+                            ₹{Number(i.amount || 0).toLocaleString()}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -3340,67 +3395,73 @@ function StoreStockSummary() {
                   <div style={divider} />
 
                   <div style={totalBox}>
-                    Invoice Total: ₹
+                    Total Amount: ₹
                     {Number(
-                      selectedInvoice.totals.invoiceTotal
+                      selectedInvoice.totals?.invoiceTotal ||
+                        selectedInvoice.totals?.totalAmount ||
+                        0,
                     ).toLocaleString()}
-                    <div style={{ fontSize: 12, fontWeight: 500 }}>
-                      Paid: ₹
-                      {Number(
-                        selectedInvoice.totals.totalPaid
-                      ).toLocaleString()}
-                    </div>
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN */}
+                {/* RIGHT COLUMN: Payments (Only show if it's a sale) */}
                 <div style={columnScroll}>
-                  <div style={sectionTitle}>Payments</div>
-
-                  {selectedInvoice.payments.map((p, i) => (
-                    <div key={i} style={paymentCard}>
-                      <div style={{ fontWeight: 600 }}>
-                        {p.method.toUpperCase()} – ₹{p.amount.toLocaleString()}
+                  <div style={sectionTitle}>Payment Details</div>
+                  {selectedInvoice.payments &&
+                  selectedInvoice.payments.length > 0 ? (
+                    selectedInvoice.payments.map((p, i) => (
+                      <div key={i} style={paymentCard}>
+                        <div style={{ fontSize: "13px", fontWeight: 600 }}>
+                          {p.method?.toUpperCase()} – ₹
+                          {Number(p.amount || 0).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#6b7280" }}>
+                          {formatDate(p.date)}
+                          {p.transactionNumber &&
+                            ` | Ref: ${p.transactionNumber}`}
+                        </div>
+                        {p.paymentProof && (
+                          <img
+                            src={imgSrc(p.paymentProof)}
+                            alt="Proof"
+                            style={proofThumb}
+                            onClick={() => setZoomImage(imgSrc(p.paymentProof))}
+                          />
+                        )}
                       </div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
-                        {formatDate(p.date)}
-                        {p.transactionNumber &&
-                          ` | Ref: ${p.transactionNumber}`}
-                      </div>
-
-                      {p.paymentProof && (
-                        <img
-                          src={p.paymentProof}
-                          alt="Payment Proof"
-                          style={{
-                            width: 70,
-                            height: 70,
-                            objectFit: "cover",
-                            borderRadius: 8,
-                            cursor: "zoom-in",
-                            border: "1px solid #e5e7eb",
-                          }}
-                          onClick={() => setZoomImage(p.paymentProof)}
-                        />
-                      )}
+                    ))
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#999",
+                        padding: "10px",
+                        textAlign: "center",
+                        border: "1px dashed #ccc",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      No payment records (Stock Transfer)
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              <button
-                style={closeBtn}
-                onClick={() => setShowInvoicePopup(false)}
-              >
-                Close
-              </button>
+              <div style={{ textAlign: "right" }}>
+                <button
+                  style={closeBtn}
+                  onClick={() => setShowInvoicePopup(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
 
           {/* IMAGE ZOOM */}
           {zoomImage && (
             <div style={zoomBackdrop} onClick={() => setZoomImage(null)}>
-              <img src={zoomImage} style={zoomImageStyle} />
+              <img src={zoomImage} style={zoomImageStyle} alt="Zoomed Proof" />
             </div>
           )}
         </>
@@ -3411,11 +3472,18 @@ function StoreStockSummary() {
       )}
 
       {/* Invoice Details Modal */}
-      <Modal show={showInvoiceModal} onHide={() => setShowInvoiceModal(false)} size="lg" centered>
+      <Modal
+        show={showInvoiceModal}
+        onHide={() => setShowInvoiceModal(false)}
+        size="lg"
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title style={{ fontFamily: 'Poppins', fontWeight: 600 }}>Invoice Details</Modal.Title>
+          <Modal.Title style={{ fontFamily: "Poppins", fontWeight: 600 }}>
+            Invoice Details
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ fontFamily: 'Poppins' }}>
+        <Modal.Body style={{ fontFamily: "Poppins" }}>
           {loadingInvoice ? (
             <div className="text-center p-5">
               <Loading />
@@ -3425,56 +3493,117 @@ function StoreStockSummary() {
             <div>
               <div className="row mb-4">
                 <div className="col-md-6">
-                  <p className="mb-1 text-muted" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Invoice Number</p>
-                  <h5 className="mb-3" style={{ fontWeight: 600, color: 'var(--primary-color)' }}>{selectedInvoiceData.invoiceNumber}</h5>
-                  <p className="mb-1 text-muted" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Date</p>
+                  <p
+                    className="mb-1 text-muted"
+                    style={{ fontSize: "12px", textTransform: "uppercase" }}
+                  >
+                    Invoice Number
+                  </p>
+                  <h5
+                    className="mb-3"
+                    style={{ fontWeight: 600, color: "var(--primary-color)" }}
+                  >
+                    {selectedInvoiceData.invoiceNumber}
+                  </h5>
+                  <p
+                    className="mb-1 text-muted"
+                    style={{ fontSize: "12px", textTransform: "uppercase" }}
+                  >
+                    Date
+                  </p>
                   <h6>{selectedInvoiceData.date}</h6>
                 </div>
                 <div className="col-md-6 text-md-end">
-                  <p className="mb-1 text-muted" style={{ fontSize: '12px', textTransform: 'uppercase' }}>Customer</p>
-                  <h5 style={{ fontWeight: 600 }}>{selectedInvoiceData.customerName}</h5>
+                  <p
+                    className="mb-1 text-muted"
+                    style={{ fontSize: "12px", textTransform: "uppercase" }}
+                  >
+                    Customer
+                  </p>
+                  <h5 style={{ fontWeight: 600 }}>
+                    {selectedInvoiceData.customerName}
+                  </h5>
                 </div>
               </div>
 
               <div className="table-responsive">
                 <Table bordered hover className="mt-3">
-                  <thead style={{ backgroundColor: '#f8f9fa' }}>
-                    <tr style={{ fontSize: '13px' }}>
+                  <thead style={{ backgroundColor: "#f8f9fa" }}>
+                    <tr style={{ fontSize: "13px" }}>
                       <th style={{ fontWeight: 600 }}>Product Name</th>
-                      <th className="text-end" style={{ fontWeight: 600 }}>Quantity</th>
-                      <th className="text-end" style={{ fontWeight: 600 }}>Price</th>
-                      <th className="text-end" style={{ fontWeight: 600 }}>Total</th>
+                      <th className="text-end" style={{ fontWeight: 600 }}>
+                        Quantity
+                      </th>
+                      <th className="text-end" style={{ fontWeight: 600 }}>
+                        Price
+                      </th>
+                      <th className="text-end" style={{ fontWeight: 600 }}>
+                        Total
+                      </th>
                     </tr>
                   </thead>
-                  <tbody style={{ fontSize: '13px' }}>
+                  <tbody style={{ fontSize: "13px" }}>
                     {selectedInvoiceData.items.map((item, index) => (
                       <tr key={index}>
                         <td>{item.productName}</td>
                         <td className="text-end">{item.quantity}</td>
-                        <td className="text-end">₹{item.price.toLocaleString('en-IN')}</td>
-                        <td className="text-end">₹{item.total.toLocaleString('en-IN')}</td>
+                        <td className="text-end">
+                          ₹{item.price.toLocaleString("en-IN")}
+                        </td>
+                        <td className="text-end">
+                          ₹{item.total.toLocaleString("en-IN")}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot style={{ borderTop: '2px solid #dee2e6' }}>
+                  <tfoot style={{ borderTop: "2px solid #dee2e6" }}>
                     <tr>
-                      <td colSpan="3" className="text-end" style={{ fontWeight: 600 }}>Subtotal</td>
-                      <td className="text-end" style={{ fontWeight: 600 }}>₹{selectedInvoiceData.subtotal.toLocaleString('en-IN')}</td>
+                      <td
+                        colSpan="3"
+                        className="text-end"
+                        style={{ fontWeight: 600 }}
+                      >
+                        Subtotal
+                      </td>
+                      <td className="text-end" style={{ fontWeight: 600 }}>
+                        ₹{selectedInvoiceData.subtotal.toLocaleString("en-IN")}
+                      </td>
                     </tr>
                     <tr>
-                      <td colSpan="3" className="text-end" style={{ fontWeight: 700 }}>Grand Total</td>
-                      <td className="text-end" style={{ fontWeight: 700, color: 'var(--primary-color)', fontSize: '1.2rem' }}>₹{selectedInvoiceData.total.toLocaleString('en-IN')}</td>
+                      <td
+                        colSpan="3"
+                        className="text-end"
+                        style={{ fontWeight: 700 }}
+                      >
+                        Grand Total
+                      </td>
+                      <td
+                        className="text-end"
+                        style={{
+                          fontWeight: 700,
+                          color: "var(--primary-color)",
+                          fontSize: "1.2rem",
+                        }}
+                      >
+                        ₹{selectedInvoiceData.total.toLocaleString("en-IN")}
+                      </td>
                     </tr>
                   </tfoot>
                 </Table>
               </div>
             </div>
           ) : (
-            <div className="text-center p-3 text-muted">No details available.</div>
+            <div className="text-center p-3 text-muted">
+              No details available.
+            </div>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowInvoiceModal(false)} style={{ fontFamily: 'Poppins' }}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowInvoiceModal(false)}
+            style={{ fontFamily: "Poppins" }}
+          >
             Close
           </Button>
         </Modal.Footer>
