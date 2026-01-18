@@ -316,7 +316,7 @@ export default function StoreCreateSale() {
     },
   ];
   const [generatedOrderId] = useState(
-    () => `STORE-${Date.now().toString().slice(-6)}`
+    () => `STORE-${Date.now().toString().slice(-6)}`,
   );
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -386,7 +386,7 @@ export default function StoreCreateSale() {
       "cleaned:",
       cleanedMobile,
       "length:",
-      cleanedMobile.length
+      cleanedMobile.length,
     );
     if (cleanedMobile.length !== 10) {
       console.log("Mobile length is not 10, returning");
@@ -399,7 +399,7 @@ export default function StoreCreateSale() {
       console.log("Checking customer for mobile:", mobileNumber);
       const matchCustomersByMobile = (list = []) => {
         const matched = list.filter(
-          (c) => sanitizeMobile(c.mobile) === cleanedMobile
+          (c) => sanitizeMobile(c.mobile) === cleanedMobile,
         );
         console.log(`Matched ${matched.length} customers out of`, list.length);
         return matched;
@@ -484,7 +484,7 @@ export default function StoreCreateSale() {
         // Call the backend API endpoint: GET /stores/:storeId/customers/search?search=term
         response = await storeService.searchStoreCustomers(
           storeId,
-          trimmedTerm
+          trimmedTerm,
         );
       }
 
@@ -627,7 +627,7 @@ export default function StoreCreateSale() {
       setCreatingVillage(true);
       const response = await storeService.createStoreVillage(
         storeId,
-        newVillageNameInput.trim()
+        newVillageNameInput.trim(),
       );
 
       if (response && response.success) {
@@ -683,7 +683,7 @@ export default function StoreCreateSale() {
     setFarmerSearchTerm(
       customerVillage
         ? `${customerDisplayName} - ${customerVillage}`
-        : customerDisplayName
+        : customerDisplayName,
     );
     setVillageSearchTerm(customerVillage);
     setSelectedCustomer(customer);
@@ -809,7 +809,7 @@ export default function StoreCreateSale() {
   const cartItemsCount = cartItemsList.length;
   const totalCartValue = cartItemsList.reduce(
     (sum, item) => sum + (item.totalPrice || 0),
-    0
+    0,
   );
 
   // 1. Stringify the cart items to create a stable dependency
@@ -822,7 +822,7 @@ export default function StoreCreateSale() {
       qty: item.quantity,
       price: item.unitPrice,
       discount: item.discountAmount, // Included the per-item discount here
-    }))
+    })),
   );
 
   // 2. Add a similar stable dependency for discounts and freight
@@ -1007,14 +1007,14 @@ export default function StoreCreateSale() {
     // Calculate total number of bags (sum of all quantities)
     const totalBags = items.reduce(
       (sum, item) => sum + (parseFloat(item.quantity) || 0),
-      0
+      0,
     );
 
     // Tax amount (from backend calculation)
     // For per-line discounts, we sum them up for display
     const totalItemDiscounts = cartItemsList.reduce(
       (sum, item) => sum + (parseFloat(item.discountAmount) || 0),
-      0
+      0,
     );
     const tax = calculatedTotal?.tax || 0;
     const discountAmt =
@@ -1248,7 +1248,7 @@ export default function StoreCreateSale() {
 
   const updateDiscount = (id, field, value) => {
     setDiscounts((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, [field]: value } : d))
+      prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)),
     );
   };
 
@@ -1276,7 +1276,7 @@ export default function StoreCreateSale() {
         }
 
         return { ...d, productIds: newIds };
-      })
+      }),
     );
   };
 
@@ -1388,12 +1388,12 @@ export default function StoreCreateSale() {
         (!p.cashAmount ||
           parseFloat(p.cashAmount) <= 0 ||
           !p.bankAmount ||
-          parseFloat(p.bankAmount) <= 0)
+          parseFloat(p.bankAmount) <= 0),
     );
 
     if (invalidBothPayments.length > 0) {
       setError(
-        "For 'Both' payment method, please enter amounts for both Cash and Bank"
+        "For 'Both' payment method, please enter amounts for both Cash and Bank",
       );
       setIsErrorModalOpen(true);
       return;
@@ -1404,7 +1404,7 @@ export default function StoreCreateSale() {
     if (paymentDifference > 1) {
       // Allow 1 rupee difference for rounding
       setError(
-        `Payment amount (₹${totalPaymentAmount.toLocaleString("en-IN")}) does not match order total (₹${expectedTotal.toLocaleString("en-IN")}). Please enter the correct amount.`
+        `Payment amount (₹${totalPaymentAmount.toLocaleString("en-IN")}) does not match order total (₹${expectedTotal.toLocaleString("en-IN")}). Please enter the correct amount.`,
       );
       setIsErrorModalOpen(true);
       return;
@@ -1553,7 +1553,7 @@ export default function StoreCreateSale() {
               // Map IDs to names
               const names = d.productIds
                 .map(
-                  (pid) => cartItemsList.find((item) => item.id === pid)?.name
+                  (pid) => cartItemsList.find((item) => item.id === pid)?.name,
                 )
                 .filter(Boolean);
 
@@ -1651,7 +1651,7 @@ export default function StoreCreateSale() {
             (p) =>
               (p.paymentMethod === "bank" || p.paymentMethod === "both") &&
               p.utrNumber &&
-              p.utrNumber.trim().length > 0
+              p.utrNumber.trim().length > 0,
           );
 
           // Update UTR for each bank payment
@@ -1659,10 +1659,10 @@ export default function StoreCreateSale() {
             try {
               await storeService.updateSalePaymentUTR(
                 saleId,
-                payment.utrNumber.trim()
+                payment.utrNumber.trim(),
               );
               console.log(
-                `UTR updated successfully for sale ${saleId}: ${payment.utrNumber}`
+                `UTR updated successfully for sale ${saleId}: ${payment.utrNumber}`,
               );
             } catch (utrErr) {
               console.error(`Error updating UTR for sale ${saleId}:`, utrErr);
@@ -1686,12 +1686,12 @@ export default function StoreCreateSale() {
           if (totalMatch) {
             const expectedTotal = totalMatch[1].replace(/,/g, "");
             setError(
-              `Payment amount mismatch. Backend calculated total (with tax): ₹${parseInt(expectedTotal).toLocaleString("en-IN")}. Please enter this amount as payment.`
+              `Payment amount mismatch. Backend calculated total (with tax): ₹${parseInt(expectedTotal).toLocaleString("en-IN")}. Please enter this amount as payment.`,
             );
           } else {
             setError(
               errorMessage +
-                " Please check the payment amount matches the backend calculated total (subtotal + tax)."
+                " Please check the payment amount matches the backend calculated total (subtotal + tax).",
             );
           }
         } else {
@@ -1735,12 +1735,12 @@ export default function StoreCreateSale() {
         if (totalMatch) {
           const expectedTotal = totalMatch[1].replace(/,/g, "");
           setError(
-            `Payment amount mismatch. Backend calculated total (with tax): ₹${parseInt(expectedTotal).toLocaleString("en-IN")}. Please enter this amount as payment.`
+            `Payment amount mismatch. Backend calculated total (with tax): ₹${parseInt(expectedTotal).toLocaleString("en-IN")}. Please enter this amount as payment.`,
           );
         } else {
           setError(
             errorMessage +
-              " Please check the payment amount matches the backend calculated total (subtotal + tax)."
+              " Please check the payment amount matches the backend calculated total (subtotal + tax).",
           );
         }
       } else {
@@ -3046,7 +3046,7 @@ export default function StoreCreateSale() {
                                   const updated = [...additionalAnimals];
                                   updated[index].count = e.target.value.replace(
                                     /[^0-9]/g,
-                                    ""
+                                    "",
                                   );
                                   setAdditionalAnimals(updated);
                                 }}
@@ -3061,7 +3061,7 @@ export default function StoreCreateSale() {
                               type="button"
                               onClick={() => {
                                 const updated = additionalAnimals.filter(
-                                  (_, i) => i !== index
+                                  (_, i) => i !== index,
                                 );
                                 setAdditionalAnimals(updated);
                               }}
@@ -3306,7 +3306,7 @@ export default function StoreCreateSale() {
                           {" "}
                           - Discount: ₹
                           {reviewData.totals.discountAmount.toLocaleString(
-                            "en-IN"
+                            "en-IN",
                           )}
                         </span>
                       )}
@@ -3315,7 +3315,7 @@ export default function StoreCreateSale() {
                           {" "}
                           + Freight Charges: ₹
                           {reviewData.totals.freightCharges.toLocaleString(
-                            "en-IN"
+                            "en-IN",
                           )}
                         </span>
                       )}
@@ -3550,7 +3550,7 @@ export default function StoreCreateSale() {
                               updatePaymentField(
                                 idx,
                                 "transactionDate",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                           />
@@ -3573,7 +3573,7 @@ export default function StoreCreateSale() {
                                   updatePaymentField(
                                     idx,
                                     "cashAmount",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Enter cash amount"
@@ -3593,7 +3593,7 @@ export default function StoreCreateSale() {
                                   updatePaymentField(
                                     idx,
                                     "bankAmount",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Enter bank amount"
@@ -3681,7 +3681,7 @@ export default function StoreCreateSale() {
                                 updatePaymentField(
                                   idx,
                                   "utrNumber",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -3731,7 +3731,7 @@ export default function StoreCreateSale() {
                                   handlePaymentProof(
                                     idx,
                                     e.target.files?.[0],
-                                    "bank"
+                                    "bank",
                                   )
                                 }
                               />
@@ -3848,7 +3848,7 @@ export default function StoreCreateSale() {
                                   handlePaymentProof(
                                     idx,
                                     e.target.files?.[0],
-                                    "cash"
+                                    "cash",
                                   )
                                 }
                               />
@@ -3928,7 +3928,7 @@ export default function StoreCreateSale() {
                                   setSuccessMessage(
                                     payment.paymentMethod === "both"
                                       ? "Please enter a valid bank amount first"
-                                      : "Please enter a valid amount first"
+                                      : "Please enter a valid amount first",
                                   );
                                   setTimeout(() => setSuccessMessage(""), 3000);
                                   return;
@@ -4052,7 +4052,7 @@ export default function StoreCreateSale() {
                                       {
                                         minimumFractionDigits: 2,
                                         maximumFractionDigits: 2,
-                                      }
+                                      },
                                     )}
                                   </div>
                                   <div

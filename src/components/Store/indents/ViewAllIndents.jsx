@@ -1070,15 +1070,6 @@ export default function ViewAllIndents() {
                 >
                   Items
                 </th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Value
-                </th>
                 {renderSearchHeader("Status", "status", "data-status-header")}
                 <th
                   style={{
@@ -1142,7 +1133,6 @@ export default function ViewAllIndents() {
                       <td>
                         {indent.itemCount || indent.items?.length || 0} items
                       </td>
-                      <td>₹{Number(indent.value || 0).toLocaleString()}</td>
                       <td>
                         <span
                           className={`badge ${statusInfo.class}`}
@@ -1338,13 +1328,13 @@ export default function ViewAllIndents() {
                             {selectedIndent.status}
                           </span>
                         </div>
-                        <div
+                        {/*<div
                           className="col-6"
                           style={{ marginBottom: "0.75rem" }}
                         >
                           <strong>Total Value:</strong> ₹
                           {Number(selectedIndent.value || 0).toLocaleString()}
-                        </div>
+                        </div>*/}
                         {selectedIndent.notes && (
                           <div
                             className="col-12"
@@ -1389,8 +1379,6 @@ export default function ViewAllIndents() {
                               <th>Product Name</th>
                               <th>Quantity</th>
                               <th>Unit</th>
-                              <th>Price</th>
-                              <th>Total</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1410,22 +1398,6 @@ export default function ViewAllIndents() {
                                       0}
                                   </td>
                                   <td>{item.unit || "units"}</td>
-                                  <td>
-                                    ₹
-                                    {Number(
-                                      item.unitPrice || item.price || 0,
-                                    ).toLocaleString()}
-                                  </td>
-                                  <td>
-                                    ₹
-                                    {Number(
-                                      item.totalAmount ||
-                                        (item.unitPrice || item.price || 0) *
-                                          (item.requestedQuantity ||
-                                            item.quantity ||
-                                            0),
-                                    ).toLocaleString()}
-                                  </td>
                                 </tr>
                               ))
                             ) : selectedIndent.products &&

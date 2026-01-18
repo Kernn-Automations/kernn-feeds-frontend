@@ -5,6 +5,7 @@ import { useDivision } from "../../context/DivisionContext";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import styles from "./StoresAbstract.module.css";
+import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 
 const StoresAbstract = () => {
   const navigate = useNavigate();
@@ -21,6 +22,30 @@ const StoresAbstract = () => {
   useEffect(() => {
     fetchStoresAbstract();
   }, [selectedDivision, showAllDivisions]);
+
+  const exportColumns = [
+    "S.No",
+    "Store Name",
+    "Store Code",
+    "Type",
+    "Division",
+    "Zone",
+    "Address",
+    "Land Owner",
+    "Agreement Period",
+    "Start Date",
+    "End Date",
+    "Monthly Rent",
+    "Power Bill No",
+    "Distributor",
+    "Aadhar",
+    "PAN",
+    "Mobile",
+    "Beneficiary",
+    "IFSC",
+    "Account No",
+    "Bank Name",
+  ];
 
   const fetchStoresAbstract = async () => {
     try {
@@ -132,6 +157,49 @@ const StoresAbstract = () => {
     return <Loading />;
   }
 
+  const getExportData = () =>
+    storesData.map((store, index) => {
+      const agreement = store.agreementDetails || {};
+      const power = store.powerBillDetails || {};
+      const owner = store.ownerDetails || {};
+
+      return [
+        index + 1, // S.No
+        store.storeName || "-",
+        store.storeCode || "-",
+        store.type || "-",
+        store.division || "-",
+        store.zone || "-",
+        store.address || "-",
+        agreement.landOwner || "-",
+        agreement.agreementPeriod || "-",
+        agreement.startDate ? formatDate(agreement.startDate) : "-",
+        agreement.endDate ? formatDate(agreement.endDate) : "-",
+        agreement.monthlyRent || "",
+        power.billNumber || "-",
+        power.distributor || "-",
+        owner.aadhar || "-",
+        owner.panCard || "-",
+        owner.mobile || "-",
+        owner.beneficiary || "-",
+        owner.ifsc || "-",
+        owner.accountNo || "-",
+        owner.bankName || "-",
+      ];
+    });
+
+  const handlePDFExport = async () => {
+    await handleExportPDF(
+      exportColumns,
+      getExportData(),
+      "Stores Abstract Report",
+    );
+  };
+
+  const handleExcelExport = () => {
+    handleExportExcel(exportColumns, getExportData(), "Stores Abstract Report");
+  };
+
   return (
     <div className={styles.container}>
       <p className="path">
@@ -146,6 +214,15 @@ const StoresAbstract = () => {
         >
           Back to Stores
         </button>
+        <div className={styles.actionButtons}>
+          <button className={styles.excelBtn} onClick={handleExcelExport}>
+            <i className="bi bi-file-earmark-excel"></i> Excel
+          </button>
+
+          <button className={styles.pdfBtn} onClick={handlePDFExport}>
+            <i className="bi bi-file-earmark-pdf"></i> PDF
+          </button>
+        </div>
       </div>
 
       {error && !isErrorModalOpen && (
@@ -162,6 +239,7 @@ const StoresAbstract = () => {
           >
             <thead>
               <tr>
+                <th>S.No</th>
                 <th rowSpan="2" className={styles.storeColumn}>
                   Store Name
                 </th>
@@ -228,6 +306,7 @@ const StoresAbstract = () => {
 
                   return (
                     <tr key={store.id || index}>
+                      <td>{index + 1}</td>
                       <td className={styles.storeNameCell}>
                         {store.storeName || "-"}
                       </td>
