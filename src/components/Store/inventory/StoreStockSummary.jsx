@@ -1466,6 +1466,8 @@ function StoreStockSummary() {
                                     >
                                       <tr>
                                         <th style={thStyle}>Date</th>
+                                        <th style={thStyle}>Type</th>
+                                        <th style={thStyle}>Transfer Number</th>
                                         <th style={thStyle}>Invoice ID</th>
                                         <th style={thStyle}>Customer</th>
                                         <th style={thStyle}>Quantity</th>
@@ -1479,6 +1481,8 @@ function StoreStockSummary() {
                                         salesRows.map((sale, i) => (
                                           <tr key={i}>
                                             <td style={tdStyle}>{sale.date}</td>
+                                            <td style={tdStyle}>{sale.type}</td>
+                                            <td style={tdStyle}>{sale.transferNumber || "-"}</td>
                                             <td style={tdStyle}>
                                               {rowData?.invoices?.find(
                                                 (inv) =>
@@ -1532,7 +1536,7 @@ function StoreStockSummary() {
                                       ) : (
                                         <tr>
                                           <td
-                                            colSpan={7}
+                                            colSpan={9}
                                             className="text-center p-3"
                                           >
                                             No sales found for this period
