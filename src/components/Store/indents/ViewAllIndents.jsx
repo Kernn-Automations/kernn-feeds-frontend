@@ -171,6 +171,13 @@ export default function ViewAllIndents() {
     return () => document.removeEventListener("keydown", handleEscKey);
   }, []);
 
+  const getSelectedManualProductIds = (currentIndex) => {
+    return manualStockItems
+      .filter((_, idx) => idx !== currentIndex)
+      .map((item) => String(item.productId))
+      .filter(Boolean);
+  };
+
   // Stock In states
   const [showStockIn, setShowStockIn] = useState(false);
   const [receivedQuantities, setReceivedQuantities] = useState({});
@@ -295,7 +302,7 @@ export default function ViewAllIndents() {
     } catch (err) {
       console.error("Error fetching indents:", err);
       setError(
-        err.response?.data?.message || err.message || "Error fetching indents"
+        err.response?.data?.message || err.message || "Error fetching indents",
       );
       setIsModalOpen(true);
     } finally {
@@ -309,13 +316,13 @@ export default function ViewAllIndents() {
 
     if (searchTerms.code) {
       filtered = filtered.filter((indent) =>
-        indent.code?.toLowerCase().includes(searchTerms.code.toLowerCase())
+        indent.code?.toLowerCase().includes(searchTerms.code.toLowerCase()),
       );
     }
 
     if (searchTerms.status) {
       filtered = filtered.filter((indent) =>
-        indent.status?.toLowerCase().includes(searchTerms.status.toLowerCase())
+        indent.status?.toLowerCase().includes(searchTerms.status.toLowerCase()),
       );
     }
 
@@ -406,7 +413,7 @@ export default function ViewAllIndents() {
     // If product changed, update unit from product data
     if (field === "productId" && value) {
       const product = products.find(
-        (p) => (p.id || p.productId)?.toString() === value.toString()
+        (p) => (p.id || p.productId)?.toString() === value.toString(),
       );
       if (product) {
         newItems[index].unit = product.unit || "units";
@@ -418,16 +425,17 @@ export default function ViewAllIndents() {
     // Update damaged goods rows if enabled
     if (hasManualDamagedGoods) {
       const validItems = newItems.filter(
-        (item) => item.productId && item.quantity
+        (item) => item.productId && item.quantity,
       );
       const newDamagedRows = validItems.map((item) => {
         const product = products.find(
-          (p) => (p.id || p.productId)?.toString() === item.productId.toString()
+          (p) =>
+            (p.id || p.productId)?.toString() === item.productId.toString(),
         );
         const existingRow = manualStockDamagedGoods.find(
           (row) =>
             (row.productId?.toString() || String(row.productId)) ===
-            (item.productId?.toString() || String(item.productId))
+            (item.productId?.toString() || String(item.productId)),
         );
 
         return {
@@ -457,7 +465,8 @@ export default function ViewAllIndents() {
 
     // Validate items
     const validItems = manualStockItems.filter(
-      (item) => item.productId && item.quantity && parseFloat(item.quantity) > 0
+      (item) =>
+        item.productId && item.quantity && parseFloat(item.quantity) > 0,
     );
 
     if (validItems.length === 0) {
@@ -578,13 +587,13 @@ export default function ViewAllIndents() {
 
       console.log(
         "Manual Stock In Payload:",
-        JSON.stringify(finalPayload, null, 2)
+        JSON.stringify(finalPayload, null, 2),
       );
       console.log("Using endpoint: /stores/manual-stock-in");
       console.log("Payload keys:", Object.keys(finalPayload));
       console.log(
         "indentId in payload:",
-        "indentId" in finalPayload ? "YES (ERROR!)" : "NO (CORRECT)"
+        "indentId" in finalPayload ? "YES (ERROR!)" : "NO (CORRECT)",
       );
 
       const res = await storeService.processManualStockIn(finalPayload);
@@ -648,7 +657,7 @@ export default function ViewAllIndents() {
         .map((item) => {
           const product = products.find(
             (p) =>
-              (p.id || p.productId)?.toString() === item.productId.toString()
+              (p.id || p.productId)?.toString() === item.productId.toString(),
           );
           return {
             productId: item.productId,
@@ -858,7 +867,7 @@ export default function ViewAllIndents() {
 
       if (invalidItems.length > 0) {
         setError(
-          "Please enter valid received quantities (greater than 0 and not exceeding ordered quantity)"
+          "Please enter valid received quantities (greater than 0 and not exceeding ordered quantity)",
         );
         setIsModalOpen(true);
         setStockInLoading(false);
@@ -891,7 +900,7 @@ export default function ViewAllIndents() {
             receivedQuantities[productId] ||
               item.requestedQuantity ||
               item.quantity ||
-              0
+              0,
           );
 
           // Find damaged goods for this product if any
@@ -1061,15 +1070,6 @@ export default function ViewAllIndents() {
                 >
                   Items
                 </th>
-                <th
-                  style={{
-                    fontFamily: "Poppins",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Value
-                </th>
                 {renderSearchHeader("Status", "status", "data-status-header")}
                 <th
                   style={{
@@ -1133,7 +1133,6 @@ export default function ViewAllIndents() {
                       <td>
                         {indent.itemCount || indent.items?.length || 0} items
                       </td>
-                      <td>₹{Number(indent.value || 0).toLocaleString()}</td>
                       <td>
                         <span
                           className={`badge ${statusInfo.class}`}
@@ -1329,13 +1328,13 @@ export default function ViewAllIndents() {
                             {selectedIndent.status}
                           </span>
                         </div>
-                        <div
+                        {/*<div
                           className="col-6"
                           style={{ marginBottom: "0.75rem" }}
                         >
                           <strong>Total Value:</strong> ₹
                           {Number(selectedIndent.value || 0).toLocaleString()}
-                        </div>
+                        </div>*/}
                         {selectedIndent.notes && (
                           <div
                             className="col-12"
@@ -1380,8 +1379,6 @@ export default function ViewAllIndents() {
                               <th>Product Name</th>
                               <th>Quantity</th>
                               <th>Unit</th>
-                              <th>Price</th>
-                              <th>Total</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1401,22 +1398,6 @@ export default function ViewAllIndents() {
                                       0}
                                   </td>
                                   <td>{item.unit || "units"}</td>
-                                  <td>
-                                    ₹
-                                    {Number(
-                                      item.unitPrice || item.price || 0
-                                    ).toLocaleString()}
-                                  </td>
-                                  <td>
-                                    ₹
-                                    {Number(
-                                      item.totalAmount ||
-                                        (item.unitPrice || item.price || 0) *
-                                          (item.requestedQuantity ||
-                                            item.quantity ||
-                                            0)
-                                    ).toLocaleString()}
-                                  </td>
                                 </tr>
                               ))
                             ) : selectedIndent.products &&
@@ -1430,14 +1411,14 @@ export default function ViewAllIndents() {
                                   <td>
                                     ₹
                                     {Number(
-                                      product.price || 0
+                                      product.price || 0,
                                     ).toLocaleString()}
                                   </td>
                                   <td>
                                     ₹
                                     {Number(
                                       (product.quantity || 0) *
-                                        (product.price || 0)
+                                        (product.price || 0),
                                     ).toLocaleString()}
                                   </td>
                                 </tr>
@@ -1526,7 +1507,7 @@ export default function ViewAllIndents() {
                                         onChange={(e) =>
                                           handleReceivedQuantityChange(
                                             productId,
-                                            e.target.value
+                                            e.target.value,
                                           )
                                         }
                                         style={{
@@ -1630,7 +1611,7 @@ export default function ViewAllIndents() {
                                             handleDamagedGoodsChange(
                                               index,
                                               "damagedQty",
-                                              parseFloat(e.target.value) || 0
+                                              parseFloat(e.target.value) || 0,
                                             )
                                           }
                                           style={{
@@ -1650,7 +1631,7 @@ export default function ViewAllIndents() {
                                             handleDamagedGoodsChange(
                                               index,
                                               "reason",
-                                              e.target.value
+                                              e.target.value,
                                             )
                                           }
                                           placeholder="Enter reason"
@@ -1871,7 +1852,7 @@ export default function ViewAllIndents() {
                                   handleManualStockItemChange(
                                     index,
                                     "productId",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 style={{
@@ -1883,15 +1864,28 @@ export default function ViewAllIndents() {
                                 }}
                               >
                                 <option value="">Select Product</option>
-                                {products.map((product) => (
-                                  <option
-                                    key={product.id || product.productId}
-                                    value={product.id || product.productId}
-                                  >
-                                    {product.name || product.productName}{" "}
-                                    {product.code ? `(${product.code})` : ""}
-                                  </option>
-                                ))}
+                                {products
+                                  .filter((product) => {
+                                    const selectedIds =
+                                      getSelectedManualProductIds(index);
+                                    const productId = String(
+                                      product.id || product.productId,
+                                    );
+
+                                    return (
+                                      !selectedIds.includes(productId) ||
+                                      productId === String(item.productId)
+                                    );
+                                  })
+                                  .map((product) => (
+                                    <option
+                                      key={product.id || product.productId}
+                                      value={product.id || product.productId}
+                                    >
+                                      {product.name || product.productName}
+                                      {product.code ? ` (${product.code})` : ""}
+                                    </option>
+                                  ))}
                               </select>
                             </td>
                             <td>
@@ -1904,7 +1898,7 @@ export default function ViewAllIndents() {
                                   handleManualStockItemChange(
                                     index,
                                     "quantity",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Quantity"
@@ -1925,7 +1919,7 @@ export default function ViewAllIndents() {
                                   handleManualStockItemChange(
                                     index,
                                     "unit",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Unit"
@@ -2042,7 +2036,7 @@ export default function ViewAllIndents() {
                                       handleManualDamagedGoodsChange(
                                         index,
                                         "damagedQty",
-                                        parseFloat(e.target.value) || 0
+                                        parseFloat(e.target.value) || 0,
                                       )
                                     }
                                     style={{
@@ -2062,7 +2056,7 @@ export default function ViewAllIndents() {
                                       handleManualDamagedGoodsChange(
                                         index,
                                         "reason",
-                                        e.target.value
+                                        e.target.value,
                                       )
                                     }
                                     placeholder="Enter reason"

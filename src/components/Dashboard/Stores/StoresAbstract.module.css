@@ -93,6 +93,13 @@
   font-weight: 700;
 }
 
+.divisionColumn,
+.zoneColumn {
+  min-width: 150px;
+  background-color: #e9ecef;
+  font-weight: 700;
+}
+
 .addressColumn {
   min-width: 200px;
   background-color: #e9ecef;
@@ -146,12 +153,12 @@
 
 .ifscCell,
 .accountCell {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-weight: 500;
 }
 
 .panCell {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-weight: 500;
   text-transform: uppercase;
 }
@@ -332,4 +339,3 @@
     padding: 8px 4px;
   }
 }
-

@@ -8,7 +8,6 @@ import subZonesService from "../../services/subZonesService";
 import styles from "./DivisionManager.module.css";
 import { isDivisionHead } from "../../utils/roleUtils";
 
-
 function DivisionManager() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,18 +31,19 @@ function DivisionManager() {
     pincode: "",
     district: "",
     gstinNumber: "",
-    cinNumber: ""
+    cinNumber: "",
   });
   const [creating, setCreating] = useState(false);
-  
+  const [storeSearch, setStoreSearch] = useState("");
+
   // Zones state
   // Get active tab from URL params or default to 'divisions'
-  const activeTabFromUrl = searchParams.get('tab') || 'divisions';
+  const activeTabFromUrl = searchParams.get("tab") || "divisions";
   const [activeTab, setActiveTab] = useState(activeTabFromUrl);
 
   // Sync activeTab with URL params on mount and when URL changes
   useEffect(() => {
-    const tabFromUrl = searchParams.get('tab') || 'divisions';
+    const tabFromUrl = searchParams.get("tab") || "divisions";
     setActiveTab(tabFromUrl);
   }, [searchParams]);
 
@@ -51,7 +51,7 @@ function DivisionManager() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     const newParams = new URLSearchParams(searchParams);
-    newParams.set('tab', tab);
+    newParams.set("tab", tab);
     setSearchParams(newParams);
   };
   const [zones, setZones] = useState([]);
@@ -73,7 +73,7 @@ function DivisionManager() {
     state: "",
     country: "India",
     stateCode: "",
-    countryCode: "IN"
+    countryCode: "IN",
   });
 
   // Sub Zones state
@@ -145,40 +145,51 @@ function DivisionManager() {
     villages: "",
     // UI state
     agreementImage: null,
-    agreementImagePreview: null
+    agreementImagePreview: null,
   });
   const [updatingStoreId, setUpdatingStoreId] = useState(null);
   const [storesPagination, setStoresPagination] = useState({
     page: 1,
     limit: 10,
     total: 0,
-    totalPages: 0
+    totalPages: 0,
   });
 
   useEffect(() => {
     fetchDivisions();
     fetchEmployees();
-    
+
     // Pre-populate division when opening store form if in a specific division context
-    const currentDivisionId = localStorage.getItem('currentDivisionId');
-    if (currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all') {
-      setNewStore(prev => ({
+    const currentDivisionId = localStorage.getItem("currentDivisionId");
+    if (
+      currentDivisionId &&
+      currentDivisionId !== "1" &&
+      currentDivisionId !== "all"
+    ) {
+      setNewStore((prev) => ({
         ...prev,
         divisionId: currentDivisionId,
-        employeeIds: prev.employeeIds || []
+        employeeIds: prev.employeeIds || [],
       }));
     }
   }, []);
 
   useEffect(() => {
     if (activeTab === "stores") {
-      const currentDivisionId = localStorage.getItem('currentDivisionId');
-      const divisionId = currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' 
-        ? parseInt(currentDivisionId) 
-        : null;
+      const currentDivisionId = localStorage.getItem("currentDivisionId");
+      const divisionId =
+        currentDivisionId &&
+        currentDivisionId !== "1" &&
+        currentDivisionId !== "all"
+          ? parseInt(currentDivisionId)
+          : null;
       fetchStoreDropdowns(divisionId);
     }
   }, [activeTab]);
+
+  const filteredStores = stores.filter((store) =>
+    store.name?.toLowerCase().includes(storeSearch.toLowerCase()),
+  );
 
   // Refetch dropdowns when division changes in store form
   useEffect(() => {
@@ -191,41 +202,46 @@ function DivisionManager() {
     try {
       setLoading(true);
       console.log("Fetching divisions...");
-      
+
       // Try different endpoints as per the backend routes
       let response;
       try {
         if (isDivisionHead(user)) {
-           response = await axiosAPI.get("/divisions/user-divisions");  
-           console.log("Divisions response (user-divisions):", response);
+          response = await axiosAPI.get("/divisions/user-divisions");
+          console.log("Divisions response (user-divisions):", response);
         } else {
-             // First try the main divisions endpoint
-        response = await axiosAPI.get("/divisions");
-        console.log("Divisions response (main):", response);
+          // First try the main divisions endpoint
+          response = await axiosAPI.get("/divisions");
+          console.log("Divisions response (main):", response);
         }
-       
       } catch (mainError) {
         if (isDivisionHead(user)) {
-           // If user-divisions fails, rethrow to catch block
-           throw mainError;
+          // If user-divisions fails, rethrow to catch block
+          throw mainError;
         }
         console.log("Main endpoint failed, trying /divisions/all");
         // If main endpoint fails, try the alternative
         response = await axiosAPI.get("/divisions/all");
         console.log("Divisions response (all):", response);
       }
-      
+
       if (response && response.status === 200) {
         // Handle different possible response structures
-        const divisionsData = response.data.divisions || response.data.data || response.data || [];
+        const divisionsData =
+          response.data.divisions || response.data.data || response.data || [];
         console.log("Divisions data:", divisionsData);
-        
+
         let processedDivisions = [];
         if (Array.isArray(divisionsData)) {
           processedDivisions = divisionsData;
-        } else if (typeof divisionsData === 'object' && divisionsData !== null) {
+        } else if (
+          typeof divisionsData === "object" &&
+          divisionsData !== null
+        ) {
           // If it's an object, try to extract divisions from it
-          const extractedDivisions = Object.values(divisionsData).find(item => Array.isArray(item)) || [];
+          const extractedDivisions =
+            Object.values(divisionsData).find((item) => Array.isArray(item)) ||
+            [];
           processedDivisions = extractedDivisions;
         } else {
           processedDivisions = [];
@@ -236,47 +252,93 @@ function DivisionManager() {
         // Try to fetch statistics for each division, but don't fail if the endpoint doesn't exist
         const divisionsWithStats = await Promise.all(
           processedDivisions.map(async (division) => {
-            console.log(`Fetching statistics for division ${division.id} (${division.name})`);
+            console.log(
+              `Fetching statistics for division ${division.id} (${division.name})`,
+            );
             try {
               // Try to fetch statistics for this division
-              const statsResponse = await axiosAPI.get(`/divisions/${division.id}/statistics`);
-              console.log(`Statistics response for division ${division.id}:`, statsResponse.data);
-              
+              const statsResponse = await axiosAPI.get(
+                `/divisions/${division.id}/statistics`,
+              );
+              console.log(
+                `Statistics response for division ${division.id}:`,
+                statsResponse.data,
+              );
+
               // Handle the exact backend response structure
-              const statsData = statsResponse.data?.data?.statistics || statsResponse.data?.statistics || {};
-              console.log(`Extracted stats data for division ${division.id}:`, statsData);
-              
+              const statsData =
+                statsResponse.data?.data?.statistics ||
+                statsResponse.data?.statistics ||
+                {};
+              console.log(
+                `Extracted stats data for division ${division.id}:`,
+                statsData,
+              );
+
               const divisionWithStats = {
                 ...division,
-                userCount: statsData.employees || statsData.users || statsData.userCount || 0,
-                warehouseCount: statsData.warehouses || statsData.warehouseCount || 0,
+                userCount:
+                  statsData.employees ||
+                  statsData.users ||
+                  statsData.userCount ||
+                  0,
+                warehouseCount:
+                  statsData.warehouses || statsData.warehouseCount || 0,
                 customerCount: statsData.customers || 0,
                 productCount: statsData.products || 0,
                 salesOrderCount: statsData.salesOrders || 0,
                 purchaseOrderCount: statsData.purchaseOrders || 0,
               };
-              
-              console.log(`Final division with stats for ${division.id}:`, divisionWithStats);
+
+              console.log(
+                `Final division with stats for ${division.id}:`,
+                divisionWithStats,
+              );
               return divisionWithStats;
             } catch (statsError) {
-              console.log(`No statistics available for division ${division.id}:`, statsError.message);
-              console.log(`Stats error details:`, statsError.response?.data || statsError);
-              
+              console.log(
+                `No statistics available for division ${division.id}:`,
+                statsError.message,
+              );
+              console.log(
+                `Stats error details:`,
+                statsError.response?.data || statsError,
+              );
+
               // If statistics endpoint doesn't exist or fails, try to get counts from the division object itself
               const divisionWithFallbackStats = {
                 ...division,
-                userCount: division.userCount || division.usersCount || division.totalUsers || division.users || division.employees || division._count?.users || 0,
-                warehouseCount: division.warehouseCount || division.warehousesCount || division.totalWarehouses || division.warehouses || division._count?.warehouses || 0,
-                customerCount: division.customerCount || division.customers || 0,
+                userCount:
+                  division.userCount ||
+                  division.usersCount ||
+                  division.totalUsers ||
+                  division.users ||
+                  division.employees ||
+                  division._count?.users ||
+                  0,
+                warehouseCount:
+                  division.warehouseCount ||
+                  division.warehousesCount ||
+                  division.totalWarehouses ||
+                  division.warehouses ||
+                  division._count?.warehouses ||
+                  0,
+                customerCount:
+                  division.customerCount || division.customers || 0,
                 productCount: division.productCount || division.products || 0,
-                salesOrderCount: division.salesOrderCount || division.salesOrders || 0,
-                purchaseOrderCount: division.purchaseOrderCount || division.purchaseOrders || 0,
+                salesOrderCount:
+                  division.salesOrderCount || division.salesOrders || 0,
+                purchaseOrderCount:
+                  division.purchaseOrderCount || division.purchaseOrders || 0,
               };
-              
-              console.log(`Division with fallback stats for ${division.id}:`, divisionWithFallbackStats);
+
+              console.log(
+                `Division with fallback stats for ${division.id}:`,
+                divisionWithFallbackStats,
+              );
               return divisionWithFallbackStats;
             }
-          })
+          }),
         );
 
         console.log("Final divisions with stats:", divisionsWithStats);
@@ -284,7 +346,10 @@ function DivisionManager() {
       }
     } catch (error) {
       console.error("Error fetching divisions:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to fetch divisions";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch divisions";
       setError(errorMessage);
       setIsModalOpen(true);
     } finally {
@@ -295,43 +360,70 @@ function DivisionManager() {
   // Function to manually refresh statistics
   const refreshStatistics = async () => {
     if (divisions.length === 0) return;
-    
+
     try {
       setLoading(true);
       console.log("Refreshing statistics...");
-      
+
       const divisionsWithRefreshedStats = await Promise.all(
         divisions.map(async (division) => {
-          console.log(`Refreshing statistics for division ${division.id} (${division.name})`);
+          console.log(
+            `Refreshing statistics for division ${division.id} (${division.name})`,
+          );
           try {
             // Try to fetch statistics for this division
-            const statsResponse = await axiosAPI.get(`/divisions/${division.id}/statistics`);
-            console.log(`Refreshed statistics response for division ${division.id}:`, statsResponse.data);
-            
+            const statsResponse = await axiosAPI.get(
+              `/divisions/${division.id}/statistics`,
+            );
+            console.log(
+              `Refreshed statistics response for division ${division.id}:`,
+              statsResponse.data,
+            );
+
             // Handle the exact backend response structure
-            const statsData = statsResponse.data?.data?.statistics || statsResponse.data?.statistics || {};
-            console.log(`Extracted refreshed stats data for division ${division.id}:`, statsData);
-            
+            const statsData =
+              statsResponse.data?.data?.statistics ||
+              statsResponse.data?.statistics ||
+              {};
+            console.log(
+              `Extracted refreshed stats data for division ${division.id}:`,
+              statsData,
+            );
+
             const divisionWithStats = {
               ...division,
-              userCount: statsData.employees || statsData.users || statsData.userCount || 0,
-              warehouseCount: statsData.warehouses || statsData.warehouseCount || 0,
+              userCount:
+                statsData.employees ||
+                statsData.users ||
+                statsData.userCount ||
+                0,
+              warehouseCount:
+                statsData.warehouses || statsData.warehouseCount || 0,
               customerCount: statsData.customers || 0,
               productCount: statsData.products || 0,
               salesOrderCount: statsData.salesOrders || 0,
               purchaseOrderCount: statsData.purchaseOrders || 0,
             };
-            
-            console.log(`Final refreshed division with stats for ${division.id}:`, divisionWithStats);
+
+            console.log(
+              `Final refreshed division with stats for ${division.id}:`,
+              divisionWithStats,
+            );
             return divisionWithStats;
           } catch (statsError) {
-            console.log(`Failed to refresh statistics for division ${division.id}:`, statsError.message);
+            console.log(
+              `Failed to refresh statistics for division ${division.id}:`,
+              statsError.message,
+            );
             return division; // Return the division as is if refresh fails
           }
-        })
+        }),
       );
 
-      console.log("Final divisions with refreshed stats:", divisionsWithRefreshedStats);
+      console.log(
+        "Final divisions with refreshed stats:",
+        divisionsWithRefreshedStats,
+      );
       setDivisions(divisionsWithRefreshedStats);
     } catch (error) {
       console.error("Error refreshing statistics:", error);
@@ -345,26 +437,30 @@ function DivisionManager() {
   // Helper function to get user count from division object
   const getUserCount = (division) => {
     // Check for different possible field names for user count
-    return division.userCount || 
-           division.usersCount || 
-           division.totalUsers || 
-           division.users || 
-           division.employees ||
-           division._count?.users ||
-           division.statistics?.users ||
-           0;
+    return (
+      division.userCount ||
+      division.usersCount ||
+      division.totalUsers ||
+      division.users ||
+      division.employees ||
+      division._count?.users ||
+      division.statistics?.users ||
+      0
+    );
   };
 
   // Helper function to get warehouse count from division object
   const getWarehouseCount = (division) => {
     // Check for different possible field names for warehouse count
-    return division.warehouseCount || 
-           division.warehousesCount || 
-           division.totalWarehouses || 
-           division.warehouses || 
-           division._count?.warehouses ||
-           division.statistics?.warehouses ||
-           0;
+    return (
+      division.warehouseCount ||
+      division.warehousesCount ||
+      division.totalWarehouses ||
+      division.warehouses ||
+      division._count?.warehouses ||
+      division.statistics?.warehouses ||
+      0
+    );
   };
 
   // Helper function to get customer count from division object
@@ -389,13 +485,26 @@ function DivisionManager() {
 
   const handleCreateDivision = async (e) => {
     e.preventDefault();
-    
+
     // Validate required fields
-    const requiredFields = ['name', 'state', 'plot', 'street1', 'areaLocality', 'cityVillage', 'pincode', 'district'];
-    const missingFields = requiredFields.filter(field => !newDivision[field] || newDivision[field].trim() === '');
-    
+    const requiredFields = [
+      "name",
+      "state",
+      "plot",
+      "street1",
+      "areaLocality",
+      "cityVillage",
+      "pincode",
+      "district",
+    ];
+    const missingFields = requiredFields.filter(
+      (field) => !newDivision[field] || newDivision[field].trim() === "",
+    );
+
     if (missingFields.length > 0) {
-      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      setError(
+        `Please fill in all required fields: ${missingFields.join(", ")}`,
+      );
       setIsModalOpen(true);
       return;
     }
@@ -403,7 +512,7 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Creating division:", newDivision);
-      
+
       // Prepare the request body according to the new API format
       const divisionData = {
         name: newDivision.name,
@@ -417,15 +526,15 @@ function DivisionManager() {
         pincode: newDivision.pincode,
         district: newDivision.district,
         gstinNumber: newDivision.gstinNumber || "",
-        cinNumber: newDivision.cinNumber || ""
+        cinNumber: newDivision.cinNumber || "",
       };
-      
+
       console.log("Sending division data:", divisionData);
-      
+
       // Use the correct divisions endpoint
       const response = await axiosAPI.post("/divisions", divisionData);
       console.log("Create division response:", response);
-      
+
       if (response.status === 201 || response.status === 200) {
         // Reset form to initial state
         setNewDivision({
@@ -440,17 +549,22 @@ function DivisionManager() {
           pincode: "",
           district: "",
           gstinNumber: "",
-          cinNumber: ""
+          cinNumber: "",
         });
         setShowCreateForm(false);
         // Show success message
-        setError("Division created successfully with detailed address information!");
+        setError(
+          "Division created successfully with detailed address information!",
+        );
         setIsModalOpen(true);
         fetchDivisions(); // Refresh the list
       }
     } catch (error) {
       console.error("Error creating division:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to create division";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to create division";
       setError(errorMessage);
       setIsModalOpen(true);
     } finally {
@@ -472,7 +586,10 @@ function DivisionManager() {
       }
     } catch (error) {
       console.error("Error deleting division:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to delete division";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to delete division";
       setError(errorMessage);
       setIsModalOpen(true);
     }
@@ -487,7 +604,8 @@ function DivisionManager() {
   const fetchEmployees = async () => {
     try {
       const response = await axiosAPI.get("/employees");
-      const employeesData = response.data.employees || response.data.data || response.data || [];
+      const employeesData =
+        response.data.employees || response.data.data || response.data || [];
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -498,22 +616,27 @@ function DivisionManager() {
   const fetchStoreDropdowns = async (divisionId = null) => {
     try {
       setStoreDropdownLoading(true);
-      
+
       // Build query params
       const params = {};
       if (divisionId) {
         params.divisionId = divisionId;
       }
-      
+
       // Fetch electricity distributors (public, no auth)
-      const electricityResponse = await axiosAPI.get("/stores/dropdowns/electricity-distributors");
-      const electricityData = electricityResponse.data?.data || electricityResponse.data || [];
-      setElectricityDistributors(Array.isArray(electricityData) ? electricityData : []);
-      
+      const electricityResponse = await axiosAPI.get(
+        "/stores/dropdowns/electricity-distributors",
+      );
+      const electricityData =
+        electricityResponse.data?.data || electricityResponse.data || [];
+      setElectricityDistributors(
+        Array.isArray(electricityData) ? electricityData : [],
+      );
+
       // Fetch managers and employees with division filter
       const [managersResponse, employeesResponse] = await Promise.all([
         axiosAPI.get("/stores/dropdowns/managers", { params }),
-        axiosAPI.get("/stores/dropdowns/employees", { params })
+        axiosAPI.get("/stores/dropdowns/employees", { params }),
       ]);
 
       const extractList = (payload, fallbackKey) => {
@@ -543,16 +666,21 @@ function DivisionManager() {
   };
 
   // Helper function to compress images
-  const compressImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.7) => {
+  const compressImage = (
+    file,
+    maxWidth = 800,
+    maxHeight = 600,
+    quality = 0.7,
+  ) => {
     return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
       const img = new Image();
-      
+
       img.onload = () => {
         // Calculate new dimensions (maintain aspect ratio)
         let { width, height } = img;
-        
+
         if (width > height) {
           if (width > maxWidth) {
             height = (height * maxWidth) / width;
@@ -564,27 +692,31 @@ function DivisionManager() {
             height = maxHeight;
           }
         }
-        
+
         // Set canvas dimensions
         canvas.width = width;
         canvas.height = height;
-        
+
         // Draw and compress
         ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to compress image'));
-          }
-        }, file.type || 'image/jpeg', quality);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("Failed to compress image"));
+            }
+          },
+          file.type || "image/jpeg",
+          quality,
+        );
       };
-      
+
       img.onerror = () => {
-        reject(new Error('Failed to load image'));
+        reject(new Error("Failed to load image"));
       };
-      
+
       img.src = URL.createObjectURL(file);
     });
   };
@@ -593,46 +725,52 @@ function DivisionManager() {
   // Backend expects: data:image/...;base64,... format
   const formatBase64DataURL = (base64String) => {
     if (!base64String) return undefined;
-    
+
     // If it's already a data URL (data:image/...;base64,...), use it as is
-    if (base64String.startsWith('data:')) {
+    if (base64String.startsWith("data:")) {
       // Extract just the base64 part for size calculation
-      const base64Part = base64String.includes(',') ? base64String.split(',')[1] : base64String;
+      const base64Part = base64String.includes(",")
+        ? base64String.split(",")[1]
+        : base64String;
       const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
-      
+
       if (base64SizeMB > 1.5) {
         return undefined; // Will be handled below
       }
-      
+
       // Return full data URL as backend expects: data:image/...;base64,...
       return base64String;
     }
-    
+
     // If it's just base64 string without prefix, we shouldn't reach here
     // because FileReader.readAsDataURL always returns data URL format
     // But just in case, convert it
-    const mimeType = 'image/jpeg'; // Default
+    const mimeType = "image/jpeg"; // Default
     const dataURL = `data:${mimeType};base64,${base64String}`;
-    
+
     // Check size
     const base64SizeMB = (base64String.length * 3) / 4 / 1024 / 1024;
     if (base64SizeMB > 1.5) {
       return undefined;
     }
-    
+
     return dataURL;
   };
 
   const fetchZones = async () => {
     try {
       setZonesLoading(true);
-      const currentDivisionId = localStorage.getItem('currentDivisionId');
-      const showAllDivisions = currentDivisionId === '1';
-      
-      const response = await zonesService.getZones({
-        divisionId: currentDivisionId,
-        isActive: true
-      }, currentDivisionId, showAllDivisions);
+      const currentDivisionId = localStorage.getItem("currentDivisionId");
+      const showAllDivisions = currentDivisionId === "1";
+
+      const response = await zonesService.getZones(
+        {
+          divisionId: currentDivisionId,
+          isActive: true,
+        },
+        currentDivisionId,
+        showAllDivisions,
+      );
 
       const data = response?.data || response || {};
       const zonesList = data.zones || data.data || data || [];
@@ -647,7 +785,7 @@ function DivisionManager() {
 
   const handleCreateZone = async (e) => {
     e.preventDefault();
-    
+
     if (!newZone.name || !newZone.divisionId) {
       setError("Please fill in zone name and division");
       setIsModalOpen(true);
@@ -657,10 +795,10 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Creating zone:", newZone);
-      
+
       const response = await zonesService.createZone(newZone);
       console.log("Create zone response:", response);
-      
+
       if (response.success || response.zone || response.id) {
         // Reset form
         setNewZone({
@@ -677,7 +815,7 @@ function DivisionManager() {
           state: "",
           country: "India",
           stateCode: "",
-          countryCode: "IN"
+          countryCode: "IN",
         });
         setShowZoneForm(false);
         setEditingZone(null);
@@ -687,7 +825,10 @@ function DivisionManager() {
       }
     } catch (error) {
       console.error("Error creating zone:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to create zone";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to create zone";
       setError(errorMessage);
       setIsModalOpen(true);
     } finally {
@@ -697,7 +838,7 @@ function DivisionManager() {
 
   const handleUpdateZone = async (e) => {
     e.preventDefault();
-    
+
     if (!newZone.name || !newZone.divisionId) {
       setError("Please fill in zone name and division");
       setIsModalOpen(true);
@@ -707,10 +848,10 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Updating zone:", editingZone.id, newZone);
-      
+
       const response = await zonesService.updateZone(editingZone.id, newZone);
       console.log("Update zone response:", response);
-      
+
       if (response.success || response.zone || response.id) {
         setShowZoneForm(false);
         setEditingZone(null);
@@ -720,7 +861,10 @@ function DivisionManager() {
       }
     } catch (error) {
       console.error("Error updating zone:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to update zone";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to update zone";
       setError(errorMessage);
       setIsModalOpen(true);
     } finally {
@@ -742,7 +886,10 @@ function DivisionManager() {
       }
     } catch (error) {
       console.error("Error deleting zone:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to delete zone";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to delete zone";
       setError(errorMessage);
       setIsModalOpen(true);
     }
@@ -764,7 +911,7 @@ function DivisionManager() {
       state: zone.state || "",
       country: zone.country || "India",
       stateCode: zone.stateCode || "",
-      countryCode: zone.countryCode || "IN"
+      countryCode: zone.countryCode || "IN",
     });
     setShowZoneForm(true);
   };
@@ -786,7 +933,7 @@ function DivisionManager() {
       state: "",
       country: "India",
       stateCode: "",
-      countryCode: "IN"
+      countryCode: "IN",
     });
   };
 
@@ -808,7 +955,7 @@ function DivisionManager() {
 
   const handleCreateSubZone = async (e) => {
     e.preventDefault();
-    
+
     if (!newSubZone.name || !selectedZoneForSubZone) {
       setError("Please fill in sub zone name and select a zone");
       setIsModalOpen(true);
@@ -818,23 +965,31 @@ function DivisionManager() {
     // Check for duplicate subzone name in the selected zone
     // Fetch current subzones for the selected zone to check duplicates
     try {
-      const currentSubZonesResponse = await subZonesService.getSubZonesByZone(selectedZoneForSubZone, true);
-      const currentSubZonesData = currentSubZonesResponse?.data || currentSubZonesResponse || {};
-      const currentSubZonesList = Array.isArray(currentSubZonesData.subZones) 
-        ? currentSubZonesData.subZones 
-        : Array.isArray(currentSubZonesData.data) 
-        ? currentSubZonesData.data 
-        : Array.isArray(currentSubZonesData) 
-        ? currentSubZonesData 
-        : [];
-      
+      const currentSubZonesResponse = await subZonesService.getSubZonesByZone(
+        selectedZoneForSubZone,
+        true,
+      );
+      const currentSubZonesData =
+        currentSubZonesResponse?.data || currentSubZonesResponse || {};
+      const currentSubZonesList = Array.isArray(currentSubZonesData.subZones)
+        ? currentSubZonesData.subZones
+        : Array.isArray(currentSubZonesData.data)
+          ? currentSubZonesData.data
+          : Array.isArray(currentSubZonesData)
+            ? currentSubZonesData
+            : [];
+
       // Check if a subzone with the same name already exists in this zone
       const duplicateSubZone = currentSubZonesList.find(
-        (sz) => sz.name?.toLowerCase().trim() === newSubZone.name.toLowerCase().trim()
+        (sz) =>
+          sz.name?.toLowerCase().trim() ===
+          newSubZone.name.toLowerCase().trim(),
       );
-      
+
       if (duplicateSubZone) {
-        setError(`A subzone with the name "${newSubZone.name}" already exists in the selected zone. Duplicate subzones are not allowed.`);
+        setError(
+          `A subzone with the name "${newSubZone.name}" already exists in the selected zone. Duplicate subzones are not allowed.`,
+        );
         setIsModalOpen(true);
         return;
       }
@@ -846,10 +1001,13 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Creating sub zone:", newSubZone);
-      
-      const response = await subZonesService.createSubZone(selectedZoneForSubZone, newSubZone);
+
+      const response = await subZonesService.createSubZone(
+        selectedZoneForSubZone,
+        newSubZone,
+      );
       console.log("Create sub zone response:", response);
-      
+
       if (response.success || response.subZone || response.id) {
         // Reset form
         setNewSubZone({
@@ -869,12 +1027,12 @@ function DivisionManager() {
         });
         setSelectedZoneForSubZone("");
         setShowSubZoneForm(false);
-        
+
         // Refresh sub zones list
         if (selectedZoneForSubZone) {
           await fetchSubZones(selectedZoneForSubZone);
         }
-        
+
         setError("Sub zone created successfully!");
         setIsModalOpen(true);
       } else {
@@ -892,7 +1050,7 @@ function DivisionManager() {
 
   const handleUpdateSubZone = async (e) => {
     e.preventDefault();
-    
+
     if (!newSubZone.name) {
       setError("Please fill in sub zone name");
       setIsModalOpen(true);
@@ -902,10 +1060,13 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Updating sub zone:", editingSubZone.id, newSubZone);
-      
-      const response = await subZonesService.updateSubZone(editingSubZone.id, newSubZone);
+
+      const response = await subZonesService.updateSubZone(
+        editingSubZone.id,
+        newSubZone,
+      );
       console.log("Update sub zone response:", response);
-      
+
       if (response.success || response.subZone || response.id) {
         // Reset form
         setNewSubZone({
@@ -926,12 +1087,12 @@ function DivisionManager() {
         setSelectedZoneForSubZone("");
         setShowSubZoneForm(false);
         setEditingSubZone(null);
-        
+
         // Refresh sub zones list
         if (selectedZoneForSubZone) {
           await fetchSubZones(selectedZoneForSubZone);
         }
-        
+
         setError("Sub zone updated successfully!");
         setIsModalOpen(true);
       } else {
@@ -955,13 +1116,13 @@ function DivisionManager() {
     try {
       const response = await subZonesService.deleteSubZone(subZoneId);
       console.log("Delete sub zone response:", response);
-      
+
       if (response.success || response.message) {
         // Refresh sub zones list
         if (selectedZoneForSubZone) {
           await fetchSubZones(selectedZoneForSubZone);
         }
-        
+
         setError("Sub zone deleted successfully!");
         setIsModalOpen(true);
       } else {
@@ -1017,8 +1178,15 @@ function DivisionManager() {
     });
   };
 
-  const assignStoreStaff = async (storeId, staffManagerId, employeeIds = []) => {
-    if (!storeId || (!staffManagerId && (!employeeIds || employeeIds.length === 0))) {
+  const assignStoreStaff = async (
+    storeId,
+    staffManagerId,
+    employeeIds = [],
+  ) => {
+    if (
+      !storeId ||
+      (!staffManagerId && (!employeeIds || employeeIds.length === 0))
+    ) {
       return [];
     }
 
@@ -1044,19 +1212,26 @@ function DivisionManager() {
           staffManagerId: parseInt(staffManagerId),
         });
       } catch (error) {
-        const errorMessage = error.response?.data?.message || error.message || "Failed to assign manager";
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to assign manager";
         // Only treat as error if it's not an "already assigned" case
         if (!isAlreadyAssignedError(errorMessage)) {
           console.error("Error assigning store manager:", error);
           errors.push(`Manager assignment failed: ${errorMessage}`);
         } else {
           // Already assigned is not an error, just log for debugging
-          console.log(`Manager ${staffManagerId} already assigned to store ${parsedStoreId}, skipping`);
+          console.log(
+            `Manager ${staffManagerId} already assigned to store ${parsedStoreId}, skipping`,
+          );
         }
       }
     }
 
-    const uniqueEmployeeIds = Array.from(new Set((employeeIds || []).filter(Boolean)));
+    const uniqueEmployeeIds = Array.from(
+      new Set((employeeIds || []).filter(Boolean)),
+    );
     for (const employeeId of uniqueEmployeeIds) {
       try {
         await axiosAPI.post("/store-employees/assign-employee", {
@@ -1071,10 +1246,14 @@ function DivisionManager() {
         // Only treat as error if it's not an "already assigned" case
         if (!isAlreadyAssignedError(errorMessage)) {
           console.error(`Error assigning employee ${employeeId}:`, error);
-          errors.push(`Employee ${employeeId} assignment failed: ${errorMessage}`);
+          errors.push(
+            `Employee ${employeeId} assignment failed: ${errorMessage}`,
+          );
         } else {
           // Already assigned is not an error, just log for debugging
-          console.log(`Employee ${employeeId} already assigned to store ${parsedStoreId}, skipping`);
+          console.log(
+            `Employee ${employeeId} already assigned to store ${parsedStoreId}, skipping`,
+          );
         }
       }
     }
@@ -1083,53 +1262,64 @@ function DivisionManager() {
   };
 
   // Stores functions
-  const fetchStores = async (page = 1, limit = 10, search = "", storeType = "") => {
+  const fetchStores = async (
+    page = 1,
+    limit = 10,
+    search = "",
+    storeType = "",
+  ) => {
     try {
       setStoresLoading(true);
       const params = new URLSearchParams();
-      if (page) params.append('page', page);
-      if (limit) params.append('limit', limit);
-      if (search) params.append('search', search);
-      if (storeType) params.append('storeType', storeType);
-      
+      if (page) params.append("page", page);
+      if (limit) params.append("limit", limit);
+      if (search) params.append("search", search);
+      if (storeType) params.append("storeType", storeType);
+
       const response = await axiosAPI.get(`/stores?${params.toString()}`);
       console.log("Stores response:", response);
-      
+
       // Handle different possible response structures
       const responseData = response.data || {};
-      let storesData = responseData.data || responseData.stores || responseData || [];
-      
+      let storesData =
+        responseData.data || responseData.stores || responseData || [];
+
       // Ensure storesData is an array
       if (!Array.isArray(storesData)) {
         storesData = [];
       }
-      
+
       // Fetch full details for stores that don't have manager/employees data
       // This ensures we always have the complete information
       const storesWithDetails = await Promise.all(
         storesData.map(async (store) => {
           // Check if store has manager object (not just ID) and employees array
-          const hasManagerObject = store.staffManager || store.manager || store.storeManager;
-          const hasEmployeesArray = store.employees && Array.isArray(store.employees) && store.employees.length > 0;
+          const hasManagerObject =
+            store.staffManager || store.manager || store.storeManager;
+          const hasEmployeesArray =
+            store.employees &&
+            Array.isArray(store.employees) &&
+            store.employees.length > 0;
           const hasManagerId = store.staffManagerId;
-          
+
           // If we have manager object AND employees array, return as is
           // Otherwise, fetch details (especially if we have managerId but no manager object)
           if (hasManagerObject && hasEmployeesArray) {
             return store;
           }
-          
+
           // Fetch full details to get manager and employees
           try {
             const detailResponse = await axiosAPI.get(`/stores/${store.id}`);
-            const detailData = detailResponse.data?.data || detailResponse.data || store;
+            const detailData =
+              detailResponse.data?.data || detailResponse.data || store;
             console.log(`Fetched details for store ${store.id}:`, {
               staffManagerId: detailData.staffManagerId,
               staffManager: detailData.staffManager,
               manager: detailData.manager,
-              employees: detailData.employees?.length || 0
+              employees: detailData.employees?.length || 0,
             });
-            
+
             // If we have staffManagerId but no manager object, try to fetch store staff
             let managerData =
               detailData.staffManager ||
@@ -1140,16 +1330,22 @@ function DivisionManager() {
               store.storeManager;
             if (detailData.staffManagerId && !managerData) {
               try {
-                const staffResponse = await axiosAPI.get(`/store-employees/store/${store.id}`);
-                const staffData = staffResponse.data?.data || staffResponse.data || {};
+                const staffResponse = await axiosAPI.get(
+                  `/store-employees/store/${store.id}`,
+                );
+                const staffData =
+                  staffResponse.data?.data || staffResponse.data || {};
                 if (staffData.manager || staffData.staffManager) {
                   managerData = staffData.manager || staffData.staffManager;
                 }
               } catch (staffError) {
-                console.log(`Could not fetch staff for store ${store.id}:`, staffError);
+                console.log(
+                  `Could not fetch staff for store ${store.id}:`,
+                  staffError,
+                );
               }
             }
-            
+
             // Merge the detail data with the original store data
             return {
               ...store,
@@ -1163,28 +1359,34 @@ function DivisionManager() {
               employees: detailData.employees || store.employees || [],
               employeeIds: detailData.employeeIds || store.employeeIds || [],
               division: detailData.division || store.division,
-              zone: detailData.zone || store.zone
+              zone: detailData.zone || store.zone,
             };
           } catch (error) {
-            console.error(`Error fetching details for store ${store.id}:`, error);
+            console.error(
+              `Error fetching details for store ${store.id}:`,
+              error,
+            );
             return store;
           }
-        })
+        }),
       );
-      
-      const pagination = responseData.pagination || { 
-        page, 
-        limit, 
-        total: storesWithDetails.length, 
-        totalPages: 1 
+
+      const pagination = responseData.pagination || {
+        page,
+        limit,
+        total: storesWithDetails.length,
+        totalPages: 1,
       };
-      
+
       console.log("Stores with details:", storesWithDetails);
       setStores(storesWithDetails);
       setStoresPagination(pagination);
     } catch (error) {
       console.error("Error fetching stores:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to fetch stores";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch stores";
       setError(errorMessage);
       setIsModalOpen(true);
       setStores([]);
@@ -1195,7 +1397,7 @@ function DivisionManager() {
 
   const handleCreateStore = async (e) => {
     e.preventDefault();
-    
+
     if (!newStore.name || !newStore.divisionId || !newStore.zoneId) {
       setError("Please fill in store name, division, and zone");
       setIsModalOpen(true);
@@ -1205,16 +1407,20 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Creating store:", newStore);
-      
+
       // Validate agreement document size before proceeding
       if (newStore.rentAgreementDocumentBase64) {
-        const formattedBase64 = formatBase64DataURL(newStore.rentAgreementDocumentBase64);
+        const formattedBase64 = formatBase64DataURL(
+          newStore.rentAgreementDocumentBase64,
+        );
         if (!formattedBase64) {
-          const base64Part = newStore.rentAgreementDocumentBase64.includes(',') 
-            ? newStore.rentAgreementDocumentBase64.split(',')[1] 
+          const base64Part = newStore.rentAgreementDocumentBase64.includes(",")
+            ? newStore.rentAgreementDocumentBase64.split(",")[1]
             : newStore.rentAgreementDocumentBase64;
           const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
-          setError(`Agreement document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`);
+          setError(
+            `Agreement document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`,
+          );
           setIsModalOpen(true);
           setCreating(false);
           return;
@@ -1233,82 +1439,147 @@ function DivisionManager() {
         street1: newStore.street1 || "",
         street2: newStore.street2 || "",
         area: newStore.area || "",
-        ...(newStore.latitude && parseFloat(newStore.latitude) && { latitude: parseFloat(newStore.latitude) }),
-        ...(newStore.longitude && parseFloat(newStore.longitude) && { longitude: parseFloat(newStore.longitude) }),
-        ...(newStore.storeManagerId && { storeManagerId: parseInt(newStore.storeManagerId) }),
-        ...(newStore.employeeIds && newStore.employeeIds.length > 0 && { 
-          employeeIds: newStore.employeeIds.map(id => parseInt(id)) 
+        ...(newStore.latitude &&
+          parseFloat(newStore.latitude) && {
+            latitude: parseFloat(newStore.latitude),
+          }),
+        ...(newStore.longitude &&
+          parseFloat(newStore.longitude) && {
+            longitude: parseFloat(newStore.longitude),
+          }),
+        ...(newStore.storeManagerId && {
+          storeManagerId: parseInt(newStore.storeManagerId),
         }),
+        ...(newStore.employeeIds &&
+          newStore.employeeIds.length > 0 && {
+            employeeIds: newStore.employeeIds.map((id) => parseInt(id)),
+          }),
         // Agreement fields
-        ...(newStore.landOwnerName && { landOwnerName: newStore.landOwnerName.trim() }),
-        ...(newStore.agreementTimePeriod && { agreementTimePeriod: newStore.agreementTimePeriod.trim() }),
-        ...(newStore.rentAgreementStartDate && { rentAgreementStartDate: newStore.rentAgreementStartDate }),
-        ...(newStore.rentAgreementEndDate && { rentAgreementEndDate: newStore.rentAgreementEndDate }),
-        ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
-          advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
+        ...(newStore.landOwnerName && {
+          landOwnerName: newStore.landOwnerName.trim(),
         }),
-        ...(newStore.monthlyRent && parseFloat(newStore.monthlyRent) > 0 && { 
-          monthlyRent: parseFloat(newStore.monthlyRent) 
+        ...(newStore.agreementTimePeriod && {
+          agreementTimePeriod: newStore.agreementTimePeriod.trim(),
         }),
-        ...(newStore.rentAgreementDocumentBase64 && { 
-          rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
+        ...(newStore.rentAgreementStartDate && {
+          rentAgreementStartDate: newStore.rentAgreementStartDate,
+        }),
+        ...(newStore.rentAgreementEndDate && {
+          rentAgreementEndDate: newStore.rentAgreementEndDate,
+        }),
+        ...(newStore.advancePayOfRent &&
+          parseFloat(newStore.advancePayOfRent) > 0 && {
+            advancePayOfRent: parseFloat(newStore.advancePayOfRent),
+          }),
+        ...(newStore.monthlyRent &&
+          parseFloat(newStore.monthlyRent) > 0 && {
+            monthlyRent: parseFloat(newStore.monthlyRent),
+          }),
+        ...(newStore.rentAgreementDocumentBase64 && {
+          rentAgreementDocumentBase64: formatBase64DataURL(
+            newStore.rentAgreementDocumentBase64,
+          ),
         }),
         // Power bill fields
-        ...(newStore.powerBillNumber && { powerBillNumber: newStore.powerBillNumber.trim() }),
-        ...(newStore.electricityDistributor && { electricityDistributor: newStore.electricityDistributor.trim() }),
+        ...(newStore.powerBillNumber && {
+          powerBillNumber: newStore.powerBillNumber.trim(),
+        }),
+        ...(newStore.electricityDistributor && {
+          electricityDistributor: newStore.electricityDistributor.trim(),
+        }),
         // Owner details
-        ...(newStore.ownerAadharNumber && { ownerAadharNumber: newStore.ownerAadharNumber.trim() }),
-        ...(newStore.ownerMobileNumber && { ownerMobileNumber: newStore.ownerMobileNumber.trim() }),
-        ...(newStore.beneficiaryName && { beneficiaryName: newStore.beneficiaryName.trim() }),
+        ...(newStore.ownerAadharNumber && {
+          ownerAadharNumber: newStore.ownerAadharNumber.trim(),
+        }),
+        ...(newStore.ownerMobileNumber && {
+          ownerMobileNumber: newStore.ownerMobileNumber.trim(),
+        }),
+        ...(newStore.beneficiaryName && {
+          beneficiaryName: newStore.beneficiaryName.trim(),
+        }),
         ...(newStore.bankName && { bankName: newStore.bankName.trim() }),
-        ...(newStore.ifscCode && { ifscCode: newStore.ifscCode.trim().toUpperCase() }),
-        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() }),
-        "storeCodeNumber": newStore.storeCodeNumber || undefined,
-        "villages": newStore.villages ? newStore.villages.split(',').map(v => v.trim()).filter(v => v !== "") : undefined
+        ...(newStore.ifscCode && {
+          ifscCode: newStore.ifscCode.trim().toUpperCase(),
+        }),
+        ...(newStore.accountNumber && {
+          accountNumber: newStore.accountNumber.trim(),
+        }),
+        storeCodeNumber: newStore.storeCodeNumber || undefined,
+        villages: newStore.villages
+          ? newStore.villages
+              .split(",")
+              .map((v) => v.trim())
+              .filter((v) => v !== "")
+          : undefined,
       };
-      
+
       const response = await axiosAPI.post("/stores", storeData);
       console.log("Create store response:", response);
-      
-      if (response.status === 201 || response.status === 200 || response.data?.success || response.data?.data || response.data?.id) {
+
+      if (
+        response.status === 201 ||
+        response.status === 200 ||
+        response.data?.success ||
+        response.data?.data ||
+        response.data?.id
+      ) {
         // Get the created store ID
-        const createdStoreId = response.data?.data?.id || response.data?.id || response.data?.data?.store?.id;
-        
+        const createdStoreId =
+          response.data?.data?.id ||
+          response.data?.id ||
+          response.data?.data?.store?.id;
+
         // Note: Staff assignment is now handled by the backend via storeManagerId and employeeIds
         // No need for separate assignment call
 
         // Small delay to ensure backend has processed the assignment
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Fetch full store details AFTER assignment to get updated manager and employees
         if (createdStoreId) {
           try {
-            const detailResponse = await axiosAPI.get(`/stores/${createdStoreId}`);
-            let fullStoreData = detailResponse.data?.data || detailResponse.data;
-            console.log("Fetched store details after assignment:", fullStoreData);
-            
+            const detailResponse = await axiosAPI.get(
+              `/stores/${createdStoreId}`,
+            );
+            let fullStoreData =
+              detailResponse.data?.data || detailResponse.data;
+            console.log(
+              "Fetched store details after assignment:",
+              fullStoreData,
+            );
+
             // If we have staffManagerId but no manager object, fetch from store-employees endpoint
-            if (fullStoreData?.staffManagerId && !fullStoreData?.staffManager && !fullStoreData?.manager) {
+            if (
+              fullStoreData?.staffManagerId &&
+              !fullStoreData?.staffManager &&
+              !fullStoreData?.manager
+            ) {
               try {
-                const staffResponse = await axiosAPI.get(`/store-employees/store/${createdStoreId}`);
-                const staffData = staffResponse.data?.data || staffResponse.data || {};
+                const staffResponse = await axiosAPI.get(
+                  `/store-employees/store/${createdStoreId}`,
+                );
+                const staffData =
+                  staffResponse.data?.data || staffResponse.data || {};
                 console.log("Fetched store staff data:", staffData);
                 if (staffData.manager || staffData.staffManager) {
                   fullStoreData = {
                     ...fullStoreData,
                     staffManager: staffData.manager || staffData.staffManager,
-                    employees: staffData.employees || fullStoreData.employees || []
+                    employees:
+                      staffData.employees || fullStoreData.employees || [],
                   };
                 }
               } catch (staffError) {
                 console.error("Error fetching store staff:", staffError);
               }
             }
-            
+
             // Update the store in the list with full details including manager/employees
             if (fullStoreData) {
-              setStores(prevStores => {
-                const existingIndex = prevStores.findIndex(s => s.id === createdStoreId);
+              setStores((prevStores) => {
+                const existingIndex = prevStores.findIndex(
+                  (s) => s.id === createdStoreId,
+                );
                 if (existingIndex >= 0) {
                   // Update existing store
                   const updated = [...prevStores];
@@ -1326,7 +1597,7 @@ function DivisionManager() {
         }
 
         // Reset form
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
         setNewStore({
           name: "",
           street1: "",
@@ -1338,7 +1609,12 @@ function DivisionManager() {
           pincode: "",
           latitude: "",
           longitude: "",
-          divisionId: currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' ? currentDivisionId : "",
+          divisionId:
+            currentDivisionId &&
+            currentDivisionId !== "1" &&
+            currentDivisionId !== "all"
+              ? currentDivisionId
+              : "",
           zoneId: "",
           storeType: "own",
           storeManagerId: "",
@@ -1364,20 +1640,23 @@ function DivisionManager() {
           villages: "",
           // UI state
           agreementImage: null,
-          agreementImagePreview: null
+          agreementImagePreview: null,
         });
         setShowStoreForm(false);
         setEditingStore(null);
 
         setError("Store created successfully!");
         setIsModalOpen(true);
-        
+
         // Force a full refresh of the stores list to ensure all data is up to date
         await fetchStores(1, storesPagination.limit);
       }
     } catch (error) {
       console.error("Error creating store:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to create store";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to create store";
       setError(errorMessage);
       setIsModalOpen(true);
     } finally {
@@ -1387,7 +1666,7 @@ function DivisionManager() {
 
   const handleUpdateStore = async (e) => {
     e.preventDefault();
-    
+
     if (!newStore.name || !newStore.divisionId || !newStore.zoneId) {
       setError("Please fill in store name, division, and zone");
       setIsModalOpen(true);
@@ -1397,16 +1676,20 @@ function DivisionManager() {
     try {
       setCreating(true);
       console.log("Updating store:", editingStore.id, newStore);
-      
+
       // Validate agreement document size before proceeding
       if (newStore.rentAgreementDocumentBase64) {
-        const formattedBase64 = formatBase64DataURL(newStore.rentAgreementDocumentBase64);
+        const formattedBase64 = formatBase64DataURL(
+          newStore.rentAgreementDocumentBase64,
+        );
         if (!formattedBase64) {
-          const base64Part = newStore.rentAgreementDocumentBase64.includes(',') 
-            ? newStore.rentAgreementDocumentBase64.split(',')[1] 
+          const base64Part = newStore.rentAgreementDocumentBase64.includes(",")
+            ? newStore.rentAgreementDocumentBase64.split(",")[1]
             : newStore.rentAgreementDocumentBase64;
           const base64SizeMB = (base64Part.length * 3) / 4 / 1024 / 1024;
-          setError(`Agreement document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`);
+          setError(
+            `Agreement document is too large (${base64SizeMB.toFixed(2)}MB). Please use a smaller file (max 1.5MB) or remove the document.`,
+          );
           setIsModalOpen(true);
           setCreating(false);
           return;
@@ -1425,79 +1708,137 @@ function DivisionManager() {
         street1: newStore.street1 || "",
         street2: newStore.street2 || "",
         area: newStore.area || "",
-        ...(newStore.latitude && parseFloat(newStore.latitude) && { latitude: parseFloat(newStore.latitude) }),
-        ...(newStore.longitude && parseFloat(newStore.longitude) && { longitude: parseFloat(newStore.longitude) }),
-        ...(newStore.storeManagerId && { storeManagerId: parseInt(newStore.storeManagerId) }),
-        ...(newStore.employeeIds && newStore.employeeIds.length > 0 && { 
-          employeeIds: newStore.employeeIds.map(id => parseInt(id)) 
+        ...(newStore.latitude &&
+          parseFloat(newStore.latitude) && {
+            latitude: parseFloat(newStore.latitude),
+          }),
+        ...(newStore.longitude &&
+          parseFloat(newStore.longitude) && {
+            longitude: parseFloat(newStore.longitude),
+          }),
+        ...(newStore.storeManagerId && {
+          storeManagerId: parseInt(newStore.storeManagerId),
         }),
+        ...(newStore.employeeIds &&
+          newStore.employeeIds.length > 0 && {
+            employeeIds: newStore.employeeIds.map((id) => parseInt(id)),
+          }),
         // Agreement fields
-        ...(newStore.landOwnerName && { landOwnerName: newStore.landOwnerName.trim() }),
-        ...(newStore.agreementTimePeriod && { agreementTimePeriod: newStore.agreementTimePeriod.trim() }),
-        ...(newStore.rentAgreementStartDate && { rentAgreementStartDate: newStore.rentAgreementStartDate }),
-        ...(newStore.rentAgreementEndDate && { rentAgreementEndDate: newStore.rentAgreementEndDate }),
-        ...(newStore.advancePayOfRent && parseFloat(newStore.advancePayOfRent) > 0 && { 
-          advancePayOfRent: parseFloat(newStore.advancePayOfRent) 
+        ...(newStore.landOwnerName && {
+          landOwnerName: newStore.landOwnerName.trim(),
         }),
-        ...(newStore.monthlyRent && parseFloat(newStore.monthlyRent) > 0 && { 
-          monthlyRent: parseFloat(newStore.monthlyRent) 
+        ...(newStore.agreementTimePeriod && {
+          agreementTimePeriod: newStore.agreementTimePeriod.trim(),
         }),
-        ...(newStore.rentAgreementDocumentBase64 && { 
-          rentAgreementDocumentBase64: formatBase64DataURL(newStore.rentAgreementDocumentBase64) 
+        ...(newStore.rentAgreementStartDate && {
+          rentAgreementStartDate: newStore.rentAgreementStartDate,
+        }),
+        ...(newStore.rentAgreementEndDate && {
+          rentAgreementEndDate: newStore.rentAgreementEndDate,
+        }),
+        ...(newStore.advancePayOfRent &&
+          parseFloat(newStore.advancePayOfRent) > 0 && {
+            advancePayOfRent: parseFloat(newStore.advancePayOfRent),
+          }),
+        ...(newStore.monthlyRent &&
+          parseFloat(newStore.monthlyRent) > 0 && {
+            monthlyRent: parseFloat(newStore.monthlyRent),
+          }),
+        ...(newStore.rentAgreementDocumentBase64 && {
+          rentAgreementDocumentBase64: formatBase64DataURL(
+            newStore.rentAgreementDocumentBase64,
+          ),
         }),
         // Power bill fields
-        ...(newStore.powerBillNumber && { powerBillNumber: newStore.powerBillNumber.trim() }),
-        ...(newStore.electricityDistributor && { electricityDistributor: newStore.electricityDistributor.trim() }),
+        ...(newStore.powerBillNumber && {
+          powerBillNumber: newStore.powerBillNumber.trim(),
+        }),
+        ...(newStore.electricityDistributor && {
+          electricityDistributor: newStore.electricityDistributor.trim(),
+        }),
         // Owner details
-        ...(newStore.ownerAadharNumber && { ownerAadharNumber: newStore.ownerAadharNumber.trim() }),
-        ...(newStore.ownerMobileNumber && { ownerMobileNumber: newStore.ownerMobileNumber.trim() }),
-        ...(newStore.beneficiaryName && { beneficiaryName: newStore.beneficiaryName.trim() }),
+        ...(newStore.ownerAadharNumber && {
+          ownerAadharNumber: newStore.ownerAadharNumber.trim(),
+        }),
+        ...(newStore.ownerMobileNumber && {
+          ownerMobileNumber: newStore.ownerMobileNumber.trim(),
+        }),
+        ...(newStore.beneficiaryName && {
+          beneficiaryName: newStore.beneficiaryName.trim(),
+        }),
         ...(newStore.bankName && { bankName: newStore.bankName.trim() }),
-        ...(newStore.ifscCode && { ifscCode: newStore.ifscCode.trim().toUpperCase() }),
-        ...(newStore.accountNumber && { accountNumber: newStore.accountNumber.trim() }),
-        "storeCodeNumber": newStore.storeCodeNumber || undefined,
-        "villages": newStore.villages ? newStore.villages.split(',').map(v => v.trim()).filter(v => v !== "") : undefined
+        ...(newStore.ifscCode && {
+          ifscCode: newStore.ifscCode.trim().toUpperCase(),
+        }),
+        ...(newStore.accountNumber && {
+          accountNumber: newStore.accountNumber.trim(),
+        }),
+        storeCodeNumber: newStore.storeCodeNumber || undefined,
+        villages: newStore.villages
+          ? newStore.villages
+              .split(",")
+              .map((v) => v.trim())
+              .filter((v) => v !== "")
+          : undefined,
       };
-      
-      const response = await axiosAPI.put(`/stores/${editingStore.id}`, storeData);
+
+      const response = await axiosAPI.put(
+        `/stores/${editingStore.id}`,
+        storeData,
+      );
       console.log("Update store response:", response);
-      
-      if (response.status === 200 || response.data?.success || response.data?.data || response.data?.id) {
+
+      if (
+        response.status === 200 ||
+        response.data?.success ||
+        response.data?.data ||
+        response.data?.id
+      ) {
         // Note: Staff assignment is now handled by the backend via storeManagerId and employeeIds
-        
+
         // Small delay to ensure backend has processed the assignment
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         // Fetch full store details including manager and employees after update
         try {
-          const detailResponse = await axiosAPI.get(`/stores/${editingStore.id}`);
+          const detailResponse = await axiosAPI.get(
+            `/stores/${editingStore.id}`,
+          );
           let fullStoreData = detailResponse.data?.data || detailResponse.data;
           console.log("Fetched store details after update:", fullStoreData);
-          
+
           // If we have staffManagerId but no manager object, fetch from store-employees endpoint
-          if (fullStoreData?.staffManagerId && !fullStoreData?.staffManager && !fullStoreData?.manager) {
+          if (
+            fullStoreData?.staffManagerId &&
+            !fullStoreData?.staffManager &&
+            !fullStoreData?.manager
+          ) {
             try {
-              const staffResponse = await axiosAPI.get(`/store-employees/store/${editingStore.id}`);
-              const staffData = staffResponse.data?.data || staffResponse.data || {};
+              const staffResponse = await axiosAPI.get(
+                `/store-employees/store/${editingStore.id}`,
+              );
+              const staffData =
+                staffResponse.data?.data || staffResponse.data || {};
               console.log("Fetched store staff data after update:", staffData);
               if (staffData.manager || staffData.staffManager) {
                 fullStoreData = {
                   ...fullStoreData,
                   staffManager: staffData.manager || staffData.staffManager,
-                  employees: staffData.employees || fullStoreData.employees || []
+                  employees:
+                    staffData.employees || fullStoreData.employees || [],
                 };
               }
             } catch (staffError) {
               console.error("Error fetching store staff:", staffError);
             }
           }
-          
+
           // Update the store in the list with full details
           if (fullStoreData) {
-            setStores(prevStores => 
-              prevStores.map(store => 
-                store.id === editingStore.id ? fullStoreData : store
-              )
+            setStores((prevStores) =>
+              prevStores.map((store) =>
+                store.id === editingStore.id ? fullStoreData : store,
+              ),
             );
           }
         } catch (error) {
@@ -1505,19 +1846,22 @@ function DivisionManager() {
           // Still refresh the list even if detail fetch fails
           await fetchStores(storesPagination.page, storesPagination.limit);
         }
-        
+
         setShowStoreForm(false);
         setEditingStore(null);
         setError("Store updated successfully!");
         setIsModalOpen(true);
-        
+
         // Force a full refresh of the stores list to ensure all data is up to date
         // This ensures manager/employee data is properly loaded
         await fetchStores(storesPagination.page, storesPagination.limit);
       }
     } catch (error) {
       console.error("Error updating store:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to update store";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to update store";
       setError(errorMessage);
       setIsModalOpen(true);
     } finally {
@@ -1532,14 +1876,21 @@ function DivisionManager() {
 
     try {
       const response = await axiosAPI.delete(`/stores/${storeId}`);
-      if (response.status === 200 || response.data?.success || response.data?.message) {
+      if (
+        response.status === 200 ||
+        response.data?.success ||
+        response.data?.message
+      ) {
         setError("Store deleted successfully!");
         setIsModalOpen(true);
         fetchStores(); // Refresh the list
       }
     } catch (error) {
       console.error("Error deleting store:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to delete store";
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to delete store";
       setError(errorMessage);
       setIsModalOpen(true);
     }
@@ -1574,7 +1925,7 @@ function DivisionManager() {
       } catch (putError) {
         console.log(
           "🔄 PUT to /stores/{id} failed:",
-          putError.response?.status
+          putError.response?.status,
         );
       }
 
@@ -1590,7 +1941,7 @@ function DivisionManager() {
         } catch (patchError) {
           console.log(
             "🔄 PUT to /stores/{id} with status failed:",
-            patchError.response?.status
+            patchError.response?.status,
           );
         }
       }
@@ -1607,7 +1958,7 @@ function DivisionManager() {
         } catch (statusError) {
           console.log(
             "🔄 PUT to /stores/{id}/status failed:",
-            statusError.response?.status
+            statusError.response?.status,
           );
         }
       }
@@ -1617,15 +1968,12 @@ function DivisionManager() {
         try {
           const endpoint = isActive ? "activate" : "deactivate";
           response = await axiosAPI.put(`/stores/${storeId}/${endpoint}`);
-          console.log(
-            `🔄 PUT to /stores/{id}/${endpoint} success:`,
-            response
-          );
+          console.log(`🔄 PUT to /stores/{id}/${endpoint} success:`, response);
           success = true;
         } catch (activateError) {
           console.log(
             "🔄 PUT to /stores/{id}/activate|deactivate failed:",
-            activateError.response?.status
+            activateError.response?.status,
           );
         }
       }
@@ -1637,10 +1985,7 @@ function DivisionManager() {
       console.log("🔄 API response data:", response.data);
 
       // Refresh stores list to show updated status
-      await fetchStores(
-        storesPagination.page,
-        storesPagination.limit
-      );
+      await fetchStores(storesPagination.page, storesPagination.limit);
     } catch (apiError) {
       console.error("🔄 Store status toggle error:", apiError);
       const errorMessage =
@@ -1657,7 +2002,7 @@ function DivisionManager() {
   const handleEditStore = async (store) => {
     ensureStoreDropdowns();
     setEditingStore(store);
-    
+
     let storeDetails = store;
     try {
       const response = await axiosAPI.get(`/stores/${store.id}`);
@@ -1669,8 +2014,10 @@ function DivisionManager() {
       console.error("Error fetching store details:", error);
     }
 
-    const employeeIds = storeDetails.employees 
-      ? storeDetails.employees.map(emp => emp.id || emp.employeeId).filter(Boolean)
+    const employeeIds = storeDetails.employees
+      ? storeDetails.employees
+          .map((emp) => emp.id || emp.employeeId)
+          .filter(Boolean)
       : storeDetails.employeeIds || store.employeeIds || [];
 
     const storeManagerId =
@@ -1683,7 +2030,7 @@ function DivisionManager() {
       store.storeManagerId ||
       store.staffManagerId ||
       "";
-    
+
     setNewStore({
       name: storeDetails.name || store.name || "",
       street1: storeDetails.street1 || store.street1 || "",
@@ -1695,36 +2042,82 @@ function DivisionManager() {
       pincode: storeDetails.pincode || store.pincode || "",
       latitude: storeDetails.latitude || store.latitude || "",
       longitude: storeDetails.longitude || store.longitude || "",
-      divisionId: storeDetails.divisionId || storeDetails.division?.id || store.divisionId || store.division?.id || "",
-      zoneId: storeDetails.zoneId || storeDetails.zone?.id || store.zoneId || store.zone?.id || "",
+      divisionId:
+        storeDetails.divisionId ||
+        storeDetails.division?.id ||
+        store.divisionId ||
+        store.division?.id ||
+        "",
+      zoneId:
+        storeDetails.zoneId ||
+        storeDetails.zone?.id ||
+        store.zoneId ||
+        store.zone?.id ||
+        "",
       storeType: storeDetails.storeType || store.storeType || "own",
       storeManagerId: storeManagerId ? String(storeManagerId) : "",
       employeeIds: Array.isArray(employeeIds) ? employeeIds.map(String) : [],
       // Agreement fields
       landOwnerName: storeDetails.landOwnerName || store.landOwnerName || "",
-      agreementTimePeriod: storeDetails.agreementTimePeriod || store.agreementTimePeriod || "",
-      rentAgreementStartDate: storeDetails.rentAgreementStartDate || storeDetails.rentAgreementDateStart || store.rentAgreementStartDate || store.rentAgreementDateStart || "",
-      rentAgreementEndDate: storeDetails.rentAgreementEndDate || storeDetails.rentAgreementDateEnd || store.rentAgreementEndDate || store.rentAgreementDateEnd || "",
-      advancePayOfRent: storeDetails.advancePayOfRent || store.advancePayOfRent || "",
-      monthlyRent: storeDetails.monthlyRent || storeDetails.monthlyBill || store.monthlyRent || store.monthlyBill || "",
+      agreementTimePeriod:
+        storeDetails.agreementTimePeriod || store.agreementTimePeriod || "",
+      rentAgreementStartDate:
+        storeDetails.rentAgreementStartDate ||
+        storeDetails.rentAgreementDateStart ||
+        store.rentAgreementStartDate ||
+        store.rentAgreementDateStart ||
+        "",
+      rentAgreementEndDate:
+        storeDetails.rentAgreementEndDate ||
+        storeDetails.rentAgreementDateEnd ||
+        store.rentAgreementEndDate ||
+        store.rentAgreementDateEnd ||
+        "",
+      advancePayOfRent:
+        storeDetails.advancePayOfRent || store.advancePayOfRent || "",
+      monthlyRent:
+        storeDetails.monthlyRent ||
+        storeDetails.monthlyBill ||
+        store.monthlyRent ||
+        store.monthlyBill ||
+        "",
       rentAgreementDocumentBase64: null,
       // Power bill fields
-      powerBillNumber: storeDetails.powerBillNumber || store.powerBillNumber || "",
-      electricityDistributor: storeDetails.electricityDistributor || store.electricityDistributor || "",
+      powerBillNumber:
+        storeDetails.powerBillNumber || store.powerBillNumber || "",
+      electricityDistributor:
+        storeDetails.electricityDistributor ||
+        store.electricityDistributor ||
+        "",
       // Owner details
-      ownerAadharNumber: storeDetails.ownerAadharNumber || store.ownerAadharNumber || "",
-      ownerMobileNumber: storeDetails.ownerMobileNumber || store.ownerMobileNumber || "",
-      beneficiaryName: storeDetails.beneficiaryName || store.beneficiaryName || "",
+      ownerAadharNumber:
+        storeDetails.ownerAadharNumber || store.ownerAadharNumber || "",
+      ownerMobileNumber:
+        storeDetails.ownerMobileNumber || store.ownerMobileNumber || "",
+      beneficiaryName:
+        storeDetails.beneficiaryName || store.beneficiaryName || "",
       bankName: storeDetails.bankName || store.bankName || "",
-      ifscCode: storeDetails.ifscCode || storeDetails.ifsc || store.ifscCode || store.ifsc || "",
+      ifscCode:
+        storeDetails.ifscCode ||
+        storeDetails.ifsc ||
+        store.ifscCode ||
+        store.ifsc ||
+        "",
       accountNumber: storeDetails.accountNumber || store.accountNumber || "",
-      storeCodeNumber: storeDetails.storeCodeNumber || store.storeCodeNumber || storeDetails.storeCode || store.storeCode || "",
-      villages: Array.isArray(storeDetails.villages || store.villages) 
-        ? (storeDetails.villages || store.villages).map(v => v.villageName || v).join(', ') 
+      storeCodeNumber:
+        storeDetails.storeCodeNumber ||
+        store.storeCodeNumber ||
+        storeDetails.storeCode ||
+        store.storeCode ||
+        "",
+      villages: Array.isArray(storeDetails.villages || store.villages)
+        ? (storeDetails.villages || store.villages)
+            .map((v) => v.villageName || v)
+            .join(", ")
         : "",
       // UI state
       agreementImage: null,
-      agreementImagePreview: null
+      agreementImagePreview: null,
     });
     setShowStoreForm(true);
   };
@@ -1732,7 +2125,7 @@ function DivisionManager() {
   const handleCancelStoreForm = () => {
     setShowStoreForm(false);
     setEditingStore(null);
-    const currentDivisionId = localStorage.getItem('currentDivisionId');
+    const currentDivisionId = localStorage.getItem("currentDivisionId");
     setNewStore({
       name: "",
       street1: "",
@@ -1744,7 +2137,12 @@ function DivisionManager() {
       pincode: "",
       latitude: "",
       longitude: "",
-      divisionId: currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' ? currentDivisionId : "",
+      divisionId:
+        currentDivisionId &&
+        currentDivisionId !== "1" &&
+        currentDivisionId !== "all"
+          ? currentDivisionId
+          : "",
       zoneId: "",
       storeType: "own",
       storeManagerId: "",
@@ -1771,7 +2169,7 @@ function DivisionManager() {
       monthlyRent: "",
       // UI state
       agreementImage: null,
-      agreementImagePreview: null
+      agreementImagePreview: null,
     });
   };
 
@@ -1783,7 +2181,7 @@ function DivisionManager() {
       }
       return {
         ...prev,
-        employeeIds: [...prev.employeeIds, employeeId]
+        employeeIds: [...prev.employeeIds, employeeId],
       };
     });
   };
@@ -1791,7 +2189,7 @@ function DivisionManager() {
   const handleRemoveEmployee = (employeeId) => {
     setNewStore((prev) => ({
       ...prev,
-      employeeIds: prev.employeeIds.filter(id => id !== employeeId)
+      employeeIds: prev.employeeIds.filter((id) => id !== employeeId),
     }));
   };
 
@@ -1811,18 +2209,32 @@ function DivisionManager() {
           <div className={styles.headerActions}>
             <button
               className="homebtn"
-              onClick={activeTab === "divisions" ? refreshStatistics : activeTab === "zones" ? fetchZones : activeTab === "stores" ? () => fetchStores() : () => selectedZoneForSubZone && fetchSubZones(selectedZoneForSubZone)}
-              disabled={loading || zonesLoading || subZonesLoading || storesLoading}
+              onClick={
+                activeTab === "divisions"
+                  ? refreshStatistics
+                  : activeTab === "zones"
+                    ? fetchZones
+                    : activeTab === "stores"
+                      ? () => fetchStores()
+                      : () =>
+                          selectedZoneForSubZone &&
+                          fetchSubZones(selectedZoneForSubZone)
+              }
+              disabled={
+                loading || zonesLoading || subZonesLoading || storesLoading
+              }
             >
-              {loading || zonesLoading || subZonesLoading || storesLoading ? "Refreshing..." : "Refresh"}
+              {loading || zonesLoading || subZonesLoading || storesLoading
+                ? "Refreshing..."
+                : "Refresh"}
             </button>
             {activeTab === "divisions" && !isDivisionHead(user) && (
-          <button
+              <button
                 className="homebtn"
-            onClick={() => setShowCreateForm(!showCreateForm)}
-          >
-            {showCreateForm ? "Cancel" : "Create New Division"}
-          </button>
+                onClick={() => setShowCreateForm(!showCreateForm)}
+              >
+                {showCreateForm ? "Cancel" : "Create New Division"}
+              </button>
             )}
             {activeTab === "zones" && (
               <button
@@ -1847,12 +2259,17 @@ function DivisionManager() {
                   if (!showStoreForm) {
                     ensureStoreDropdowns();
                     // When opening the form, pre-populate division if in a specific division context
-                    const currentDivisionId = localStorage.getItem('currentDivisionId');
-                    if (currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all') {
-                      setNewStore(prev => ({
+                    const currentDivisionId =
+                      localStorage.getItem("currentDivisionId");
+                    if (
+                      currentDivisionId &&
+                      currentDivisionId !== "1" &&
+                      currentDivisionId !== "all"
+                    ) {
+                      setNewStore((prev) => ({
                         ...prev,
                         divisionId: currentDivisionId,
-                        employeeIds: prev.employeeIds || []
+                        employeeIds: prev.employeeIds || [],
                       }));
                       // Fetch zones for the selected division
                       fetchZones();
@@ -1918,273 +2335,325 @@ function DivisionManager() {
         {/* Divisions Tab Content */}
         {activeTab === "divisions" && (
           <>
-        {showCreateForm && (
-          <div className={styles.createForm}>
-            <h3>Create New Division</h3>
-            <form onSubmit={handleCreateDivision}>
-              
-              {/* Basic Information Section */}
-              <div className={styles.formSection}>
-                <h4 className={styles.sectionTitle}>Basic Information</h4>
-                <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                    <label htmlFor="name">Division Name *</label>
-                <input
-                  type="text"
-                  id="name"
-                  value={newDivision.name}
-                  onChange={(e) =>
-                    setNewDivision({ ...newDivision, name: e.target.value })
-                  }
-                  placeholder="Enter division name"
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                    <label htmlFor="state">State *</label>
-                <input
-                  type="text"
-                  id="state"
-                  value={newDivision.state}
-                  onChange={(e) =>
-                    setNewDivision({ ...newDivision, state: e.target.value })
-                  }
-                      placeholder="Enter state name"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="stateCode">State Code</label>
-                    <input
-                      type="text"
-                      id="stateCode"
-                      value={newDivision.stateCode}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, stateCode: e.target.value })
-                      }
-                      placeholder="e.g., MH, KA, TN"
-                      maxLength="2"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="country">Country</label>
-                    <input
-                      type="text"
-                      id="country"
-                      value="India"
-                      readOnly
-                      className={styles.readOnlyField}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Details Section */}
-              <div className={styles.formSection}>
-                <h4 className={styles.sectionTitle}>Address Details</h4>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="plot">Plot Number *</label>
-                    <input
-                      type="text"
-                      id="plot"
-                      value={newDivision.plot}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, plot: e.target.value })
-                      }
-                      placeholder="Plot No. 123"
-                      required
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="street1">Street 1 *</label>
-                    <input
-                      type="text"
-                      id="street1"
-                      value={newDivision.street1}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, street1: e.target.value })
-                      }
-                      placeholder="Main Street"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="street2">Street 2</label>
-                    <input
-                      type="text"
-                      id="street2"
-                      value={newDivision.street2}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, street2: e.target.value })
-                      }
-                      placeholder="Near Market (optional)"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="areaLocality">Area/Locality *</label>
-                    <input
-                      type="text"
-                      id="areaLocality"
-                      value={newDivision.areaLocality}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, areaLocality: e.target.value })
-                      }
-                      placeholder="Commercial Area"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="cityVillage">City/Village *</label>
-                    <input
-                      type="text"
-                      id="cityVillage"
-                      value={newDivision.cityVillage}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, cityVillage: e.target.value })
-                      }
-                      placeholder="City Name"
-                      required
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="district">District *</label>
-                    <input
-                      type="text"
-                      id="district"
-                      value={newDivision.district}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, district: e.target.value })
-                      }
-                      placeholder="District Name"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="pincode">Pincode *</label>
-                    <input
-                      type="text"
-                      id="pincode"
-                      value={newDivision.pincode}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, pincode: e.target.value })
-                      }
-                      placeholder="560001"
-                      pattern="[0-9]{6}"
-                      maxLength="6"
-                  required
-                />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="countryCode">Country Code</label>
-                    <input
-                      type="text"
-                      id="countryCode"
-                      value="IN"
-                      readOnly
-                      className={styles.readOnlyField}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Company Details Section */}
-              <div className={styles.formSection}>
-                <h4 className={styles.sectionTitle}>Company Details</h4>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="gstinNumber">GSTIN Number</label>
-                    <input
-                      type="text"
-                      id="gstinNumber"
-                      value={newDivision.gstinNumber}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, gstinNumber: e.target.value })
-                      }
-                      placeholder="eg: 29ABCDE1234F1Z5"
-                      pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}"
-                      maxLength="15"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="cinNumber">CIN Number</label>
-                    <input
-                      type="text"
-                      id="cinNumber"
-                      value={newDivision.cinNumber}
-                      onChange={(e) =>
-                        setNewDivision({ ...newDivision, cinNumber: e.target.value })
-                      }
-                      placeholder="eg: U12345KA2020PTC123456"
-                      maxLength="21"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.formActions}>
-                <button
-                  type="submit"
-                  className="homebtn"
-                  disabled={creating}
-                >
-                  {creating ? "Creating..." : "Create Division"}
-                </button>
-                <button
-                  type="button"
-                  className="homebtn"
-                  onClick={() => setShowCreateForm(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className={styles.divisionsList}>
-          <h3>Existing Divisions</h3>
-          {divisions.length === 0 ? (
-            <p className={styles.noDivisions}>No divisions found.</p>
-          ) : (
-            <div className={styles.divisionsGrid}>
-              {divisions.map((division) => (
-                <div key={division.id} className={styles.divisionCard}>
-                  <div className={styles.divisionInfo}>
-                    <h4>{division.name}</h4>
-                    <p>{division.state}</p>
-                    <div className={styles.stats}>
-                      <p><strong>Employees:</strong> {getUserCount(division)}</p>
-                      <p><strong>Customers:</strong> {getCustomerCount(division)}</p>
-                      <p><strong>Products:</strong> {getProductCount(division)}</p>
-                      <p><strong>Warehouses:</strong> {getWarehouseCount(division)}</p>
-                      <p><strong>Sales Orders:</strong> {getSalesOrderCount(division)}</p>
-                      <p><strong>Purchase Orders:</strong> {getPurchaseOrderCount(division)}</p>
+            {showCreateForm && (
+              <div className={styles.createForm}>
+                <h3>Create New Division</h3>
+                <form onSubmit={handleCreateDivision}>
+                  {/* Basic Information Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Basic Information</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="name">Division Name *</label>
+                        <input
+                          type="text"
+                          id="name"
+                          value={newDivision.name}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              name: e.target.value,
+                            })
+                          }
+                          placeholder="Enter division name"
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="state">State *</label>
+                        <input
+                          type="text"
+                          id="state"
+                          value={newDivision.state}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              state: e.target.value,
+                            })
+                          }
+                          placeholder="Enter state name"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="stateCode">State Code</label>
+                        <input
+                          type="text"
+                          id="stateCode"
+                          value={newDivision.stateCode}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              stateCode: e.target.value,
+                            })
+                          }
+                          placeholder="e.g., MH, KA, TN"
+                          maxLength="2"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="country">Country</label>
+                        <input
+                          type="text"
+                          id="country"
+                          value="India"
+                          readOnly
+                          className={styles.readOnlyField}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className={styles.divisionActions}>
-                    {!isDivisionHead(user) && (
-                    <button
-                          className="homebtn"
-                      onClick={() => handleDeleteDivision(division.id)}
-                    >
-                      Delete
-                    </button>
-                    )}
+
+                  {/* Address Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Address Details</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="plot">Plot Number *</label>
+                        <input
+                          type="text"
+                          id="plot"
+                          value={newDivision.plot}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              plot: e.target.value,
+                            })
+                          }
+                          placeholder="Plot No. 123"
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="street1">Street 1 *</label>
+                        <input
+                          type="text"
+                          id="street1"
+                          value={newDivision.street1}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              street1: e.target.value,
+                            })
+                          }
+                          placeholder="Main Street"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="street2">Street 2</label>
+                        <input
+                          type="text"
+                          id="street2"
+                          value={newDivision.street2}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              street2: e.target.value,
+                            })
+                          }
+                          placeholder="Near Market (optional)"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="areaLocality">Area/Locality *</label>
+                        <input
+                          type="text"
+                          id="areaLocality"
+                          value={newDivision.areaLocality}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              areaLocality: e.target.value,
+                            })
+                          }
+                          placeholder="Commercial Area"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="cityVillage">City/Village *</label>
+                        <input
+                          type="text"
+                          id="cityVillage"
+                          value={newDivision.cityVillage}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              cityVillage: e.target.value,
+                            })
+                          }
+                          placeholder="City Name"
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="district">District *</label>
+                        <input
+                          type="text"
+                          id="district"
+                          value={newDivision.district}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              district: e.target.value,
+                            })
+                          }
+                          placeholder="District Name"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="pincode">Pincode *</label>
+                        <input
+                          type="text"
+                          id="pincode"
+                          value={newDivision.pincode}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              pincode: e.target.value,
+                            })
+                          }
+                          placeholder="560001"
+                          pattern="[0-9]{6}"
+                          maxLength="6"
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="countryCode">Country Code</label>
+                        <input
+                          type="text"
+                          id="countryCode"
+                          value="IN"
+                          readOnly
+                          className={styles.readOnlyField}
+                        />
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Company Details Section */}
+                  <div className={styles.formSection}>
+                    <h4 className={styles.sectionTitle}>Company Details</h4>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="gstinNumber">GSTIN Number</label>
+                        <input
+                          type="text"
+                          id="gstinNumber"
+                          value={newDivision.gstinNumber}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              gstinNumber: e.target.value,
+                            })
+                          }
+                          placeholder="eg: 29ABCDE1234F1Z5"
+                          pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}"
+                          maxLength="15"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="cinNumber">CIN Number</label>
+                        <input
+                          type="text"
+                          id="cinNumber"
+                          value={newDivision.cinNumber}
+                          onChange={(e) =>
+                            setNewDivision({
+                              ...newDivision,
+                              cinNumber: e.target.value,
+                            })
+                          }
+                          placeholder="eg: U12345KA2020PTC123456"
+                          maxLength="21"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.formActions}>
+                    <button
+                      type="submit"
+                      className="homebtn"
+                      disabled={creating}
+                    >
+                      {creating ? "Creating..." : "Create Division"}
+                    </button>
+                    <button
+                      type="button"
+                      className="homebtn"
+                      onClick={() => setShowCreateForm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className={styles.divisionsList}>
+              <h3>Existing Divisions</h3>
+              {divisions.length === 0 ? (
+                <p className={styles.noDivisions}>No divisions found.</p>
+              ) : (
+                <div className={styles.divisionsGrid}>
+                  {divisions.map((division) => (
+                    <div key={division.id} className={styles.divisionCard}>
+                      <div className={styles.divisionInfo}>
+                        <h4>{division.name}</h4>
+                        <p>{division.state}</p>
+                        <div className={styles.stats}>
+                          <p>
+                            <strong>Employees:</strong> {getUserCount(division)}
+                          </p>
+                          <p>
+                            <strong>Customers:</strong>{" "}
+                            {getCustomerCount(division)}
+                          </p>
+                          <p>
+                            <strong>Products:</strong>{" "}
+                            {getProductCount(division)}
+                          </p>
+                          <p>
+                            <strong>Warehouses:</strong>{" "}
+                            {getWarehouseCount(division)}
+                          </p>
+                          <p>
+                            <strong>Sales Orders:</strong>{" "}
+                            {getSalesOrderCount(division)}
+                          </p>
+                          <p>
+                            <strong>Purchase Orders:</strong>{" "}
+                            {getPurchaseOrderCount(division)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={styles.divisionActions}>
+                        {!isDivisionHead(user) && (
+                          <button
+                            className="homebtn"
+                            onClick={() => handleDeleteDivision(division.id)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
           </>
         )}
 
@@ -2194,8 +2663,9 @@ function DivisionManager() {
             {showZoneForm && (
               <div className={styles.createForm}>
                 <h3>{editingZone ? "Edit Zone" : "Create New Zone"}</h3>
-                <form onSubmit={editingZone ? handleUpdateZone : handleCreateZone}>
-                  
+                <form
+                  onSubmit={editingZone ? handleUpdateZone : handleCreateZone}
+                >
                   {/* Basic Information Section */}
                   <div className={styles.formSection}>
                     <h4 className={styles.sectionTitle}>Basic Information</h4>
@@ -2206,7 +2676,9 @@ function DivisionManager() {
                           type="text"
                           id="zoneName"
                           value={newZone.name}
-                          onChange={(e) => setNewZone({ ...newZone, name: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, name: e.target.value })
+                          }
                           placeholder="Enter zone name"
                           required
                         />
@@ -2216,12 +2688,19 @@ function DivisionManager() {
                         <select
                           id="zoneDivision"
                           value={newZone.divisionId}
-                          onChange={(e) => setNewZone({ ...newZone, divisionId: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({
+                              ...newZone,
+                              divisionId: e.target.value,
+                            })
+                          }
                           required
                         >
                           <option value="">Select division</option>
-                          {divisions.map(division => (
-                            <option key={division.id} value={division.id}>{division.name}</option>
+                          {divisions.map((division) => (
+                            <option key={division.id} value={division.id}>
+                              {division.name}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -2232,10 +2711,15 @@ function DivisionManager() {
                         <select
                           id="zoneHead"
                           value={newZone.zoneHeadId}
-                          onChange={(e) => setNewZone({ ...newZone, zoneHeadId: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({
+                              ...newZone,
+                              zoneHeadId: e.target.value,
+                            })
+                          }
                         >
                           <option value="">Select head (optional)</option>
-                          {employees.map(employee => (
+                          {employees.map((employee) => (
                             <option key={employee.id} value={employee.id}>
                               {employee.name || employee.employeeName}
                             </option>
@@ -2255,7 +2739,9 @@ function DivisionManager() {
                           type="text"
                           id="zonePlot"
                           value={newZone.plot}
-                          onChange={(e) => setNewZone({ ...newZone, plot: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, plot: e.target.value })
+                          }
                           placeholder="Plot No. 45"
                         />
                       </div>
@@ -2265,7 +2751,9 @@ function DivisionManager() {
                           type="text"
                           id="zoneStreet1"
                           value={newZone.street1}
-                          onChange={(e) => setNewZone({ ...newZone, street1: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, street1: e.target.value })
+                          }
                           placeholder="Zone Main Road"
                         />
                       </div>
@@ -2277,7 +2765,9 @@ function DivisionManager() {
                           type="text"
                           id="zoneStreet2"
                           value={newZone.street2}
-                          onChange={(e) => setNewZone({ ...newZone, street2: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, street2: e.target.value })
+                          }
                           placeholder="Near Zone Center"
                         />
                       </div>
@@ -2287,7 +2777,12 @@ function DivisionManager() {
                           type="text"
                           id="zoneArea"
                           value={newZone.areaLocality}
-                          onChange={(e) => setNewZone({ ...newZone, areaLocality: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({
+                              ...newZone,
+                              areaLocality: e.target.value,
+                            })
+                          }
                           placeholder="Zone Area"
                         />
                       </div>
@@ -2299,7 +2794,12 @@ function DivisionManager() {
                           type="text"
                           id="zoneCity"
                           value={newZone.cityVillage}
-                          onChange={(e) => setNewZone({ ...newZone, cityVillage: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({
+                              ...newZone,
+                              cityVillage: e.target.value,
+                            })
+                          }
                           placeholder="Mumbai"
                         />
                       </div>
@@ -2309,7 +2809,9 @@ function DivisionManager() {
                           type="text"
                           id="zoneDistrict"
                           value={newZone.district}
-                          onChange={(e) => setNewZone({ ...newZone, district: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, district: e.target.value })
+                          }
                           placeholder="Mumbai"
                         />
                       </div>
@@ -2321,7 +2823,9 @@ function DivisionManager() {
                           type="text"
                           id="zonePincode"
                           value={newZone.pincode}
-                          onChange={(e) => setNewZone({ ...newZone, pincode: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, pincode: e.target.value })
+                          }
                           placeholder="400001"
                           maxLength="6"
                         />
@@ -2332,7 +2836,9 @@ function DivisionManager() {
                           type="text"
                           id="zoneState"
                           value={newZone.state}
-                          onChange={(e) => setNewZone({ ...newZone, state: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, state: e.target.value })
+                          }
                           placeholder="Maharashtra"
                         />
                       </div>
@@ -2344,7 +2850,9 @@ function DivisionManager() {
                           type="text"
                           id="zoneCountry"
                           value={newZone.country}
-                          onChange={(e) => setNewZone({ ...newZone, country: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({ ...newZone, country: e.target.value })
+                          }
                           placeholder="India"
                         />
                       </div>
@@ -2354,7 +2862,12 @@ function DivisionManager() {
                           type="text"
                           id="zoneStateCode"
                           value={newZone.stateCode}
-                          onChange={(e) => setNewZone({ ...newZone, stateCode: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({
+                              ...newZone,
+                              stateCode: e.target.value,
+                            })
+                          }
                           placeholder="MH"
                           maxLength="2"
                         />
@@ -2367,7 +2880,12 @@ function DivisionManager() {
                           type="text"
                           id="zoneCountryCode"
                           value={newZone.countryCode}
-                          onChange={(e) => setNewZone({ ...newZone, countryCode: e.target.value })}
+                          onChange={(e) =>
+                            setNewZone({
+                              ...newZone,
+                              countryCode: e.target.value,
+                            })
+                          }
                           placeholder="IN"
                           maxLength="2"
                         />
@@ -2381,7 +2899,11 @@ function DivisionManager() {
                       className="homebtn"
                       disabled={creating}
                     >
-                      {creating ? "Saving..." : (editingZone ? "Update Zone" : "Create Zone")}
+                      {creating
+                        ? "Saving..."
+                        : editingZone
+                          ? "Update Zone"
+                          : "Create Zone"}
                     </button>
                     <button
                       type="button"
@@ -2407,11 +2929,30 @@ function DivisionManager() {
                     <div key={zone.id} className={styles.divisionCard}>
                       <div className={styles.divisionInfo}>
                         <h4>{zone.name}</h4>
-                        <p><strong>Division:</strong> {zone.division?.name || zone.divisionId}</p>
-                        <p><strong>Head:</strong> {zone.zoneHead?.name || zone.zoneHeadId || 'Not assigned'}</p>
-                        <p><strong>City:</strong> {zone.cityVillage || 'Not specified'}</p>
-                        <p><strong>Pincode:</strong> {zone.pincode || 'Not specified'}</p>
-                        {zone.plot && <p><strong>Address:</strong> {zone.plot}, {zone.street1}</p>}
+                        <p>
+                          <strong>Division:</strong>{" "}
+                          {zone.division?.name || zone.divisionId}
+                        </p>
+                        <p>
+                          <strong>Head:</strong>{" "}
+                          {zone.zoneHead?.name ||
+                            zone.zoneHeadId ||
+                            "Not assigned"}
+                        </p>
+                        <p>
+                          <strong>City:</strong>{" "}
+                          {zone.cityVillage || "Not specified"}
+                        </p>
+                        <p>
+                          <strong>Pincode:</strong>{" "}
+                          {zone.pincode || "Not specified"}
+                        </p>
+                        {zone.plot && (
+                          <p>
+                            <strong>Address:</strong> {zone.plot},{" "}
+                            {zone.street1}
+                          </p>
+                        )}
                       </div>
                       <div className={styles.divisionActions}>
                         <button
@@ -2440,9 +2981,14 @@ function DivisionManager() {
           <>
             {showSubZoneForm && (
               <div className={styles.createForm}>
-                <h3>{editingSubZone ? "Edit Sub Zone" : "Create New Sub Zone"}</h3>
-                <form onSubmit={editingSubZone ? handleUpdateSubZone : handleCreateSubZone}>
-                  
+                <h3>
+                  {editingSubZone ? "Edit Sub Zone" : "Create New Sub Zone"}
+                </h3>
+                <form
+                  onSubmit={
+                    editingSubZone ? handleUpdateSubZone : handleCreateSubZone
+                  }
+                >
                   {/* Basic Information Section */}
                   <div className={styles.formSection}>
                     <h4 className={styles.sectionTitle}>Basic Information</h4>
@@ -2453,7 +2999,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneName"
                           value={newSubZone.name}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, name: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              name: e.target.value,
+                            })
+                          }
                           required
                           placeholder="Enter sub zone name"
                         />
@@ -2463,13 +3014,16 @@ function DivisionManager() {
                         <select
                           id="subZoneZone"
                           value={selectedZoneForSubZone}
-                          onChange={(e) => setSelectedZoneForSubZone(e.target.value)}
+                          onChange={(e) =>
+                            setSelectedZoneForSubZone(e.target.value)
+                          }
                           required
                         >
                           <option value="">Select Zone</option>
                           {zones.map((zone) => (
                             <option key={zone.id} value={zone.id}>
-                              {zone.name} ({zone.division?.name || zone.divisionName})
+                              {zone.name} (
+                              {zone.division?.name || zone.divisionName})
                             </option>
                           ))}
                         </select>
@@ -2481,7 +3035,12 @@ function DivisionManager() {
                         <select
                           id="subZoneHead"
                           value={newSubZone.subZoneHeadId}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, subZoneHeadId: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              subZoneHeadId: e.target.value,
+                            })
+                          }
                         >
                           <option value="">Select Sub Zone Head</option>
                           {employees.map((employee) => (
@@ -2504,7 +3063,12 @@ function DivisionManager() {
                           type="text"
                           id="subZonePlot"
                           value={newSubZone.plot}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, plot: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              plot: e.target.value,
+                            })
+                          }
                           placeholder="Enter plot number"
                         />
                       </div>
@@ -2514,7 +3078,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneStreet1"
                           value={newSubZone.street1}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, street1: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              street1: e.target.value,
+                            })
+                          }
                           placeholder="Enter street address"
                         />
                       </div>
@@ -2526,7 +3095,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneStreet2"
                           value={newSubZone.street2}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, street2: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              street2: e.target.value,
+                            })
+                          }
                           placeholder="Enter additional address"
                         />
                       </div>
@@ -2536,7 +3110,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneArea"
                           value={newSubZone.areaLocality}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, areaLocality: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              areaLocality: e.target.value,
+                            })
+                          }
                           placeholder="Enter area or locality"
                         />
                       </div>
@@ -2548,7 +3127,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneCity"
                           value={newSubZone.cityVillage}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, cityVillage: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              cityVillage: e.target.value,
+                            })
+                          }
                           placeholder="Enter city or village"
                         />
                       </div>
@@ -2558,7 +3142,12 @@ function DivisionManager() {
                           type="text"
                           id="subZonePincode"
                           value={newSubZone.pincode}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, pincode: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              pincode: e.target.value,
+                            })
+                          }
                           placeholder="Enter pincode"
                           pattern="[0-9]{6}"
                           title="Pincode must be 6 digits"
@@ -2572,7 +3161,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneDistrict"
                           value={newSubZone.district}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, district: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              district: e.target.value,
+                            })
+                          }
                           placeholder="Enter district"
                         />
                       </div>
@@ -2582,7 +3176,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneState"
                           value={newSubZone.state}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, state: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              state: e.target.value,
+                            })
+                          }
                           placeholder="Enter state"
                         />
                       </div>
@@ -2594,7 +3193,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneCountry"
                           value={newSubZone.country}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, country: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              country: e.target.value,
+                            })
+                          }
                           placeholder="Enter country"
                         />
                       </div>
@@ -2604,7 +3208,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneStateCode"
                           value={newSubZone.stateCode}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, stateCode: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              stateCode: e.target.value,
+                            })
+                          }
                           placeholder="Enter state code"
                         />
                       </div>
@@ -2616,7 +3225,12 @@ function DivisionManager() {
                           type="text"
                           id="subZoneCountryCode"
                           value={newSubZone.countryCode}
-                          onChange={(e) => setNewSubZone({ ...newSubZone, countryCode: e.target.value })}
+                          onChange={(e) =>
+                            setNewSubZone({
+                              ...newSubZone,
+                              countryCode: e.target.value,
+                            })
+                          }
                           placeholder="Enter country code"
                         />
                       </div>
@@ -2629,7 +3243,11 @@ function DivisionManager() {
                       className="homebtn"
                       disabled={creating}
                     >
-                      {creating ? "Saving..." : (editingSubZone ? "Update Sub Zone" : "Create Sub Zone")}
+                      {creating
+                        ? "Saving..."
+                        : editingSubZone
+                          ? "Update Sub Zone"
+                          : "Create Sub Zone"}
                     </button>
                     <button
                       type="button"
@@ -2645,7 +3263,9 @@ function DivisionManager() {
 
             {/* Zone Selector for Sub Zones */}
             <div className={styles.zoneSelector}>
-              <label htmlFor="subZoneZoneSelector">Select Zone to View Sub Zones:</label>
+              <label htmlFor="subZoneZoneSelector">
+                Select Zone to View Sub Zones:
+              </label>
               <select
                 id="subZoneZoneSelector"
                 value={selectedZoneForSubZone}
@@ -2678,7 +3298,10 @@ function DivisionManager() {
                 </div>
               ) : subZones.length === 0 ? (
                 <div className={styles.noData}>
-                  <p>No sub zones found for the selected zone. Create a new sub zone to get started.</p>
+                  <p>
+                    No sub zones found for the selected zone. Create a new sub
+                    zone to get started.
+                  </p>
                 </div>
               ) : (
                 <div className={styles.divisionsGrid}>
@@ -2687,12 +3310,36 @@ function DivisionManager() {
                       <div className={styles.divisionInfo}>
                         <h3>{subZone.name}</h3>
                         <div className={styles.divisionDetails}>
-                          <p><strong>Zone:</strong> {subZone.zone?.name || 'Unknown'}</p>
-                          <p><strong>Division:</strong> {subZone.divisionName || subZone.zone?.division?.name || 'Unknown'}</p>
-                          <p><strong>Head:</strong> {subZone.subZoneHead?.name || subZone.subZoneHeadId || 'Not assigned'}</p>
-                          <p><strong>City:</strong> {subZone.cityVillage || 'Not specified'}</p>
-                          <p><strong>Pincode:</strong> {subZone.pincode || 'Not specified'}</p>
-                          {subZone.plot && <p><strong>Address:</strong> {subZone.plot}, {subZone.street1}</p>}
+                          <p>
+                            <strong>Zone:</strong>{" "}
+                            {subZone.zone?.name || "Unknown"}
+                          </p>
+                          <p>
+                            <strong>Division:</strong>{" "}
+                            {subZone.divisionName ||
+                              subZone.zone?.division?.name ||
+                              "Unknown"}
+                          </p>
+                          <p>
+                            <strong>Head:</strong>{" "}
+                            {subZone.subZoneHead?.name ||
+                              subZone.subZoneHeadId ||
+                              "Not assigned"}
+                          </p>
+                          <p>
+                            <strong>City:</strong>{" "}
+                            {subZone.cityVillage || "Not specified"}
+                          </p>
+                          <p>
+                            <strong>Pincode:</strong>{" "}
+                            {subZone.pincode || "Not specified"}
+                          </p>
+                          {subZone.plot && (
+                            <p>
+                              <strong>Address:</strong> {subZone.plot},{" "}
+                              {subZone.street1}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className={styles.divisionActions}>
@@ -2720,718 +3367,1086 @@ function DivisionManager() {
         {/* Stores Tab Content */}
         {activeTab === "stores" && (
           <>
-            {showStoreForm && (() => {
-              const currentDivisionId = localStorage.getItem('currentDivisionId');
-              const isDivisionLocked = currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all' && !editingStore;
-              
-              return (
-              <div className={styles.createForm}>
-                <h3>{editingStore ? "Edit Store" : "Create New Store"}</h3>
-                <form onSubmit={editingStore ? handleUpdateStore : handleCreateStore}>
-                  
-                  {/* Basic Information Section */}
-                  <div className={styles.formSection}>
-                    <h4 className={styles.sectionTitle}>Basic Information</h4>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeName">Store Name *</label>
-                        <input
-                          type="text"
-                          id="storeName"
-                          value={newStore.name}
-                          onChange={(e) => setNewStore({ ...newStore, name: e.target.value })}
-                          placeholder="Enter store name"
-                          required
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeDivision">Division *</label>
-                        <select
-                          id="storeDivision"
-                          value={newStore.divisionId}
-                          onChange={(e) => {
-                            setNewStore({ ...newStore, divisionId: e.target.value, zoneId: "" });
-                            // Fetch zones for the selected division
-                            if (e.target.value) {
-                              fetchZones();
-                            }
-                          }}
-                          required
-                          disabled={isDivisionLocked}
-                          className={isDivisionLocked ? styles.readOnlyField : ""}
-                        >
-                          <option value="">Select division</option>
-                          {divisions.map(division => (
-                            <option key={division.id} value={division.id}>{division.name}</option>
-                          ))}
-                        </select>
-                        {isDivisionLocked && (
-                          <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                            Division is set based on your current context
-                          </small>
-                        )}
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeZone">Zone *</label>
-                        <select
-                          id="storeZone"
-                          value={newStore.zoneId}
-                          onChange={(e) => setNewStore({ ...newStore, zoneId: e.target.value })}
-                          required
-                          disabled={!newStore.divisionId}
-                        >
-                          <option value="">Select zone</option>
-                          {zones
-                            .filter(zone => {
-                              if (!newStore.divisionId) return false;
-                              return zone.divisionId === parseInt(newStore.divisionId) || 
-                                     zone.division?.id === parseInt(newStore.divisionId);
-                            })
-                            .map(zone => (
-                              <option key={zone.id} value={zone.id}>
-                                {zone.name}
-                              </option>
-                            ))}
-                        </select>
-                        {newStore.divisionId && zones.filter(zone => 
-                          zone.divisionId === parseInt(newStore.divisionId) || 
-                          zone.division?.id === parseInt(newStore.divisionId)
-                        ).length === 0 && (
-                          <small style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                            No zones available for this division. Please create a zone first.
-                          </small>
-                        )}
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeType">Store Type *</label>
-                        <select
-                          id="storeType"
-                          value={newStore.storeType}
-                          onChange={(e) => setNewStore({ ...newStore, storeType: e.target.value })}
-                          required
-                        >
-                          <option value="own">Own</option>
-                          <option value="franchise">Franchise</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeCodeNumber">Store Code Number (max length 3 digit character used for invoice length)</label>
-                        <input
-                          type="text"
-                          id="storeCodeNumber"
-                          value={newStore.storeCodeNumber}
-                          onChange={(e) => setNewStore({ ...newStore, storeCodeNumber: e.target.value.slice(0, 3) })}
-                          placeholder="e.g., ABC"
-                          maxLength="3"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="villages">Villages</label>
-                        <input
-                          type="text"
-                          id="villages"
-                          value={newStore.villages}
-                          onChange={(e) => setNewStore({ ...newStore, villages: e.target.value })}
-                          placeholder="Village1, Village2 (Optional, comma separated)"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeManager">Store Manager</label>
-                        {editingStore && newStore.storeManagerId && (
-                          <small style={{ 
-                            color: '#1976d2', 
-                            fontSize: '12px', 
-                            marginBottom: '4px', 
-                            display: 'block',
-                            fontWeight: '500'
-                          }}>
-                            Current Manager: {storeManagers.find(m => String(m.id) === String(newStore.storeManagerId))?.name || storeManagers.find(m => String(m.id) === String(newStore.storeManagerId))?.fullName || storeManagers.find(m => String(m.id) === String(newStore.storeManagerId))?.employeeName || 'Loading...'}
-                          </small>
-                        )}
-                        <select
-                          id="storeManager"
-                          value={newStore.storeManagerId}
-                          onChange={(e) => setNewStore({ ...newStore, storeManagerId: e.target.value })}
-                          disabled={storeDropdownLoading || !newStore.divisionId}
-                        >
-                          <option value="">
-                            {storeDropdownLoading ? "Loading..." : !newStore.divisionId ? "Select division first" : "Select manager (optional)"}
-                          </option>
-                          {storeManagers.map(manager => (
-                            <option key={manager.id} value={manager.id}>
-                              {manager.name || manager.fullName || manager.employeeName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                        <label htmlFor="storeEmployees">Employees (optional)</label>
-                        {editingStore && newStore.employeeIds.length > 0 && (
-                          <small style={{ 
-                            color: '#1976d2', 
-                            fontSize: '12px', 
-                            marginBottom: '4px', 
-                            display: 'block',
-                            fontWeight: '500'
-                          }}>
-                            Currently assigned employees ({newStore.employeeIds.length}):
-                          </small>
-                        )}
-                        <select
-                          id="storeEmployees"
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              handleAddEmployee(e.target.value);
-                              e.target.value = ""; // Reset select
-                            }
-                          }}
-                          disabled={storeDropdownLoading || !storeEmployees.length}
-                        >
-                          <option value="">
-                            {storeDropdownLoading ? "Loading employees..." : "Select employee to add"}
-                          </option>
-                          {storeEmployees
-                            .filter(employee => !newStore.employeeIds.includes(String(employee.id)))
-                            .map(employee => (
-                              <option key={employee.id} value={employee.id}>
-                                {employee.name || employee.employeeName}
-                              </option>
-                            ))}
-                        </select>
-                        {newStore.employeeIds.length > 0 && (
-                          <div style={{ marginTop: '10px' }}>
-                            <div style={{ 
-                              display: 'flex', 
-                              flexWrap: 'wrap', 
-                              gap: '8px',
-                              marginTop: '8px'
-                            }}>
-                              {newStore.employeeIds.map(empId => {
-                                const employee =
-                                  storeEmployees.find(emp => String(emp.id) === String(empId)) ||
-                                  employees.find(emp => String(emp.id) === String(empId));
-                                return employee ? (
-                                  <span
-                                    key={empId}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      padding: '6px 12px',
-                                      backgroundColor: '#e3f2fd',
-                                      border: '1px solid #90caf9',
-                                      borderRadius: '6px',
-                                      fontSize: '14px',
-                                      color: '#1976d2'
-                                    }}
-                                  >
-                                    {employee.name || employee.employeeName}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveEmployee(empId)}
-                                      style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#1976d2',
-                                        cursor: 'pointer',
-                                        fontSize: '16px',
-                                        fontWeight: 'bold',
-                                        padding: '0 4px',
-                                        lineHeight: '1'
-                                      }}
-                                      title="Remove employee"
-                                    >
-                                      ×
-                                    </button>
-                                  </span>
-                                ) : null;
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+            {showStoreForm &&
+              (() => {
+                const currentDivisionId =
+                  localStorage.getItem("currentDivisionId");
+                const isDivisionLocked =
+                  currentDivisionId &&
+                  currentDivisionId !== "1" &&
+                  currentDivisionId !== "all" &&
+                  !editingStore;
 
-                  {/* Address Details Section */}
-                  <div className={styles.formSection}>
-                    <h4 className={styles.sectionTitle}>Address Details</h4>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeStreet1">Street 1</label>
-                        <input
-                          type="text"
-                          id="storeStreet1"
-                          value={newStore.street1}
-                          onChange={(e) => setNewStore({ ...newStore, street1: e.target.value })}
-                          placeholder="Street 1"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeStreet2">Street 2</label>
-                        <input
-                          type="text"
-                          id="storeStreet2"
-                          value={newStore.street2}
-                          onChange={(e) => setNewStore({ ...newStore, street2: e.target.value })}
-                          placeholder="Street 2"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeArea">Area</label>
-                        <input
-                          type="text"
-                          id="storeArea"
-                          value={newStore.area}
-                          onChange={(e) => setNewStore({ ...newStore, area: e.target.value })}
-                          placeholder="Area"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeDistrict">District</label>
-                        <input
-                          type="text"
-                          id="storeDistrict"
-                          value={newStore.district}
-                          onChange={(e) => setNewStore({ ...newStore, district: e.target.value })}
-                          placeholder="District"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeCity">City</label>
-                        <input
-                          type="text"
-                          id="storeCity"
-                          value={newStore.city}
-                          onChange={(e) => setNewStore({ ...newStore, city: e.target.value })}
-                          placeholder="City"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storePincode">Pincode</label>
-                        <input
-                          type="text"
-                          id="storePincode"
-                          value={newStore.pincode}
-                          onChange={(e) => setNewStore({ ...newStore, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
-                          placeholder="Pincode"
-                          maxLength="6"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeState">State</label>
-                        <input
-                          type="text"
-                          id="storeState"
-                          value={newStore.state}
-                          onChange={(e) => setNewStore({ ...newStore, state: e.target.value })}
-                          placeholder="State"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeLatitude">Latitude (Optional)</label>
-                        <input
-                          type="number"
-                          id="storeLatitude"
-                          step="any"
-                          value={newStore.latitude}
-                          onChange={(e) => setNewStore({ ...newStore, latitude: e.target.value })}
-                          placeholder="e.g., 17.6868"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="storeLongitude">Longitude (Optional)</label>
-                        <input
-                          type="number"
-                          id="storeLongitude"
-                          step="any"
-                          value={newStore.longitude}
-                          onChange={(e) => setNewStore({ ...newStore, longitude: e.target.value })}
-                          placeholder="e.g., 83.2185"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Store Ownership & Agreement Details Section */}
-                  <div className={styles.formSection}>
-                    <h4 className={styles.sectionTitle}>Store Ownership & Agreement Details (Optional)</h4>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="landOwnerName">Land Owner Name</label>
-                        <input
-                          type="text"
-                          id="landOwnerName"
-                          value={newStore.landOwnerName || ""}
-                          onChange={(e) => setNewStore({ ...newStore, landOwnerName: e.target.value })}
-                          placeholder="Enter land owner name"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="agreementTimePeriod">Agreement Time Period</label>
-                        <input
-                          type="text"
-                          id="agreementTimePeriod"
-                          value={newStore.agreementTimePeriod || ""}
-                          onChange={(e) => setNewStore({ ...newStore, agreementTimePeriod: e.target.value })}
-                          placeholder="e.g., 12 months, 2 years"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="rentAgreementStartDate">Rent Agreement Start Date</label>
-                        <input
-                          type="date"
-                          id="rentAgreementStartDate"
-                          value={newStore.rentAgreementStartDate || ""}
-                          onChange={(e) => setNewStore({ ...newStore, rentAgreementStartDate: e.target.value })}
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="rentAgreementEndDate">Rent Agreement End Date</label>
-                        <input
-                          type="date"
-                          id="rentAgreementEndDate"
-                          value={newStore.rentAgreementEndDate || ""}
-                          onChange={(e) => setNewStore({ ...newStore, rentAgreementEndDate: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="advancePayOfRent">Advance Pay of Rent (₹)</label>
-                        <input
-                          type="number"
-                          id="advancePayOfRent"
-                          min="0"
-                          step="0.01"
-                          value={newStore.advancePayOfRent || ""}
-                          onChange={(e) => setNewStore({ ...newStore, advancePayOfRent: e.target.value })}
-                          placeholder="Enter advance rent amount"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="monthlyRent">Monthly Rent (₹)</label>
-                        <input
-                          type="number"
-                          id="monthlyRent"
-                          min="0"
-                          step="0.01"
-                          value={newStore.monthlyRent || ""}
-                          onChange={(e) => setNewStore({ ...newStore, monthlyRent: e.target.value })}
-                          placeholder="Enter monthly rent amount"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Power Bill Details Section */}
-                  <div className={styles.formSection}>
-                    <h4 className={styles.sectionTitle}>Power Bill Details (Optional)</h4>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="powerBillNumber">Power Bill Number</label>
-                        <input
-                          type="text"
-                          id="powerBillNumber"
-                          value={newStore.powerBillNumber || ""}
-                          onChange={(e) => setNewStore({ ...newStore, powerBillNumber: e.target.value })}
-                          placeholder="Enter power bill number"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="electricityDistributor">Electricity Distributor</label>
-                        <select
-                          id="electricityDistributor"
-                          value={newStore.electricityDistributor || ""}
-                          onChange={(e) => setNewStore({ ...newStore, electricityDistributor: e.target.value })}
-                          disabled={storeDropdownLoading}
-                        >
-                          <option value="">
-                            {storeDropdownLoading ? "Loading..." : "Select Electricity Distributor"}
-                          </option>
-                          {electricityDistributors.map((distributor) => (
-                            <option key={distributor.id || distributor} value={distributor.name || distributor}>
-                              {distributor.name || distributor}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Owner Details Section */}
-                  <div className={styles.formSection}>
-                    <h4 className={styles.sectionTitle}>Owner Details (Optional)</h4>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="ownerAadharNumber">Owner Aadhar Number</label>
-                        <input
-                          type="text"
-                          id="ownerAadharNumber"
-                          value={newStore.ownerAadharNumber || ""}
-                          onChange={(e) => setNewStore({ ...newStore, ownerAadharNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 12) })}
-                          placeholder="Enter 12-digit Aadhar number"
-                          maxLength="12"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="ownerMobileNumber">Owner Mobile Number</label>
-                        <input
-                          type="tel"
-                          id="ownerMobileNumber"
-                          value={newStore.ownerMobileNumber || ""}
-                          onChange={(e) => setNewStore({ ...newStore, ownerMobileNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
-                          placeholder="Enter 10-digit mobile number"
-                          maxLength="10"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="beneficiaryName">Beneficiary Name</label>
-                        <input
-                          type="text"
-                          id="beneficiaryName"
-                          value={newStore.beneficiaryName || ""}
-                          onChange={(e) => setNewStore({ ...newStore, beneficiaryName: e.target.value })}
-                          placeholder="Enter beneficiary name"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="bankName">Bank Name</label>
-                        <input
-                          type="text"
-                          id="bankName"
-                          value={newStore.bankName || ""}
-                          onChange={(e) => setNewStore({ ...newStore, bankName: e.target.value })}
-                          placeholder="Enter bank name"
-                        />
-                      </div>
-                    </div>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="ifscCode">IFSC Code</label>
-                        <input
-                          type="text"
-                          id="ifscCode"
-                          value={newStore.ifscCode || ""}
-                          onChange={(e) => setNewStore({ ...newStore, ifscCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11) })}
-                          placeholder="Enter IFSC code"
-                          maxLength="11"
-                          style={{ textTransform: 'uppercase' }}
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="accountNumber">Account Number</label>
-                        <input
-                          type="text"
-                          id="accountNumber"
-                          value={newStore.accountNumber || ""}
-                          onChange={(e) => setNewStore({ ...newStore, accountNumber: e.target.value.replace(/[^0-9]/g, '') })}
-                          placeholder="Enter account number"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Agreement Document Section */}
-                  <div className={styles.formSection}>
-                    <h4 className={styles.sectionTitle}>Agreement Document (Optional)</h4>
-                    <div className={styles.formRow}>
-                      <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                        <label htmlFor="agreementImage">Upload Rent Agreement</label>
-                        <input
-                          type="file"
-                          id="agreementImage"
-                          accept="image/*,application/pdf"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-
-                            // Check file size (max 2MB for images, 3MB for PDFs)
-                            const maxSize = file.type === 'application/pdf' ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
-                            if (file.size > maxSize) {
-                              alert(`File size should be less than ${maxSize / 1024 / 1024}MB`);
-                              e.target.value = ''; // Reset input
-                              return;
-                            }
-
-                            try {
-                              let processedFile = file;
-                              let previewUrl = null;
-
-                              // Compress images before converting to base64
-                              if (file.type.startsWith('image/')) {
-                                // Compress image
-                                const compressedBlob = await compressImage(file, 800, 600, 0.7);
-                                processedFile = new File([compressedBlob], file.name, { type: file.type });
-                                previewUrl = URL.createObjectURL(compressedBlob);
-                                
-                                // Check compressed size
-                                if (compressedBlob.size > 1.5 * 1024 * 1024) {
-                                  alert("Image is still too large after compression. Please use a smaller image.");
-                                  e.target.value = '';
-                                  return;
-                                }
-                              } else if (file.type === 'application/pdf') {
-                                // For PDFs, just check size - no compression
-                                if (file.size > 2 * 1024 * 1024) {
-                                  alert("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
-                                  e.target.value = '';
-                                  return;
-                                }
-                              }
-
-                              // Convert to base64
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                const base64String = reader.result;
+                return (
+                  <div className={styles.createForm}>
+                    <h3>{editingStore ? "Edit Store" : "Create New Store"}</h3>
+                    <form
+                      onSubmit={
+                        editingStore ? handleUpdateStore : handleCreateStore
+                      }
+                    >
+                      {/* Basic Information Section */}
+                      <div className={styles.formSection}>
+                        <h4 className={styles.sectionTitle}>
+                          Basic Information
+                        </h4>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeName">Store Name *</label>
+                            <input
+                              type="text"
+                              id="storeName"
+                              value={newStore.name}
+                              onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  agreementImage: processedFile,
-                                  rentAgreementDocumentBase64: base64String,
-                                  agreementImagePreview: previewUrl
+                                  name: e.target.value,
+                                })
+                              }
+                              placeholder="Enter store name"
+                              required
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeDivision">Division *</label>
+                            <select
+                              id="storeDivision"
+                              value={newStore.divisionId}
+                              onChange={(e) => {
+                                setNewStore({
+                                  ...newStore,
+                                  divisionId: e.target.value,
+                                  zoneId: "",
                                 });
-                              };
-                              reader.onerror = () => {
-                                alert("Error reading file");
-                                e.target.value = '';
-                              };
-                              reader.readAsDataURL(processedFile);
-                            } catch (error) {
-                              console.error("Error processing file:", error);
-                              alert("Error processing file: " + error.message);
-                              e.target.value = '';
-                            }
-                          }}
-                        />
-                        {newStore.agreementImagePreview && (
-                          <div style={{ marginTop: '10px' }}>
-                            <img
-                              src={newStore.agreementImagePreview}
-                              alt="Agreement preview"
-                              style={{
-                                maxWidth: '300px',
-                                maxHeight: '300px',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
-                                padding: '4px'
+                                // Fetch zones for the selected division
+                                if (e.target.value) {
+                                  fetchZones();
+                                }
+                              }}
+                              required
+                              disabled={isDivisionLocked}
+                              className={
+                                isDivisionLocked ? styles.readOnlyField : ""
+                              }
+                            >
+                              <option value="">Select division</option>
+                              {divisions.map((division) => (
+                                <option key={division.id} value={division.id}>
+                                  {division.name}
+                                </option>
+                              ))}
+                            </select>
+                            {isDivisionLocked && (
+                              <small
+                                style={{
+                                  color: "#666",
+                                  fontSize: "12px",
+                                  marginTop: "4px",
+                                  display: "block",
+                                }}
+                              >
+                                Division is set based on your current context
+                              </small>
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeZone">Zone *</label>
+                            <select
+                              id="storeZone"
+                              value={newStore.zoneId}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  zoneId: e.target.value,
+                                })
+                              }
+                              required
+                              disabled={!newStore.divisionId}
+                            >
+                              <option value="">Select zone</option>
+                              {zones
+                                .filter((zone) => {
+                                  if (!newStore.divisionId) return false;
+                                  return (
+                                    zone.divisionId ===
+                                      parseInt(newStore.divisionId) ||
+                                    zone.division?.id ===
+                                      parseInt(newStore.divisionId)
+                                  );
+                                })
+                                .map((zone) => (
+                                  <option key={zone.id} value={zone.id}>
+                                    {zone.name}
+                                  </option>
+                                ))}
+                            </select>
+                            {newStore.divisionId &&
+                              zones.filter(
+                                (zone) =>
+                                  zone.divisionId ===
+                                    parseInt(newStore.divisionId) ||
+                                  zone.division?.id ===
+                                    parseInt(newStore.divisionId),
+                              ).length === 0 && (
+                                <small
+                                  style={{
+                                    color: "#dc3545",
+                                    fontSize: "12px",
+                                    marginTop: "4px",
+                                    display: "block",
+                                  }}
+                                >
+                                  No zones available for this division. Please
+                                  create a zone first.
+                                </small>
+                              )}
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeType">Store Type *</label>
+                            <select
+                              id="storeType"
+                              value={newStore.storeType}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  storeType: e.target.value,
+                                })
+                              }
+                              required
+                            >
+                              <option value="own">Own</option>
+                              <option value="franchise">Franchise</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeCodeNumber">
+                              Store Code Number (max length 3 digit character
+                              used for invoice length)
+                            </label>
+                            <input
+                              type="text"
+                              id="storeCodeNumber"
+                              value={newStore.storeCodeNumber}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  storeCodeNumber: e.target.value.slice(0, 3),
+                                })
+                              }
+                              placeholder="e.g., ABC"
+                              maxLength="3"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="villages">Villages</label>
+                            <input
+                              type="text"
+                              id="villages"
+                              value={newStore.villages}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  villages: e.target.value,
+                                })
+                              }
+                              placeholder="Village1, Village2 (Optional, comma separated)"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeManager">Store Manager</label>
+                            {editingStore && newStore.storeManagerId && (
+                              <small
+                                style={{
+                                  color: "#1976d2",
+                                  fontSize: "12px",
+                                  marginBottom: "4px",
+                                  display: "block",
+                                  fontWeight: "500",
+                                }}
+                              >
+                                Current Manager:{" "}
+                                {storeManagers.find(
+                                  (m) =>
+                                    String(m.id) ===
+                                    String(newStore.storeManagerId),
+                                )?.name ||
+                                  storeManagers.find(
+                                    (m) =>
+                                      String(m.id) ===
+                                      String(newStore.storeManagerId),
+                                  )?.fullName ||
+                                  storeManagers.find(
+                                    (m) =>
+                                      String(m.id) ===
+                                      String(newStore.storeManagerId),
+                                  )?.employeeName ||
+                                  "Loading..."}
+                              </small>
+                            )}
+                            <select
+                              id="storeManager"
+                              value={newStore.storeManagerId}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  storeManagerId: e.target.value,
+                                })
+                              }
+                              disabled={
+                                storeDropdownLoading || !newStore.divisionId
+                              }
+                            >
+                              <option value="">
+                                {storeDropdownLoading
+                                  ? "Loading..."
+                                  : !newStore.divisionId
+                                    ? "Select division first"
+                                    : "Select manager (optional)"}
+                              </option>
+                              {storeManagers.map((manager) => (
+                                <option key={manager.id} value={manager.id}>
+                                  {manager.name ||
+                                    manager.fullName ||
+                                    manager.employeeName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div
+                            className={styles.formGroup}
+                            style={{ gridColumn: "1 / -1" }}
+                          >
+                            <label htmlFor="storeEmployees">
+                              Employees (optional)
+                            </label>
+                            {editingStore &&
+                              newStore.employeeIds.length > 0 && (
+                                <small
+                                  style={{
+                                    color: "#1976d2",
+                                    fontSize: "12px",
+                                    marginBottom: "4px",
+                                    display: "block",
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  Currently assigned employees (
+                                  {newStore.employeeIds.length}):
+                                </small>
+                              )}
+                            <select
+                              id="storeEmployees"
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleAddEmployee(e.target.value);
+                                  e.target.value = ""; // Reset select
+                                }
+                              }}
+                              disabled={
+                                storeDropdownLoading || !storeEmployees.length
+                              }
+                            >
+                              <option value="">
+                                {storeDropdownLoading
+                                  ? "Loading employees..."
+                                  : "Select employee to add"}
+                              </option>
+                              {storeEmployees
+                                .filter(
+                                  (employee) =>
+                                    !newStore.employeeIds.includes(
+                                      String(employee.id),
+                                    ),
+                                )
+                                .map((employee) => (
+                                  <option key={employee.id} value={employee.id}>
+                                    {employee.name || employee.employeeName}
+                                  </option>
+                                ))}
+                            </select>
+                            {newStore.employeeIds.length > 0 && (
+                              <div style={{ marginTop: "10px" }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: "8px",
+                                    marginTop: "8px",
+                                  }}
+                                >
+                                  {newStore.employeeIds.map((empId) => {
+                                    const employee =
+                                      storeEmployees.find(
+                                        (emp) =>
+                                          String(emp.id) === String(empId),
+                                      ) ||
+                                      employees.find(
+                                        (emp) =>
+                                          String(emp.id) === String(empId),
+                                      );
+                                    return employee ? (
+                                      <span
+                                        key={empId}
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "6px",
+                                          padding: "6px 12px",
+                                          backgroundColor: "#e3f2fd",
+                                          border: "1px solid #90caf9",
+                                          borderRadius: "6px",
+                                          fontSize: "14px",
+                                          color: "#1976d2",
+                                        }}
+                                      >
+                                        {employee.name || employee.employeeName}
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleRemoveEmployee(empId)
+                                          }
+                                          style={{
+                                            background: "none",
+                                            border: "none",
+                                            color: "#1976d2",
+                                            cursor: "pointer",
+                                            fontSize: "16px",
+                                            fontWeight: "bold",
+                                            padding: "0 4px",
+                                            lineHeight: "1",
+                                          }}
+                                          title="Remove employee"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Address Details Section */}
+                      <div className={styles.formSection}>
+                        <h4 className={styles.sectionTitle}>Address Details</h4>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeStreet1">Street 1</label>
+                            <input
+                              type="text"
+                              id="storeStreet1"
+                              value={newStore.street1}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  street1: e.target.value,
+                                })
+                              }
+                              placeholder="Street 1"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeStreet2">Street 2</label>
+                            <input
+                              type="text"
+                              id="storeStreet2"
+                              value={newStore.street2}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  street2: e.target.value,
+                                })
+                              }
+                              placeholder="Street 2"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeArea">Area</label>
+                            <input
+                              type="text"
+                              id="storeArea"
+                              value={newStore.area}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  area: e.target.value,
+                                })
+                              }
+                              placeholder="Area"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeDistrict">District</label>
+                            <input
+                              type="text"
+                              id="storeDistrict"
+                              value={newStore.district}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  district: e.target.value,
+                                })
+                              }
+                              placeholder="District"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeCity">City</label>
+                            <input
+                              type="text"
+                              id="storeCity"
+                              value={newStore.city}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  city: e.target.value,
+                                })
+                              }
+                              placeholder="City"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storePincode">Pincode</label>
+                            <input
+                              type="text"
+                              id="storePincode"
+                              value={newStore.pincode}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  pincode: e.target.value
+                                    .replace(/[^0-9]/g, "")
+                                    .slice(0, 6),
+                                })
+                              }
+                              placeholder="Pincode"
+                              maxLength="6"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeState">State</label>
+                            <input
+                              type="text"
+                              id="storeState"
+                              value={newStore.state}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  state: e.target.value,
+                                })
+                              }
+                              placeholder="State"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeLatitude">
+                              Latitude (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              id="storeLatitude"
+                              step="any"
+                              value={newStore.latitude}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  latitude: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., 17.6868"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeLongitude">
+                              Longitude (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              id="storeLongitude"
+                              step="any"
+                              value={newStore.longitude}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  longitude: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., 83.2185"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Store Ownership & Agreement Details Section */}
+                      <div className={styles.formSection}>
+                        <h4 className={styles.sectionTitle}>
+                          Store Ownership & Agreement Details (Optional)
+                        </h4>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="landOwnerName">
+                              Land Owner Name
+                            </label>
+                            <input
+                              type="text"
+                              id="landOwnerName"
+                              value={newStore.landOwnerName || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  landOwnerName: e.target.value,
+                                })
+                              }
+                              placeholder="Enter land owner name"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="agreementTimePeriod">
+                              Agreement Time Period
+                            </label>
+                            <input
+                              type="text"
+                              id="agreementTimePeriod"
+                              value={newStore.agreementTimePeriod || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  agreementTimePeriod: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., 12 months, 2 years"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="rentAgreementStartDate">
+                              Rent Agreement Start Date
+                            </label>
+                            <input
+                              type="date"
+                              id="rentAgreementStartDate"
+                              value={newStore.rentAgreementStartDate || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  rentAgreementStartDate: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="rentAgreementEndDate">
+                              Rent Agreement End Date
+                            </label>
+                            <input
+                              type="date"
+                              id="rentAgreementEndDate"
+                              value={newStore.rentAgreementEndDate || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  rentAgreementEndDate: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="advancePayOfRent">
+                              Advance Pay of Rent (₹)
+                            </label>
+                            <input
+                              type="number"
+                              id="advancePayOfRent"
+                              min="0"
+                              step="0.01"
+                              value={newStore.advancePayOfRent || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  advancePayOfRent: e.target.value,
+                                })
+                              }
+                              placeholder="Enter advance rent amount"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="monthlyRent">
+                              Monthly Rent (₹)
+                            </label>
+                            <input
+                              type="number"
+                              id="monthlyRent"
+                              min="0"
+                              step="0.01"
+                              value={newStore.monthlyRent || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  monthlyRent: e.target.value,
+                                })
+                              }
+                              placeholder="Enter monthly rent amount"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Power Bill Details Section */}
+                      <div className={styles.formSection}>
+                        <h4 className={styles.sectionTitle}>
+                          Power Bill Details (Optional)
+                        </h4>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="powerBillNumber">
+                              Power Bill Number
+                            </label>
+                            <input
+                              type="text"
+                              id="powerBillNumber"
+                              value={newStore.powerBillNumber || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  powerBillNumber: e.target.value,
+                                })
+                              }
+                              placeholder="Enter power bill number"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="electricityDistributor">
+                              Electricity Distributor
+                            </label>
+                            <select
+                              id="electricityDistributor"
+                              value={newStore.electricityDistributor || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  electricityDistributor: e.target.value,
+                                })
+                              }
+                              disabled={storeDropdownLoading}
+                            >
+                              <option value="">
+                                {storeDropdownLoading
+                                  ? "Loading..."
+                                  : "Select Electricity Distributor"}
+                              </option>
+                              {electricityDistributors.map((distributor) => (
+                                <option
+                                  key={distributor.id || distributor}
+                                  value={distributor.name || distributor}
+                                >
+                                  {distributor.name || distributor}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Owner Details Section */}
+                      <div className={styles.formSection}>
+                        <h4 className={styles.sectionTitle}>
+                          Owner Details (Optional)
+                        </h4>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="ownerAadharNumber">
+                              Owner Aadhar Number
+                            </label>
+                            <input
+                              type="text"
+                              id="ownerAadharNumber"
+                              value={newStore.ownerAadharNumber || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  ownerAadharNumber: e.target.value
+                                    .replace(/[^0-9]/g, "")
+                                    .slice(0, 12),
+                                })
+                              }
+                              placeholder="Enter 12-digit Aadhar number"
+                              maxLength="12"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="ownerMobileNumber">
+                              Owner Mobile Number
+                            </label>
+                            <input
+                              type="tel"
+                              id="ownerMobileNumber"
+                              value={newStore.ownerMobileNumber || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  ownerMobileNumber: e.target.value
+                                    .replace(/[^0-9]/g, "")
+                                    .slice(0, 10),
+                                })
+                              }
+                              placeholder="Enter 10-digit mobile number"
+                              maxLength="10"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="beneficiaryName">
+                              Beneficiary Name
+                            </label>
+                            <input
+                              type="text"
+                              id="beneficiaryName"
+                              value={newStore.beneficiaryName || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  beneficiaryName: e.target.value,
+                                })
+                              }
+                              placeholder="Enter beneficiary name"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="bankName">Bank Name</label>
+                            <input
+                              type="text"
+                              id="bankName"
+                              value={newStore.bankName || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  bankName: e.target.value,
+                                })
+                              }
+                              placeholder="Enter bank name"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="ifscCode">IFSC Code</label>
+                            <input
+                              type="text"
+                              id="ifscCode"
+                              value={newStore.ifscCode || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  ifscCode: e.target.value
+                                    .toUpperCase()
+                                    .replace(/[^A-Z0-9]/g, "")
+                                    .slice(0, 11),
+                                })
+                              }
+                              placeholder="Enter IFSC code"
+                              maxLength="11"
+                              style={{ textTransform: "uppercase" }}
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="accountNumber">
+                              Account Number
+                            </label>
+                            <input
+                              type="text"
+                              id="accountNumber"
+                              value={newStore.accountNumber || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  accountNumber: e.target.value.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  ),
+                                })
+                              }
+                              placeholder="Enter account number"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Agreement Document Section */}
+                      <div className={styles.formSection}>
+                        <h4 className={styles.sectionTitle}>
+                          Agreement Document (Optional)
+                        </h4>
+                        <div className={styles.formRow}>
+                          <div
+                            className={styles.formGroup}
+                            style={{ gridColumn: "1 / -1" }}
+                          >
+                            <label htmlFor="agreementImage">
+                              Upload Rent Agreement
+                            </label>
+                            <input
+                              type="file"
+                              id="agreementImage"
+                              accept="image/*,application/pdf"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                // Check file size (max 2MB for images, 3MB for PDFs)
+                                const maxSize =
+                                  file.type === "application/pdf"
+                                    ? 3 * 1024 * 1024
+                                    : 2 * 1024 * 1024;
+                                if (file.size > maxSize) {
+                                  alert(
+                                    `File size should be less than ${maxSize / 1024 / 1024}MB`,
+                                  );
+                                  e.target.value = ""; // Reset input
+                                  return;
+                                }
+
+                                try {
+                                  let processedFile = file;
+                                  let previewUrl = null;
+
+                                  // Compress images before converting to base64
+                                  if (file.type.startsWith("image/")) {
+                                    // Compress image
+                                    const compressedBlob = await compressImage(
+                                      file,
+                                      800,
+                                      600,
+                                      0.7,
+                                    );
+                                    processedFile = new File(
+                                      [compressedBlob],
+                                      file.name,
+                                      { type: file.type },
+                                    );
+                                    previewUrl =
+                                      URL.createObjectURL(compressedBlob);
+
+                                    // Check compressed size
+                                    if (
+                                      compressedBlob.size >
+                                      1.5 * 1024 * 1024
+                                    ) {
+                                      alert(
+                                        "Image is still too large after compression. Please use a smaller image.",
+                                      );
+                                      e.target.value = "";
+                                      return;
+                                    }
+                                  } else if (file.type === "application/pdf") {
+                                    // For PDFs, just check size - no compression
+                                    if (file.size > 2 * 1024 * 1024) {
+                                      alert(
+                                        "PDF size should be less than 2MB. Please compress the PDF or use a smaller file.",
+                                      );
+                                      e.target.value = "";
+                                      return;
+                                    }
+                                  }
+
+                                  // Convert to base64
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const base64String = reader.result;
+                                    setNewStore({
+                                      ...newStore,
+                                      agreementImage: processedFile,
+                                      rentAgreementDocumentBase64: base64String,
+                                      agreementImagePreview: previewUrl,
+                                    });
+                                  };
+                                  reader.onerror = () => {
+                                    alert("Error reading file");
+                                    e.target.value = "";
+                                  };
+                                  reader.readAsDataURL(processedFile);
+                                } catch (error) {
+                                  console.error(
+                                    "Error processing file:",
+                                    error,
+                                  );
+                                  alert(
+                                    "Error processing file: " + error.message,
+                                  );
+                                  e.target.value = "";
+                                }
                               }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNewStore({
-                                  ...newStore,
-                                  agreementImage: null,
-                                  rentAgreementDocumentBase64: null,
-                                  agreementImagePreview: null
-                                });
-                                // Reset file input
-                                const fileInput = document.getElementById('agreementImage');
-                                if (fileInput) fileInput.value = '';
-                              }}
+                            {newStore.agreementImagePreview && (
+                              <div style={{ marginTop: "10px" }}>
+                                <img
+                                  src={newStore.agreementImagePreview}
+                                  alt="Agreement preview"
+                                  style={{
+                                    maxWidth: "300px",
+                                    maxHeight: "300px",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "4px",
+                                    padding: "4px",
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setNewStore({
+                                      ...newStore,
+                                      agreementImage: null,
+                                      rentAgreementDocumentBase64: null,
+                                      agreementImagePreview: null,
+                                    });
+                                    // Reset file input
+                                    const fileInput =
+                                      document.getElementById("agreementImage");
+                                    if (fileInput) fileInput.value = "";
+                                  }}
+                                  style={{
+                                    marginLeft: "10px",
+                                    padding: "4px 12px",
+                                    backgroundColor: "#dc3545",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            )}
+                            {newStore.agreementImage &&
+                              !newStore.agreementImagePreview && (
+                                <div
+                                  style={{
+                                    marginTop: "10px",
+                                    color: "#666",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  <i
+                                    className="bi bi-file-earmark-pdf"
+                                    style={{ marginRight: "6px" }}
+                                  ></i>
+                                  File selected: {newStore.agreementImage.name}{" "}
+                                  (
+                                  {(
+                                    newStore.agreementImage.size / 1024
+                                  ).toFixed(2)}{" "}
+                                  KB)
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setNewStore({
+                                        ...newStore,
+                                        agreementImage: null,
+                                        rentAgreementDocumentBase64: null,
+                                        agreementImagePreview: null,
+                                      });
+                                      // Reset file input
+                                      const fileInput =
+                                        document.getElementById(
+                                          "agreementImage",
+                                        );
+                                      if (fileInput) fileInput.value = "";
+                                    }}
+                                    style={{
+                                      marginLeft: "10px",
+                                      padding: "2px 8px",
+                                      backgroundColor: "#dc3545",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      cursor: "pointer",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              )}
+                            <small
                               style={{
-                                marginLeft: '10px',
-                                padding: '4px 12px',
-                                backgroundColor: '#dc3545',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
+                                display: "block",
+                                marginTop: "4px",
+                                color: "#666",
+                                fontSize: "12px",
                               }}
                             >
-                              Remove
-                            </button>
+                              Upload rent agreement document (Image max 2MB, PDF
+                              max 3MB). Images will be automatically compressed.
+                            </small>
                           </div>
-                        )}
-                        {newStore.agreementImage && !newStore.agreementImagePreview && (
-                          <div style={{ marginTop: '10px', color: '#666', fontSize: '12px' }}>
-                            <i className="bi bi-file-earmark-pdf" style={{ marginRight: '6px' }}></i>
-                            File selected: {newStore.agreementImage.name} ({(newStore.agreementImage.size / 1024).toFixed(2)} KB)
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNewStore({
-                                  ...newStore,
-                                  agreementImage: null,
-                                  rentAgreementDocumentBase64: null,
-                                  agreementImagePreview: null
-                                });
-                                // Reset file input
-                                const fileInput = document.getElementById('agreementImage');
-                                if (fileInput) fileInput.value = '';
-                              }}
-                              style={{
-                                marginLeft: '10px',
-                                padding: '2px 8px',
-                                backgroundColor: '#dc3545',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '12px'
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
-                        <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>
-                          Upload rent agreement document (Image max 2MB, PDF max 3MB). Images will be automatically compressed.
-                        </small>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className={styles.formActions}>
-                    <button
-                      type="submit"
-                      className="homebtn"
-                      disabled={creating}
-                    >
-                      {creating ? "Saving..." : (editingStore ? "Update Store" : "Create Store")}
-                    </button>
-                    <button
-                      type="button"
-                      className="homebtn"
-                      onClick={handleCancelStoreForm}
-                    >
-                      Cancel
-                    </button>
+                      <div className={styles.formActions}>
+                        <button
+                          type="submit"
+                          className="homebtn"
+                          disabled={creating}
+                        >
+                          {creating
+                            ? "Saving..."
+                            : editingStore
+                              ? "Update Store"
+                              : "Create Store"}
+                        </button>
+                        <button
+                          type="button"
+                          className="homebtn"
+                          onClick={handleCancelStoreForm}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </form>
-              </div>
-              );
-            })()}
+                );
+              })()}
 
             <div className={styles.divisionsList}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "20px",
+                }}
+              >
                 <h3 style={{ margin: 0 }}>Existing Stores</h3>
-                <div style={{ display: 'flex', gap: '10px' }}>
+
+                <div style={{ display: "flex", gap: "10px" }}>
                   <button
                     className="homebtn"
                     onClick={() => {
-                      navigate('/stores-products');
+                      navigate("/stores-products");
                     }}
                   >
                     Stores Products
@@ -3439,66 +4454,152 @@ function DivisionManager() {
                   <button
                     className="homebtn"
                     onClick={() => {
-                      navigate('/stores-abstract');
+                      navigate("/stores-abstract");
                     }}
                   >
                     Stores Abstract
                   </button>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Search store by name..."
+                  value={storeSearch}
+                  onChange={(e) => setStoreSearch(e.target.value)}
+                  className={styles.searchInput}
+                />
               </div>
               {storesLoading ? (
                 <p>Loading stores...</p>
-              ) : stores.length === 0 ? (
+              ) : filteredStores.length === 0 ? (
                 <p className={styles.noDivisions}>No stores found.</p>
               ) : (
                 <>
                   <div className={styles.divisionsGrid}>
-                    {stores.map((store) => {
+                    {filteredStores.map((store) => {
                       // Extract manager information - check multiple possible structures
-                      const manager = store.staffManager || store.manager || store.storeManager;
-                      let managerName = 'Not assigned';
+                      const manager =
+                        store.staffManager ||
+                        store.manager ||
+                        store.storeManager;
+                      let managerName = "Not assigned";
                       if (manager) {
-                        managerName = manager.name || manager.employeeName || manager.fullName || 'Unknown';
+                        managerName =
+                          manager.name ||
+                          manager.employeeName ||
+                          manager.fullName ||
+                          "Unknown";
                       } else if (store.staffManagerId) {
                         // If we have manager ID but not the full object, try to find it in storeManagers
-                        const managerObj = storeManagers.find(m => String(m.id) === String(store.staffManagerId));
-                        managerName = managerObj ? (managerObj.name || managerObj.fullName || managerObj.employeeName || 'Unknown') : 'Loading...';
+                        const managerObj = storeManagers.find(
+                          (m) => String(m.id) === String(store.staffManagerId),
+                        );
+                        managerName = managerObj
+                          ? managerObj.name ||
+                            managerObj.fullName ||
+                            managerObj.employeeName ||
+                            "Unknown"
+                          : "Loading...";
                       }
-                      
+
                       // Extract employees information - check multiple possible structures
                       const storeEmployees = store.employees || [];
-                      let employeeNames = 'No employees assigned';
+                      let employeeNames = "No employees assigned";
                       if (storeEmployees.length > 0) {
                         employeeNames = storeEmployees
-                          .map(emp => emp.name || emp.employeeName || emp.fullName || 'Unknown')
-                          .join(', ');
-                      } else if (store.employeeIds && store.employeeIds.length > 0) {
+                          .map(
+                            (emp) =>
+                              emp.name ||
+                              emp.employeeName ||
+                              emp.fullName ||
+                              "Unknown",
+                          )
+                          .join(", ");
+                      } else if (
+                        store.employeeIds &&
+                        store.employeeIds.length > 0
+                      ) {
                         // If we have employee IDs but not the full objects, try to find them
                         const employeeList = store.employeeIds
-                          .map(id => {
-                            const emp = storeEmployees.find(e => String(e.id) === String(id)) ||
-                                      employees.find(e => String(e.id) === String(id));
-                            return emp ? (emp.name || emp.employeeName || emp.fullName || 'Unknown') : null;
+                          .map((id) => {
+                            const emp =
+                              storeEmployees.find(
+                                (e) => String(e.id) === String(id),
+                              ) ||
+                              employees.find(
+                                (e) => String(e.id) === String(id),
+                              );
+                            return emp
+                              ? emp.name ||
+                                  emp.employeeName ||
+                                  emp.fullName ||
+                                  "Unknown"
+                              : null;
                           })
                           .filter(Boolean);
-                        employeeNames = employeeList.length > 0 
-                          ? employeeList.join(', ') 
-                          : `${store.employeeIds.length} employee(s) assigned`;
+                        employeeNames =
+                          employeeList.length > 0
+                            ? employeeList.join(", ")
+                            : `${store.employeeIds.length} employee(s) assigned`;
                       }
-                      
+
                       return (
                         <div key={store.id} className={styles.divisionCard}>
                           <div className={styles.divisionInfo}>
                             <h4>{store.name}</h4>
-                            <p><strong>Store Code:</strong> {store.storeCode || 'N/A'}</p>
-                            <p><strong>Division:</strong> {store.division?.name || store.divisionId || 'Not assigned'}</p>
-                            <p><strong>Zone:</strong> {store.zone?.name || store.zoneId || 'Not assigned'}</p>
-                            <p><strong>Type:</strong> {store.storeType || 'N/A'}</p>
-                            <p><strong>Manager:</strong> <span style={{ color: managerName === 'Not assigned' ? '#999' : '#333' }}>{managerName}</span></p>
-                            <p><strong>Employees:</strong> <span style={{ color: employeeNames === 'No employees assigned' ? '#999' : '#333' }}>{employeeNames}</span></p>
-                            <p><strong>District:</strong> {store.district || 'Not specified'}</p>
-                            <p><strong>State:</strong> {store.state || 'Not specified'}</p>
-                            <div style={{ marginBottom: '0.5rem' }}>
+                            <p>
+                              <strong>Store Code:</strong>{" "}
+                              {store.storeCode || "N/A"}
+                            </p>
+                            <p>
+                              <strong>Division:</strong>{" "}
+                              {store.division?.name ||
+                                store.divisionId ||
+                                "Not assigned"}
+                            </p>
+                            <p>
+                              <strong>Zone:</strong>{" "}
+                              {store.zone?.name ||
+                                store.zoneId ||
+                                "Not assigned"}
+                            </p>
+                            <p>
+                              <strong>Type:</strong> {store.storeType || "N/A"}
+                            </p>
+                            <p>
+                              <strong>Manager:</strong>{" "}
+                              <span
+                                style={{
+                                  color:
+                                    managerName === "Not assigned"
+                                      ? "#999"
+                                      : "#333",
+                                }}
+                              >
+                                {managerName}
+                              </span>
+                            </p>
+                            <p>
+                              <strong>Employees:</strong>{" "}
+                              <span
+                                style={{
+                                  color:
+                                    employeeNames === "No employees assigned"
+                                      ? "#999"
+                                      : "#333",
+                                }}
+                              >
+                                {employeeNames}
+                              </span>
+                            </p>
+                            <p>
+                              <strong>District:</strong>{" "}
+                              {store.district || "Not specified"}
+                            </p>
+                            <p>
+                              <strong>State:</strong>{" "}
+                              {store.state || "Not specified"}
+                            </p>
+                            <div style={{ marginBottom: "0.5rem" }}>
                               <strong>Status:</strong>
                               <div className="form-check form-switch d-inline-block ms-2">
                                 <input
@@ -3506,33 +4607,55 @@ function DivisionManager() {
                                   type="checkbox"
                                   checked={store.isActive === true}
                                   onChange={() => {
-                                    handleStoreStatusToggle(store.id, store.isActive);
+                                    handleStoreStatusToggle(
+                                      store.id,
+                                      store.isActive,
+                                    );
                                   }}
                                   disabled={updatingStoreId === store.id}
                                   style={{
-                                    opacity: updatingStoreId === store.id ? 0.6 : 1,
-                                    cursor: updatingStoreId === store.id ? "not-allowed" : "pointer",
+                                    opacity:
+                                      updatingStoreId === store.id ? 0.6 : 1,
+                                    cursor:
+                                      updatingStoreId === store.id
+                                        ? "not-allowed"
+                                        : "pointer",
                                   }}
                                 />
                                 <label className="form-check-label ms-2">
                                   {updatingStoreId === store.id ? (
                                     <span className="badge bg-secondary">
-                                      <i className="bi bi-arrow-clockwise me-1" style={{ animation: "spin 1s linear infinite" }}></i>
+                                      <i
+                                        className="bi bi-arrow-clockwise me-1"
+                                        style={{
+                                          animation: "spin 1s linear infinite",
+                                        }}
+                                      ></i>
                                       Updating...
                                     </span>
                                   ) : (
-                                    <span className={`badge ${store.isActive ? 'bg-success' : 'bg-secondary'}`}>
-                                      {store.isActive ? 'Active' : 'Inactive'}
+                                    <span
+                                      className={`badge ${store.isActive ? "bg-success" : "bg-secondary"}`}
+                                    >
+                                      {store.isActive ? "Active" : "Inactive"}
                                     </span>
                                   )}
                                 </label>
                               </div>
                             </div>
                             {store.monthlyBill && (
-                              <p><strong>Monthly Bill:</strong> ₹{parseFloat(store.monthlyBill).toLocaleString('en-IN')}</p>
+                              <p>
+                                <strong>Monthly Bill:</strong> ₹
+                                {parseFloat(store.monthlyBill).toLocaleString(
+                                  "en-IN",
+                                )}
+                              </p>
                             )}
                             {store.createdByEmployee && (
-                              <p><strong>Created By:</strong> {store.createdByEmployee.name || 'N/A'}</p>
+                              <p>
+                                <strong>Created By:</strong>{" "}
+                                {store.createdByEmployee.name || "N/A"}
+                              </p>
                             )}
                           </div>
                           <div className={styles.divisionActions}>
@@ -3557,18 +4680,32 @@ function DivisionManager() {
                     <div className={styles.pagination}>
                       <button
                         className="homebtn"
-                        onClick={() => fetchStores(storesPagination.page - 1, storesPagination.limit)}
+                        onClick={() =>
+                          fetchStores(
+                            storesPagination.page - 1,
+                            storesPagination.limit,
+                          )
+                        }
                         disabled={storesPagination.page === 1}
                       >
                         Previous
                       </button>
                       <span>
-                        Page {storesPagination.page} of {storesPagination.totalPages} (Total: {storesPagination.total})
+                        Page {storesPagination.page} of{" "}
+                        {storesPagination.totalPages} (Total:{" "}
+                        {storesPagination.total})
                       </span>
                       <button
                         className="homebtn"
-                        onClick={() => fetchStores(storesPagination.page + 1, storesPagination.limit)}
-                        disabled={storesPagination.page >= storesPagination.totalPages}
+                        onClick={() =>
+                          fetchStores(
+                            storesPagination.page + 1,
+                            storesPagination.limit,
+                          )
+                        }
+                        disabled={
+                          storesPagination.page >= storesPagination.totalPages
+                        }
                       >
                         Next
                       </button>
@@ -3582,14 +4719,10 @@ function DivisionManager() {
       </div>
 
       {isModalOpen && (
-        <ErrorModal
-          isOpen={isModalOpen}
-          message={error}
-          onClose={closeModal}
-        />
+        <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
     </>
   );
 }
 
-export default DivisionManager; 
+export default DivisionManager;

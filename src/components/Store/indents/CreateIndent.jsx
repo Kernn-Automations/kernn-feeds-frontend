@@ -67,7 +67,7 @@ function CreateIndent({ navigate }) {
 
       if (!storeId) {
         throw new Error(
-          "Store information missing. Please re-login to continue."
+          "Store information missing. Please re-login to continue.",
         );
       }
 
@@ -85,7 +85,7 @@ function CreateIndent({ navigate }) {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Error fetching store information"
+          "Error fetching store information",
       );
       setIsModalOpen(true);
     } finally {
@@ -187,7 +187,7 @@ function CreateIndent({ navigate }) {
 
       if (invalidItems.length > 0) {
         throw new Error(
-          "Please ensure all quantities are valid numbers greater than 0"
+          "Please ensure all quantities are valid numbers greater than 0",
         );
       }
 
@@ -215,12 +215,18 @@ function CreateIndent({ navigate }) {
       navigate("/store/indents");
     } catch (err) {
       setError(
-        err.response?.data?.message || err.message || "Indent creation failed"
+        err.response?.data?.message || err.message || "Indent creation failed",
       );
       setIsModalOpen(true);
     } finally {
       setLoading(false);
     }
+  };
+  const getSelectedProductIds = (currentIndex) => {
+    return items
+      .filter((_, idx) => idx !== currentIndex)
+      .map((item) => String(item.productId))
+      .filter(Boolean);
   };
 
   return (
@@ -308,7 +314,7 @@ function CreateIndent({ navigate }) {
                               handleItemChange(
                                 index,
                                 "productId",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             style={{
@@ -320,22 +326,34 @@ function CreateIndent({ navigate }) {
                             required
                           >
                             <option value="">Select Product</option>
-                            {products.map((product) => {
-                              // Get unit from product
-                              const productUnit =
-                                product.unit ||
-                                product.units ||
-                                product.packageWeightUnit ||
-                                product.measurementUnit ||
-                                "units";
-                              return (
-                                <option key={product.id} value={product.id}>
-                                  {product.name}{" "}
-                                  {product.sku ? `(${product.sku})` : ""} -{" "}
-                                  {productUnit}
-                                </option>
-                              );
-                            })}
+                            {products
+                              .filter((product) => {
+                                const selectedProductIds =
+                                  getSelectedProductIds(index);
+                                return (
+                                  !selectedProductIds.includes(
+                                    String(product.id),
+                                  ) ||
+                                  String(product.id) === String(item.productId)
+                                );
+                              })
+                              .map((product) => {
+                                const productUnit =
+                                  product.unit ||
+                                  product.units ||
+                                  product.packageWeightUnit ||
+                                  product.measurementUnit ||
+                                  "units";
+
+                                return (
+                                  <option key={product.id} value={product.id}>
+                                    {product.name}
+                                    {product.sku
+                                      ? ` (${product.sku})`
+                                      : ""} - {productUnit}
+                                  </option>
+                                );
+                              })}
                           </select>
                         </td>
                         <input
@@ -345,7 +363,7 @@ function CreateIndent({ navigate }) {
                             handleItemChange(
                               index,
                               "quantity",
-                              e.target.value.replace(/\D/g, "")
+                              e.target.value.replace(/\D/g, ""),
                             )
                           }
                           onWheel={disableWheel} // 🚫 stop scroll changes

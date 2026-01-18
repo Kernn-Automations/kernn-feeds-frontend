@@ -8,8 +8,28 @@
   position: relative;
 }
 
+.searchInput {
+  width: 100%;
+  padding: 10px 12px;
+  margin: 12px 0 16px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
+.noResults {
+  text-align: center;
+  color: #777;
+  margin-top: 20px;
+}
+
 .container::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -34,7 +54,7 @@
 }
 
 .card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -52,7 +72,7 @@
 }
 
 .logoContainer::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -15px;
   left: 50%;
@@ -63,7 +83,7 @@
 }
 
 .logo {
-  max-width: 370px !important;
+  max-width: 170px !important;
   min-width: 100px !important;
   max-height: 130px;
   margin: 20px 20px 20px 0;
@@ -76,8 +96,8 @@
 }
 
 .companyName {
-  font-family: 'Georgia', serif;
-  font-size: 1.8rem;
+  font-family: "Georgia", serif;
+  font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 25px;
   color: #003176;
@@ -89,7 +109,7 @@
 }
 
 .companyName::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -8px;
   left: 50%;
@@ -102,8 +122,12 @@
 }
 
 @keyframes expandWidth {
-  from { width: 0; }
-  to { width: 60px; }
+  from {
+    width: 0;
+  }
+  to {
+    width: 60px;
+  }
 }
 
 @keyframes slideInUp {
@@ -118,7 +142,7 @@
 }
 
 .welcomeMessage {
-  font-size: 1.6rem;
+  font-size: 1.3rem;
   color: #34495e;
   margin-bottom: 20px;
   text-align: center;
@@ -166,13 +190,18 @@
 }
 
 .storeCard::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.1), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(52, 152, 219, 0.1),
+    transparent
+  );
   transition: left 0.5s ease;
 }
 
@@ -243,8 +272,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading {
@@ -260,8 +293,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 .error {
@@ -280,4 +318,3 @@
   cursor: not-allowed;
   pointer-events: none;
 }
-
