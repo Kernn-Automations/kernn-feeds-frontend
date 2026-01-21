@@ -59,13 +59,27 @@ const StoreSelector = () => {
     }, 200);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, storeType]);
+  }, [user]);
 
-  const filteredStores = stores.filter(
-    (store) =>
-      store.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      store.storeType?.toLowerCase() === storeType.toLowerCase(),
-  );
+  const filteredStores = stores
+    .filter((store) => {
+      const matchesSearch = store.name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      const matchesType =
+        storeType === "all"
+          ? true
+          : store.storeType?.toLowerCase() === storeType.toLowerCase();
+
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) =>
+      a.name?.trim().localeCompare(b.name?.trim(), undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
 
   const loadStoresFromUserData = async () => {
     try {
@@ -128,15 +142,15 @@ const StoreSelector = () => {
           let response;
           // For ABM role, fetch from /auth/available-stores as per requirement
           if (isAreaBusinessManager(user)) {
-             console.log("StoreSelector.jsx - User is ABM, fetching from /auth/available-stores");
-             response = await axiosAPI.get("/auth/available-stores");
+            console.log(
+              "StoreSelector.jsx - User is ABM, fetching from /auth/available-stores",
+            );
+            response = await axiosAPI.get("/auth/available-stores");
           } else {
-             // Use /stores/list endpoint with storeType filter for others
-             response = await axiosAPI.get("/stores/list", {
-               params: { storeType },
-             });
+            // Use /stores/list endpoint with storeType filter for others
+            response = await axiosAPI.get("/stores/list");
           }
-          
+
           const data = response.data;
           console.log("StoreSelector.jsx - API response:", data);
 
@@ -337,6 +351,7 @@ const StoreSelector = () => {
             onChange={(e) => setStoreType(e.target.value)}
             className={styles.filterSelect}
           >
+            <option value="all">All Stores</option>
             <option value="own">Own</option>
             <option value="franchise">Franchise</option>
           </select>
@@ -359,9 +374,26 @@ const StoreSelector = () => {
             >
               <div className={styles.storeInfo}>
                 <span className={styles.storeName}>{store.name}</span>
-                {store.address && (
-                  <span className={styles.storeAddress}>{store.address}</span>
-                )}
+
+                <div className={styles.storeMeta}>
+                  <span className={styles.metaItem}>
+                    <strong>Division:</strong> {store.division?.name || "-"}
+                  </span>
+
+                  <span className={styles.metaItem}>
+                    <strong>Zone:</strong> {store.zone?.name || "-"}
+                  </span>
+
+                  <span
+                    className={`${styles.storeTypeBadge} ${
+                      store.storeType === "own"
+                        ? styles.ownStore
+                        : styles.franchiseStore
+                    }`}
+                  >
+                    {store.storeType?.toUpperCase()}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
