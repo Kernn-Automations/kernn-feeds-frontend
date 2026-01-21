@@ -1842,8 +1842,11 @@ export default function StoreCreateSale() {
           <input
             type="number"
             min="1"
+            step="1"
+            inputMode="numeric"
             value={inputQuantity}
-            onChange={(e) => setInputQuantity(e.target.value)}
+            onChange={(e) => setInputQuantity(e.target.value.replace(/\D/g, ""))}
+            onWheel={(e) => e.target.blur()} 
             placeholder="Enter quantity"
             style={{
               width: "100%",

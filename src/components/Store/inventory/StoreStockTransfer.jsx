@@ -1045,14 +1045,16 @@ function StoreStockTransfer() {
                             <td>
                               <input
                                 type="number"
-                                min="0"
+                                min="1"
                                 max={availableStock}
-                                step="0.01"
+                                step="1"
+                                inputMode="numeric"
+                                onWheel={(e) => e.target.blur()}
                                 value={transferQty}
                                 onChange={(e) =>
                                   handleQuantityChange(
                                     productId,
-                                    e.target.value,
+                                    e.target.value.replace(/\D/g, "")
                                   )
                                 }
                                 style={{

@@ -13,7 +13,13 @@ const createTeam = async (subZoneId, payload) => {
       const msg = data?.message || data?.error || `HTTP ${res.status}`;
       throw new Error(msg);
     }
-    return res.json();
+    try {
+      return await res.json();
+    } catch (err) {
+      // If parsing failed but res.ok is true, it might be an empty body (204) or text.
+      // Return a basic success object.
+      return { success: true, status: res.status };
+    }
   }
   // axios-like: assume already parsed or throw handled upstream
   if (res?.status && res.status >= 400) {
@@ -158,6 +164,18 @@ const listTeams = async (subZoneId) => {
   return res;
 };
 
+// Get Teams (for ABM/Admins) - fetches teams assigned to the user
+const getTeams = async () => {
+  try {
+     // Use the apiService instance directly which handles token
+     const res = await api.get('/teams');
+     return res.json ? res.json() : res;
+  } catch (error) {
+     console.error('Error fetching teams:', error);
+     throw error;
+  }
+};
+
 const assignWarehouse = async (teamId, warehouseId) => {
   const res = await api.put(`/teams/${teamId}/warehouse`, { warehouseId });
   return res.json ? res.json() : res;
@@ -223,6 +241,7 @@ const updateStatus = async (teamId, isActive) => {
 export default {
   createTeam,
   getTeam,
+  getTeams,
   listTeams,
   assignWarehouse,
   manageProducts,

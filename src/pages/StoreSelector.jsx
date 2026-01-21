@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./StoreSelector.module.css";
 import { useAuth } from "../Auth";
 import feedsLogo from "../images/feeds-croped.png";
+import { isAreaBusinessManager } from "../utils/roleUtils";
 
 const StoreSelector = () => {
   const [stores, setStores] = useState([]);
@@ -13,6 +14,7 @@ const StoreSelector = () => {
   const [username, setUsername] = useState("");
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [storeType, setStoreType] = useState("own");
 
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
@@ -57,10 +59,12 @@ const StoreSelector = () => {
     }, 200);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, storeType]);
 
-  const filteredStores = stores.filter((store) =>
-    store.name?.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredStores = stores.filter(
+    (store) =>
+      store.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      store.storeType?.toLowerCase() === storeType.toLowerCase(),
   );
 
   const loadStoresFromUserData = async () => {
@@ -121,7 +125,18 @@ const StoreSelector = () => {
           "StoreSelector.jsx - No stores in user data, fetching from API...",
         );
         try {
-          const response = await axiosAPI.get("/auth/available-stores");
+          let response;
+          // For ABM role, fetch from /auth/available-stores as per requirement
+          if (isAreaBusinessManager(user)) {
+             console.log("StoreSelector.jsx - User is ABM, fetching from /auth/available-stores");
+             response = await axiosAPI.get("/auth/available-stores");
+          } else {
+             // Use /stores/list endpoint with storeType filter for others
+             response = await axiosAPI.get("/stores/list", {
+               params: { storeType },
+             });
+          }
+          
           const data = response.data;
           console.log("StoreSelector.jsx - API response:", data);
 
@@ -309,13 +324,23 @@ const StoreSelector = () => {
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <input
-          type="text"
-          placeholder="Search store by name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className={styles.searchInput}
-        />
+        <div className={styles.filterSearchContainer}>
+          <input
+            type="text"
+            placeholder="Search store by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles.searchInput}
+          />
+          <select
+            value={storeType}
+            onChange={(e) => setStoreType(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="own">Own</option>
+            <option value="franchise">Franchise</option>
+          </select>
+        </div>
 
         <div className={styles.storesList}>
           {filteredStores.length === 0 && (

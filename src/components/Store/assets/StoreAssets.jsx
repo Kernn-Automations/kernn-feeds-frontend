@@ -1021,8 +1021,11 @@ export default function StoreAssets() {
                     <input
                       type="number"
                       min="1"
+                      step="1"
+                      inputMode="numeric"
+                      onWheel={(e) => e.target.blur()}
                       value={createForm.quantity}
-                      onChange={(e) => handleCreateInputChange("quantity", e.target.value)}
+                      onChange={(e) => handleCreateInputChange("quantity", e.target.value.replace(/\D/g, ""))}
                       required
                       style={{
                         width: "100%",
@@ -1489,8 +1492,11 @@ export default function StoreAssets() {
                             <input
                               type="number"
                               min="1"
+                              step="1"
+                              inputMode="numeric"
+                              onWheel={(e) => e.target.blur()}
                               value={updateForm.quantity}
-                              onChange={(e) => handleUpdateInputChange("quantity", e.target.value)}
+                              onChange={(e) => handleUpdateInputChange("quantity", e.target.value.replace(/\D/g, ""))}
                               required
                               style={{
                                 width: "100%",
@@ -1645,9 +1651,12 @@ export default function StoreAssets() {
                             <input
                               type="number"
                               min="1"
+                              step="1"
+                              inputMode="numeric"
+                              onWheel={(e) => e.target.blur()}
                               max={maxReceivable || undefined}
                               value={stockInQty}
-                              onChange={(e) => setStockInQty(e.target.value)}
+                              onChange={(e) => setStockInQty(e.target.value.replace(/\D/g, ""))}
                               required
                             />
                             <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#6b7280" }}>

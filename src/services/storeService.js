@@ -11,6 +11,9 @@ const storeService = {
     if (params.limit) queryParams.append('limit', params.limit);
     if (params.search) queryParams.append('search', params.search);
     if (params.storeType) queryParams.append('storeType', params.storeType);
+    if (params.zoneId) queryParams.append('zoneId', params.zoneId);
+    if (params.subZoneId) queryParams.append('subZoneId', params.subZoneId);
+    if (params.teamId) queryParams.append('teamId', params.teamId);
     const url = `/stores${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const res = await api.request(url, { method: "GET" });
     return res.json();
@@ -585,6 +588,10 @@ const storeService = {
   async getStoreDamagedGoods(storeId, params = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/stores/${storeId}/damaged-goods${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getDamagedProducts(storeId) {
+    const res = await api.request(`/stores/${storeId}/damaged-products`, { method: "GET" });
     return res.json();
   },
   

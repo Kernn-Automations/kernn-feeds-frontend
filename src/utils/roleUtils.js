@@ -40,14 +40,19 @@ export const isStoreManager = (userLike) => {
   return roles.some((r) => {
     const n = normalizeRoleName(r);
     console.log("Checking role:", n);
+    
+    // Explicitly exclude other manager types to prevent false positives
+    if (n.includes("warehouse") || n.includes("zone") || n.includes("regional") || n.includes("area") || n.includes("business")) {
+      return false;
+    }
+
     return (
       n === "staff_manager" ||
       n === "staff manager" ||
       n === "store_manager" ||
       n === "store manager" ||
       n === "manager" ||
-      n.includes("staff") ||
-      n.includes("manager")
+      (n.includes("staff") && n.includes("manager"))
     );
   });
 };
@@ -147,6 +152,16 @@ export const isZBM = (userLike) => {
     const n = normalizeRoleName(r);
     return n === "zbm" || n === "zone business manager" || n === "zone_business_manager" || 
            (n.includes("zone") && n.includes("business") && n.includes("manager"));
+  });
+};
+
+export const isRBM = (userLike) => {
+  const user = userLike || getUserFromStorage();
+  const roles = user?.roles || [];
+  return roles.some((r) => {
+    const n = normalizeRoleName(r);
+    return n === "rbm" || n === "regional business manager" || n === "regional_business_manager" || 
+           (n.includes("regional") && n.includes("business") && n.includes("manager"));
   });
 };
 

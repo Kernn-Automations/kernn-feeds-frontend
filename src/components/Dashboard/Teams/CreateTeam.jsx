@@ -20,7 +20,9 @@ function CreateTeam({ navigate, isAdmin }) {
     teamHeadId: ""
   });
   
-  const [employees, setEmployees] = useState([]);
+  const [teamHeads, setTeamHeads] = useState([]);
+  const [availableMembers, setAvailableMembers] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]); // Keep strictly for looking up details if needed
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [zones, setZones] = useState([]);
@@ -32,17 +34,7 @@ function CreateTeam({ navigate, isAdmin }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   
-  // Utility: check if employee has Business Officer role
-  const hasBusinessOfficerRole = (employee) => {
-    if (!employee || !Array.isArray(employee.roles)) return false;
-    const normalizedRoleNames = employee.roles
-      .map((r) => String(r?.name || '').toLowerCase().trim());
-    return normalizedRoleNames.some((n) => (
-      n === 'business officer' ||
-      n === 'bo' ||
-      (n.includes('business') && n.includes('officer'))
-    ));
-  };
+
 
   // Ensure divisionId is set when a specific division is selected globally
   useEffect(() => {
@@ -146,59 +138,64 @@ function CreateTeam({ navigate, isAdmin }) {
     fetchSubZones();
   }, [formData.zoneId, formData.divisionId]);
 
-  // Fetch employees for team head and members selection
+  // Fetch Team Heads
   useEffect(() => {
-    async function fetchEmployees() {
+    async function fetchTeamHeads() {
       try {
-        setLoading(true);
-        
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        let endpoint = "/employees";
-        if (currentDivisionId && currentDivisionId !== '1') {
-          endpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          endpoint += `?showAllDivisions=true`;
+        let endpoint = "/teams/team-heads";
+        if (formData.divisionId && formData.divisionId !== 'all') {
+          endpoint += `?divisionId=${formData.divisionId}`;
         }
         
         const res = await axiosAPI.get(endpoint);
-        
-        // Handle different response structures
-        let employeeData = [];
-        if (res.data && res.data.success && res.data.data && Array.isArray(res.data.data)) {
-          employeeData = res.data.data;
-        } else if (res.data && res.data.employees && Array.isArray(res.data.employees)) {
-          employeeData = res.data.employees;
-        } else if (res.data && Array.isArray(res.data)) {
-          employeeData = res.data;
-        } else {
-          // Fallback sample data
-          employeeData = [
-            { id: 1, name: "John Doe", roles: [{ name: "Manager" }] },
-            { id: 2, name: "Jane Smith", roles: [{ name: "Sales" }] },
-            { id: 3, name: "Mike Johnson", roles: [{ name: "Support" }] },
-            { id: 4, name: "Sarah Wilson", roles: [{ name: "Marketing" }] },
-            { id: 5, name: "David Brown", roles: [{ name: "Warehouse" }] }
-          ];
-        }
-        
-        setEmployees(employeeData);
+        const heads = 
+          res.data?.data?.teamHeads || 
+          res.data?.teamHeads || 
+          res.data?.data || 
+          [];
+          
+        setTeamHeads(Array.isArray(heads) ? heads : []);
       } catch (err) {
-        console.error("Failed to fetch employees:", err);
-        // Set fallback data
-        setEmployees([
-          { id: 1, name: "John Doe", roles: [{ name: "Manager" }] },
-          { id: 2, name: "Jane Smith", roles: [{ name: "Sales" }] },
-          { id: 3, name: "Mike Johnson", roles: [{ name: "Support" }] },
-          { id: 4, name: "Sarah Wilson", roles: [{ name: "Marketing" }] },
-          { id: 5, name: "David Brown", roles: [{ name: "Warehouse" }] }
-        ]);
-      } finally {
-        setLoading(false);
+        console.error("Failed to fetch team heads:", err);
+        setTeamHeads([]);
       }
     }
     
-    fetchEmployees();
-  }, [axiosAPI]);
+    fetchTeamHeads();
+  }, [formData.divisionId, axiosAPI]);
+
+  // Fetch Available Members (Business Officers)
+  useEffect(() => {
+    async function fetchBusinessOfficers() {
+      if (!formData.divisionId) {
+        setAvailableMembers([]);
+        return;
+      }
+
+      try {
+        let endpoint = `/teams/business-officers?divisionId=${formData.divisionId}`;
+        // Note: passing teamId would be done here if editing: &teamId=${teamId}
+        
+        const res = await axiosAPI.get(endpoint);
+        const members = 
+          res.data?.data?.businessOfficers || 
+          res.data?.businessOfficers || 
+          res.data?.data || 
+          [];
+          
+        setAvailableMembers(Array.isArray(members) ? members : []);
+      } catch (err) {
+        console.error("Failed to fetch business officers:", err);
+        setAvailableMembers([]);
+      }
+    }
+    
+    fetchBusinessOfficers();
+  }, [formData.divisionId, axiosAPI]);
+
+  // Keep a merged list for lookups if needed, or we can just look up in the respective arrays
+  // For simplicity in the UI rendering (selecting members requires knowing their details),
+  // we can treat 'allEmployees' as a helper if we ever need it, but reliance on it is reduced.
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -275,25 +272,20 @@ function CreateTeam({ navigate, isAdmin }) {
       const numericSubZoneId = Number(formData.subZoneId);
 
       // Validate roles: Team Head must be BO and all members must be BO
-      const headEmployee = employees.find((emp) => emp.id === numericHeadId);
-      if (!hasBusinessOfficerRole(headEmployee)) {
-        setError("Team head must have Business Officer role");
-        setIsModalOpen(true);
-        return;
-      }
+      // Validate roles: Team Head (already filtered by backend)
+      /* 
+      const headEmployee = teamHeads.find((emp) => emp.id === numericHeadId);
+      if (!headEmployee) { ... } 
+      */
+      /*
       const invalidMembers = selectedMembers
-        .map((id) => employees.find((e) => e.id === id))
-        .filter((emp) => !hasBusinessOfficerRole(emp));
-      if (invalidMembers.length > 0) {
-        const names = invalidMembers.map((m) => m?.name || 'Unknown').join(', ');
-        setError(`Team member validation failed: Only Business Officer allowed. Invalid: ${names}`);
-        setIsModalOpen(true);
-        return;
-      }
+        .map((id) => availableMembers.find((e) => e.id === id))
+        .filter((emp) => !emp); 
+      */
       
       // Prepare member data with role information
       const memberData = selectedMembers.map(memberId => {
-        const employee = employees.find(emp => emp.id === memberId);
+        const employee = availableMembers.find(emp => emp.id === memberId);
         return {
           id: memberId,
           roleId: employee?.roles?.[0]?.id,
@@ -317,8 +309,8 @@ function CreateTeam({ navigate, isAdmin }) {
       console.log('Create Team Payload:', payload);
       console.log('Selected Members:', selectedMembers);
       console.log('Member Data with Roles:', memberData);
-      console.log('Employees data:', employees);
-      console.log('Selected members details:', selectedMembers.map(id => employees.find(emp => emp.id === id)));
+
+      console.log('Selected members details:', selectedMembers.map(id => availableMembers.find(emp => emp.id === id)));
 
       const res = await teamsService.createTeam(formData.subZoneId, payload);
       
@@ -513,9 +505,7 @@ function CreateTeam({ navigate, isAdmin }) {
                         required
                       >
                         <option value="">Select Team Head</option>
-                        {employees
-                          .filter((emp) => hasBusinessOfficerRole(emp))
-                          .map(emp => (
+                        {teamHeads.map(emp => (
                           <option key={emp.id} value={emp.id}>
                             {emp.name}
                           </option>
@@ -531,7 +521,7 @@ function CreateTeam({ navigate, isAdmin }) {
                       
                       {/* Display selected members */}
                       {selectedMembers.map((memberId, index) => {
-                        const member = employees.find((emp) => emp.id === memberId);
+                        const member = availableMembers.find((emp) => emp.id === memberId);
                         return (
                           <div
                             key={memberId}
@@ -550,7 +540,7 @@ function CreateTeam({ navigate, isAdmin }) {
                       })}
                       
                       {/* Add member dropdown */}
-                      {employees.filter(emp => !selectedMembers.includes(emp.id)).length > 0 && (
+                      {availableMembers.filter(emp => !selectedMembers.includes(emp.id)).length > 0 && (
                         <>
                           <label className="mt-3">Add Team Member:</label>
                           <select 
@@ -559,8 +549,8 @@ function CreateTeam({ navigate, isAdmin }) {
                             defaultValue=""
                           >
                             <option value="null">-- Add Member --</option>
-                            {employees
-                              .filter(emp => hasBusinessOfficerRole(emp) && !selectedMembers.includes(emp.id))
+                            {availableMembers
+                              .filter(emp => !selectedMembers.includes(emp.id))
                               .map((emp) => (
                                 <option key={emp.id} value={emp.id}>
                                   {emp.name} - {emp.roles?.[0]?.name || 'No Role'}

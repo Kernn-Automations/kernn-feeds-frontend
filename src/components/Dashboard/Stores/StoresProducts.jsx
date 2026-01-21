@@ -5,6 +5,9 @@ import { useDivision } from '../../context/DivisionContext';
 import Loading from '@/components/Loading';
 import ErrorModal from '@/components/ErrorModal';
 import storeService from '../../../services/storeService';
+import zonesService from "../../../services/zonesService";
+import subZonesService from "../../../services/subZonesService";
+import { isZBM, isRBM } from "../../../utils/roleUtils";
 import styles from './StoresProducts.module.css';
 
 const StoresProducts = () => {
@@ -221,43 +224,177 @@ const StoresProducts = () => {
       setLoading(true);
       setError(null);
 
-      // Call the backend API endpoint
-      const response = await storeService.getAllStoresWithProducts();
-      
-      // Extract data from response
-      const responseData = response.data || response;
       let rawData = [];
-      
-      // Handle different response structures
-      if (Array.isArray(responseData)) {
-        rawData = responseData;
-      } else if (responseData.products && Array.isArray(responseData.products)) {
-        // If it's a flat list of products, we might need a dummy zone/store to display it
-        // but the component expects Zones -> SubZones -> Stores structure.
-        // Let's check if there's also zone/store info.
-        rawData = responseData.data || responseData.zones || [];
-        
-        if (rawData.length === 0 && responseData.products.length > 0) {
-          console.warn('Backend returned products but no zone/store structure. Creating fallback structure.');
-          // Fallback: Group products into a "Default" store if no structure provided
-          rawData = [{
-            zone: responseData.divisionInfo?.divisionName || "Default Zone",
-            subZones: [{
-              subZone: "Default SubZone",
-              stores: [{
-                storeName: "All Products",
-                storeId: "default",
-                products: responseData.products.map(p => ({
-                  ...p,
-                  sku: p.SKU || p.sku,
-                  productId: p.id
-                }))
-              }]
-            }]
-          }];
-        }
-      } else if (responseData.data) {
-        rawData = Array.isArray(responseData.data) ? responseData.data : [responseData.data];
+      const user = JSON.parse(localStorage.getItem("user")); // Get user securely
+
+      if (isZBM(user)) {
+         try {
+             // 1. Get ZBM Zone
+             let zbmZoneId = null;
+             const currentDivisionId = selectedDivision?.id;
+             if (currentDivisionId) {
+                 const zonesResponse = await zonesService.getZones(
+                    { divisionId: currentDivisionId, isActive: true },
+                    currentDivisionId,
+                    false
+                 );
+                 const zonesList = zonesResponse.data?.zones || zonesResponse.data || [];
+                 const zonesArray = Array.isArray(zonesList) ? zonesList : [];
+                 const zbmZone = zonesArray.find(z => {
+                     const userId = String(user.id || "");
+                     const userEmpId = String(user.employeeId || "");
+                     const zoneHeadId = String(z.zoneHeadId || "");
+                     const headId = String(z.zoneHead?.id || "");
+                     const headEmpId = String(z.zoneHead?.employeeId || "");
+
+                     return (userId && (zoneHeadId === userId || headId === userId)) || 
+                            (userEmpId && (headEmpId === userEmpId || zoneHeadId === userEmpId));
+                 });
+                 if (zbmZone) zbmZoneId = zbmZone.id;
+             }
+
+             if (zbmZoneId) {
+                 // 2. Fetch stores list for this zone
+                 // Using axiosAPI directly as per requirement /stores/list?zoneId=...
+                 const storesRes = await axiosAPI.get(`/stores/list?zoneId=${zbmZoneId}`);
+                 const stores = storesRes.data?.data || storesRes.data || [];
+                 
+                 // 3. Fetch products for each store
+                 const productsPromises = stores.map(store => 
+                    storeService.getStoreProducts(store.id || store.storeId)
+                        .then(res => {
+                             const products = res.data || res.products || res || [];
+                             return { store, products };
+                        })
+                        .catch(e => {
+                            console.error(`Failed to fetch products for store ${store.id}`, e);
+                            return { store, products: [] };
+                        })
+                 );
+                 
+                 const storesWithProducts = await Promise.all(productsPromises);
+
+                 // 4. Construct hierarchy for transformApiDataToFlatStructure
+                 // zones[] -> subZones[] -> stores[] -> products[]
+                 const zoneMap = {};
+
+                 storesWithProducts.forEach(({store, products}) => {
+                     const zName = store.zone?.name || store.zoneName || "Zone";
+                     const szName = store.subZone?.name || store.subZoneName || "SubZone";
+                     
+                     if (!zoneMap[zName]) zoneMap[zName] = { zone: zName, subZones: {} };
+                     if (!zoneMap[zName].subZones[szName]) zoneMap[zName].subZones[szName] = { subZone: szName, stores: [] };
+                     
+                     zoneMap[zName].subZones[szName].stores.push({
+                         storeName: store.name || store.storeName,
+                         storeCode: store.storeCode,
+                         storeId: store.id || store.storeId,
+                         products: products
+                     });
+                 });
+                 
+                 // Convert map to array
+                 rawData = Object.values(zoneMap).map(z => ({ // Zone object
+                     zone: z.zone,
+                     subZones: Object.values(z.subZones) // SubZone array
+                 }));
+             }
+         } catch (zbmError) {
+             console.error("Error in ZBM product fetch:", zbmError);
+             throw zbmError;
+          }
+       } else if (isRBM(user)) {
+          try {
+              // 1. Get RBM SubZone via direct endpoint
+              let rbmSubZoneId = null;
+              
+              const response = await subZonesService.getSubZones();
+              const data = response?.data || response || {};
+              let subZonesList = data.subZones || data.data || data || [];
+              subZonesList = Array.isArray(subZonesList) ? subZonesList : [];
+              
+              if (subZonesList.length > 0) {
+                   rbmSubZoneId = subZonesList[0].id;
+              } else {
+                   console.warn("RBM user but no subZoneId found");
+              }
+              
+              if (rbmSubZoneId) {
+                   // 2. Fetch stores list for this subzone
+                   const storesRes = await axiosAPI.get(`/stores/list?subZoneId=${rbmSubZoneId}`);
+                   const stores = storesRes.data?.data || storesRes.data || [];
+                   
+                   // 3. Fetch products for each store
+                   const productsPromises = stores.map(store => 
+                      storeService.getStoreProducts(store.id || store.storeId)
+                          .then(res => {
+                               const products = res.data || res.products || res || [];
+                               return { store, products };
+                          })
+                          .catch(e => {
+                              console.error(`Failed to fetch products for store ${store.id}`, e);
+                              return { store, products: [] };
+                          })
+                   );
+                   
+                   const storesWithProducts = await Promise.all(productsPromises);
+                   
+                   // 4. Construct hierarchy for transformApiDataToFlatStructure
+                   const zoneMap = {};
+                   storesWithProducts.forEach(({store, products}) => {
+                       const zName = store.zone?.name || store.zoneName || "Zone";
+                       const szName = store.subZone?.name || store.subZoneName || "SubZone";
+                       
+                       if (!zoneMap[zName]) zoneMap[zName] = { zone: zName, subZones: {} };
+                       if (!zoneMap[zName].subZones[szName]) zoneMap[zName].subZones[szName] = { subZone: szName, stores: [] };
+                       
+                       zoneMap[zName].subZones[szName].stores.push({
+                           storeName: store.name || store.storeName,
+                           storeCode: store.storeCode,
+                           storeId: store.id || store.storeId,
+                           products: products
+                       });
+                   });
+                   
+                   rawData = Object.values(zoneMap).map(z => ({
+                       zone: z.zone,
+                       subZones: Object.values(z.subZones)
+                   }));
+              }
+          } catch (rbmError) {
+              console.error("Error in RBM product fetch:", rbmError);
+              throw rbmError;
+          }
+       } else {
+          // Standard logic for non-ZBM (Admin/DivisionHead)
+          const response = await storeService.getAllStoresWithProducts();
+          const responseData = response.data || response;
+          
+          if (Array.isArray(responseData)) {
+            rawData = responseData;
+          } else if (responseData.products && Array.isArray(responseData.products)) {
+            rawData = responseData.data || responseData.zones || [];
+            if (rawData.length === 0 && responseData.products.length > 0) {
+              console.warn('Backend returned products but no zone/store structure. Creating fallback structure.');
+              rawData = [{
+                zone: responseData.divisionInfo?.divisionName || "Default Zone",
+                subZones: [{
+                  subZone: "Default SubZone",
+                  stores: [{
+                    storeName: "All Products",
+                    storeId: "default",
+                    products: responseData.products.map(p => ({
+                      ...p,
+                      sku: p.SKU || p.sku,
+                      productId: p.id
+                    }))
+                  }]
+                }]
+              }];
+            }
+          } else if (responseData.data) {
+            rawData = Array.isArray(responseData.data) ? responseData.data : [responseData.data];
+          }
       }
       
       // Transform API data to flat structure (one row per store)
