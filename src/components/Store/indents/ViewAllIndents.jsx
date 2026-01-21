@@ -44,6 +44,10 @@ export default function ViewAllIndents() {
     status: "",
   });
 
+  const disableWheel = (e) => {
+    e.target.blur();
+  };
+
   const toggleSearch = (key) => {
     setShowSearch((prev) => {
       const next = { ...prev };
@@ -194,7 +198,7 @@ export default function ViewAllIndents() {
   const [manualStockDamagedGoods, setManualStockDamagedGoods] = useState([]);
   const [hasManualDamagedGoods, setHasManualDamagedGoods] = useState(false);
   const [manualStockInLoading, setManualStockInLoading] = useState(false);
-
+  
   // Get store ID from localStorage
   useEffect(() => {
     try {
@@ -1500,16 +1504,19 @@ export default function ViewAllIndents() {
                                     <td>
                                       <input
                                         type="number"
-                                        min="0"
+                                        min="1"
                                         max={orderedQty}
-                                        step="0.01"
+                                        step="1"
+                                        inputMode="numeric"
+                                        onWheel={disableWheel}
                                         value={receivedQty}
                                         onChange={(e) =>
                                           handleReceivedQuantityChange(
                                             productId,
-                                            e.target.value,
+                                            e.target.value.replace(/\D/g, ""),
                                           )
                                         }
+                                        placeholder="Quantity"
                                         style={{
                                           width: "100px",
                                           padding: "4px 8px",
@@ -1603,17 +1610,20 @@ export default function ViewAllIndents() {
                                       <td>
                                         <input
                                           type="number"
-                                          min="0"
+                                          min="1"
                                           max={orderedQty}
-                                          step="0.01"
+                                          step="1"
+                                          inputMode="numeric"
+                                          onWheel={disableWheel}
                                           value={row.damagedQty}
                                           onChange={(e) =>
                                             handleDamagedGoodsChange(
                                               index,
                                               "damagedQty",
-                                              parseFloat(e.target.value) || 0,
+                                              e.target.value.replace(/\D/g, "")
                                             )
                                           }
+                                          placeholder="Qty"
                                           style={{
                                             width: "80px",
                                             padding: "4px 8px",
@@ -1891,24 +1901,27 @@ export default function ViewAllIndents() {
                             <td>
                               <input
                                 type="number"
-                                min="0"
-                                step="0.01"
+                                min="1"
+                                step="1"
+                                inputMode="numeric"
+                                onWheel={disableWheel}
                                 value={item.quantity}
                                 onChange={(e) =>
                                   handleManualStockItemChange(
                                     index,
                                     "quantity",
-                                    e.target.value,
+                                    e.target.value.replace(/\D/g, ""),
                                   )
                                 }
                                 placeholder="Quantity"
                                 style={{
-                                  width: "100px",
-                                  padding: "4px 8px",
+                                  width: "100%",
+                                  padding: "4px",
                                   border: "1px solid #ddd",
                                   borderRadius: "4px",
                                   fontFamily: "Poppins",
                                 }}
+                                required
                               />
                             </td>
                             <td>
@@ -2028,17 +2041,20 @@ export default function ViewAllIndents() {
                                 <td>
                                   <input
                                     type="number"
-                                    min="0"
+                                    min="1"
                                     max={receivedQty}
-                                    step="0.01"
+                                    step="1"
+                                    inputMode="numeric"
+                                    onWheel={disableWheel}
                                     value={row.damagedQty}
                                     onChange={(e) =>
                                       handleManualDamagedGoodsChange(
                                         index,
                                         "damagedQty",
-                                        parseFloat(e.target.value) || 0,
+                                        e.target.value.replace(/\D/g, "")
                                       )
                                     }
+                                    placeholder="Qty"
                                     style={{
                                       width: "80px",
                                       padding: "4px 8px",

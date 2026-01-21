@@ -11,7 +11,7 @@ const OngoingWarehouse = lazy(() => import("./OngoingWarehouse"));
 const WarehouseDetailsPage = lazy(() => import("./WarehouseDetailsPage"));
 const WarehouseDetails = lazy(() => import("./WarehouseDetails"));
 
-import { isAdmin as checkAdmin, isDivisionHead } from "../../../utils/roleUtils";
+import { isAdmin as checkAdmin, isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../../utils/roleUtils";
 
 
 function WarehouseRoutes() {
@@ -31,8 +31,8 @@ function WarehouseRoutes() {
   };
   const user = JSON.parse(localStorage.getItem("user"));
 
-  // Allow Admin OR Division Head
-  const isAdmin = checkAdmin(user) || isDivisionHead(user);
+  // Allow Admin OR Division Head OR ZBM OR RBM OR ABM
+  const isAdmin = checkAdmin(user) || isDivisionHead(user) || isZBM(user) || isRBM(user) || isAreaBusinessManager(user);
 
 
 

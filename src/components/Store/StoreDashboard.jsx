@@ -5,7 +5,10 @@ import StoreDashHeader from "./StoreDashHeader";
 import StoreNavContainer from "./StoreNavContainer";
 import FootLink from "../Dashboard/FootLink";
 import { useAuth } from "../../Auth";
-import { isStoreManager, isAdmin, isDivisionHead } from "../../utils/roleUtils";
+import { isStoreManager, isAdmin, isDivisionHead,  isZBM,
+  isRBM,
+  isAreaBusinessManager,
+} from "../../utils/roleUtils";
 
 const StoreHome = lazy(() => import("./StoreHome"));
 const StoreSales = lazy(() => import("./sales/StoreSales"));
@@ -98,9 +101,12 @@ export default function StoreDashboard() {
         const isStoreManagerUser = isStoreManager(storedUser) || storedUser?.isStoreManager === true || authMeData?.isStoreManager === true;
         const isAdminUser = isAdmin(storedUser);
         const isDivisionHeadUser = isDivisionHead(storedUser);
+        const isZBMUser = isZBM(storedUser);
+        const isRBMUser = isRBM(storedUser);
+        const isABMUser = isAreaBusinessManager(storedUser);
 
         // Check if store selection is required
-        if (requiresStoreSelection && (isStoreManagerUser || isAdminUser || isDivisionHeadUser)) {
+        if (requiresStoreSelection && (isStoreManagerUser || isAdminUser || isDivisionHeadUser || isZBMUser || isRBMUser || isABMUser)) {
           console.log("StoreDashboard - Store selection required, redirecting to selector");
           navigate("/store-selector", { replace: true });
           return;

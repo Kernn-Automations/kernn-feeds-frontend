@@ -92,17 +92,35 @@ function StoreDamagedStock() {
       >
         {isSearching ? (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="text"
-              placeholder={`Search ${label}...`}
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(searchKey, e.target.value)}
-              style={{
-                flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
-                fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
-              }}
-              autoFocus
-            />
+            {searchKey === 'product' ? (
+              <select
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+                style={{
+                  flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                  fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+                }}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="">Select Product...</option>
+                {damagedProductsFilterList.map((p, idx) => (
+                  <option key={idx} value={p.name || p}>{p.name || p}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                placeholder={`Search ${label}...`}
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(searchKey, e.target.value)}
+                style={{
+                  flex: 1, padding: "2px 6px", border: "1px solid #ddd", borderRadius: "4px",
+                  fontSize: "12px", minWidth: "120px", height: "28px", color: "#000", backgroundColor: "#fff",
+                }}
+                autoFocus
+              />
+            )}
             {searchTerm && (
               <button
                 onClick={(e) => { e.stopPropagation(); clearSearch(searchKey); }}
@@ -163,23 +181,50 @@ function StoreDamagedStock() {
     }
   }, []);
 
+  // Filter list states
+  const [damagedProductsFilterList, setDamagedProductsFilterList] = useState([]);
+
   useEffect(() => {
     if (storeId) {
       fetchProducts();
       fetchDamagedReports();
+      fetchDamagedProductsList();
     }
   }, [storeId, page, limit, statusFilter]);
+
+  const fetchDamagedProductsList = async () => {
+    if (!storeId) return;
+    try {
+      const res = await storeService.getDamagedProducts(storeId);
+      console.log("Damaged Products Response:", res);
+      if (res && res.success && Array.isArray(res.data)) {
+        console.log("Setting filter list from res.data:", res.data);
+        setDamagedProductsFilterList(res.data);
+      } else if (Array.isArray(res)) {
+        setDamagedProductsFilterList(res);
+      } else {
+        console.warn("Unexpected response format for damaged products:", res);
+        setDamagedProductsFilterList([]);
+      }
+    } catch (err) {
+      console.error("Error fetching damaged products list:", err);
+      setDamagedProductsFilterList([]);
+    }
+  };
 
   const fetchProducts = async () => {
     if (!storeId) return;
     
     try {
-      const res = await axiosAPI.get(`/stores/${storeId}/inventory`);
-      if (res.data && res.data.inventory) {
-        const productsList = res.data.inventory.map(item => ({
-          id: item.product?.id || item.productId,
-          name: item.product?.name || item.name,
-          code: item.product?.SKU || item.SKU || item.productCode
+      const res = await storeService.getDamagedProducts(storeId);
+      if (res && res.success && Array.isArray(res.data)) {
+        const productsList = res.data.map(item => ({
+          id: item.productId,
+          name: item.name,
+          code: item.SKU,
+          stock: item.currentStock || 0,
+          unit: item.unit || "N/A",
+          price: 0 // Price not available in this endpoint, defaulting to 0
         }));
         setProducts(productsList);
       } else {
@@ -294,16 +339,38 @@ function StoreDamagedStock() {
     setFilteredReports(filtered);
   }, [damagedReports, searchTerms.reportCode, searchTerms.product, searchTerms.reason]);
 
+  const [currentStock, setCurrentStock] = useState(0);
+
+  // ... (previous code)
+
+  const fetchProductStock = async (productId) => {
+    if (!storeId || !productId) return;
+    try {
+      const res = await axiosAPI.get(`/stores/${storeId}/products/${productId}/stock`);
+      // Assuming response format: { success: true, stock: 100 } or just 100 or { data: 100 }
+      // Adjust based on typical API response. Let's assume it returns an object with a stock property or the number directly.
+      const stockVal = res.data?.stock !== undefined ? res.data.stock : (res.data !== undefined ? res.data : 0);
+      setCurrentStock(Number(stockVal));
+    } catch (err) {
+      console.error("Error fetching real-time stock:", err);
+      // Fallback to product list stock if API fails
+      const product = products.find(p => p.id === productId);
+      setCurrentStock(product?.stock || 0);
+    }
+  };
+
   const handleProductSelect = (productId) => {
-    const product = products.find(p => p.id === productId);
+    // productId from value is string, ensure type match if finding
+    const product = products.find(p => p.id == productId); 
     setFormData({
       ...formData,
       productId: productId,
       productName: product ? product.name : ""
     });
+    // Set current stock directly from the list as per new requirements
+    setCurrentStock(product ? product.stock : 0);
   };
 
-  // File change handler
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -314,75 +381,57 @@ function StoreDamagedStock() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    if (e) {
-      e.preventDefault();
-    }
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result); // This includes 'data:image/png;base64,...'
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
-    console.log('Form submission started');
-    console.log('Form data:', formData);
-    console.log('Image file:', imageFile);
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
 
     // Validation
-    if (!formData.productId || formData.productId === '') {
-      setError('Please select a product');
-      return;
-    }
-    if (!formData.quantity || formData.quantity <= 0) {
-      setError('Please enter a valid quantity');
-      return;
-    }
-    if (!formData.damageReason || formData.damageReason.trim() === '') {
-      setError('Please select a damage reason');
-      return;
-    }
-    if (!formData.description || formData.description.trim() === '') {
-      setError('Please enter a reason');
-      return;
-    }
-    if (!imageFile) {
-      setError('Please select an image file');
-      return;
-    }
+    if (!formData.productId) return setError('Please select a product');
+    if (!formData.quantity || formData.quantity <= 0) return setError('Please enter a valid quantity');
+    if (!formData.damageReason) return setError('Please select a damage reason');
+    if (!formData.description) return setError('Please enter a description');
+    if (!imageFile) return setError('Please select an image file');
 
     setLoading(true);
     setError(null);
 
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      const user = userData.user || userData;
-      const storeId = user.storeId || user.store?.id;
+      // 1. Convert image to Base64
+      const imageBase64 = await convertToBase64(imageFile);
 
-      if (!storeId) {
-        setError("Store ID not found. Please log in again.");
-        setLoading(false);
-        return;
-      }
+      // 2. Prepare Payload
+      const selectedProduct = products.find(p => p.id === formData.productId);
+      const estimatedValue = (selectedProduct?.price || 0) * formData.quantity;
+      
+      const payload = {
+        storeId: storeId,
+        productId: formData.productId,
+        quantity: Number(formData.quantity),
+        unit: selectedProduct?.unit || "N/A",
+        damageReason: formData.damageReason,
+        description: formData.description,
+        estimatedValue: estimatedValue,
+        imageBase64: imageBase64
+      };
 
-      // Create FormData for file upload
-      const formDataToSend = new FormData();
-      formDataToSend.append('storeId', storeId);
-      formDataToSend.append('productId', formData.productId);
-      formDataToSend.append('quantity', formData.quantity);
-      formDataToSend.append('damageReason', formData.damageReason);
-      formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('imageFile', imageFile); // Field name MUST be 'imageFile'
+      console.log('Sending Payload:', payload);
 
-      // Debug: Log FormData contents
-      console.log('FormData contents:');
-      for (let [key, value] of formDataToSend.entries()) {
-        console.log('Field:', key, 'Value:', value);
-      }
-
-      // Use formData method from axiosAPI
-      const response = await axiosAPI.formData(
-        `/stores/${storeId}/damaged-goods`,
-        formDataToSend
-      );
+      // 3. Send POST request (JSON)
+      const response = await axiosAPI.post('/stores/damaged-goods', payload);
 
       console.log('Success:', response.data);
       
-      // Reset form and refresh reports
+      alert("Damaged goods reported successfully!");
+      
+      // Reset
       setFormData({
         productId: "",
         productName: "",
@@ -391,12 +440,13 @@ function StoreDamagedStock() {
         description: ""
       });
       setImageFile(null);
+      setCurrentStock(0);
       setShowForm(false);
-      fetchDamagedReports();
-      
-      alert("Damaged goods reported successfully!");
+      fetchDamagedReports(); // Refresh list to show new report and potential stock update
+      fetchProducts(); // Refresh products to update stock in the list if needed
+
     } catch (err) {
-      console.error('Error:', err.response?.data);
+      console.error('Error reporting damaged goods:', err);
       setError(err?.response?.data?.message || err?.message || "Failed to report damaged goods");
     } finally {
       setLoading(false);
@@ -619,6 +669,19 @@ function StoreDamagedStock() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            <div className="row justify-content-center">
+              <div className="col-6 inputcolumn-mdl">
+                <label>Current Stock:</label>
+                <input
+                  type="text"
+                  value={currentStock || 0}
+                  readOnly
+                  disabled
+                  style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed' }}
+                />
               </div>
             </div>
 

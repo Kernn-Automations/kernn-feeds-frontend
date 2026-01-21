@@ -8,15 +8,15 @@ const FarmerHome = lazy(() => import("./FarmerHome"));
 const FarmerList = lazy(() => import("./FarmerList"));
 const CreateFarmer = lazy(() => import("./CreateFarmer"));
 
-import { isAdmin as checkAdmin, isDivisionHead } from "../../../utils/roleUtils";
+import { isAdmin as checkAdmin, isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../../utils/roleUtils";
 
 function FarmerRoutes() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
 
-  // Allow Admin OR Division Head
-  const isAdmin = checkAdmin(user) || isDivisionHead(user);
+  // Allow Admin OR Division Head OR ZBM OR RBM OR ABM
+  const isAdmin = checkAdmin(user) || isDivisionHead(user) || isZBM(user) || isRBM(user) || isAreaBusinessManager(user);
 
   return (
     <Routes>

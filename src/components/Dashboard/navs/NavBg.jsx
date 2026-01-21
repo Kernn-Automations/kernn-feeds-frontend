@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import styles from "./NavContainer.module.css";
-import { isAdmin, isDivisionHead } from "../../../utils/roleUtils";
+import { isAdmin, isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../../utils/roleUtils";
 
 
 function NavBg({ hover, setTab, tab }) {
@@ -716,7 +716,7 @@ function NavBg({ hover, setTab, tab }) {
         )}
 
 
-        {(isAdmin(user) || isDivisionHead(user)) && (
+        {(isAdmin(user) || isDivisionHead(user) || isZBM(user) || isRBM(user) || isAreaBusinessManager(user)) && (
           <div
             className={`${
               location.pathname.includes("divisions") ? styles.active : ""

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import LogoutModal from "./LogoutModal";
 import { Link, useNavigate } from "react-router-dom";
-import { isAdmin, isDivisionHead } from "../../utils/roleUtils";
+import { isAdmin, isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../utils/roleUtils";
 
 function ProfileAvthar({ user, setTab }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,7 +21,10 @@ function ProfileAvthar({ user, setTab }) {
   const userName = actualUser.name || actualUser.user?.name || user?.name || "";
   const userIsAdmin = isAdmin(actualUser);
   const userIsDivisionHead = isDivisionHead(actualUser);
-  const showStoreOption = userIsAdmin || userIsDivisionHead;
+  const userIsZBM = isZBM(actualUser);
+  const userIsRBM = isRBM(actualUser);
+  const userIsABM = isAreaBusinessManager(actualUser);
+  const showStoreOption = userIsAdmin || userIsDivisionHead || userIsZBM || userIsRBM || userIsABM;
 
   const closeModal = () => {
     setIsModalOpen(false);
