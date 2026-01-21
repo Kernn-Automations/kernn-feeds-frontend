@@ -1961,6 +1961,18 @@ export default function ViewAllIndents() {
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot>
+                        <tr>
+                          <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>Total</td>
+                          <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>
+                            {manualStockItems.reduce(
+                              (sum, item) => sum + (parseFloat(item.quantity) || 0),
+                              0
+                            )}
+                          </td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
 
@@ -2125,6 +2137,19 @@ export default function ViewAllIndents() {
                             );
                           })}
                         </tbody>
+                        <tfoot>
+                          <tr>
+                            <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>Total</td>
+                            <td></td>
+                            <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>
+                              {manualStockDamagedGoods.reduce(
+                                (sum, row) => sum + (parseFloat(row.damagedQty) || 0),
+                                0
+                              )}
+                            </td>
+                            <td colSpan={2}></td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   </div>

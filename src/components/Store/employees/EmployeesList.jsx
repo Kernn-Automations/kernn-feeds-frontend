@@ -18,6 +18,35 @@ export default function EmployeesList() {
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [backendPaginated, setBackendPaginated] = useState(false);
+  const [storeId, setStoreId] = useState(null);
+  const [currentStore, setCurrentStore] = useState(null);
+
+  useEffect(() => {
+    try {
+      let id = null;
+      const selectedStore = localStorage.getItem("selectedStore");
+      if (selectedStore) {
+        try {
+          id = JSON.parse(selectedStore).id;
+        } catch (e) { console.error(e); }
+      }
+      
+      if (!id) {
+        const currentStoreId = localStorage.getItem("currentStoreId");
+        id = currentStoreId ? parseInt(currentStoreId) : null;
+      }
+      
+      if (!id) {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        const user = userData.user || userData;
+        id = user?.storeId || user?.store?.id;
+      }
+      
+      if (id) setStoreId(id);
+    } catch (err) {
+      console.error("Error getting store ID", err);
+    }
+  }, []);
 
   // Header Search States
   const [showSearch, setShowSearch] = useState({
@@ -159,39 +188,29 @@ export default function EmployeesList() {
 
   // Fetch store employees from API
   const fetchStoreEmployees = async () => {
+    if (!storeId) return;
+
     try {
       setLoading(true);
       setError("");
 
-      const params = {
-        page: pageNo,
-        limit: limit,
-      };
-
-      const response = await storeService.getAllStoreEmployees(params);
+      const response = await storeService.getStoreStaff(storeId);
 
       if (response.success && response.data) {
-        // Check if backend supports pagination (has pagination info or count matches data length)
-        const hasPaginationInfo = response.pagination || (response.count !== undefined && response.count !== response.data.length);
+        // The endpoint /store-employees/store/:id usually returns a list of employees.
+        // We will treat this as non-paginated data (frontend pagination).
+        const data = Array.isArray(response.data) ? response.data : [];
         
-        if (hasPaginationInfo) {
-          // Backend handles pagination
-          setBackendPaginated(true);
-          setStoreEmployees(response.data);
-          if (response.pagination) {
-            setTotalPages(response.pagination.totalPages || 1);
-            setTotal(response.pagination.total || response.data.length);
-          } else if (response.count !== undefined) {
-            setTotal(response.count);
-            setTotalPages(Math.ceil(response.count / limit));
-          }
-        } else {
-          // Backend returns all data, handle pagination on frontend
-          setBackendPaginated(false);
-          setAllStoreEmployees(response.data);
-          setTotal(response.count || response.data.length);
-          setTotalPages(Math.ceil((response.count || response.data.length) / limit));
+        // Use store name from response if available
+        if (response.store) {
+          setCurrentStore(response.store);
         }
+
+        setBackendPaginated(false);
+        setAllStoreEmployees(data);
+        setStoreEmployees(data.slice(0, limit)); // Initialize first page
+        setTotal(data.length);
+        setTotalPages(Math.ceil(data.length / limit));
       } else {
         setError(response.message || "Failed to fetch store employees");
         setIsModalOpen(true);
@@ -223,11 +242,11 @@ export default function EmployeesList() {
   useEffect(() => {
     // If backend supports pagination, always fetch
     // If backend doesn't support pagination, only fetch if we don't have data yet
-    if (backendPaginated || allStoreEmployees.length === 0) {
+    if (storeId && (backendPaginated || allStoreEmployees.length === 0)) {
       fetchStoreEmployees();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNo, limit]);
+  }, [pageNo, limit, storeId]);
 
   // Update displayed data when pagination changes (for frontend pagination)
   useEffect(() => {
@@ -404,8 +423,8 @@ export default function EmployeesList() {
                       <td>{employee.name || "-"}</td>
                       <td>{employee.mobile || "-"}</td>
                       <td>{employee.email || "-"}</td>
-                      <td>{store.name || "-"}</td>
-                      <td>{role.name || "-"}</td>
+                      <td>{currentStore?.name || store.name || "-"}</td>
+                      <td>{storeEmployee.roleName || role.name || "-"}</td>
                       <td>
                         <span
                           style={{
