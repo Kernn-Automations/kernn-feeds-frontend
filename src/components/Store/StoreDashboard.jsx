@@ -21,6 +21,7 @@ const StoreCurrentStock = lazy(() => import("./inventory/StoreCurrentStock"));
 const StoreStockSummary = lazy(() => import("./inventory/StoreStockSummary"));
 const StoreDamagedStock = lazy(() => import("./inventory/StoreDamagedStock"));
 const StoreStockTransfer = lazy(() => import("./inventory/StoreStockTransfer"));
+const StoreManageStock = lazy(() => import("./inventory/StoreManageStock"));
 const IndentRoutes = lazy(() => import("./indents/IndentRoutes"));
 const CustomerRoutes = lazy(() => import("./customers/CustomerRoutes"));
 const EmployeeRoutes = lazy(() => import("./employees/EmployeeRoutes"));
@@ -223,6 +224,7 @@ export default function StoreDashboard() {
           <Route path="bank-receipts" element={<Suspense fallback={<div>Loading...</div>}><StoreBankReceipts /></Suspense>} />
           <Route path="damaged" element={<Suspense fallback={<div>Loading...</div>}><StoreDamaged /></Suspense>} />
           <Route path="inventory" element={<Suspense fallback={<div>Loading...</div>}><StoreInventory /></Suspense>} />
+          <Route path="inventory/manage-stock" element={<Suspense fallback={<div>Loading...</div>}><StoreManageStock /></Suspense>} />
           <Route path="current-stock" element={<Suspense fallback={<div>Loading...</div>}><StoreCurrentStock /></Suspense>} />
           <Route path="stock-summary" element={<Suspense fallback={<div>Loading...</div>}><StoreStockSummary /></Suspense>} />
           <Route path="damaged-stock" element={<Suspense fallback={<div>Loading...</div>}><StoreDamagedStock /></Suspense>} />

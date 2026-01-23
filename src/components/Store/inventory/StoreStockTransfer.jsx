@@ -39,6 +39,10 @@ function StoreStockTransfer() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  
+  // Rejection State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   // Search Visibility states
   const [showSearch, setShowSearch] = useState({
@@ -588,6 +592,43 @@ function StoreStockTransfer() {
       setError("Failed to download invoice");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRejectTransferClick = () => {
+    setShowRejectModal(true);
+  };
+
+  const handleConfirmRejectTransfer = async () => {
+    if (!selectedTransfer) return;
+    
+    setRejectLoading(true);
+    try {
+      await storeService.rejectStockTransfer(selectedTransfer.id);
+      
+      setSuccessMessage("Stock transfer rejected successfully");
+      
+      // Close all modals
+      setShowRejectModal(false);
+      setShowDetailModal(false);
+      setSelectedTransfer(null);
+      
+      // Refresh history
+      fetchHistory();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+      
+    } catch (err) {
+      console.error("Error rejecting transfer:", err);
+      // Show error in the rejection modal or main component? 
+      // Main component error state is safer
+      setError(err.response?.data?.message || err.message || "Failed to reject stock transfer");
+      setShowRejectModal(false); // Close rejection modal on error to show error modal
+    } finally {
+      setRejectLoading(false);
     }
   };
 
@@ -1578,14 +1619,80 @@ function StoreStockTransfer() {
                 marginTop: "20px",
                 display: "flex",
                 justifyContent: "flex-end",
+                gap: "10px",
               }}
             >
+              {['pending', 'Pending'].includes(selectedTransfer.status) && (
+                 <button
+                   className="btn btn-danger btn-sm"
+                   onClick={handleRejectTransferClick}
+                   style={{ fontFamily: "Poppins" }}
+                 >
+                   Transfer Rejection
+                 </button>
+              )}
+              
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handleDownloadInvoice(selectedTransfer.id)}
                 style={{ fontFamily: "Poppins" }}
               >
                 <i className="bi bi-download"></i> Download Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            zIndex: 1060, // Higher than detail modal
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onClick={() => !rejectLoading && setShowRejectModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "8px",
+              padding: "24px",
+              width: "90%",
+              maxWidth: "400px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h5 style={{ fontFamily: "Poppins", marginBottom: "16px", color: "#dc2626" }}>
+              Confirm Rejection
+            </h5>
+            <p style={{ fontFamily: "Poppins", marginBottom: "24px" }}>
+              Do you really want to reject stock transfer?
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button
+                className="btn btn-light"
+                onClick={() => setShowRejectModal(false)}
+                disabled={rejectLoading}
+                style={{ fontFamily: "Poppins" }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleConfirmRejectTransfer}
+                disabled={rejectLoading}
+                style={{ fontFamily: "Poppins" }}
+              >
+                {rejectLoading ? "Rejecting..." : "Yes, Reject"}
               </button>
             </div>
           </div>

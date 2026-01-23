@@ -85,20 +85,67 @@ export const handleExportPDF = async (columns, data, title, grandTotal = null) =
     doc.text(`Page ${pageNumber} of ${pageCount}`, pageWidth - 40, pageHeight - 6);
   };
 
+  // Calculate column widths based on content
+  const calculateColumnWidths = (columns, data) => {
+    const widths = [];
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const availableWidth = pageWidth - 20; // margins
+    
+    columns.forEach((col, colIndex) => {
+      // Get max content length for this column
+      let maxLength = col.length;
+      data.forEach(row => {
+        const cellValue = row[colIndex]?.toString() || '';
+        if (cellValue.length > maxLength) {
+          maxLength = cellValue.length;
+        }
+      });
+      
+      // Calculate width (minimum 20, maximum based on content)
+      const calculatedWidth = Math.max(20, Math.min(maxLength * 1.5, 40));
+      widths.push(calculatedWidth);
+    });
+    
+    // Normalize widths to fit page
+    const totalWidth = widths.reduce((sum, w) => sum + w, 0);
+    const scale = availableWidth / totalWidth;
+    
+    return widths.map(w => w * scale);
+  };
+
+  const columnWidths = calculateColumnWidths(modifiedColumns, modifiedData);
+  const columnStyles = {};
+  columnWidths.forEach((width, index) => {
+    columnStyles[index] = { cellWidth: width };
+  });
+
   // Generate Table
   autoTable(doc, {
     headStyles: {
       fillColor: [0, 49, 118],
       textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 8,
+      fontSize: 6,
+      halign: 'center',
+      valign: 'middle',
     },
-    bodyStyles: { textColor: [0, 0, 0], fontSize: 7 },
+    bodyStyles: { 
+      textColor: [0, 0, 0], 
+      fontSize: 5,
+      cellPadding: 1,
+      overflow: 'linebreak',
+      halign: 'left',
+      valign: 'top'
+    },
     head: [modifiedColumns],
     body: modifiedData,
     margin: { top: 50, bottom: 40 },
     startY: 50,
     didDrawPage: drawFooterAndHeader,
+    columnStyles: columnStyles,
+    horizontalPageBreak: true,
+    showHead: 'everyPage',
+    tableWidth: 'wrap',
   });
 
   doc.save(`${title}.pdf`);
