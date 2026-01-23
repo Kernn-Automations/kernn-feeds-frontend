@@ -26,8 +26,38 @@ const StoresAbstract = () => {
   const [summary, setSummary] = useState({
     totalStores: 0,
     ownStores: 0,
+    ownStores: 0,
     franchiseStores: 0,
   });
+
+  // Checkbox functionality state
+  const [selectedStoreIds, setSelectedStoreIds] = useState([]);
+  const [selectedHeaderColumns, setSelectedHeaderColumns] = useState([]);
+
+  const handleSelectAllStores = (isChecked) => {
+    if (isChecked) {
+      const allIds = filteredStoresData.map((s) => s.id || s.storeId);
+      setSelectedStoreIds(allIds);
+    } else {
+      setSelectedStoreIds([]);
+    }
+  };
+
+  const handleStoreSelect = (id, isChecked) => {
+    if (isChecked) {
+      setSelectedStoreIds((prev) => [...prev, id]);
+    } else {
+      setSelectedStoreIds((prev) => prev.filter((storeId) => storeId !== id));
+    }
+  };
+
+  const handleHeaderColumnSelect = (columnKey, isChecked) => {
+    if (isChecked) {
+      setSelectedHeaderColumns((prev) => [...prev, columnKey]);
+    } else {
+      setSelectedHeaderColumns((prev) => prev.filter((col) => col !== columnKey));
+    }
+  };
 
   // Search Application State
   const [searchFilters, setSearchFilters] = useState({});
@@ -99,38 +129,55 @@ const StoresAbstract = () => {
     handleSearchChange(column, "");
   };
 
-  useEffect(() => {
-    fetchStoresAbstract();
-  }, [selectedDivision, showAllDivisions]);
+  const closeErrorModal = () => {
+    setIsErrorModalOpen(false);
+    setError(null);
+  };
 
-  const exportColumns = [
-    "S.No",
-    "Store Name",
-    "Store Code",
-    "Type",
-    "Division",
-    "Zone",
-    "Sub Zone",
-    "Team",
-    "Address",
-    "Land Owner",
-    "Agreement Period",
-    "Start Date",
-    "End Date",
-    "Agreement",
-    "Monthly Rent",
-    "Security Deposit",
-    "Bill Number",
-    "Distributor",
-    "Bill Allowance",
-    "Aadhar",
-    "PAN",
-    "Mobile",
-    "Beneficiary",
-    "IFSC",
-    "Account No",
-    "Bank Name",
-  ];
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-GB");
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    if (!amount) return "-";
+    return `₹${Number(amount).toLocaleString("en-IN")}`;
+  };
+
+  const handleViewAgreement = (agreementImage) => {
+    if (agreementImage) {
+      let imageSrc;
+
+      // Check if it's already a data URL
+      if (agreementImage.startsWith("data:")) {
+        imageSrc = agreementImage;
+      }
+      // Check if it's a URL (http/https)
+      else if (
+        agreementImage.startsWith("http://") ||
+        agreementImage.startsWith("https://")
+      ) {
+        imageSrc = agreementImage;
+      }
+      // Otherwise, assume it's a base64 string
+      else {
+        imageSrc = `data:image/jpeg;base64,${agreementImage}`;
+      }
+
+      setSelectedAgreementImage(imageSrc);
+      setShowAgreementModal(true);
+    }
+  };
+
+  const closeAgreementModal = () => {
+    setShowAgreementModal(false);
+    setSelectedAgreementImage(null);
+  };
 
   const fetchStoresAbstract = async () => {
     try {
@@ -270,105 +317,91 @@ const StoresAbstract = () => {
     }
   };
 
-  const closeErrorModal = () => {
-    setIsErrorModalOpen(false);
-    setError(null);
-  };
+  useEffect(() => {
+    fetchStoresAbstract();
+  }, [selectedDivision, showAllDivisions]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-GB");
-    } catch {
-      return dateString;
+  // Column definitions for export
+  const allColumnsRef = [
+    { header: "S.No", key: "sno", alwaysVisible: true, accessor: (row, idx) => idx + 1 },
+    { header: "Store Name", key: "storeName", alwaysVisible: true, accessor: (row) => row.storeName || "-" },
+    { header: "Store Code", key: "storeCode", accessor: (row) => row.storeCode || "-" },
+    { header: "Type", key: "type", accessor: (row) => row.type || "-" },
+    { header: "Division", key: "division", accessor: (row) => row.division || "-" },
+    { header: "Zone", key: "zone", accessor: (row) => row.zone || "-" },
+    { header: "Sub Zone", key: "subZone", accessor: (row) => row.subZone || "-" },
+    { header: "Team", key: "team", accessor: (row) => row.team || "-" },
+    { header: "Address", key: "address", accessor: (row) => row.address || "-" },
+    // Agreement Details Group
+    { header: "Land Owner", group: "agreementDetails", accessor: (row) => row.agreementDetails?.landOwner || "-" },
+    { header: "Agreement Period", group: "agreementDetails", accessor: (row) => row.agreementDetails?.agreementPeriod || "-" },
+    { header: "Start Date", group: "agreementDetails", accessor: (row) => row.agreementDetails?.startDate ? formatDate(row.agreementDetails.startDate) : "-" },
+    { header: "End Date", group: "agreementDetails", accessor: (row) => row.agreementDetails?.endDate ? formatDate(row.agreementDetails.endDate) : "-" },
+    { header: "Agreement", group: "agreementDetails", accessor: (row) => row.rentAgreementDocumentUrl ? "Yes" : "No" },
+    { header: "Monthly Rent", group: "agreementDetails", accessor: (row) => row.agreementDetails?.monthlyRent || "-" },
+    { header: "Security Deposit", group: "agreementDetails", accessor: (row) => row.agreementDetails?.securityDeposit || "-" },
+    // Power Bill Details Group
+    { header: "Bill Number", group: "powerBillDetails", accessor: (row) => row.powerBillDetails?.billNumber || "-" },
+    { header: "Distributor", group: "powerBillDetails", accessor: (row) => row.powerBillDetails?.distributor || "-" },
+    { header: "Bill Allowance", group: "powerBillDetails", accessor: (row) => row.powerBillDetails?.billAllowance || "-" },
+    // Owner Details Group
+    { header: "Aadhar", group: "ownerDetails", accessor: (row) => row.ownerDetails?.aadhar || "-" },
+    { header: "PAN", group: "ownerDetails", accessor: (row) => row.ownerDetails?.panCard || "-" },
+    { header: "Mobile", group: "ownerDetails", accessor: (row) => row.ownerDetails?.mobile || "-" },
+    { header: "Beneficiary", group: "ownerDetails", accessor: (row) => row.ownerDetails?.beneficiary || "-" },
+    { header: "IFSC", group: "ownerDetails", accessor: (row) => row.ownerDetails?.ifsc || "-" },
+    { header: "Account No", group: "ownerDetails", accessor: (row) => row.ownerDetails?.accountNo || "-" },
+    { header: "Bank Name", group: "ownerDetails", accessor: (row) => row.ownerDetails?.bankName || "-" },
+  ];
+
+  const getFilteredExportConfig = () => {
+    // 1. Determine which rows to export
+    let rowsToExport = filteredStoresData;
+    if (selectedStoreIds.length > 0) {
+      rowsToExport = filteredStoresData.filter((store) => 
+        selectedStoreIds.includes(store.id || store.storeId)
+      );
     }
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount) return "-";
-    return `₹${Number(amount).toLocaleString("en-IN")}`;
-  };
-
-  const handleViewAgreement = (agreementImage) => {
-    if (agreementImage) {
-      let imageSrc;
-
-      // Check if it's already a data URL
-      if (agreementImage.startsWith("data:")) {
-        imageSrc = agreementImage;
-      }
-      // Check if it's a URL (http/https)
-      else if (
-        agreementImage.startsWith("http://") ||
-        agreementImage.startsWith("https://")
-      ) {
-        imageSrc = agreementImage;
-      }
-      // Otherwise, assume it's a base64 string
-      else {
-        imageSrc = `data:image/jpeg;base64,${agreementImage}`;
-      }
-
-      setSelectedAgreementImage(imageSrc);
-      setShowAgreementModal(true);
-    }
-  };
-
-  const closeAgreementModal = () => {
-    setShowAgreementModal(false);
-    setSelectedAgreementImage(null);
-  };
-
-  if (loading && storesData.length === 0) {
-    return <Loading />;
-  }
-
-  const getExportData = () =>
-    storesData.map((store, index) => {
-      const agreement = store.agreementDetails || {};
-      const power = store.powerBillDetails || {};
-      const owner = store.ownerDetails || {};
-
-      return [
-        index + 1, // S.No
-        store.storeName || "-",
-        store.storeCode || "-",
-        store.type || "-",
-        store.division || "-",
-        store.zone || "-",
-        store.subZone || "-",
-        store.team || "-",
-        store.address || "-",
-        agreement.landOwner || "-",
-        agreement.agreementPeriod || "-",
-        agreement.startDate ? formatDate(agreement.startDate) : "-",
-        agreement.endDate ? formatDate(agreement.endDate) : "-",
-        agreement.monthlyRent || "",
-        agreement.securityDeposit || "-",
-        power.billNumber || "-",
-        power.distributor || "-",
-        power.billAllowance || "-",
-        owner.aadhar || "-",
-        owner.panCard || "-",
-        owner.mobile || "-",
-        owner.beneficiary || "-",
-        owner.ifsc || "-",
-        owner.accountNo || "-",
-        owner.bankName || "-",
-      ];
+    
+    // 2. Determine which columns to export
+    // If no columns selected, default to ALL. If columns selected, show only selected (plus alwaysVisible).
+    // The requirement says "if i tick the store name check box then i selct the other column headers... then that selected data should export"
+    // This implies we should restrict columns if ANY column is explicitly selected.
+    
+    const hasColumnSelection = selectedHeaderColumns.length > 0;
+    
+    const activeColumns = allColumnsRef.filter(col => {
+      if (col.alwaysVisible) return true;
+      if (!hasColumnSelection) return true; // Default to all if nothing selected
+      
+      // Check direct key match or group match
+      if (col.key && selectedHeaderColumns.includes(col.key)) return true;
+      if (col.group && selectedHeaderColumns.includes(col.group)) return true;
+      
+      return false;
     });
 
+    const exportHeaders = activeColumns.map(col => col.header);
+    
+    const exportData = rowsToExport.map((row, index) => {
+      return activeColumns.map(col => col.accessor(row, index));
+    });
+
+    return { exportHeaders, exportData };
+  };
+
   const handlePDFExport = async () => {
+    const { exportHeaders, exportData } = getFilteredExportConfig();
     await handleExportPDF(
-      exportColumns,
-      getExportData(),
+      exportHeaders,
+      exportData,
       "Stores Abstract Report",
     );
   };
 
   const handleExcelExport = () => {
-    handleExportExcel(exportColumns, getExportData(), "Stores Abstract Report");
+    const { exportHeaders, exportData } = getFilteredExportConfig();
+    handleExportExcel(exportHeaders, exportData, "Stores Abstract Report");
   };
 
   return (
@@ -472,7 +505,25 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Store Name {searchFilters["storeName"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("storeName", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredStoresData.length > 0 &&
+                          selectedStoreIds.length === filteredStoresData.length
+                        }
+                        onChange={(e) => handleSelectAllStores(e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Store Name {searchFilters["storeName"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th
@@ -520,7 +571,22 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Store Code {searchFilters["storeCode"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("storeCode", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("storeCode")}
+                        onChange={(e) => handleHeaderColumnSelect("storeCode", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Store Code {searchFilters["storeCode"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th
@@ -568,7 +634,22 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Type {searchFilters["type"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("type", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("type")}
+                        onChange={(e) => handleHeaderColumnSelect("type", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Type {searchFilters["type"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th
@@ -616,7 +697,22 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Division {searchFilters["division"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("division", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("division")}
+                        onChange={(e) => handleHeaderColumnSelect("division", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Division {searchFilters["division"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th
@@ -664,7 +760,22 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Zone {searchFilters["zone"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("zone", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("zone")}
+                        onChange={(e) => handleHeaderColumnSelect("zone", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Zone {searchFilters["zone"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th
@@ -712,7 +823,22 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Sub Zone {searchFilters["subZone"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("subZone", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("subZone")}
+                        onChange={(e) => handleHeaderColumnSelect("subZone", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Sub Zone {searchFilters["subZone"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th
@@ -760,7 +886,22 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Team {searchFilters["team"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("team", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("team")}
+                        onChange={(e) => handleHeaderColumnSelect("team", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Team {searchFilters["team"] && " *"}</span>
+                    </div>
                   )}
                 </th>
 
@@ -809,17 +950,56 @@ const StoresAbstract = () => {
                       </button>
                     </div>
                   ) : (
-                    <>Address {searchFilters["address"] && " *"}</>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("address", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("address")}
+                        onChange={(e) => handleHeaderColumnSelect("address", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Address {searchFilters["address"] && " *"}</span>
+                    </div>
                   )}
                 </th>
                 <th colSpan="7" className={styles.sectionHeader}>
-                  Agreement Details
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedHeaderColumns.includes("agreementDetails")}
+                      onChange={(e) => handleHeaderColumnSelect("agreementDetails", e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span>Agreement Details</span>
+                  </div>
                 </th>
                 <th colSpan="3" className={styles.sectionHeader}>
-                  Power Bill Details
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedHeaderColumns.includes("powerBillDetails")}
+                      onChange={(e) => handleHeaderColumnSelect("powerBillDetails", e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span>Power Bill Details</span>
+                  </div>
                 </th>
                 <th colSpan="7" className={styles.sectionHeader}>
-                  Owner Details
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedHeaderColumns.includes("ownerDetails")}
+                      onChange={(e) => handleHeaderColumnSelect("ownerDetails", e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span>Owner Details</span>
+                  </div>
                 </th>
               </tr>
               <tr>
@@ -1752,7 +1932,15 @@ const StoresAbstract = () => {
                     <tr key={store.id || index}>
                       <td>{index + 1}</td>
                       <td className={styles.storeNameCell}>
-                        {store.storeName || "-"}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedStoreIds.includes(store.id || store.storeId)}
+                            onChange={(e) => handleStoreSelect(store.id || store.storeId, e.target.checked)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          {store.storeName || "-"}
+                        </div>
                       </td>
                       <td>{store.storeCode || "-"}</td>
                       <td>

@@ -18,6 +18,12 @@ function SettingsHome({ navigate }) {
           >
             Drop-off Rules
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/settings/indent-reverting")}
+          >
+            Indent Reverting
+          </button>
           {/* <button
             className="homebtn"
             onClick={() => navigate("/settings/minimum-order-rules")}

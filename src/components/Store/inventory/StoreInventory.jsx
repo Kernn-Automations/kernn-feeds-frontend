@@ -178,6 +178,7 @@ export default function StoreInventory() {
           }}
         >
           {[
+            { label: 'Manage Stock', path: '/store/inventory/manage-stock' },
             { label: 'Current Stock', path: '/store/current-stock' },
             { label: 'Stock Summary', path: '/store/stock-summary' },
             { label: 'Damaged Stock', path: '/store/damaged-stock' },

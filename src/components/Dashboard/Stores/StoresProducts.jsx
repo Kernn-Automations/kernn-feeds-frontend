@@ -62,7 +62,6 @@ const StoresProducts = () => {
 
   useEffect(() => {
     fetchStoreProducts();
-    fetchProductsForFilter();
   }, [selectedDivision, showAllDivisions]);
 
   // Close dropdown when clicking outside
@@ -169,39 +168,7 @@ const StoresProducts = () => {
     }
   }, [showZoneSearch, showSubZoneSearch, showStoreSearch, showPriceSearch]);
 
-  // Fetch products for filter from API
-  const fetchProductsForFilter = async () => {
-    try {
-      const response = await axiosAPI.get("/products/list");
-      const responseData = response.data || response;
-      const products =
-        responseData.products ||
-        (Array.isArray(responseData) ? responseData : []);
 
-      // Format products for CustomSearchDropdown: {value: id/sku, label: name}
-      const productOptions = products
-        .filter((p) => p.SKU || p.sku) // Only include products with SKU
-        .map((p) => ({
-          value: p.SKU || p.sku,
-          label: p.name || p.SKU || p.sku,
-        }));
-
-      setAllProducts(productOptions);
-
-      // Update SKU to product name mapping
-      const skuMap = {};
-      products.forEach((p) => {
-        const sku = p.SKU || p.sku;
-        if (sku) {
-          skuMap[sku] = p.name || sku;
-        }
-      });
-      setSkuToProductName((prev) => ({ ...prev, ...skuMap }));
-    } catch (err) {
-      console.error("Error fetching products for filter:", err);
-      // If API call fails, fallback to extracting from existing data
-    }
-  };
 
   const applyBulkPrices = () => {
     if (selectedStoreIds.length === 0 || selectedSkus.length === 0) return;
@@ -472,7 +439,11 @@ const StoresProducts = () => {
         }
       } else {
         // Standard logic for non-ZBM (Admin/DivisionHead)
-        const response = await storeService.getAllStoresWithProducts();
+        const params = {};
+        if (selectedDivision?.id) {
+          params.divisionId = selectedDivision.id;
+        }
+        const response = await storeService.getAllStoresWithProducts(params);
         console.log(response);
         const responseData = response.data || response;
 

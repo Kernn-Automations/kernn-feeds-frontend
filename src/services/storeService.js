@@ -114,6 +114,10 @@ const storeService = {
     const res = await api.request(`/store-indents/indents/${indentId}/approve-reject`, { method: "PUT", body: JSON.stringify({ action, notes }) });
     return res.json();
   },
+  async revertIndent(indentId) {
+    const res = await api.request(`/store-indents/indents/${indentId}/revert`, { method: "POST" });
+    return res.json();
+  },
   // Get store indents for admin dashboard (supports filtering by storeId and status)
   async getStoreIndentsForAdmin(params = {}) {
     const queryParams = new URLSearchParams();
@@ -156,6 +160,10 @@ const storeService = {
       throw new Error(`Failed to download invoice: ${res.status} ${res.statusText}`);
     }
     return res;
+  },
+  async rejectStockTransfer(transferId) {
+    const res = await api.request(`/stock-transfers/${transferId}/reject`, { method: "POST" });
+    return res.json();
   },
   async getDestinationStores(excludeStoreId) {
     const queryParams = excludeStoreId ? `?excludeStoreId=${excludeStoreId}` : '';
@@ -747,8 +755,9 @@ const storeService = {
   },
   
   // Get all stores with products (Admin/Super Admin only)
-  async getAllStoresWithProducts() {
-    const res = await api.request(`/stores/products/all`, { method: "GET" });
+  async getAllStoresWithProducts(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/products/all${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
     
     // Check if response is ok before parsing
     if (!res.ok) {
