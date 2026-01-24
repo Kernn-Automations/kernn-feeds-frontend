@@ -348,6 +348,10 @@ const storeService = {
     
     return res.json();
   },
+  async cancelSale(storeId, saleCode) {
+    const res = await api.request(`/stores/${storeId}/sales/${saleCode}/cancel`, { method: "POST" });
+    return res.json();
+  },
   // All Stores Sales Reports operations (Admin/Super Admin only)
   async getAllStoresSalesReports(params = {}) {
     // GET /stores/reports/sales - Get sales report for all stores

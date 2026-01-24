@@ -15,6 +15,7 @@ import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import { FaBan } from "react-icons/fa"; // Importing Cancel icon
 import storeService from "../../../services/storeService";
 import { isAdmin } from "../../../utils/roleUtils";
 import {
@@ -50,6 +51,13 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchRef = useRef(null);
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+  
+  // Cancellation Modal States
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
@@ -613,6 +621,39 @@ function StoreSalesOrders({ onBack }) {
     }
   };
 
+
+
+  const handleCancelClick = (order) => {
+    setSaleToCancel(order);
+    setShowCancelModal(true);
+    setCancelReason("");
+  };
+
+  const confirmCancellation = async () => {
+    if (!saleToCancel) return;
+    
+    setCancelling(true);
+    try {
+      // Assuming storeId is available in scope or from order if needed. 
+      // The current component has 'storeId' state.
+      await storeService.cancelSale(storeId, saleToCancel.saleCode);
+      
+      // Refresh list
+      fetchSales();
+      setShowCancelModal(false);
+      setSaleToCancel(null);
+    } catch (err) {
+      console.error("Error cancelling sale:", err);
+      setError(
+        err.response?.data?.message || err.message || "Failed to cancel invoice"
+      );
+      setShowCancelModal(false); // Close cancel modal
+      setIsModalOpen(true); // Show error modal
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleSubmit = () => {
     setAppliedFilters(filters);
     setPage(1); // Reset to first page when filters are applied
@@ -1069,8 +1110,10 @@ function StoreSalesOrders({ onBack }) {
                       <td>
                         <span
                           className={`${styles.statusBadge} ${
-                            order.status === "completed" ||
-                            order.paymentStatus === "completed"
+                            (order.status || "").toLowerCase() === "cancelled"
+                              ? styles.cancelled
+                              : (order.status || "").toLowerCase() === "completed" ||
+                                (order.paymentStatus || "").toLowerCase() === "completed"
                               ? styles.completed
                               : styles.pending
                           }`}
@@ -1099,6 +1142,24 @@ function StoreSalesOrders({ onBack }) {
                             N/A
                           </span>
                         )}
+                        
+                        {/* Cancellation Button */}
+                        <button
+                          className="cancelbtn"
+                          onClick={() => handleCancelClick(order)}
+                          title="Cancel Invoice"
+                          style={{
+                            padding: "4px 8px",
+                            fontSize: "12px",
+                            minWidth: "30px",
+                            marginLeft: "6px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <FaBan color="white" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1107,6 +1168,74 @@ function StoreSalesOrders({ onBack }) {
             </tbody>
           </table>
         </div>
+
+        {/* Cancellation Confirmation Modal */}
+        {showCancelModal && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 10000,
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                width: "400px",
+                maxWidth: "90%",
+                boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+              }}
+            >
+              <h4 style={{ margin: "0 0 15px", color: "#EF4444" }}>Confirm Cancellation</h4>
+              <p style={{ marginBottom: "20px", fontSize: "14px", color: "#666" }}>
+                Are you sure you want to cancel Invoice <strong>{saleToCancel?.invoiceNumber}</strong>?
+                This action cannot be undone.
+              </p>
+              
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setSaleToCancel(null);
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    backgroundColor: "white",
+                    cursor: "pointer",
+                  }}
+                  disabled={cancelling}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={confirmCancellation}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "4px",
+                    border: "none",
+                    backgroundColor: "#EF4444",
+                    color: "white",
+                    cursor: "pointer",
+                  }}
+                  disabled={cancelling}
+                >
+                  {cancelling ? "Cancelling..." : "Confirm Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (

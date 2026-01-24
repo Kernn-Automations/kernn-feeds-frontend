@@ -460,6 +460,12 @@ function StoreSalesReports({ onBack }) {
               item.transactionNumber ||
               item.transactionId ||
               item.utr ||
+              (item.paymentDetails?.length > 0
+                ? item.paymentDetails
+                    .map((p) => p.transactionNumber)
+                    .filter(Boolean)
+                    .join(", ")
+                : "") ||
               "-",
             quantity: parseFloat(item.qty || item.quantity || 0),
             amount: parseFloat(item.itemAmount || 0),
@@ -470,6 +476,7 @@ function StoreSalesReports({ onBack }) {
               item.createdByEmployee?.name ||
               item.createdByUser?.name ||
               "-",
+            status: item.status,
             // ✅ NEW (IMPORTANT)
             saleId: item.saleId,
             saleCode: item.saleCode,
@@ -958,12 +965,20 @@ function StoreSalesReports({ onBack }) {
                 >
                   Mode Of Payment
                 </th>
-                <th>Transaction Number</th>
                 {renderSearchHeader(
                   "Created By",
                   "createdBy",
                   "data-employee-header"
                 )}
+                <th
+                  style={{
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
+                  Status
+                </th>
                 <th
                   style={{
                     fontFamily: "Poppins",
@@ -1038,16 +1053,23 @@ function StoreSalesReports({ onBack }) {
                     </td>
 
                     <td>{row.modeOfPayment || "-"}</td>
-                    <td style={{ fontSize: "12px" }}>
-                      {row.paymentDetails?.length > 0
-                        ? row.paymentDetails
-                            .map((p) => p.transactionNumber)
-                            .filter(Boolean)
-                            .join(", ")
-                        : "-"}
-                    </td>
 
                     <td>{row.createdBy}</td>
+                    <td>
+                      <span
+                        className={`${styles.statusBadge} ${
+                          (row.status || "").toLowerCase() === "completed" ||
+                          (row.status || "").toLowerCase() === "verified"
+                            ? styles.completed
+                            : (row.status || "").toLowerCase() === "cancelled" ||
+                              (row.status || "").toLowerCase() === "rejected"
+                            ? styles.cancelled
+                            : styles.pending
+                        }`}
+                      >
+                        {row.status || "Pending"}
+                      </span>
+                    </td>
 
                     <td style={{ textAlign: "center" }}>
                       <button

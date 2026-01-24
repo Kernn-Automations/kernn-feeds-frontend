@@ -11,6 +11,7 @@ import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
+import { isAdmin, isSuperAdmin, isDivisionHead } from "@/utils/roleUtils";
 
 function StoreStockSummary() {
   const navigate = useNavigate();
@@ -39,6 +40,11 @@ function StoreStockSummary() {
   const [loadingDetails, setLoadingDetails] = useState({});
   const [storeId, setStoreId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Get user from local storage for role check
+  const userData = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = userData.user || userData;
+  const canShowValues = isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user);
 
   // Invoice Details Modal States
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -2014,20 +2020,22 @@ function StoreStockSummary() {
                 />
                 Export PDF
               </button>
-              <button
-                onClick={() => setShowPrices((prev) => !prev)}
-                style={{
-                  padding: "8px 12px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "6px",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontFamily: "Poppins",
-                  fontSize: "13px",
-                }}
-              >
-                {showPrices ? "Hide Values" : "Show Values"}
-              </button>
+              {canShowValues && (
+                <button
+                  onClick={() => setShowPrices((prev) => !prev)}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "6px",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontFamily: "Poppins",
+                    fontSize: "13px",
+                  }}
+                >
+                  {showPrices ? "Hide Values" : "Show Values"}
+                </button>
+              )}
             </div>
           </div>
           {renderSummaryTable(filteredStockData)}
@@ -2101,20 +2109,22 @@ function StoreStockSummary() {
                 />
                 Export PDF
               </button>
-              <button
-                onClick={() => setShowPrices((prev) => !prev)}
-                style={{
-                  padding: "8px 12px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "6px",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontFamily: "Poppins",
-                  fontSize: "13px",
-                }}
-              >
-                {showPrices ? "Hide Values" : "Show Values"}
-              </button>
+              {canShowValues && (
+                <button
+                  onClick={() => setShowPrices((prev) => !prev)}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "6px",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontFamily: "Poppins",
+                    fontSize: "13px",
+                  }}
+                >
+                  {showPrices ? "Hide Values" : "Show Values"}
+                </button>
+              )}
             </div>
           </div>
           {stats.summary && (
