@@ -322,33 +322,42 @@ export default function StoreBankReceipts() {
       description: r.notes || "Bank Deposit",
       amount: parseFloat(r.amount || 0),
       isCredit: true,
+      status: r.status,
       reference: r.utrNumber,
       proof: r.depositSlip || r.depositSlipUrl || r.image,
       raw: r,
     }));
 
-    const saleItems = sales.map((s) => {
-      let amount = 0;
-      const pm = (s.paymentMethod || "").toLowerCase();
-      if (pm === "both") {
-        amount = parseFloat(s.bankAmount || 0);
-      } else {
-        amount = parseFloat(s.finalAmount || s.totalAmount || 0);
-      }
+    // Create a Set of saleIds from receipts for efficient lookup
+    const receiptSaleIds = new Set(
+      receipts.map((r) => r.saleId).filter((id) => id)
+    );
 
-      return {
-        id: `sale-${s.id}`,
-        originalId: s.id,
-        date: s.createdAt || s.date,
-        type: "Sale",
-        description: `Order #${s.orderId || s.id}`,
-        amount: amount,
-        isCredit: true,
-        reference: s.paymentMode || s.paymentMethod,
-        proof: null,
-        raw: s,
-      };
-    });
+    const saleItems = sales
+      .filter((s) => !receiptSaleIds.has(s.id)) // Exclude sales that already have a receipt
+      .map((s) => {
+        let amount = 0;
+        const pm = (s.paymentMethod || "").toLowerCase();
+        if (pm === "both") {
+          amount = parseFloat(s.bankAmount || 0);
+        } else {
+          amount = parseFloat(s.finalAmount || s.totalAmount || 0);
+        }
+
+        return {
+          id: `sale-${s.id}`,
+          originalId: s.id,
+          date: s.createdAt || s.date,
+          type: "Sale",
+          description: `Order #${s.orderId || s.id}`,
+          amount: amount,
+          isCredit: true,
+          status: s.status,
+          reference: s.paymentMode || s.paymentMethod,
+          proof: null,
+          raw: s,
+        };
+      });
 
     let combined = [...receiptItems, ...saleItems].sort(
       (a, b) => new Date(b.date) - new Date(a.date)
@@ -608,6 +617,15 @@ export default function StoreBankReceipts() {
                       >
                         Date
                       </th>
+                      <th
+                        style={{
+                          fontFamily: 'Poppins',
+                          fontWeight: 600,
+                          fontSize: '13px',
+                        }}
+                      >
+                        Status
+                      </th>
                       {renderSearchHeader("Type", "type", "data-type-header")}
                       {renderSearchHeader(
                         "Description",
@@ -663,6 +681,52 @@ export default function StoreBankReceipts() {
                       <tr key={tx.id}>
                         <td>{index + 1}</td>
                         <td>{formatDate(tx.date, true)}</td>
+                        <td>
+                          {tx.status ? (
+                            <span
+                              className={`${orderStyles.statusBadge} ${
+                                tx.status === 'completed' ||
+                                tx.status === 'verified'
+                                  ? orderStyles.completed
+                                  : tx.status === 'cancelled' ||
+                                    tx.status === 'rejected'
+                                  ? orderStyles.cancelled
+                                  : orderStyles.pending
+                              }`}
+                              style={{
+                                backgroundColor:
+                                  tx.status === 'completed' ||
+                                  tx.status === 'verified'
+                                    ? '#dcfce7'
+                                    : tx.status === 'cancelled' ||
+                                      tx.status === 'rejected'
+                                    ? '#fee2e2'
+                                    : '#fff7ed',
+                                color:
+                                  tx.status === 'completed' ||
+                                  tx.status === 'verified'
+                                    ? '#15803d'
+                                    : tx.status === 'cancelled' ||
+                                      tx.status === 'rejected'
+                                    ? '#dc2626'
+                                    : '#ea580c',
+                                borderColor:
+                                  tx.status === 'completed' ||
+                                  tx.status === 'verified'
+                                    ? '#bbf7d0'
+                                    : tx.status === 'cancelled' ||
+                                      tx.status === 'rejected'
+                                    ? '#fecaca'
+                                    : '#ffedd5',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {tx.status}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td>
                           <span
                             className={`${orderStyles.statusBadge} ${

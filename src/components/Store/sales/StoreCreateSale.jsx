@@ -1399,6 +1399,19 @@ export default function StoreCreateSale() {
       return;
     }
 
+    // Validate UTR number for Bank or Both payments
+    const invalidUtrPayments = payments.filter(
+      (p) =>
+        (p.paymentMethod === "bank" || p.paymentMethod === "both") &&
+        (!p.utrNumber || p.utrNumber.trim() === ""),
+    );
+
+    if (invalidUtrPayments.length > 0) {
+      setError("UTR Number is mandatory for Bank payments");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
     // Validate payment amount matches calculated total (with tolerance for rounding)
     const paymentDifference = Math.abs(totalPaymentAmount - expectedTotal);
     if (paymentDifference > 1) {
@@ -3673,7 +3686,7 @@ export default function StoreCreateSale() {
                           payment.paymentMethod === "both") && (
                           <div>
                             <label className="form-label">
-                              UTR Number (Optional)
+                              UTR Number <span style={{ color: "red" }}>*</span>
                             </label>
                             <input
                               type="text"
