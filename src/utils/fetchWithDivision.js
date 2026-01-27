@@ -29,11 +29,8 @@ export const fetchWithDivision = async (
   let url = import.meta.env.VITE_API_URL + endpoint;
 
   // 2) append the right query parameters
-  if (showAll || divisionId === "all") {
-    const separator = url.includes('?') ? '&' : '?';
-    url += `${separator}showAllDivisions=true`;
-    console.log(`[fetchWithDivision] Building URL with showAllDivisions=true (divisionId: ${divisionId})`);
-  } else if (divisionId && divisionId !== "all") {
+  // Always use divisionId parameter for consistency
+  if (divisionId && divisionId !== "all") {
     // Use query parameter style for better compatibility
     const separator = url.includes('?') ? '&' : '?';
     url += `${separator}divisionId=${divisionId}`;

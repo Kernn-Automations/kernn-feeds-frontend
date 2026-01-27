@@ -6,6 +6,7 @@ import ErrorModal from "../ErrorModal";
 import zonesService from "../../services/zonesService";
 import subZonesService from "../../services/subZonesService";
 import teamsService from "../../services/teamsService";
+import apiService from "../../services/apiService";
 import styles from "./DivisionManager.module.css";
 import { isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../utils/roleUtils";
 
@@ -67,6 +68,7 @@ function DivisionManager() {
   const [showZoneForm, setShowZoneForm] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
   const [employees, setEmployees] = useState([]);
+  const [zoneHeadCandidates, setZoneHeadCandidates] = useState([]);
   const [newZone, setNewZone] = useState({
     name: "",
     divisionId: "",
@@ -203,6 +205,10 @@ function DivisionManager() {
       // Automatically fetch zones when zones tab is active
       fetchZones();
       fetchEmployees();
+    } else if (activeTab === "subzones") {
+      // Fetch zones for the Select Zone dropdown in subzones tab
+      fetchZones();
+      fetchEmployees();
     }
   }, [activeTab]);
 
@@ -216,6 +222,21 @@ function DivisionManager() {
       fetchStoreDropdowns(parseInt(newStore.divisionId));
     }
   }, [newStore.divisionId, showStoreForm]);
+
+  // Fetch zone head candidates when zone form opens
+  useEffect(() => {
+    if (showZoneForm) {
+      fetchZoneHeadCandidates(newZone.divisionId || null);
+    }
+  }, [showZoneForm]);
+
+  // Refetch zone head candidates when division changes in zone form
+  useEffect(() => {
+    if (showZoneForm && newZone.divisionId) {
+      fetchZoneHeadCandidates(newZone.divisionId);
+    }
+  }, [newZone.divisionId]);
+
 
   // RBM Discovery Logic
   const [rbmSubZone, setRbmSubZone] = useState(null);
@@ -819,6 +840,40 @@ function DivisionManager() {
     }
   };
 
+  const fetchZoneHeadCandidates = async (divisionId = null) => {
+    try {
+      console.log("Fetching zone head candidates...", { divisionId, userRole: user?.roleName });
+      let response;
+
+      // Determine which endpoint to use based on role and division context
+      if (isDivisionHead(user)) {
+        // Division Head: use division-specific endpoint
+        const targetDivisionId = divisionId || user?.divisionId;
+        if (!targetDivisionId) {
+          console.warn("No division ID available for Division Head");
+          setZoneHeadCandidates([]);
+          return;
+        }
+        response = await apiService.getZoneHeadCandidatesByDivision(targetDivisionId);
+      } else if (divisionId) {
+        // Admin/Super Admin with specific division selected: use division-specific endpoint
+        response = await apiService.getZoneHeadCandidatesByDivision(divisionId);
+      } else {
+        // Admin/Super Admin without division filter: use all divisions endpoint
+        response = await apiService.getZoneHeadCandidatesAll();
+      }
+
+      const data = await response.json();
+      const candidatesData = data.candidates || data.data || data || [];
+      setZoneHeadCandidates(Array.isArray(candidatesData) ? candidatesData : []);
+      console.log("Zone head candidates fetched:", candidatesData);
+    } catch (error) {
+      console.error("Error fetching zone head candidates:", error);
+      setZoneHeadCandidates([]);
+    }
+  };
+
+
   const fetchStoreDropdowns = async (divisionId = null) => {
     try {
       setStoreDropdownLoading(true);
@@ -1174,6 +1229,7 @@ function DivisionManager() {
   };
 
   const handleEditZone = (zone) => {
+    window.scrollTo(0, 0);
     setEditingZone(zone);
     setNewZone({
       name: zone.name || "",
@@ -1435,6 +1491,7 @@ function DivisionManager() {
   };
 
   const handleEditSubZone = (subZone) => {
+    window.scrollTo(0, 0);
     setEditingSubZone(subZone);
     setSelectedZoneForSubZone(subZone.zoneId);
     setNewSubZone({
@@ -2400,6 +2457,7 @@ function DivisionManager() {
   };
 
   const handleEditStore = async (store) => {
+    window.scrollTo(0, 0);
     ensureStoreDropdowns();
     setEditingStore(store);
 
@@ -3184,7 +3242,7 @@ function DivisionManager() {
                           }
                         >
                           <option value="">Select head (optional)</option>
-                          {employees.map((employee) => (
+                          {zoneHeadCandidates.map((employee) => (
                             <option key={employee.id} value={employee.id}>
                               {employee.name || employee.employeeName}
                             </option>

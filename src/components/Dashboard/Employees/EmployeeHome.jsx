@@ -23,10 +23,8 @@ function EmployeeHome({ navigate, isAdmin }) {
         
         // ✅ Add division parameters to endpoint
         let endpoint = "/dashboard/employees";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId) {
           endpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          endpoint += `?showAllDivisions=true`;
         }
         
         console.log('EmployeeHome - Fetching employee dashboard with endpoint:', endpoint);
