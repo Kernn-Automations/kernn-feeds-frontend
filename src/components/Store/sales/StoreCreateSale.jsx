@@ -2008,7 +2008,7 @@ export default function StoreCreateSale() {
                   : styles.productGrid
               }
             >
-              {products.map((product) => {
+              {products.filter(product => !product.isOutOfStock).map((product) => {
                 const inCart = cartItems[product.id]?.quantity || 0;
                 const isLoading = loadingProductIds.has(product.id);
 

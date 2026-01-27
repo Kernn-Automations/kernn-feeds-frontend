@@ -162,6 +162,15 @@ class ApiService {
   async delete(url) {
     return this.request(url, { method: 'DELETE' });
   }
+
+  // Zone head candidates methods
+  async getZoneHeadCandidatesAll() {
+    return this.get('/divisions/zone-head-candidates');
+  }
+
+  async getZoneHeadCandidatesByDivision(divisionId) {
+    return this.get(`/divisions/${divisionId}/zone-head-candidates`);
+  }
 }
 
 export default new ApiService();

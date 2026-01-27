@@ -1088,7 +1088,7 @@ function StoreSalesReports({ onBack }) {
         </div>
 
         {/* Summary */}
-        {salesData.length > 0 && (
+        {salesData.length > 0 && responseData?.totals && (
           <div
             style={{
               marginTop: "20px",
@@ -1104,62 +1104,27 @@ function StoreSalesReports({ onBack }) {
           >
             <div>
               <strong>Total Records: </strong>
-              {filteredSalesData.length}
+              {responseData.totals.totalRecords || 0}
             </div>
             <div>
               <strong>Total Quantity: </strong>
-              {filteredSalesData.reduce(
-                (sum, row) => sum + (parseFloat(row.quantity) || 0),
-                0
-              )}
-              bags
+              {responseData.totals.totalQuantity || 0} bags
             </div>
             <div>
               <strong>Total Tonns: </strong>
-              {(
-                filteredSalesData.reduce(
-                  (sum, row) => sum + (parseFloat(row.quantity) || 0),
-                  0
-                ) / 20
-              ).toFixed(2)}
-              tns
+              {responseData.totals.totalTons || 0} tns
             </div>
             <div>
               <strong>Sub Total Amount: </strong>₹
-              {formatAmount(
-                filteredSalesData.reduce(
-                  (sum, row) => sum + (parseFloat(row.amount) || 0),
-                  0
-                ) -
-                  filteredSalesData.reduce(
-                    (sum, row) =>
-                      sum +
-                      (parseFloat(row.freightCharges) || 0) +
-                      (parseFloat(row.fridgeAmount) || 0),
-                    0
-                  )
-              )}
+              {formatAmount(responseData.totals.totalValue || 0)}
             </div>
             <div>
               <strong>Total Freight Amount: </strong>₹
-              {formatAmount(
-                filteredSalesData.reduce(
-                  (sum, row) =>
-                    sum +
-                    (parseFloat(row.freightCharges) || 0) +
-                    (parseFloat(row.fridgeAmount) || 0),
-                  0
-                )
-              )}
+              {formatAmount(responseData.totals.totalFreight || 0)}
             </div>
             <div>
               <strong>Total Amount: </strong>₹
-              {formatAmount(
-                filteredSalesData.reduce(
-                  (sum, row) => sum + (parseFloat(row.amount) || 0),
-                  0
-                )
-              )}
+              {formatAmount(responseData.totals.totalAmount || 0)}
             </div>
           </div>
         )}

@@ -240,33 +240,6 @@ function TeamsHome({ navigate, isAdmin }) {
         </div>
       </div>
 
-      {/* Show sample data if no teams loaded */}
-      {(!teams || teams.length === 0) && !loading && (
-        <div className="alert alert-warning m-3">
-          <strong>No Teams Data Available</strong>
-          <br />
-          This could be due to:
-          <ul>
-            <li>API connection issues</li>
-            <li>Authentication problems</li>
-            <li>No teams in the current division</li>
-            <li>Backend service not running</li>
-          </ul>
-          <button 
-            className="btn btn-primary me-2" 
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
-          <button 
-            className="btn btn-secondary me-2" 
-            onClick={() => navigate("/employees")}
-          >
-            Back to Employees
-          </button>
-        </div>
-      )}
-
       <div className="row m-0 p-3 justify-content-center">
         <div className="col-lg-12">
           {/* Filter Controls */}

@@ -208,6 +208,10 @@ export default function ViewAllIndents() {
   const [rejectIncomingLoading, setRejectIncomingLoading] = useState(false);
   const [revertItems, setRevertItems] = useState([]);
   
+  // Pending Indents Warning Modal
+  const [showPendingIndentsWarning, setShowPendingIndentsWarning] = useState(false);
+  const [pendingIndentsCount, setPendingIndentsCount] = useState(0);
+  
   // Get store ID from localStorage
   useEffect(() => {
     try {
@@ -1148,6 +1152,31 @@ export default function ViewAllIndents() {
     }
   };
 
+  const handleManualStockInClick = () => {
+    // Check if there are any pending or awaiting approval indents
+    const pendingIndents = indents.filter(indent => 
+      indent.originalStatus === 'pending' || 
+      indent.status === 'Awaiting Approval' ||
+      indent.originalStatus === 'approved' ||
+      indent.status === 'Waiting for Stock'
+    );
+    
+    if (pendingIndents.length > 0) {
+      setPendingIndentsCount(pendingIndents.length);
+      setShowPendingIndentsWarning(true);
+    } else {
+      setShowManualStockIn(true);
+    }
+  };
+
+  const handleProceedWithManualStockIn = () => {
+    setShowPendingIndentsWarning(false);
+    setShowManualStockIn(true);
+  };
+
+  const handleCancelManualStockIn = () => {
+    setShowPendingIndentsWarning(false);
+  };
 
 
   return (
@@ -1163,7 +1192,7 @@ export default function ViewAllIndents() {
             <div className="col-auto">
               <button
                 className="btn btn-primary"
-                onClick={() => setShowManualStockIn(true)}
+                onClick={handleManualStockInClick}
                 style={{ fontFamily: "Poppins" }}
               >
                 <i
@@ -2553,6 +2582,74 @@ export default function ViewAllIndents() {
                   disabled={rejectIncomingLoading}
                 >
                   {rejectIncomingLoading ? "Rejecting..." : "Yes, Reject"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Indents Warning Modal */}
+      {showPendingIndentsWarning && (
+        <div
+          className="modal fade show"
+          style={{
+            display: "block",
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 150005,
+          }}
+          tabIndex="-1"
+          role="dialog"
+        >
+          <div
+            className="modal-dialog modal-dialog-centered"
+            role="document"
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "white",
+                borderRadius: "0.5rem",
+                boxShadow: "0 0.5rem 1rem rgba(0, 0, 0, 0.15)",
+              }}
+            >
+              <div className="modal-header bg-warning text-dark">
+                <h5 className="modal-title" style={{ fontFamily: "Poppins", fontWeight: 600 }}>
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  Pending Stock In Indents
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={handleCancelManualStockIn}
+                ></button>
+              </div>
+              <div className="modal-body p-4">
+                <p style={{ fontFamily: "Poppins", fontSize: "15px", marginBottom: "12px" }}>
+                  <strong>Note:</strong> There {pendingIndentsCount === 1 ? 'is' : 'are'} currently <strong>{pendingIndentsCount}</strong> pending stock-in indent{pendingIndentsCount === 1 ? '' : 's'} / awaiting approval.
+                </p>
+                <p style={{ fontFamily: "Poppins", fontSize: "14px", color: "#666", marginBottom: 0 }}>
+                  Do you still want to proceed with manual stock in?
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCancelManualStockIn}
+                  style={{ fontFamily: "Poppins" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleProceedWithManualStockIn}
+                  style={{ fontFamily: "Poppins" }}
+                >
+                  Make Manual Stock In
                 </button>
               </div>
             </div>

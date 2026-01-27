@@ -44,6 +44,19 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   // As per requirement, when the above roles are selected, warehouse field should not appear
   const warehouseRequired = !hasRoleThatHidesWarehouse && false;
 
+  // Update form state when employee prop changes (after successful update)
+  useEffect(() => {
+    setForm({
+      name: employee.name,
+      employeeId: employee.employeeId,
+      email: employee.email,
+      mobile: employee.mobile,
+      warehouseId: employee.warehouseId,
+    });
+    setSelectedRoles(employee.roles?.map((role) => role.id) || []);
+    setSelectedSupervisor(Number(employee.supervisorId));
+  }, [employee]);
+
   // Load roles and warehouses
   useEffect(() => {
     async function fetchInitial() {
@@ -163,13 +176,18 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   console.log(availableRoles);
   const handleSubmit = async () => {
     const parsedSupervisorId = selectedSupervisor != null && selectedSupervisor !== "" ? parseInt(selectedSupervisor) : null;
+    
+    // Check if supervisor is actually required
+    // Supervisor is required only if: not admin AND supervisors list is available (length > 0)
+    const supervisorRequired = !isAdminSelected && supervisors.length > 0;
+    
     if (
       !form.name ||
       !form.employeeId ||
       !form.mobile ||
       selectedRoles.length === 0 ||
       (warehouseRequired && !form.warehouseId) ||
-      (!isAdminSelected && (parsedSupervisorId == null || Number.isNaN(parsedSupervisorId)))
+      (supervisorRequired && (parsedSupervisorId == null || Number.isNaN(parsedSupervisorId)))
     ) {
       setError("Please fill all the required fields.");
       setIsModalOpen(true);

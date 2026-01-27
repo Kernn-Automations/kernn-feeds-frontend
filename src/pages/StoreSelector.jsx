@@ -139,17 +139,12 @@ const StoreSelector = () => {
           "StoreSelector.jsx - No stores in user data, fetching from API...",
         );
         try {
-          let response;
-          // For ABM role, fetch from /auth/available-stores as per requirement
-          if (isAreaBusinessManager(user)) {
-            console.log(
-              "StoreSelector.jsx - User is ABM, fetching from /auth/available-stores",
-            );
-            response = await axiosAPI.get("/auth/available-stores");
-          } else {
-            // Use /stores/list endpoint with storeType filter for others
-            response = await axiosAPI.get("/stores/list");
-          }
+          // Use /auth/available-stores endpoint to get all available stores
+          // This works for all roles including admin, ABM, and others
+          console.log(
+            "StoreSelector.jsx - Fetching from /auth/available-stores",
+          );
+          const response = await axiosAPI.get("/auth/available-stores");
 
           const data = response.data;
           console.log("StoreSelector.jsx - API response:", data);
