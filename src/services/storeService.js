@@ -146,6 +146,10 @@ const storeService = {
     const res = await api.request(`/store-indents/stock-transfer/available-stock/${storeId}`, { method: "GET" });
     return res.json();
   },
+  async getAvailableDamagedStockForTransfer(storeId) {
+    const res = await api.request(`/store-indents/stock-transfer/available-damaged-stock/${storeId}`, { method: "GET" });
+    return res.json();
+  },
   async getStockTransfers(storeId) {
     const res = await api.request(`/stores/${storeId}/stock-transfers`, { method: "GET" });
     return res.json();
@@ -597,6 +601,16 @@ const storeService = {
   },
   
   // Store Damaged Goods operations
+  async getDamagedStock(storeId, params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/${storeId}/damaged-stock${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+
+  getManageStockHistory: async (storeId) => {
+    const res = await api.request(`/stores/${storeId}/manage-stock/history`, { method: "GET" });
+    return res.json();
+  },
   async getStoreDamagedGoods(storeId, params = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/stores/${storeId}/damaged-goods${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });

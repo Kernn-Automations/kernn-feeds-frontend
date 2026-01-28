@@ -11,7 +11,7 @@ import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import { isAdmin, isSuperAdmin, isDivisionHead } from "@/utils/roleUtils";
+import { isAdmin, isSuperAdmin, isDivisionHead, isStoreEmployee, isStoreManager } from "@/utils/roleUtils";
 
 function StoreStockSummary() {
   const navigate = useNavigate();
@@ -45,6 +45,7 @@ function StoreStockSummary() {
   const userData = JSON.parse(localStorage.getItem("user") || "{}");
   const user = userData.user || userData;
   const canShowValues = isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user);
+  const shouldHideDetailsPrice = isStoreEmployee(user) || isStoreManager(user);
 
   // Invoice Details Modal States
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -1477,8 +1478,8 @@ function StoreStockSummary() {
                                         <th style={thStyle}>Invoice ID</th>
                                         <th style={thStyle}>Customer</th>
                                         <th style={thStyle}>Quantity</th>
-                                        <th style={thStyle}>Price</th>
-                                        <th style={thStyle}>Total</th>
+                                        {!shouldHideDetailsPrice && <th style={thStyle}>Price</th>}
+                                        {!shouldHideDetailsPrice && <th style={thStyle}>Total</th>}
                                         <th style={thStyle}>Action</th>
                                       </tr>
                                     </thead>
@@ -1488,7 +1489,11 @@ function StoreStockSummary() {
                                           <tr key={i}>
                                             <td style={tdStyle}>{sale.date}</td>
                                             <td style={tdStyle}>{sale.type}</td>
-                                            <td style={tdStyle}>{sale.transferNumber || "-"}</td>
+                                            <td style={tdStyle}>
+                                              {sale.reportCode
+                                                ? `${sale.reportCode} (report code)`
+                                                : sale.transferNumber || "-"}
+                                            </td>
                                             <td style={tdStyle}>
                                               {rowData?.invoices?.find(
                                                 (inv) =>
@@ -1499,7 +1504,9 @@ function StoreStockSummary() {
                                               {sale.customer}
                                             </td>
                                             <td style={tdStyle}>
-                                              {sale.quantity}{" "}
+                                              {sale.reportCode
+                                                ? sale.quantity
+                                                : sale.receivedQuantity}{" "}
                                               <span
                                                 style={{
                                                   color: "#6b7280",
@@ -1509,18 +1516,22 @@ function StoreStockSummary() {
                                                 {sale.unit || item.unit}
                                               </span>
                                             </td>
-                                            <td style={tdStyle}>
-                                              ₹{sale.price}
-                                            </td>
-                                            <td
-                                              style={{
-                                                ...tdStyle,
-                                                fontWeight: 600,
-                                              }}
-                                            >
-                                              ₹
-                                              {sale.totalAmount.toLocaleString()}
-                                            </td>
+                                            {!shouldHideDetailsPrice && (
+                                              <td style={tdStyle}>
+                                                ₹{sale.price}
+                                              </td>
+                                            )}
+                                            {!shouldHideDetailsPrice && (
+                                              <td
+                                                style={{
+                                                  ...tdStyle,
+                                                  fontWeight: 600,
+                                                }}
+                                              >
+                                                ₹
+                                                {(sale.receivedTotalAmount || sale.totalAmount).toLocaleString()}
+                                              </td>
+                                            )}
                                             <td style={tdStyle}>
                                               <button
                                                 className="homebtn"
@@ -3385,6 +3396,7 @@ function StoreStockSummary() {
                       >
                         <th align="left">Product</th>
                         <th align="left">Qty</th>
+                        <th align="left">Received Stock</th>
                         <th align="left">Price</th>
                         <th align="right">Total</th>
                       </tr>
@@ -3397,9 +3409,12 @@ function StoreStockSummary() {
                           <td>
                             {i.quantity} {i.unit}
                           </td>
+                          <td>
+                            {i.receivedQuantity} {i.unit}
+                          </td>
                           <td>₹{Number(i.unitPrice || 0).toLocaleString()}</td>
                           <td align="right">
-                            ₹{Number(i.amount || 0).toLocaleString()}
+                            ₹{Number(i.receivedAmount || 0).toLocaleString()}
                           </td>
                         </tr>
                       ))}

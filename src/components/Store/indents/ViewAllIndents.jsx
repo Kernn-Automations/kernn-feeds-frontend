@@ -809,9 +809,13 @@ export default function ViewAllIndents() {
   const handleDamagedGoodsChange = (index, field, value) => {
     setDamagedGoodsRows((prev) => {
       const newRows = [...prev];
+      const row = newRows[index];
+      // Max validation against received quantity
+      const receivedQty = receivedQuantities[row.productId] !== undefined ? receivedQuantities[row.productId] : (row.orderedQty || 0);
+
       const newValue =
         field === "damagedQty"
-          ? Math.min(parseFloat(value) || 0, newRows[index].orderedQty)
+          ? Math.min(parseFloat(value) || 0, receivedQty)
           : value;
       newRows[index] = { ...newRows[index], [field]: newValue };
       return newRows;
@@ -1578,9 +1582,17 @@ export default function ViewAllIndents() {
                                       `Product ${item.productId}`}
                                   </td>
                                   <td>
-                                    {item.requestedQuantity ||
-                                      item.quantity ||
-                                      0}
+                                    {selectedIndent.notes?.toLowerCase() === "manual stock in"
+                                      ? item.quantity || item.requestedQuantity || 0
+                                      : (selectedIndent.originalStatus === "approved" ||
+                                        selectedIndent.status === "Approved")
+                                      ? (item.requestedQuantity ||
+                                        item.quantity ||
+                                        0)
+                                      : (item.receivedQuantity !== undefined &&
+                                          item.receivedQuantity !== null
+                                          ? item.receivedQuantity
+                                          : 0)}
                                   </td>
                                   <td>{item.unit || "units"}</td>
                                 </tr>
@@ -1808,8 +1820,11 @@ export default function ViewAllIndents() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {damagedGoodsRows.map((row, index) => {
+                                  {damagedGoodsRows.map((row, index) => {
                                   const orderedQty = row.orderedQty || 0;
+                                  const receivedQty = receivedQuantities[row.productId] !== undefined ? receivedQuantities[row.productId] : orderedQty;
+                                  const isStockInZero = receivedQty <= 0;
+
                                   return (
                                     <tr key={index}>
                                       <td>{row.productName}</td>
@@ -1817,12 +1832,13 @@ export default function ViewAllIndents() {
                                       <td>
                                         <input
                                           type="number"
-                                          min="1"
-                                          max={orderedQty}
+                                          min="0"
+                                          max={receivedQty}
                                           step="1"
                                           inputMode="numeric"
                                           onWheel={disableWheel}
                                           value={row.damagedQty}
+                                          disabled={isStockInZero}
                                           onChange={(e) =>
                                             handleDamagedGoodsChange(
                                               index,
@@ -1837,6 +1853,8 @@ export default function ViewAllIndents() {
                                             border: "1px solid #ddd",
                                             borderRadius: "4px",
                                             fontFamily: "Poppins",
+                                            backgroundColor: isStockInZero ? "#eee" : "white",
+                                            cursor: isStockInZero ? "not-allowed" : "text"
                                           }}
                                         />
                                       </td>
