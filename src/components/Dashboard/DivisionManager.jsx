@@ -180,7 +180,6 @@ function DivisionManager() {
     const currentDivisionId = localStorage.getItem("currentDivisionId");
     if (
       currentDivisionId &&
-      currentDivisionId !== "1" &&
       currentDivisionId !== "all"
     ) {
       setNewStore((prev) => ({
@@ -196,7 +195,6 @@ function DivisionManager() {
       const currentDivisionId = localStorage.getItem("currentDivisionId");
       const divisionId =
         currentDivisionId &&
-        currentDivisionId !== "1" &&
         currentDivisionId !== "all"
           ? parseInt(currentDivisionId)
           : null;
@@ -2056,7 +2054,6 @@ function DivisionManager() {
           longitude: "",
           divisionId:
             currentDivisionId &&
-            currentDivisionId !== "1" &&
             currentDivisionId !== "all"
               ? currentDivisionId
               : "",
@@ -2613,7 +2610,6 @@ function DivisionManager() {
       longitude: "",
       divisionId:
         currentDivisionId &&
-        currentDivisionId !== "1" &&
         currentDivisionId !== "all"
           ? currentDivisionId
           : "",
@@ -2763,7 +2759,6 @@ function DivisionManager() {
                     
                     if (
                       currentDivisionId &&
-                      currentDivisionId !== "1" &&
                       currentDivisionId !== "all"
                     ) {
                       setNewStore((prev) => ({
@@ -3906,7 +3901,6 @@ function DivisionManager() {
                   localStorage.getItem("currentDivisionId");
                 const isDivisionLocked =
                   currentDivisionId &&
-                  currentDivisionId !== "1" &&
                   currentDivisionId !== "all" &&
                   !editingStore;
 

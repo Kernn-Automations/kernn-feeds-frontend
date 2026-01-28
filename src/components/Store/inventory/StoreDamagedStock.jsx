@@ -25,7 +25,11 @@ function StoreDamagedStock() {
   const [damagedReports, setDamagedReports] = useState([]);
   const [imageFile, setImageFile] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   const [selectedReport, setSelectedReport] = useState(null);
+  const [viewDamagedStock, setViewDamagedStock] = useState(false);
+  const [damagedStockList, setDamagedStockList] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
   
   // Pagination states
   const [page, setPage] = useState(1);
@@ -78,6 +82,29 @@ function StoreDamagedStock() {
   const clearSearch = (key) => {
     setSearchTerms(prev => ({ ...prev, [key]: "" }));
   };
+
+  const handleViewDamagedStock = async () => {
+    if (!viewDamagedStock) {
+      if (!storeId) {
+        alert("Store ID not found");
+        return;
+      }
+      setStockLoading(true);
+      try {
+        const res = await storeService.getDamagedStock(storeId);
+        if (res.success && res.data) {
+          setDamagedStockList(res.data);
+        }
+      } catch (error) {
+        console.error("Error fetching damaged stock:", error);
+        alert("Failed to fetch damaged stock");
+      } finally {
+        setStockLoading(false);
+      }
+    }
+    setViewDamagedStock(!viewDamagedStock);
+  };
+
 
   const renderSearchHeader = (label, searchKey, dataAttr) => {
     const isSearching = showSearch[searchKey];
@@ -550,8 +577,74 @@ function StoreDamagedStock() {
           >
             Report Damaged Stock
           </button>
+          <button 
+            className="homebtn"
+            onClick={handleViewDamagedStock}
+            disabled={stockLoading}
+            style={{ 
+              marginLeft: '10px',
+              background: viewDamagedStock ? 'var(--primary-color)' : '#fff',
+              color: viewDamagedStock ? '#fff' : 'var(--primary-color)',
+              border: '1px solid var(--primary-color)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '36px', lineHeight: '1'
+            }}
+          >
+            {stockLoading ? 'Loading...' : (viewDamagedStock ? 'Hide Damaged Stock' : 'View Damaged Stock')}
+          </button>
         </div>
       </div>
+
+      {/* View Damaged Stock Table */}
+      {viewDamagedStock && (
+        <div className={styles.orderStatusCard} style={{ marginBottom: "24px" }}>
+          <h4
+            style={{
+              margin: 0,
+              marginBottom: "20px",
+              fontFamily: "Poppins",
+              fontWeight: 600,
+              fontSize: "20px",
+              color: "var(--primary-color)",
+            }}
+          >
+            Damaged Stock List
+          </h4>
+          <div className="table-responsive">
+            <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
+              <thead>
+                <tr>
+                  <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
+                  <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Quantity</th>
+                  <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {damagedStockList.length > 0 ? (
+                  damagedStockList.map((item, i) => (
+                    <tr key={i}>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600 }}>
+                        {item.product?.name || item.productName || item.productId || "-"}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {item.damagedQuantity || item.quantity || 0}
+                      </td>
+                      <td style={{ fontFamily: 'Poppins', fontSize: '13px' }}>
+                        {item.unit || item.product?.unit || "-"}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="3" className="text-center" style={{ padding: '20px', color: "#666" }}>
+                      No damaged stock found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Report Form Modal */}
       <style>{`
