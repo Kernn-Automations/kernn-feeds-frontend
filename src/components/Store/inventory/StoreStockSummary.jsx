@@ -72,7 +72,8 @@ function StoreStockSummary() {
         inv.saleCode === orderIdOrTransferNum ||
         inv.transferNumber === orderIdOrTransferNum ||
         inv.saleId === orderIdOrTransferNum ||
-        inv.transferId === orderIdOrTransferNum,
+        inv.transferId === orderIdOrTransferNum ||
+        inv.reportCode === orderIdOrTransferNum,
     );
 
     if (invoice) {
@@ -1478,6 +1479,7 @@ function StoreStockSummary() {
                                         <th style={thStyle}>Invoice ID</th>
                                         <th style={thStyle}>Customer</th>
                                         <th style={thStyle}>Quantity</th>
+                                        <th style={thStyle}>Received Quantity</th>
                                         {!shouldHideDetailsPrice && <th style={thStyle}>Price</th>}
                                         {!shouldHideDetailsPrice && <th style={thStyle}>Total</th>}
                                         <th style={thStyle}>Action</th>
@@ -1504,9 +1506,7 @@ function StoreStockSummary() {
                                               {sale.customer}
                                             </td>
                                             <td style={tdStyle}>
-                                              {sale.reportCode
-                                                ? sale.quantity
-                                                : sale.receivedQuantity}{" "}
+                                              {sale.quantity}{" "}
                                               <span
                                                 style={{
                                                   color: "#6b7280",
@@ -1515,6 +1515,9 @@ function StoreStockSummary() {
                                               >
                                                 {sale.unit || item.unit}
                                               </span>
+                                            </td>
+                                            <td style={tdStyle}>
+                                              {sale.receivedQuantity || "-"} {sale.unit || item.unit}
                                             </td>
                                             {!shouldHideDetailsPrice && (
                                               <td style={tdStyle}>
@@ -1540,6 +1543,8 @@ function StoreStockSummary() {
                                                   openInvoicePopup(
                                                     sale.type === "sale"
                                                       ? sale.orderId
+                                                      : sale.type === "damaged_goods"
+                                                      ? sale.reportCode
                                                       : sale.transferNumber,
                                                     rowData?.invoices,
                                                   )
@@ -3338,6 +3343,8 @@ function StoreStockSummary() {
                 <h4 style={{ margin: 0 }}>
                   {selectedInvoice.type === "sale"
                     ? "Sale Invoice"
+                    : selectedInvoice.type === "damaged_goods"
+                    ? "Damaged Goods Report"
                     : "Transfer Note"}
                 </h4>
                 <button
@@ -3359,16 +3366,22 @@ function StoreStockSummary() {
                     <strong>
                       {selectedInvoice.type === "sale"
                         ? "Invoice No: "
+                        : selectedInvoice.type === "damaged_goods"
+                        ? "Report Code: "
                         : "Transfer No: "}
                     </strong>
                     {selectedInvoice.type === "sale"
                       ? selectedInvoice.invoice?.invoiceNumber
+                      : selectedInvoice.type === "damaged_goods"
+                      ? selectedInvoice.reportCode
                       : selectedInvoice.transferNumber}
                   </div>
                   <div>
                     <strong>Date:</strong>{" "}
                     {formatDate(
-                      selectedInvoice.saleDate || selectedInvoice.transferDate,
+                      selectedInvoice.saleDate ||
+                        selectedInvoice.transferDate ||
+                        selectedInvoice.damageDate,
                     )}
                   </div>
                   {selectedInvoice.customer && (
@@ -3382,6 +3395,14 @@ function StoreStockSummary() {
                       ({selectedInvoice.toStore.storeCode})
                     </div>
                   )}
+                  {selectedInvoice.type === "damaged_goods" &&
+                    selectedInvoice.reportedBy && (
+                      <div>
+                        <strong>Reported By:</strong>{" "}
+                        {selectedInvoice.reportedBy.name ||
+                          selectedInvoice.reportedBy}
+                      </div>
+                    )}
 
                   <div style={divider} />
 
@@ -3410,11 +3431,11 @@ function StoreStockSummary() {
                             {i.quantity} {i.unit}
                           </td>
                           <td>
-                            {i.receivedQuantity} {i.unit}
+                            {i.receivedQuantity || "-"} {i.unit}
                           </td>
                           <td>₹{Number(i.unitPrice || 0).toLocaleString()}</td>
                           <td align="right">
-                            ₹{Number(i.receivedAmount || 0).toLocaleString()}
+                            ₹{Number(i.receivedAmount || i.amount || 0).toLocaleString()}
                           </td>
                         </tr>
                       ))}
