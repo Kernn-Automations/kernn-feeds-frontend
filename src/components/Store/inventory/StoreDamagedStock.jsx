@@ -14,6 +14,7 @@ import storeService from "../../../services/storeService";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
+import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
 
 function StoreDamagedStock() {
   const navigate = useNavigate();
@@ -398,11 +399,27 @@ function StoreDamagedStock() {
     setCurrentStock(product ? product.stock : 0);
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       console.log('File selected:', file.name, file.size, file.type);
-      setImageFile(file);
+      
+      try {
+        let finalFile = file;
+        if (file.type.startsWith("image/")) {
+          const compressedBlob = await compressImageToUnder100KB(file);
+          finalFile = new File([compressedBlob], file.name, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          console.log('Compressed file:', finalFile.name, finalFile.size, finalFile.type);
+        }
+        setImageFile(finalFile);
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        // Fallback to original file if compression fails
+        setImageFile(file);
+      }
     } else {
       setImageFile(null);
     }

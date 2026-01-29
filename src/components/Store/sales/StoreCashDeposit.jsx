@@ -349,13 +349,7 @@ export default function StoreCashDeposit() {
       if (file.type.startsWith("image/")) {
         const compressedBlob = await compressImageToUnder100KB(file);
 
-        if (compressedBlob.size > 100 * 1024) {
-          showError(
-            "Image could not be compressed under 100KB. Please try another image."
-          );
-          e.target.value = "";
-          return;
-        }
+
 
         processedFile = new File([compressedBlob], file.name, {
           type: "image/jpeg",

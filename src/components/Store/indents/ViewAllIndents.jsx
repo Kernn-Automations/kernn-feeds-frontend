@@ -12,6 +12,7 @@ import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import storeService from "../../../services/storeService";
+import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
 
 export default function ViewAllIndents() {
   const navigate = useNavigate();
@@ -586,6 +587,7 @@ export default function ViewAllIndents() {
 
           const itemPayload = {
             productId: productId,
+            requestedQuantity: quantity,
             quantity: quantity, // API uses 'quantity' not 'receivedQuantity'
             unit: item.unit || "units", // Optional, uses product default if not provided
           };
@@ -726,6 +728,20 @@ export default function ViewAllIndents() {
     }
 
     try {
+      let fileToProcess = file;
+      if (file.type.startsWith("image/")) {
+        try {
+           const compressedBlob = await compressImageToUnder100KB(file);
+           fileToProcess = new File([compressedBlob], file.name, {
+             type: "image/jpeg",
+             lastModified: Date.now(),
+           });
+           console.log('Compressed file:', fileToProcess.name, fileToProcess.size, fileToProcess.type);
+        } catch (e) {
+           console.error("Compression failed, using original file", e);
+        }
+      }
+
       // Convert to base64
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -734,7 +750,7 @@ export default function ViewAllIndents() {
           const newRows = [...prev];
           newRows[index] = {
             ...newRows[index],
-            image: file,
+            image: fileToProcess,
             imageBase64: base64String,
             imagePreview: base64String,
           };
@@ -745,7 +761,7 @@ export default function ViewAllIndents() {
         setError("Error reading image file");
         setIsModalOpen(true);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(fileToProcess);
     } catch (err) {
       console.error("Error processing image:", err);
       setError("Error processing image");
@@ -760,8 +776,7 @@ export default function ViewAllIndents() {
       const items = selectedIndent.items || selectedIndent.products || [];
       items.forEach((item, index) => {
         const productId = item.productId || item.id;
-        initialQuantities[productId] =
-          item.requestedQuantity || item.quantity || 0;
+        initialQuantities[productId] = ""; // Initialize as empty
       });
       setReceivedQuantities(initialQuantities);
       setShowStockIn(true);
@@ -778,7 +793,7 @@ export default function ViewAllIndents() {
   const handleReceivedQuantityChange = (productId, value) => {
     setReceivedQuantities((prev) => ({
       ...prev,
-      [productId]: parseFloat(value) || 0,
+      [productId]: value === "" ? "" : parseFloat(value),
     }));
   };
 
@@ -1040,7 +1055,8 @@ export default function ViewAllIndents() {
         
         // Use currentStock from the fetched data as per API response
         const currentStock = product ? (product.currentStock || 0) : 0;
-        const revertQty = item.requestedQuantity || item.quantity || 0;
+        // Use receivedQuantity as requested
+        const revertQty = item.receivedQuantity || 0;
         
         // Remaining = Current - Revert
         return {
@@ -1068,7 +1084,7 @@ export default function ViewAllIndents() {
           (p) => (p.id || p.productId)?.toString() === productId.toString(),
         );
         const currentStock = product ? (product.stockQuantity || product.quantity || 0) : 0;
-        const revertQty = item.requestedQuantity || item.quantity || 0;
+        const revertQty = item.receivedQuantity || 0;
         
         return {
           productId,
@@ -1567,6 +1583,7 @@ export default function ViewAllIndents() {
                               <th>S.No</th>
                               <th>Product Name</th>
                               <th>Quantity</th>
+                              <th>Received Quantity</th>
                               <th>Unit</th>
                             </tr>
                           </thead>
@@ -1581,9 +1598,10 @@ export default function ViewAllIndents() {
                                       item.productName ||
                                       `Product ${item.productId}`}
                                   </td>
+                                  <td>{item.requestedQuantity || item.quantity || 0}</td>
                                   <td>
-                                    {selectedIndent.notes?.toLowerCase() === "manual stock in"
-                                      ? item.quantity || item.requestedQuantity || 0
+                                      {selectedIndent.notes?.toLowerCase().includes("manual stock in")
+                                      ? item.requestedQuantity || 0
                                       : (selectedIndent.originalStatus === "approved" ||
                                         selectedIndent.status === "Approved")
                                       ? (item.requestedQuantity ||
@@ -1604,6 +1622,7 @@ export default function ViewAllIndents() {
                                   <td>{index + 1}</td>
                                   <td>{product.name}</td>
                                   <td>{product.quantity}</td>
+                                  <td>{product.receivedQuantity || product.quantity}</td>
                                   <td>{product.unit}</td>
                                   <td>
                                     ₹
@@ -1708,7 +1727,9 @@ export default function ViewAllIndents() {
                                 const orderedQty =
                                   item.requestedQuantity || item.quantity || 0;
                                 const receivedQty =
-                                  receivedQuantities[productId] || orderedQty;
+                                  receivedQuantities[productId] !== undefined
+                                    ? receivedQuantities[productId]
+                                    : orderedQty;
                                 return (
                                   <tr key={index}>
                                     <td>{index + 1}</td>
@@ -1723,7 +1744,7 @@ export default function ViewAllIndents() {
                                     <td>
                                       <input
                                         type="number"
-                                        min="1"
+                                        min="0"
                                         max={orderedQty}
                                         step="1"
                                         inputMode="numeric"
