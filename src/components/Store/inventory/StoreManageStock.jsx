@@ -339,7 +339,6 @@ function StoreManageStock() {
             <option value="stockin">Stock In (Add Stock)</option>
             <option value="stockout">Stock Out (Remove Stock)</option>
             <option value="inward">Inward (Add Stock)</option>
-            <option value="outward">Outward (Remove Stock)</option>
           </select>
         </div>
 

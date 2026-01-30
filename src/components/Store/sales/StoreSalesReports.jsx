@@ -776,6 +776,29 @@ function StoreSalesReports({ onBack }) {
     }
   };
 
+  // Calculate totals from filtered data
+  const totals = filteredSalesData.reduce(
+    (acc, item) => {
+      acc.totalRecords += 1;
+      acc.totalQuantity += parseFloat(item.quantity || 0);
+      acc.subTotalAmount += parseFloat(item.amount || 0);
+      acc.totalFreightAmount +=
+        (parseFloat(item.freightCharges) || 0) +
+        (parseFloat(item.fridgeAmount) || 0);
+      return acc;
+    },
+    {
+      totalRecords: 0,
+      totalQuantity: 0,
+      subTotalAmount: 0,
+      totalFreightAmount: 0,
+    }
+  );
+
+  const totalTons = totals.totalQuantity * 0.05;
+  const totalAmount = totals.subTotalAmount + totals.totalFreightAmount;
+
+
   return (
     <div>
       <div className={styles.pageHeader}>
@@ -1088,7 +1111,7 @@ function StoreSalesReports({ onBack }) {
         </div>
 
         {/* Summary */}
-        {salesData.length > 0 && responseData?.totals && (
+        {salesData.length > 0 && (
           <div
             style={{
               marginTop: "20px",
@@ -1104,27 +1127,26 @@ function StoreSalesReports({ onBack }) {
           >
             <div>
               <strong>Total Records: </strong>
-              {responseData.totals.totalRecords || 0}
+              {totals.totalRecords}
             </div>
             <div>
               <strong>Total Quantity: </strong>
-              {responseData.totals.totalQuantity || 0} bags
+              {totals.totalQuantity} bags
             </div>
             <div>
               <strong>Total Tonns: </strong>
-              {responseData.totals.totalTons || 0} tns
+              {totalTons.toFixed(2)} tns
             </div>
             <div>
               <strong>Sub Total Amount: </strong>₹
-              {formatAmount(responseData.totals.totalValue || 0)}
+              {formatAmount(totals.subTotalAmount)}
             </div>
             <div>
               <strong>Total Freight Amount: </strong>₹
-              {formatAmount(responseData.totals.totalFreight || 0)}
+              {formatAmount(totals.totalFreightAmount)}
             </div>
             <div>
-              <strong>Total Amount: </strong>₹
-              {formatAmount(responseData.totals.totalAmount || 0)}
+              <strong>Total Amount: </strong>₹{formatAmount(totalAmount)}
             </div>
           </div>
         )}

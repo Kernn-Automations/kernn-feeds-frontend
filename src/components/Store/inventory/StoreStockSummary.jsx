@@ -649,6 +649,23 @@ function StoreStockSummary() {
           }))
         : [];
 
+      // Sort by SKU: Numerical first, then Alphabetical
+      mappedData.sort((a, b) => {
+        const skuA = String(a.productSKU || "").trim();
+        const skuB = String(b.productSKU || "").trim();
+
+        const isNumA = /^\d+(\.\d+)?$/.test(skuA);
+        const isNumB = /^\d+(\.\d+)?$/.test(skuB);
+
+        if (isNumA && isNumB) {
+          return parseFloat(skuA) - parseFloat(skuB);
+        }
+        if (isNumA && !isNumB) return -1;
+        if (!isNumA && isNumB) return 1;
+
+        return skuA.localeCompare(skuB);
+      });
+
       setStockData(mappedData);
       setTotal(paginationData.total || mappedData.length);
       setTotalPages(

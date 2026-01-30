@@ -1078,7 +1078,7 @@ function StoreSalesOrders({ onBack }) {
                     className="text-center"
                     style={{ padding: "20px" }}
                   >
-                    No sales orders found.
+                    No sales found.
                   </td>
                 </tr>
               ) : (
