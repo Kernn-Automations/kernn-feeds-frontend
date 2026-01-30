@@ -31,10 +31,7 @@ class ApiService {
       // In development, some endpoints should NOT be prefixed with "/api"
       const normalizedUrl = typeof url === 'string' ? url.trim() : '';
       // Only bypass proxy for certain dev-only direct endpoints (NOT targets)
-      const shouldBypassApiPrefix = import.meta.env.DEV && (
-        normalizedUrl.startsWith('/teams') || normalizedUrl.startsWith('teams') ||
-        normalizedUrl.startsWith('/employees') || normalizedUrl.startsWith('employees')
-      );
+      const shouldBypassApiPrefix = false;
       const composedUrl = shouldBypassApiPrefix ? url : `${this.baseURL}${url}`;
 
       const response = await fetch(composedUrl, {
@@ -164,6 +161,15 @@ class ApiService {
 
   async delete(url) {
     return this.request(url, { method: 'DELETE' });
+  }
+
+  // Zone head candidates methods
+  async getZoneHeadCandidatesAll() {
+    return this.get('/divisions/zone-head-candidates');
+  }
+
+  async getZoneHeadCandidatesByDivision(divisionId) {
+    return this.get(`/divisions/${divisionId}/zone-head-candidates`);
   }
 }
 

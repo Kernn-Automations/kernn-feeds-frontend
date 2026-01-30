@@ -50,12 +50,15 @@
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .tableWrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 600px;
   width: 100%;
+  position: relative;
 }
 
 .abstractTable {
@@ -66,6 +69,9 @@
 
 .abstractTable thead {
   background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .abstractTable th {
@@ -75,6 +81,7 @@
   border: 1px solid #dee2e6;
   vertical-align: middle;
   font-size: 12px;
+  background-color: #f8f9fa;
 }
 
 .abstractTable td {
@@ -91,6 +98,47 @@
   min-width: 120px;
   background-color: #e9ecef;
   font-weight: 700;
+}
+
+.summaryBar {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0 24px;
+  flex-wrap: wrap;
+}
+
+.summaryItem {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 20px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.summaryValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.ownSummary .summaryValue {
+  color: #0d6efd;
+}
+
+.franchiseSummary .summaryValue {
+  color: #198754;
 }
 
 .divisionColumn,

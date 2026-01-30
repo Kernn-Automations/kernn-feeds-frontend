@@ -12,15 +12,15 @@ const CreateCustomer = lazy(() => import("./CreateCustomer"));
 const CustomerTransfer = lazy(() => import("./CustomerTransfer"));
 const JournalVoucher = lazy(() => import("./JournalVoucher"));
 
-import { isAdmin as checkAdmin, isDivisionHead } from "../../../utils/roleUtils";
+import { isAdmin as checkAdmin, isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../../utils/roleUtils";
 
 function CustomerRoutes() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
   
-  // Allow Admin OR Division Head
-  const isAdmin = checkAdmin(user) || isDivisionHead(user);
+  // Allow Admin OR Division Head OR ZBM OR RBM OR ABM
+  const isAdmin = checkAdmin(user) || isDivisionHead(user) || isZBM(user) || isRBM(user) || isAreaBusinessManager(user);
 
   return (
     <Routes>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./StoreSelector.module.css";
 import { useAuth } from "../Auth";
 import feedsLogo from "../images/feeds-croped.png";
+import { isAreaBusinessManager } from "../utils/roleUtils";
 
 const StoreSelector = () => {
   const [stores, setStores] = useState([]);
@@ -13,6 +14,7 @@ const StoreSelector = () => {
   const [username, setUsername] = useState("");
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [storeType, setStoreType] = useState("own");
 
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
@@ -59,9 +61,25 @@ const StoreSelector = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const filteredStores = stores.filter((store) =>
-    store.name?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredStores = stores
+    .filter((store) => {
+      const matchesSearch = store.name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      const matchesType =
+        storeType === "all"
+          ? true
+          : store.storeType?.toLowerCase() === storeType.toLowerCase();
+
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) =>
+      a.name?.trim().localeCompare(b.name?.trim(), undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
 
   const loadStoresFromUserData = async () => {
     try {
@@ -121,7 +139,13 @@ const StoreSelector = () => {
           "StoreSelector.jsx - No stores in user data, fetching from API...",
         );
         try {
+          // Use /auth/available-stores endpoint to get all available stores
+          // This works for all roles including admin, ABM, and others
+          console.log(
+            "StoreSelector.jsx - Fetching from /auth/available-stores",
+          );
           const response = await axiosAPI.get("/auth/available-stores");
+
           const data = response.data;
           console.log("StoreSelector.jsx - API response:", data);
 
@@ -309,13 +333,24 @@ const StoreSelector = () => {
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <input
-          type="text"
-          placeholder="Search store by name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className={styles.searchInput}
-        />
+        <div className={styles.filterSearchContainer}>
+          <input
+            type="text"
+            placeholder="Search store by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles.searchInput}
+          />
+          <select
+            value={storeType}
+            onChange={(e) => setStoreType(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="all">All Stores</option>
+            <option value="own">Own</option>
+            <option value="franchise">Franchise</option>
+          </select>
+        </div>
 
         <div className={styles.storesList}>
           {filteredStores.length === 0 && (
@@ -334,9 +369,26 @@ const StoreSelector = () => {
             >
               <div className={styles.storeInfo}>
                 <span className={styles.storeName}>{store.name}</span>
-                {store.address && (
-                  <span className={styles.storeAddress}>{store.address}</span>
-                )}
+
+                <div className={styles.storeMeta}>
+                  <span className={styles.metaItem}>
+                    <strong>Division:</strong> {store.division?.name || "-"}
+                  </span>
+
+                  <span className={styles.metaItem}>
+                    <strong>Zone:</strong> {store.zone?.name || "-"}
+                  </span>
+
+                  <span
+                    className={`${styles.storeTypeBadge} ${
+                      store.storeType === "own"
+                        ? styles.ownStore
+                        : styles.franchiseStore
+                    }`}
+                  >
+                    {store.storeType?.toUpperCase()}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

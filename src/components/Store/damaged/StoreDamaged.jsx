@@ -115,8 +115,12 @@ export default function StoreDamaged() {
                 </label>
                 <input
                   type="number"
+                  min="1"
+                  step="1"
+                  inputMode="numeric"
+                  onWheel={(e) => e.target.blur()}
                   value={payload.quantity}
-                  onChange={(e) => setPayload({ ...payload, quantity: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setPayload({ ...payload, quantity: parseFloat(e.target.value.replace(/\D/g, "")) || 0 })}
                   style={{
                     width: '100%',
                     padding: '10px',

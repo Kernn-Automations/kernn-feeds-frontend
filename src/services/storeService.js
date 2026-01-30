@@ -11,6 +11,9 @@ const storeService = {
     if (params.limit) queryParams.append('limit', params.limit);
     if (params.search) queryParams.append('search', params.search);
     if (params.storeType) queryParams.append('storeType', params.storeType);
+    if (params.zoneId) queryParams.append('zoneId', params.zoneId);
+    if (params.subZoneId) queryParams.append('subZoneId', params.subZoneId);
+    if (params.teamId) queryParams.append('teamId', params.teamId);
     const url = `/stores${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     const res = await api.request(url, { method: "GET" });
     return res.json();
@@ -111,6 +114,10 @@ const storeService = {
     const res = await api.request(`/store-indents/indents/${indentId}/approve-reject`, { method: "PUT", body: JSON.stringify({ action, notes }) });
     return res.json();
   },
+  async revertIndent(indentId) {
+    const res = await api.request(`/store-indents/indents/${indentId}/revert`, { method: "POST" });
+    return res.json();
+  },
   // Get store indents for admin dashboard (supports filtering by storeId and status)
   async getStoreIndentsForAdmin(params = {}) {
     const queryParams = new URLSearchParams();
@@ -139,6 +146,10 @@ const storeService = {
     const res = await api.request(`/store-indents/stock-transfer/available-stock/${storeId}`, { method: "GET" });
     return res.json();
   },
+  async getAvailableDamagedStockForTransfer(storeId) {
+    const res = await api.request(`/store-indents/stock-transfer/available-damaged-stock/${storeId}`, { method: "GET" });
+    return res.json();
+  },
   async getStockTransfers(storeId) {
     const res = await api.request(`/stores/${storeId}/stock-transfers`, { method: "GET" });
     return res.json();
@@ -153,6 +164,10 @@ const storeService = {
       throw new Error(`Failed to download invoice: ${res.status} ${res.statusText}`);
     }
     return res;
+  },
+  async rejectStockTransfer(transferId) {
+    const res = await api.request(`/stock-transfers/${transferId}/reject`, { method: "POST" });
+    return res.json();
   },
   async getDestinationStores(excludeStoreId) {
     const queryParams = excludeStoreId ? `?excludeStoreId=${excludeStoreId}` : '';
@@ -335,6 +350,10 @@ const storeService = {
       throw error;
     }
     
+    return res.json();
+  },
+  async cancelSale(storeId, saleCode) {
+    const res = await api.request(`/stores/${storeId}/sales/${saleCode}/cancel`, { method: "POST" });
     return res.json();
   },
   // All Stores Sales Reports operations (Admin/Super Admin only)
@@ -582,9 +601,23 @@ const storeService = {
   },
   
   // Store Damaged Goods operations
+  async getDamagedStock(storeId, params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/${storeId}/damaged-stock${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+
+  getManageStockHistory: async (storeId) => {
+    const res = await api.request(`/stores/${storeId}/manage-stock/history`, { method: "GET" });
+    return res.json();
+  },
   async getStoreDamagedGoods(storeId, params = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(`/stores/${storeId}/damaged-goods${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
+    return res.json();
+  },
+  async getDamagedProducts(storeId) {
+    const res = await api.request(`/stores/${storeId}/damaged-products`, { method: "GET" });
     return res.json();
   },
   
@@ -740,8 +773,9 @@ const storeService = {
   },
   
   // Get all stores with products (Admin/Super Admin only)
-  async getAllStoresWithProducts() {
-    const res = await api.request(`/stores/products/all`, { method: "GET" });
+  async getAllStoresWithProducts(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(`/stores/products/all${queryParams ? `?${queryParams}` : ''}`, { method: "GET" });
     
     // Check if response is ok before parsing
     if (!res.ok) {

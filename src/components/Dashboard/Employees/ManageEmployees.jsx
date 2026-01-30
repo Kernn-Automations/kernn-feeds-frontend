@@ -46,10 +46,8 @@ function ManageEmployees({ navigate, isAdmin }) {
         
         // ✅ Add division parameters to endpoint
         let endpoint = "/employees";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId) {
           endpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          endpoint += `?showAllDivisions=true`;
         }
         
         const res = await axiosAPI.get(endpoint);
@@ -131,6 +129,18 @@ function ManageEmployees({ navigate, isAdmin }) {
 
   const [onUpdate, setOnUpdate] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Sync onUpdate state with fresh employee data after refetch
+  useEffect(() => {
+    if (onUpdate && employees.length > 0) {
+      // Find the updated employee in the fresh employees list
+      const updatedEmployee = employees.find(emp => emp.id === onUpdate.id);
+      if (updatedEmployee) {
+        // Update onUpdate state with fresh data
+        setOnUpdate(updatedEmployee);
+      }
+    }
+  }, [employees]);
 
   let index = 1;
   

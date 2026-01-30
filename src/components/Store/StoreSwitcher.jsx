@@ -8,6 +8,9 @@ import {
   isSuperAdmin,
   isDivisionHead,
   isStoreEmployee,
+  isZBM,
+  isRBM,
+  isAreaBusinessManager,
 } from "../../utils/roleUtils";
 
 function StoreSwitcher() {
@@ -26,7 +29,10 @@ function StoreSwitcher() {
     isStoreEmployee(user) ||
     isAdmin(user) ||
     isSuperAdmin(user) ||
-    isDivisionHead(user);
+    isDivisionHead(user) ||
+    isZBM(user) ||
+    isRBM(user) ||
+    isAreaBusinessManager(user);
 
   useEffect(() => {
     if (!hasRequiredRole) {
@@ -153,7 +159,7 @@ function StoreSwitcher() {
     // Store Manager & Store Employee: show even with 1 store
     ((isStoreManager(user) || isStoreEmployee(user)) && storesCount >= 1) ||
     // Admin / Super Admin / Division Head: only if multiple stores
-    ((isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user)) &&
+    ((isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user) || isZBM(user) || isRBM(user) || isAreaBusinessManager(user)) &&
       storesCount > 1);
 
   if (!shouldShowSwitcher) {

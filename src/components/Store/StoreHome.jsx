@@ -31,6 +31,7 @@ import {
   isAdmin,
   isSuperAdmin,
   isDivisionHead,
+  isZBM,
 } from "../../utils/roleUtils";
 
 // ------------------ SKELETON STYLES (INLINE) ------------------
@@ -377,25 +378,8 @@ export default function StoreHome() {
             </div>
 
             <div className={storeHomeStyles.cardContent}>
-              <h3>
-                {loading ? (
-                  <Skeleton width="40px" height={22} />
-                ) : (
-                  dashboardData.pendingIndents?.length || 0
-                )}
-              </h3>
-
-              <p>Stock In</p>
-
-              <span
-                className={storeHomeStyles.alertIndicator}
-                style={{
-                  color: "var(--primary-color)",
-                  background: "rgba(59, 130, 246, 0.1)",
-                }}
-              >
-                View Available Stock
-              </span>
+              <h3>Stock In</h3>
+              <p>View Indents</p>
             </div>
           </div>
 
@@ -500,25 +484,16 @@ export default function StoreHome() {
                           >
                             {s.customerName || "-"}
                           </div>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: "#6b7280",
-                              fontFamily: "Poppins",
-                            }}
-                          >
-                            {s.timeAgo || "-"}
-                          </div>
                         </div>
                         <div
                           style={{
-                            fontWeight: 700,
-                            color: "#059669",
+                            fontWeight: 600,
+                            color: "#6b7280",
                             fontFamily: "Poppins",
-                            fontSize: "16px",
+                            fontSize: "13px",
                           }}
                         >
-                          ₹{(s.amount || 0).toLocaleString()}
+                          {s.timeAgo || "-"}
                         </div>
                       </div>
                     ))

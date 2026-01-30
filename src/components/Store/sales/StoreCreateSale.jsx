@@ -1399,6 +1399,19 @@ export default function StoreCreateSale() {
       return;
     }
 
+    // Validate UTR number for Bank or Both payments
+    const invalidUtrPayments = payments.filter(
+      (p) =>
+        (p.paymentMethod === "bank" || p.paymentMethod === "both") &&
+        (!p.utrNumber || p.utrNumber.trim() === ""),
+    );
+
+    if (invalidUtrPayments.length > 0) {
+      setError("UTR Number is mandatory for Bank payments");
+      setIsErrorModalOpen(true);
+      return;
+    }
+
     // Validate payment amount matches calculated total (with tolerance for rounding)
     const paymentDifference = Math.abs(totalPaymentAmount - expectedTotal);
     if (paymentDifference > 1) {
@@ -1842,8 +1855,11 @@ export default function StoreCreateSale() {
           <input
             type="number"
             min="1"
+            step="1"
+            inputMode="numeric"
             value={inputQuantity}
-            onChange={(e) => setInputQuantity(e.target.value)}
+            onChange={(e) => setInputQuantity(e.target.value.replace(/\D/g, ""))}
+            onWheel={(e) => e.target.blur()} 
             placeholder="Enter quantity"
             style={{
               width: "100%",
@@ -1992,7 +2008,7 @@ export default function StoreCreateSale() {
                   : styles.productGrid
               }
             >
-              {products.map((product) => {
+              {products.filter(product => !product.isOutOfStock).map((product) => {
                 const inCart = cartItems[product.id]?.quantity || 0;
                 const isLoading = loadingProductIds.has(product.id);
 
@@ -3670,7 +3686,7 @@ export default function StoreCreateSale() {
                           payment.paymentMethod === "both") && (
                           <div>
                             <label className="form-label">
-                              UTR Number (Optional)
+                              UTR Number <span style={{ color: "red" }}>*</span>
                             </label>
                             <input
                               type="text"

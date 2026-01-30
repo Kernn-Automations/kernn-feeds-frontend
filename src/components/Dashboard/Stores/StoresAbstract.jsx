@@ -6,6 +6,9 @@ import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import styles from "./StoresAbstract.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
+import { isZBM, isRBM } from "../../../utils/roleUtils";
+import zonesService from "../../../services/zonesService";
+import subZonesService from "../../../services/subZonesService";
 
 const StoresAbstract = () => {
   const navigate = useNavigate();
@@ -16,91 +19,114 @@ const StoresAbstract = () => {
   const [error, setError] = useState(null);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [storesData, setStoresData] = useState([]);
+  const [filteredStoresData, setFilteredStoresData] = useState([]);
   const [selectedAgreementImage, setSelectedAgreementImage] = useState(null);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
 
-  useEffect(() => {
-    fetchStoresAbstract();
-  }, [selectedDivision, showAllDivisions]);
+  const [summary, setSummary] = useState({
+    totalStores: 0,
+    ownStores: 0,
+    ownStores: 0,
+    franchiseStores: 0,
+  });
 
-  const exportColumns = [
-    "S.No",
-    "Store Name",
-    "Store Code",
-    "Type",
-    "Division",
-    "Zone",
-    "Address",
-    "Land Owner",
-    "Agreement Period",
-    "Start Date",
-    "End Date",
-    "Monthly Rent",
-    "Power Bill No",
-    "Distributor",
-    "Aadhar",
-    "PAN",
-    "Mobile",
-    "Beneficiary",
-    "IFSC",
-    "Account No",
-    "Bank Name",
-  ];
+  // Checkbox functionality state
+  const [selectedStoreIds, setSelectedStoreIds] = useState([]);
+  const [selectedHeaderColumns, setSelectedHeaderColumns] = useState([]);
 
-  const fetchStoresAbstract = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = {};
-
-      // Division filter is handled by backend based on user role
-      // For Division Head, backend automatically applies division filter
-      // For Admin/Super Admin, we can optionally pass divisionId
-      if (selectedDivision && !showAllDivisions) {
-        params.divisionId = selectedDivision.id;
-      }
-
-      // Fetch stores abstract from new endpoint
-      const response = await axiosAPI.get("/stores/abstract", params);
-      const responseData = response.data || response;
-
-      let storesList = [];
-      if (responseData.success !== undefined) {
-        if (responseData.success) {
-          storesList = responseData.data || [];
-        } else {
-          throw new Error(
-            responseData.message || "Failed to fetch stores abstract",
-          );
-        }
-      } else if (Array.isArray(responseData)) {
-        storesList = responseData;
-      } else if (responseData.data) {
-        storesList = Array.isArray(responseData.data) ? responseData.data : [];
-      }
-
-      console.log("Stores abstract data received:", storesList);
-      if (storesList.length > 0) {
-        console.log("First store sample:", storesList[0]);
-        console.log(
-          "First store rentAgreementDocument:",
-          storesList[0].rentAgreementDocument,
-        );
-      }
-      setStoresData(storesList);
-    } catch (err) {
-      console.error("Error fetching stores abstract:", err);
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Failed to fetch stores abstract";
-      setError(errorMessage);
-      setIsErrorModalOpen(true);
-      setStoresData([]);
-    } finally {
-      setLoading(false);
+  const handleSelectAllStores = (isChecked) => {
+    if (isChecked) {
+      const allIds = filteredStoresData.map((s) => s.id || s.storeId);
+      setSelectedStoreIds(allIds);
+    } else {
+      setSelectedStoreIds([]);
     }
+  };
+
+  const handleStoreSelect = (id, isChecked) => {
+    if (isChecked) {
+      setSelectedStoreIds((prev) => [...prev, id]);
+    } else {
+      setSelectedStoreIds((prev) => prev.filter((storeId) => storeId !== id));
+    }
+  };
+
+  const handleHeaderColumnSelect = (columnKey, isChecked) => {
+    if (isChecked) {
+      setSelectedHeaderColumns((prev) => [...prev, columnKey]);
+    } else {
+      setSelectedHeaderColumns((prev) => prev.filter((col) => col !== columnKey));
+    }
+  };
+
+  // Search Application State
+  const [searchFilters, setSearchFilters] = useState({});
+  const [showSearch, setShowSearch] = useState({});
+
+  // Handle click outside to close search inputs
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if the click is outside any search input container
+      if (!event.target.closest("[data-search-container]")) {
+        // Optionally close all searches or leave them open.
+        // For better UX like IncomingStock, we might want to close them if clicked outside.
+        // However, with many columns, user might want to keep filters active.
+        // IncomingStock closes them. Let's close active input if clicked outside.
+        setShowSearch({});
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Filter Data Effect
+  useEffect(() => {
+    if (storesData) {
+      let filtered = storesData;
+
+      Object.keys(searchFilters).forEach((key) => {
+        const term = searchFilters[key]?.toLowerCase() || "";
+        if (term) {
+          filtered = filtered.filter((store) => {
+            let value = "";
+            // Handle nested properties based on key naming convention (e.g., 'agreementDetails.landOwner')
+            if (key.includes(".")) {
+              const parts = key.split(".");
+              value = store[parts[0]]?.[parts[1]] || "";
+            } else {
+              value = store[key] || "";
+            }
+            return String(value).toLowerCase().includes(term);
+          });
+        }
+      });
+      setFilteredStoresData(filtered);
+    }
+  }, [storesData, searchFilters]);
+
+  // Toggle Search Input
+  const toggleSearch = (column, e) => {
+    e.stopPropagation();
+    setShowSearch((prev) => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
+
+  // Update Search Filter
+  const handleSearchChange = (column, value) => {
+    setSearchFilters((prev) => ({
+      ...prev,
+      [column]: value,
+    }));
+  };
+
+  const clearSearch = (column, e) => {
+    e.stopPropagation();
+    handleSearchChange(column, "");
   };
 
   const closeErrorModal = () => {
@@ -153,51 +179,230 @@ const StoresAbstract = () => {
     setSelectedAgreementImage(null);
   };
 
-  if (loading && storesData.length === 0) {
-    return <Loading />;
-  }
+  const fetchStoresAbstract = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const getExportData = () =>
-    storesData.map((store, index) => {
-      const agreement = store.agreementDetails || {};
-      const power = store.powerBillDetails || {};
-      const owner = store.ownerDetails || {};
+      const params = {};
 
-      return [
-        index + 1, // S.No
-        store.storeName || "-",
-        store.storeCode || "-",
-        store.type || "-",
-        store.division || "-",
-        store.zone || "-",
-        store.address || "-",
-        agreement.landOwner || "-",
-        agreement.agreementPeriod || "-",
-        agreement.startDate ? formatDate(agreement.startDate) : "-",
-        agreement.endDate ? formatDate(agreement.endDate) : "-",
-        agreement.monthlyRent || "",
-        power.billNumber || "-",
-        power.distributor || "-",
-        owner.aadhar || "-",
-        owner.panCard || "-",
-        owner.mobile || "-",
-        owner.beneficiary || "-",
-        owner.ifsc || "-",
-        owner.accountNo || "-",
-        owner.bankName || "-",
-      ];
+      // Division filter is handled by backend based on user role
+      // For Division Head, backend automatically applies division filter
+      // For Admin/Super Admin, we can optionally pass divisionId
+      if (selectedDivision && !showAllDivisions) {
+        params.divisionId = selectedDivision.id;
+      }
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (isZBM(user)) {
+        try {
+          // We need to find the zoneId for this ZBM
+          const currentDivisionId = selectedDivision?.id;
+          if (currentDivisionId) {
+            const zonesResponse = await zonesService.getZones(
+              { divisionId: currentDivisionId, isActive: true },
+              currentDivisionId,
+              false,
+            );
+
+            const zonesList =
+              zonesResponse.data?.zones || zonesResponse.data || [];
+            const zonesArray = Array.isArray(zonesList) ? zonesList : [];
+
+            const zbmZone = zonesArray.find((z) => {
+              const userId = String(user.id || "");
+              const userEmpId = String(user.employeeId || "");
+              const zoneHeadId = String(z.zoneHeadId || "");
+              const headId = String(z.zoneHead?.id || "");
+              const headEmpId = String(z.zoneHead?.employeeId || "");
+
+              return (
+                (userId && (zoneHeadId === userId || headId === userId)) ||
+                (userEmpId &&
+                  (headEmpId === userEmpId || zoneHeadId === userEmpId))
+              );
+            });
+
+            if (zbmZone) {
+              params.zoneId = zbmZone.id;
+              console.log("ZBM Zone identified:", zbmZone.id);
+            } else {
+              console.warn(
+                "ZBM user detected but no matching zone found in division",
+              );
+            }
+          }
+        } catch (zoneError) {
+          console.error("Error identifying ZBM zone:", zoneError);
+        }
+      }
+
+      if (isRBM(user)) {
+        try {
+          // Use new direct endpoint
+          const response = await subZonesService.getSubZones();
+          const data = response?.data || response || {};
+          let subZonesList = data.subZones || data.data || data || [];
+          subZonesList = Array.isArray(subZonesList) ? subZonesList : [];
+
+          if (subZonesList.length > 0) {
+            const targetSubZoneId = subZonesList[0].id;
+            params.subZoneId = targetSubZoneId;
+          } else {
+            console.warn("RBM user but no subZoneId found");
+          }
+        } catch (rbmError) {
+          console.error("Error setting up RBM filter:", rbmError);
+        }
+      }
+
+      // Fetch stores abstract from new endpoint
+      const response = await axiosAPI.get("/stores/abstract", params);
+      const responseData = response.data || response;
+
+      let storesList = [];
+      if (responseData.success !== undefined) {
+        if (responseData.success) {
+          storesList = responseData.data || [];
+
+          // ✅ SET SUMMARY FROM BACKEND
+          if (responseData.summary) {
+            setSummary({
+              totalStores: responseData.summary.totalStores || 0,
+              ownStores: responseData.summary.ownStores || 0,
+              franchiseStores: responseData.summary.franchiseStores || 0,
+            });
+          } else {
+            // Fallback (just in case)
+            setSummary({
+              totalStores: storesList.length,
+              ownStores: storesList.filter((s) => s.type === "OWN").length,
+              franchiseStores: storesList.filter((s) => s.type === "FRANCHISE")
+                .length,
+            });
+          }
+        } else {
+          throw new Error(
+            responseData.message || "Failed to fetch stores abstract",
+          );
+        }
+      } else if (Array.isArray(responseData)) {
+        storesList = responseData;
+      } else if (responseData.data) {
+        storesList = Array.isArray(responseData.data) ? responseData.data : [];
+      }
+
+      console.log("Stores abstract data received:", storesList);
+      if (storesList.length > 0) {
+        console.log("First store sample:", storesList[0]);
+        console.log(
+          "First store rentAgreementDocument:",
+          storesList[0].rentAgreementDocument,
+        );
+      }
+      setStoresData(storesList);
+      setFilteredStoresData(storesList);
+    } catch (err) {
+      console.error("Error fetching stores abstract:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to fetch stores abstract";
+      setError(errorMessage);
+      setIsErrorModalOpen(true);
+      setStoresData([]);
+      setFilteredStoresData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStoresAbstract();
+  }, [selectedDivision, showAllDivisions]);
+
+  // Column definitions for export
+  const allColumnsRef = [
+    { header: "S.No", key: "sno", alwaysVisible: true, accessor: (row, idx) => idx + 1 },
+    { header: "Store Name", key: "storeName", alwaysVisible: true, accessor: (row) => row.storeName || "-" },
+    { header: "Store Code", key: "storeCode", accessor: (row) => row.storeCode || "-" },
+    { header: "Type", key: "type", accessor: (row) => row.type || "-" },
+    { header: "Division", key: "division", accessor: (row) => row.division || "-" },
+    { header: "Zone", key: "zone", accessor: (row) => row.zone || "-" },
+    { header: "Sub Zone", key: "subZone", accessor: (row) => row.subZone || "-" },
+    { header: "Team", key: "team", accessor: (row) => row.team || "-" },
+    { header: "Address", key: "address", accessor: (row) => row.address || "-" },
+    // Agreement Details Group
+    { header: "Land Owner", group: "agreementDetails", accessor: (row) => row.agreementDetails?.landOwner || "-" },
+    { header: "Agreement Period", group: "agreementDetails", accessor: (row) => row.agreementDetails?.agreementPeriod || "-" },
+    { header: "Start Date", group: "agreementDetails", accessor: (row) => row.agreementDetails?.startDate ? formatDate(row.agreementDetails.startDate) : "-" },
+    { header: "End Date", group: "agreementDetails", accessor: (row) => row.agreementDetails?.endDate ? formatDate(row.agreementDetails.endDate) : "-" },
+    { header: "Agreement", group: "agreementDetails", accessor: (row) => row.rentAgreementDocumentUrl ? "Yes" : "No" },
+    { header: "Advance Pay of Rent (₹)", group: "agreementDetails", accessor: (row) => row.agreementDetails?.advanceRent || "-" },
+    { header: "Monthly Rent", group: "agreementDetails", accessor: (row) => row.agreementDetails?.monthlyRent || "-" },
+    { header: "Security Deposit", group: "agreementDetails", accessor: (row) => row.agreementDetails?.securityDeposit || "-" },
+    // Power Bill Details Group
+    { header: "Bill Number", group: "powerBillDetails", accessor: (row) => row.powerBillDetails?.billNumber || "-" },
+    { header: "Distributor", group: "powerBillDetails", accessor: (row) => row.powerBillDetails?.distributor || "-" },
+    { header: "Bill Allowance", group: "powerBillDetails", accessor: (row) => row.powerBillDetails?.billAllowance || "-" },
+    // Owner Details Group
+    { header: "Aadhar", group: "ownerDetails", accessor: (row) => row.ownerDetails?.aadhar || "-" },
+    { header: "PAN", group: "ownerDetails", accessor: (row) => row.ownerDetails?.panCard || "-" },
+    { header: "Mobile", group: "ownerDetails", accessor: (row) => row.ownerDetails?.mobile || "-" },
+    { header: "Beneficiary", group: "ownerDetails", accessor: (row) => row.ownerDetails?.beneficiary || "-" },
+    { header: "IFSC", group: "ownerDetails", accessor: (row) => row.ownerDetails?.ifsc || "-" },
+    { header: "Account No", group: "ownerDetails", accessor: (row) => row.ownerDetails?.accountNo || "-" },
+    { header: "Bank Name", group: "ownerDetails", accessor: (row) => row.ownerDetails?.bankName || "-" },
+  ];
+
+  const getFilteredExportConfig = () => {
+    // 1. Determine which rows to export
+    let rowsToExport = filteredStoresData;
+    if (selectedStoreIds.length > 0) {
+      rowsToExport = filteredStoresData.filter((store) => 
+        selectedStoreIds.includes(store.id || store.storeId)
+      );
+    }
+    
+    // 2. Determine which columns to export
+    // If no columns selected, default to ALL. If columns selected, show only selected (plus alwaysVisible).
+    // The requirement says "if i tick the store name check box then i selct the other column headers... then that selected data should export"
+    // This implies we should restrict columns if ANY column is explicitly selected.
+    
+    const hasColumnSelection = selectedHeaderColumns.length > 0;
+    
+    const activeColumns = allColumnsRef.filter(col => {
+      if (col.alwaysVisible) return true;
+      if (!hasColumnSelection) return true; // Default to all if nothing selected
+      
+      // Check direct key match or group match
+      if (col.key && selectedHeaderColumns.includes(col.key)) return true;
+      if (col.group && selectedHeaderColumns.includes(col.group)) return true;
+      
+      return false;
     });
 
+    const exportHeaders = activeColumns.map(col => col.header);
+    
+    const exportData = rowsToExport.map((row, index) => {
+      return activeColumns.map(col => col.accessor(row, index));
+    });
+
+    return { exportHeaders, exportData };
+  };
+
   const handlePDFExport = async () => {
+    const { exportHeaders, exportData } = getFilteredExportConfig();
     await handleExportPDF(
-      exportColumns,
-      getExportData(),
+      exportHeaders,
+      exportData,
       "Stores Abstract Report",
     );
   };
 
   const handleExcelExport = () => {
-    handleExportExcel(exportColumns, getExportData(), "Stores Abstract Report");
+    const { exportHeaders, exportData } = getFilteredExportConfig();
+    handleExportExcel(exportHeaders, exportData, "Stores Abstract Report");
   };
 
   return (
@@ -224,6 +429,22 @@ const StoresAbstract = () => {
           </button>
         </div>
       </div>
+      <div className={styles.summaryBar}>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Total Stores</span>
+          <span className={styles.summaryValue}>{summary.totalStores}</span>
+        </div>
+
+        <div className={`${styles.summaryItem} ${styles.ownSummary}`}>
+          <span className={styles.summaryLabel}>Own Stores</span>
+          <span className={styles.summaryValue}>{summary.ownStores}</span>
+        </div>
+
+        <div className={`${styles.summaryItem} ${styles.franchiseSummary}`}>
+          <span className={styles.summaryLabel}>Franchise Stores</span>
+          <span className={styles.summaryValue}>{summary.franchiseStores}</span>
+        </div>
+      </div>
 
       {error && !isErrorModalOpen && (
         <div className={styles.errorBanner}>
@@ -239,66 +460,1530 @@ const StoresAbstract = () => {
           >
             <thead>
               <tr>
-                <th>S.No</th>
-                <th rowSpan="2" className={styles.storeColumn}>
-                  Store Name
+                <th rowSpan="2">S.No</th>
+                <th
+                  rowSpan="2"
+                  className={styles.storeColumn}
+                  onClick={(e) => toggleSearch("storeName", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["storeName"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["storeName"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("storeName", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Search..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("storeName", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("storeName", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredStoresData.length > 0 &&
+                          selectedStoreIds.length === filteredStoresData.length
+                        }
+                        onChange={(e) => handleSelectAllStores(e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Store Name {searchFilters["storeName"] && " *"}</span>
+                    </div>
+                  )}
                 </th>
-                <th rowSpan="2" className={styles.codeColumn}>
-                  Store Code
+                <th
+                  rowSpan="2"
+                  className={styles.codeColumn}
+                  onClick={(e) => toggleSearch("storeCode", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["storeCode"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["storeCode"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("storeCode", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Code..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("storeCode", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("storeCode", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("storeCode")}
+                        onChange={(e) => handleHeaderColumnSelect("storeCode", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Store Code {searchFilters["storeCode"] && " *"}</span>
+                    </div>
+                  )}
                 </th>
-                <th rowSpan="2" className={styles.typeColumn}>
-                  Type
+                <th
+                  rowSpan="2"
+                  className={styles.typeColumn}
+                  onClick={(e) => toggleSearch("type", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["type"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["type"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("type", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Type..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("type", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("type", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("type")}
+                        onChange={(e) => handleHeaderColumnSelect("type", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Type {searchFilters["type"] && " *"}</span>
+                    </div>
+                  )}
                 </th>
-                <th rowSpan="3" className={styles.divisionColumn}>
-                  Division
+                <th
+                  rowSpan="2"
+                  className={styles.divisionColumn}
+                  onClick={(e) => toggleSearch("division", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["division"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["division"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("division", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Div..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("division", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("division", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("division")}
+                        onChange={(e) => handleHeaderColumnSelect("division", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Division {searchFilters["division"] && " *"}</span>
+                    </div>
+                  )}
                 </th>
-                <th rowSpan="4" className={styles.zoneColumn}>
-                  Zone
+                <th
+                  rowSpan="2"
+                  className={styles.zoneColumn}
+                  onClick={(e) => toggleSearch("zone", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["zone"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["zone"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("zone", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Zone..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("zone", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("zone", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("zone")}
+                        onChange={(e) => handleHeaderColumnSelect("zone", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Zone {searchFilters["zone"] && " *"}</span>
+                    </div>
+                  )}
+                </th>
+                <th
+                  rowSpan="2"
+                  className={styles.zoneColumn}
+                  onClick={(e) => toggleSearch("subZone", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["subZone"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["subZone"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("subZone", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Sub Zone..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("subZone", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("subZone", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("subZone")}
+                        onChange={(e) => handleHeaderColumnSelect("subZone", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Sub Zone {searchFilters["subZone"] && " *"}</span>
+                    </div>
+                  )}
+                </th>
+                <th
+                  rowSpan="2"
+                  className={styles.zoneColumn}
+                  onClick={(e) => toggleSearch("team", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["team"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["team"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("team", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Team..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("team", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("team", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("team")}
+                        onChange={(e) => handleHeaderColumnSelect("team", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Team {searchFilters["team"] && " *"}</span>
+                    </div>
+                  )}
                 </th>
 
-                <th rowSpan="2" className={styles.addressColumn}>
-                  Address
-                </th>
-                <th colSpan="6" className={styles.sectionHeader}>
-                  Agreement Details
-                </th>
-                <th colSpan="2" className={styles.sectionHeader}>
-                  Power Bill Details
+                <th
+                  rowSpan="2"
+                  className={styles.addressColumn}
+                  onClick={(e) => toggleSearch("address", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["address"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["address"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange("address", e.target.value)
+                        }
+                        autoFocus
+                        placeholder="Address..."
+                        style={{
+                          width: "100%",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("address", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                      onClick={(e) => { e.stopPropagation(); toggleSearch("address", e); }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedHeaderColumns.includes("address")}
+                        onChange={(e) => handleHeaderColumnSelect("address", e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span>Address {searchFilters["address"] && " *"}</span>
+                    </div>
+                  )}
                 </th>
                 <th colSpan="7" className={styles.sectionHeader}>
-                  Owner Details
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedHeaderColumns.includes("agreementDetails")}
+                      onChange={(e) => handleHeaderColumnSelect("agreementDetails", e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span>Agreement Details</span>
+                  </div>
+                </th>
+                <th colSpan="3" className={styles.sectionHeader}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedHeaderColumns.includes("powerBillDetails")}
+                      onChange={(e) => handleHeaderColumnSelect("powerBillDetails", e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span>Power Bill Details</span>
+                  </div>
+                </th>
+                <th colSpan="7" className={styles.sectionHeader}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedHeaderColumns.includes("ownerDetails")}
+                      onChange={(e) => handleHeaderColumnSelect("ownerDetails", e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <span>Owner Details</span>
+                  </div>
                 </th>
               </tr>
               <tr>
                 {/* Agreement Details Sub-headers */}
-                <th className={styles.subHeader}>Land Owner</th>
-                <th className={styles.subHeader}>Agreement Period</th>
-                <th className={styles.subHeader}>Start Date</th>
-                <th className={styles.subHeader}>End Date</th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("agreementDetails.landOwner", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.landOwner"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.landOwner"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.landOwner",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Owner..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.landOwner", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Land Owner{" "}
+                      {searchFilters["agreementDetails.landOwner"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("agreementDetails.agreementPeriod", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.agreementPeriod"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.agreementPeriod"] ||
+                          ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.agreementPeriod",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Period..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.agreementPeriod", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Agreement Period{" "}
+                      {searchFilters["agreementDetails.agreementPeriod"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("agreementDetails.startDate", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.startDate"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.startDate"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.startDate",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Start..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.startDate", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Start Date{" "}
+                      {searchFilters["agreementDetails.startDate"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("agreementDetails.endDate", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.endDate"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["agreementDetails.endDate"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.endDate",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="End..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.endDate", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      End Date{" "}
+                      {searchFilters["agreementDetails.endDate"] && "*"}
+                    </>
+                  )}
+                </th>
                 <th className={styles.subHeader}>Agreement</th>
-                <th className={styles.subHeader}>Monthly Rent</th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("agreementDetails.advanceRent", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.advanceRent"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.advanceRent"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.advanceRent",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Adv Rent..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.advanceRent", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Advance Pay of Rent (₹){" "}
+                      {searchFilters["agreementDetails.advanceRent"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("agreementDetails.monthlyRent", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.monthlyRent"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.monthlyRent"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.monthlyRent",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Rent..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.monthlyRent", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Monthly Rent{" "}
+                      {searchFilters["agreementDetails.monthlyRent"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("agreementDetails.securityDeposit", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.securityDeposit"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.securityDeposit"] ||
+                          ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.securityDeposit",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Deposit..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.securityDeposit", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Security Deposit{" "}
+                      {searchFilters["agreementDetails.securityDeposit"] && "*"}
+                    </>
+                  )}
+                </th>
                 {/* Power Bill Details Sub-headers */}
-                <th className={styles.subHeader}>Bill Number</th>
-                <th className={styles.subHeader}>Distributor</th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("powerBillDetails.billNumber", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["powerBillDetails.billNumber"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["powerBillDetails.billNumber"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "powerBillDetails.billNumber",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Bill No..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("powerBillDetails.billNumber", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Bill Number{" "}
+                      {searchFilters["powerBillDetails.billNumber"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("powerBillDetails.distributor", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["powerBillDetails.distributor"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["powerBillDetails.distributor"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "powerBillDetails.distributor",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Dist..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("powerBillDetails.distributor", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Distributor{" "}
+                      {searchFilters["powerBillDetails.distributor"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
+                    toggleSearch("powerBillDetails.billAllowance", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["powerBillDetails.billAllowance"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["powerBillDetails.billAllowance"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "powerBillDetails.billAllowance",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Allow..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("powerBillDetails.billAllowance", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Bill Allowance{" "}
+                      {searchFilters["powerBillDetails.billAllowance"] && "*"}
+                    </>
+                  )}
+                </th>
                 {/* Owner Details Sub-headers */}
-                <th className={styles.subHeader}>Aadhar</th>
-                <th className={styles.subHeader}>Pan Card</th>
-                <th className={styles.subHeader}>Mobile</th>
-                <th className={styles.subHeader}>Beneficiary</th>
-                <th className={styles.subHeader}>IFSC</th>
-                <th className={styles.subHeader}>Account No</th>
-                <th className={styles.subHeader}>Bank Name</th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.aadhar", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.aadhar"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.aadhar"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.aadhar",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Aadhar..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("ownerDetails.aadhar", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>Aadhar {searchFilters["ownerDetails.aadhar"] && "*"}</>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.panCard", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.panCard"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.panCard"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.panCard",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Pan..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("ownerDetails.panCard", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>Pan Card {searchFilters["ownerDetails.panCard"] && "*"}</>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.mobile", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.mobile"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.mobile"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.mobile",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Mobile..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("ownerDetails.mobile", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>Mobile {searchFilters["ownerDetails.mobile"] && "*"}</>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.beneficiary", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.beneficiary"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.beneficiary"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.beneficiary",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Benef..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("ownerDetails.beneficiary", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Beneficiary{" "}
+                      {searchFilters["ownerDetails.beneficiary"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.ifsc", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.ifsc"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.ifsc"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.ifsc",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="IFSC..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("ownerDetails.ifsc", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>IFSC {searchFilters["ownerDetails.ifsc"] && "*"}</>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.accountNo", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.accountNo"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.accountNo"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.accountNo",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Acc No..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("ownerDetails.accountNo", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Account No{" "}
+                      {searchFilters["ownerDetails.accountNo"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) => toggleSearch("ownerDetails.bankName", e)}
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["ownerDetails.bankName"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={searchFilters["ownerDetails.bankName"] || ""}
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "ownerDetails.bankName",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Bank..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) => clearSearch("ownerDetails.bankName", e)}
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Bank Name {searchFilters["ownerDetails.bankName"] && "*"}
+                    </>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {storesData.length === 0 ? (
+              {filteredStoresData.length === 0 ? (
                 <tr>
-                  <td colSpan={19} className={styles.noData}>
-                    No stores found
+                  <td colSpan={26} className={styles.noData}>
+                    {storesData.length === 0
+                      ? "No stores found"
+                      : "No matching records found"}
                   </td>
                 </tr>
               ) : (
-                storesData.map((store, index) => {
+                filteredStoresData.map((store, index) => {
                   // Extract nested data from new API format
                   const agreementDetails = store.agreementDetails || {};
                   const powerBillDetails = store.powerBillDetails || {};
@@ -308,7 +1993,15 @@ const StoresAbstract = () => {
                     <tr key={store.id || index}>
                       <td>{index + 1}</td>
                       <td className={styles.storeNameCell}>
-                        {store.storeName || "-"}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedStoreIds.includes(store.id || store.storeId)}
+                            onChange={(e) => handleStoreSelect(store.id || store.storeId, e.target.checked)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          {store.storeName || "-"}
+                        </div>
                       </td>
                       <td>{store.storeCode || "-"}</td>
                       <td>
@@ -320,6 +2013,8 @@ const StoresAbstract = () => {
                       </td>
                       <td>{store.division || "-"}</td>
                       <td>{store.zone || "-"}</td>
+                      <td>{store.subZone || "-"}</td>
+                      <td>{store.team || "-"}</td>
                       <td className={styles.addressCell}>
                         {store.address || "-"}
                       </td>
@@ -405,13 +2100,24 @@ const StoresAbstract = () => {
                         })()}
                       </td>
                       <td>
+                        {agreementDetails.advanceRent
+                          ? formatCurrency(agreementDetails.advanceRent)
+                          : "-"}
+                      </td>
+                      <td>
                         {agreementDetails.monthlyRent
                           ? formatCurrency(agreementDetails.monthlyRent)
+                          : "-"}
+                      </td>
+                      <td>
+                        {agreementDetails.securityDeposit
+                          ? formatCurrency(agreementDetails.securityDeposit)
                           : "-"}
                       </td>
                       {/* Power Bill Details */}
                       <td>{powerBillDetails.billNumber || "-"}</td>
                       <td>{powerBillDetails.distributor || "-"}</td>
+                      <td>{powerBillDetails.billAllowance || "-"}</td>
                       {/* Owner Details */}
                       <td>{ownerDetails.aadhar || "-"}</td>
                       <td className={styles.panCell}>

@@ -4,7 +4,7 @@ import Footer from "./Footer";
 import Header from "./Header";
 import Input from "./Input";
 import styles from "./Login.module.css";
-import { isAdmin, isStoreManager, hasBothAdminAndStaff, isStoreEmployee, isSuperAdmin, isDivisionHead, isBusinessOfficer, isWarehouseManager, isAreaBusinessManager, getUserRoles } from "../utils/roleUtils";
+import { isAdmin, isStoreManager, hasBothAdminAndStaff, isStoreEmployee, isSuperAdmin, isDivisionHead, isBusinessOfficer, isWarehouseManager, isAreaBusinessManager, isZBM, isRBM, getUserRoles } from "../utils/roleUtils";
 import { printRoleVerification, verifyAllKnownRoles } from "../utils/roleVerification";
 import { useAuth } from "../Auth";
 
@@ -117,21 +117,24 @@ function Login() {
     const isWarehouseManagerUser = isWarehouseManager(currentUser);
     const isAreaBusinessManagerUser = isAreaBusinessManager(currentUser);
     const isDivisionHeadUser = isDivisionHead(currentUser);
+    const isZBMUser = isZBM(currentUser);
+    const isRBMUser = isRBM(currentUser);
     const userRolesList = getUserRoles(currentUser);
     const onlyStaff = isStoreManagerUser && !isAdminUser;
     const bothRoles = hasBothAdminAndStaff(currentUser);
     
     // Business Officer, Warehouse Manager, and Area Business Manager should always go to division selection
     // unless they already have a division selected
-    const shouldForceDivisionSelection = isBusinessOfficerUser || isWarehouseManagerUser || isAreaBusinessManagerUser;
+    // ZBM/RBM without stores should also fall into this
+    const shouldForceDivisionSelection = isBusinessOfficerUser || isWarehouseManagerUser || isAreaBusinessManagerUser || ((isZBMUser || isRBMUser) && finalAssignedStores.length === 0);
     const hasSelectedDivision = localStorage.getItem("selectedDivision") !== null;
     
     // Check if user needs division selection
     // Business Officer and similar roles should ALWAYS go to /divs to select division
     // For other users, check showDivisions flag or admin status
     const wantsDivision = shouldForceDivisionSelection 
-      ? true  // Always force division selection for Business Officer, Warehouse Manager, Area Business Manager
-      : (currentUser?.showDivisions || isAdminUser); // For others, use showDivisions flag or admin check
+      ? true  // Always force division selection for Business Officer, Warehouse Manager, Area Business Manager, ZBM/RBM (no stores)
+      : (currentUser?.showDivisions || isAdminUser || ((isZBMUser || isRBMUser) && finalAssignedStores.length === 0)); // For others, use showDivisions flag or admin check
 
     // Comprehensive role detection logging
     console.log("Login.jsx - ========== ROLE DETECTION VERIFICATION ==========");
@@ -148,6 +151,8 @@ function Login() {
       isWarehouseManagerUser,
       isAreaBusinessManagerUser,
       isDivisionHeadUser,
+      isZBMUser,
+      isRBMUser,
       onlyStaff,
       bothRoles,
     });
@@ -240,9 +245,10 @@ function Login() {
 
     // Show popup for admins, superadmins, and division heads (so they can choose store management or admin view)
     // Only show this if they are NOT store managers, business officers, warehouse managers, or area business managers
-    if (login && (isAdminUser || isSuperAdminUser || isDivisionHeadUser) && 
-        !isStoreManagerUser && !isBusinessOfficerUser && !isWarehouseManagerUser && !isAreaBusinessManagerUser) {
-      console.log("Login.jsx - Admin/SuperAdmin/DivisionHead detected (not store manager), showing role choice");
+    // Also include ZBM/RBM/ABM users (Always give them the choice)
+    if (login && (isAdminUser || isSuperAdminUser || isDivisionHeadUser || isZBMUser || isRBMUser || isAreaBusinessManagerUser) && 
+        !isStoreManagerUser && !isBusinessOfficerUser && !isWarehouseManagerUser) {
+      console.log("Login.jsx - Admin/SuperAdmin/DivisionHead/ZBM/RBM(with stores) detected (not store manager), showing role choice");
       // Show chooser popup
       setShowRoleChoice(true);
       return;
@@ -250,10 +256,11 @@ function Login() {
 
     // Handle Business Officer, Warehouse Manager, Area Business Manager, and other regular users
     // These users should go to division selection if they need it, otherwise to dashboard
+    // ZBM/RBM/ABM will now be handled by the popup logic above, so they are removed from this fallback check
     if (login && currentUser && 
         !isAdminUser && !isSuperAdminUser && !isStoreManagerUser && !isStoreEmployeeUser &&
-        (isBusinessOfficerUser || isWarehouseManagerUser || isAreaBusinessManagerUser || 
-         (!isBusinessOfficerUser && !isWarehouseManagerUser && !isAreaBusinessManagerUser && !isDivisionHeadUser))) {
+        (isBusinessOfficerUser || isWarehouseManagerUser || 
+         (!isBusinessOfficerUser && !isWarehouseManagerUser && !isAreaBusinessManagerUser && !isDivisionHeadUser && !isZBMUser && !isRBMUser))) {
       
       console.log("Login.jsx - Regular user detected (Business Officer/Warehouse Manager/Area Business Manager/Other):", {
         isBusinessOfficerUser,
@@ -455,7 +462,7 @@ function Login() {
                   }}
                   style={{ flex: 1 }}
                 >
-                  Admin Dashboard
+                  Dashboard
                 </button>
               </div>
             </div>

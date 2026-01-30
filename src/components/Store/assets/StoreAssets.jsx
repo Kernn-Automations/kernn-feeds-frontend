@@ -12,6 +12,7 @@ import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
+import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
 
 const statusOptions = [
   { label: "All statuses", value: "" },
@@ -570,49 +571,7 @@ export default function StoreAssets() {
     setCreateForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Compress image function (same as store creation)
-  const compressImage = (file, maxWidth = 800, maxHeight = 600, quality = 0.7) => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        // Calculate new dimensions (maintain aspect ratio)
-        let { width, height } = img;
-        
-        if (width > height) {
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = (width * maxHeight) / height;
-            height = maxHeight;
-          }
-        }
-        
-        // Set canvas dimensions
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Draw and compress
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to compress image'));
-          }
-        }, file.type, quality);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
+
 
   // Helper function to validate and format base64 data URL
   const formatBase64DataURL = (base64String) => {
@@ -656,17 +615,12 @@ export default function StoreAssets() {
       // Compress images before converting to base64
       if (file.type.startsWith('image/')) {
         // Compress image
-        const compressedBlob = await compressImage(file, 800, 600, 0.7);
-        processedFile = new File([compressedBlob], file.name, { type: file.type });
+        const compressedBlob = await compressImageToUnder100KB(file);
+        processedFile = new File([compressedBlob], file.name, { type: "image/jpeg" });
         previewUrl = URL.createObjectURL(compressedBlob);
-        
-        // Check compressed size
-        if (compressedBlob.size > 1.5 * 1024 * 1024) {
-          showError("Image is still too large after compression. Please use a smaller image.");
-          e.target.value = '';
-          return;
-        }
       } else if (file.type === 'application/pdf') {
+        const compressedBlob = file; 
+        previewUrl = null;
         // For PDFs, just check size - no compression
         if (file.size > 2 * 1024 * 1024) {
           showError("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
@@ -717,17 +671,12 @@ export default function StoreAssets() {
       // Compress images before converting to base64
       if (file.type.startsWith('image/')) {
         // Compress image
-        const compressedBlob = await compressImage(file, 800, 600, 0.7);
-        processedFile = new File([compressedBlob], file.name, { type: file.type });
+        const compressedBlob = await compressImageToUnder100KB(file);
+        processedFile = new File([compressedBlob], file.name, { type: "image/jpeg" });
         previewUrl = URL.createObjectURL(compressedBlob);
-        
-        // Check compressed size
-        if (compressedBlob.size > 1.5 * 1024 * 1024) {
-          showError("Image is still too large after compression. Please use a smaller image.");
-          e.target.value = '';
-          return;
-        }
       } else if (file.type === 'application/pdf') {
+        const compressedBlob = file;
+        previewUrl = null;
         // For PDFs, just check size - no compression
         if (file.size > 2 * 1024 * 1024) {
           showError("PDF size should be less than 2MB. Please compress the PDF or use a smaller file.");
@@ -1021,8 +970,11 @@ export default function StoreAssets() {
                     <input
                       type="number"
                       min="1"
+                      step="1"
+                      inputMode="numeric"
+                      onWheel={(e) => e.target.blur()}
                       value={createForm.quantity}
-                      onChange={(e) => handleCreateInputChange("quantity", e.target.value)}
+                      onChange={(e) => handleCreateInputChange("quantity", e.target.value.replace(/\D/g, ""))}
                       required
                       style={{
                         width: "100%",
@@ -1489,8 +1441,11 @@ export default function StoreAssets() {
                             <input
                               type="number"
                               min="1"
+                              step="1"
+                              inputMode="numeric"
+                              onWheel={(e) => e.target.blur()}
                               value={updateForm.quantity}
-                              onChange={(e) => handleUpdateInputChange("quantity", e.target.value)}
+                              onChange={(e) => handleUpdateInputChange("quantity", e.target.value.replace(/\D/g, ""))}
                               required
                               style={{
                                 width: "100%",
@@ -1645,9 +1600,12 @@ export default function StoreAssets() {
                             <input
                               type="number"
                               min="1"
+                              step="1"
+                              inputMode="numeric"
+                              onWheel={(e) => e.target.blur()}
                               max={maxReceivable || undefined}
                               value={stockInQty}
-                              onChange={(e) => setStockInQty(e.target.value)}
+                              onChange={(e) => setStockInQty(e.target.value.replace(/\D/g, ""))}
                               required
                             />
                             <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#6b7280" }}>

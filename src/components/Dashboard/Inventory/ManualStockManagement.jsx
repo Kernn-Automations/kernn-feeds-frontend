@@ -219,6 +219,10 @@ function ManualStockManagement({ navigate }) {
     return warehouse ? warehouse.name : 'Unknown Warehouse';
   };
 
+  const disableWheel = (e) => {
+    e.target.blur();
+  };
+
   return (
     <>
       <p className="path">
@@ -294,10 +298,12 @@ function ManualStockManagement({ navigate }) {
           <label>Quantity :</label>
           <input
             type="number"
-            step="0.01"
-            min="0.01"
+            step="1"
+            min="1"
+            inputMode="numeric"
+            onWheel={disableWheel}
             value={formData.quantity}
-            onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value.replace(/\D/g, "") }))}
             placeholder="Enter quantity"
             required
           />

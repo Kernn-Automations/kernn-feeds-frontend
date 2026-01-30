@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
@@ -25,6 +26,9 @@ function StoreStockTransfer() {
   const [stores, setStores] = useState([]);
   const [selectedDestinationStore, setSelectedDestinationStore] = useState("");
   const [currentStock, setCurrentStock] = useState([]);
+  const [stockTableTitle, setStockTableTitle] = useState("Available Stock");
+  const [inventoryType, setInventoryType] = useState("good");
+
 
   // Destination store search
   const [storeSearch, setStoreSearch] = useState("");
@@ -39,6 +43,10 @@ function StoreStockTransfer() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  
+  // Rejection State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   // Search Visibility states
   const [showSearch, setShowSearch] = useState({
@@ -78,6 +86,51 @@ function StoreStockTransfer() {
       return next;
     });
   };
+
+  const customSelectStyles = {
+    control: (provided) => ({
+      ...provided,
+      fontFamily: "Poppins",
+      fontSize: "14px",
+      minHeight: "38px",
+      borderColor: "#dee2e6",
+      boxShadow: "none",
+      "&:hover": {
+        borderColor: "#ced4da",
+      },
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      fontFamily: "Poppins",
+      fontSize: "14px",
+      backgroundColor: state.isSelected
+        ? "var(--primary-color)"
+        : state.isFocused
+          ? "rgba(59, 130, 246, 0.1)"
+          : "white",
+      color: state.isSelected ? "white" : "#333",
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      fontFamily: "Poppins",
+      fontSize: "14px",
+      color: "#333",
+    }),
+    menu: (provided) => ({
+      ...provided,
+      fontFamily: "Poppins",
+      fontSize: "14px",
+      zIndex: 9999,
+    }),
+  };
+
+  const storeOptions = stores
+    .filter((store) => store.id !== currentStore?.id)
+    .map((store) => ({
+      value: store.id,
+      label: `${store.name} (${(store.storeType || store.type || "own").toUpperCase()})`,
+      store: store,
+    }));
 
   const handleSearchChange = (key, value) => {
     setSearchTerms((prev) => ({ ...prev, [key]: value }));
@@ -297,6 +350,7 @@ function StoreStockTransfer() {
         : [];
 
       setCurrentStock(mappedStock);
+      setStockTableTitle("Available Stock");
     } catch (err) {
       console.error("Error fetching available stock:", err);
       setError(
@@ -309,6 +363,80 @@ function StoreStockTransfer() {
       setLoading(false);
     }
   };
+
+  const fetchDamagedStock = async () => {
+    if (!currentStore?.id) return;
+
+    setLoading(true);
+    try {
+      const response = await storeService.getAvailableDamagedStockForTransfer(
+        currentStore.id,
+      );
+      const stockData = response.data || response.stock || response || [];
+
+      // Map backend response to frontend format
+      const mappedStock = Array.isArray(stockData)
+        ? stockData.map((item) => ({
+            id: item.productId,
+            productId: item.productId,
+            productName: item.productName || item.name,
+            productCode: item.sku || item.SKU || item.productCode,
+            currentStock:
+              item.damagedQuantity || item.available || item.quantity || 0,
+            available:
+              item.damagedQuantity || item.available || item.quantity || 0,
+            unit: item.unit || "kg",
+            unitPrice: item.customPrice || item.basePrice || 0,
+            basePrice: item.basePrice || 0,
+            customPrice: item.customPrice || null,
+            productType: item.productType || "packed",
+          }))
+        : [];
+
+      setCurrentStock(mappedStock);
+      setStockTableTitle("Damaged Inventory Available Stock");
+    } catch (err) {
+      console.error("Error fetching damaged stock:", err);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Error fetching damaged stock",
+      );
+      setCurrentStock([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoodInventoryClick = () => {
+    fetchCurrentStock();
+    setStockTableTitle("Good Inventory Available Stock");
+    setInventoryType("good");
+  };
+
+  const handleDamagedInventoryClick = () => {
+    fetchDamagedStock();
+    setInventoryType("damaged");
+  };
+
+  // Effect to handle Destination Store changes
+  useEffect(() => {
+    const destStore = getDestinationStore();
+    if (
+      destStore &&
+      ((destStore.storeType || "").toString().toLowerCase() === "company" ||
+        (destStore.type || "").toString().toLowerCase() === "company")
+    ) {
+      // If Company store selected, clear default stock and wait for user selection
+      setCurrentStock([]);
+      setStockTableTitle("");
+    } else if (currentStore?.id) {
+      // If regular store, verify if we need to reload default stock (only if it was cleared)
+      // Check if we are switching FROM company store
+      // But fetchCurrentStock handles normal loading
+       fetchCurrentStock();
+    }
+  }, [selectedDestinationStore, currentStore]);
 
   // ESC key functionality
   useEffect(() => {
@@ -421,7 +549,7 @@ function StoreStockTransfer() {
   };
 
   const getDestinationStore = () => {
-    return stores.find((s) => s.id === parseInt(selectedDestinationStore));
+    return stores.find((s) => s.id == selectedDestinationStore);
   };
 
   const getTransferType = () => {
@@ -485,15 +613,39 @@ function StoreStockTransfer() {
       const transferType = getTransferType();
       const destinationStore = getDestinationStore();
 
-      const payload = {
-        fromStoreId: currentStore.id,
-        toStoreId: parseInt(selectedDestinationStore),
-        items: items.map((item) => ({
-          productId: item.product.productId || item.product.id,
-          quantity: item.quantity,
-        })),
-        notes: `Stock transfer from ${currentStore.name || "Current Store"} to ${destinationStore?.name || "Destination Store"}`,
-      };
+      let payload = {};
+
+      if (
+        destinationStore &&
+        ((destinationStore.storeType || "").toString().toLowerCase() ===
+          "company" ||
+          (destinationStore.type || "").toString().toLowerCase() === "company")
+      ) {
+        // Company Transfer Payload
+        payload = {
+          fromStoreId: currentStore.id,
+          destinationType: "company",
+          inventoryType: inventoryType,
+          items: items.map((item) => ({
+            productId: item.product.productId || item.product.id,
+            quantity: item.quantity,
+          })),
+          notes: `Stock transfer from ${currentStore.name || "Current Store"} to Company`,
+        };
+      } else {
+        // Normal Store Transfer Payload
+        payload = {
+          fromStoreId: currentStore.id,
+          toStoreId: destinationStore
+            ? destinationStore.id
+            : selectedDestinationStore,
+          items: items.map((item) => ({
+            productId: item.product.productId || item.product.id,
+            quantity: item.quantity,
+          })),
+          notes: `Stock transfer from ${currentStore.name || "Current Store"} to ${destinationStore?.name || "Destination Store"}`,
+        };
+      }
 
       const res = await storeService.createStockTransfer(payload);
       const transferData = res.data || res;
@@ -588,6 +740,43 @@ function StoreStockTransfer() {
       setError("Failed to download invoice");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRejectTransferClick = () => {
+    setShowRejectModal(true);
+  };
+
+  const handleConfirmRejectTransfer = async () => {
+    if (!selectedTransfer) return;
+    
+    setRejectLoading(true);
+    try {
+      await storeService.rejectStockTransfer(selectedTransfer.id);
+      
+      setSuccessMessage("Stock transfer rejected successfully");
+      
+      // Close all modals
+      setShowRejectModal(false);
+      setShowDetailModal(false);
+      setSelectedTransfer(null);
+      
+      // Refresh history
+      fetchHistory();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+      
+    } catch (err) {
+      console.error("Error rejecting transfer:", err);
+      // Show error in the rejection modal or main component? 
+      // Main component error state is safer
+      setError(err.response?.data?.message || err.message || "Failed to reject stock transfer");
+      setShowRejectModal(false); // Close rejection modal on error to show error modal
+    } finally {
+      setRejectLoading(false);
     }
   };
 
@@ -812,23 +1001,23 @@ function StoreStockTransfer() {
                 >
                   To Store (Destination)
                 </label>
-                <select
-                  className="form-control"
-                  value={selectedDestinationStore}
-                  onChange={(e) => setSelectedDestinationStore(e.target.value)}
-                  style={{ fontFamily: "Poppins", fontSize: "14px" }}
-                >
-                  <option value="">Select destination store...</option>
-                  {stores
-                    .filter((store) => store.id !== currentStore.id)
-                    .map((store) => (
-                      <option key={store.id} value={store.id}>
-                        {store.name} (
-                        {(store.storeType || store.type || "own").toUpperCase()}
+                <Select
+                  options={storeOptions}
+                  value={
+                    selectedDestinationStore
+                      ? storeOptions.find(
+                          (opt) => opt.value == selectedDestinationStore,
                         )
-                      </option>
-                    ))}
-                </select>
+                      : null
+                  }
+                  onChange={(option) =>
+                    setSelectedDestinationStore(option ? option.value : "")
+                  }
+                  placeholder="Select destination store..."
+                  styles={customSelectStyles}
+                  isClearable
+                  isSearchable
+                />
               </div>
               {destinationStore && (
                 <div>
@@ -894,23 +1083,54 @@ function StoreStockTransfer() {
             </div>
           )}
 
+          {/* Company Store Inventory Buttons */}
+          {destinationStore &&
+            ((destinationStore.storeType || "")
+              .toString()
+              .toLowerCase() === "company" ||
+              (destinationStore.type || "").toString().toLowerCase() ===
+                "company") && (
+              <div className="row m-0 p-3 justify-content-around">
+                <div
+                  className="col-lg-5"
+                  style={{ display: "flex", gap: "10px" }}
+                >
+                  <button
+                    className="btn btn-success"
+                    style={{ fontFamily: "Poppins", fontSize: "14px", flex: 1 }}
+                    onClick={handleGoodInventoryClick}
+                  >
+                    Good Inventory
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    style={{ fontFamily: "Poppins", fontSize: "14px", flex: 1 }}
+                    onClick={handleDamagedInventoryClick}
+                  >
+                    Damaged Inventory
+                  </button>
+                </div>
+              </div>
+            )}
+
           {/* Available Stock */}
-          <div
-            className={styles.orderStatusCard}
-            style={{ marginBottom: "24px" }}
-          >
-            <h4
-              style={{
-                margin: 0,
-                marginBottom: "16px",
-                fontFamily: "Poppins",
-                fontWeight: 600,
-                fontSize: "20px",
-                color: "var(--primary-color)",
-              }}
+          {currentStock.length > 0 && (
+            <div
+              className={styles.orderStatusCard}
+              style={{ marginBottom: "24px" }}
             >
-              Available Stock
-            </h4>
+              <h4
+                style={{
+                  margin: 0,
+                  marginBottom: "16px",
+                  fontFamily: "Poppins",
+                  fontWeight: 600,
+                  fontSize: "20px",
+                  color: "var(--primary-color)",
+                }}
+              >
+                {stockTableTitle}
+              </h4>
             {currentStock.length === 0 ? (
               <div
                 style={{ textAlign: "center", padding: "40px", color: "#666" }}
@@ -1045,14 +1265,16 @@ function StoreStockTransfer() {
                             <td>
                               <input
                                 type="number"
-                                min="0"
+                                min="1"
                                 max={availableStock}
-                                step="0.01"
+                                step="1"
+                                inputMode="numeric"
+                                onWheel={(e) => e.target.blur()}
                                 value={transferQty}
                                 onChange={(e) =>
                                   handleQuantityChange(
                                     productId,
-                                    e.target.value,
+                                    e.target.value.replace(/\D/g, "")
                                   )
                                 }
                                 style={{
@@ -1092,6 +1314,7 @@ function StoreStockTransfer() {
               </div>
             )}
           </div>
+          )}
 
           {/* Transfer Summary */}
           {transferItemsList.length > 0 && (
@@ -1530,11 +1753,15 @@ function StoreStockTransfer() {
                   {selectedTransfer.toStore?.name || "-"}
                 </div>
               </div>
-              <div style={{ gridColumn: "1 / -1" }}>
+              <div>
                 <small style={{ color: "#666" }}>Status</small>
                 <div>
                   {(selectedTransfer.status || "Unknown").toUpperCase()}
                 </div>
+              </div>
+              <div>
+                <small style={{ color: "#666" }}>Type</small>
+                <div>{selectedTransfer.transferType || "-"}</div>
               </div>
               {selectedTransfer.notes && (
                 <div style={{ gridColumn: "1 / -1" }}>
@@ -1552,6 +1779,7 @@ function StoreStockTransfer() {
                 <tr>
                   <th>Product</th>
                   <th>Quantity</th>
+                  <th>Received Quantity</th>
                 </tr>
               </thead>
               <tbody>
@@ -1566,6 +1794,7 @@ function StoreStockTransfer() {
                       </small>
                     </td>
                     <td>{item.quantity}</td>
+                    <td>{item.receivedQuantity || "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1576,14 +1805,80 @@ function StoreStockTransfer() {
                 marginTop: "20px",
                 display: "flex",
                 justifyContent: "flex-end",
+                gap: "10px",
               }}
             >
+              {['pending', 'Pending'].includes(selectedTransfer.status) && (
+                 <button
+                   className="btn btn-danger btn-sm"
+                   onClick={handleRejectTransferClick}
+                   style={{ fontFamily: "Poppins" }}
+                 >
+                   Transfer Rejection
+                 </button>
+              )}
+              
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handleDownloadInvoice(selectedTransfer.id)}
                 style={{ fontFamily: "Poppins" }}
               >
                 <i className="bi bi-download"></i> Download Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            zIndex: 1060, // Higher than detail modal
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onClick={() => !rejectLoading && setShowRejectModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "8px",
+              padding: "24px",
+              width: "90%",
+              maxWidth: "400px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h5 style={{ fontFamily: "Poppins", marginBottom: "16px", color: "#dc2626" }}>
+              Confirm Rejection
+            </h5>
+            <p style={{ fontFamily: "Poppins", marginBottom: "24px" }}>
+              Do you really want to reject stock transfer?
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button
+                className="btn btn-light"
+                onClick={() => setShowRejectModal(false)}
+                disabled={rejectLoading}
+                style={{ fontFamily: "Poppins" }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleConfirmRejectTransfer}
+                disabled={rejectLoading}
+                style={{ fontFamily: "Poppins" }}
+              >
+                {rejectLoading ? "Rejecting..." : "Yes, Reject"}
               </button>
             </div>
           </div>

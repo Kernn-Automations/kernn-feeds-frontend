@@ -1,17 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../Auth";
 import Loading from "../Loading";
 import ErrorModal from "../ErrorModal";
 import zonesService from "../../services/zonesService";
 import subZonesService from "../../services/subZonesService";
+import teamsService from "../../services/teamsService";
+import apiService from "../../services/apiService";
 import styles from "./DivisionManager.module.css";
-import { isDivisionHead } from "../../utils/roleUtils";
+import { isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../utils/roleUtils";
 
 function DivisionManager() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const user = JSON.parse(localStorage.getItem("user"));
+  // Important: keep user reference stable to avoid effect loops (RBM/ABM discovery effects set state).
+  const user = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch (e) {
+      return null;
+    }
+  }, []);
 
   const { axiosAPI } = useAuth();
   const [divisions, setDivisions] = useState([]);
@@ -37,13 +46,13 @@ function DivisionManager() {
   const [storeSearch, setStoreSearch] = useState("");
 
   // Zones state
-  // Get active tab from URL params or default to 'divisions'
-  const activeTabFromUrl = searchParams.get("tab") || "divisions";
+  // Get active tab from URL params. For ZBM: 'zones', RBM: 'subzones', ABM: 'stores'.
+  const activeTabFromUrl = searchParams.get("tab") || (isAreaBusinessManager(user) ? "stores" : isRBM(user) ? "subzones" : isZBM(user) ? "zones" : "divisions");
   const [activeTab, setActiveTab] = useState(activeTabFromUrl);
 
   // Sync activeTab with URL params on mount and when URL changes
   useEffect(() => {
-    const tabFromUrl = searchParams.get("tab") || "divisions";
+    const tabFromUrl = searchParams.get("tab") || (isAreaBusinessManager(user) ? "stores" : isRBM(user) ? "subzones" : isZBM(user) ? "zones" : "divisions");
     setActiveTab(tabFromUrl);
   }, [searchParams]);
 
@@ -59,6 +68,7 @@ function DivisionManager() {
   const [showZoneForm, setShowZoneForm] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
   const [employees, setEmployees] = useState([]);
+  const [zoneHeadCandidates, setZoneHeadCandidates] = useState([]);
   const [newZone, setNewZone] = useState({
     name: "",
     divisionId: "",
@@ -107,6 +117,8 @@ function DivisionManager() {
   const [storeEmployees, setStoreEmployees] = useState([]);
   const [electricityDistributors, setElectricityDistributors] = useState([]);
   const [storeDropdownLoading, setStoreDropdownLoading] = useState(false);
+  const [storeSubZones, setStoreSubZones] = useState([]);
+  const [storeTeams, setStoreTeams] = useState([]);
   const [newStore, setNewStore] = useState({
     name: "",
     street1: "",
@@ -120,19 +132,24 @@ function DivisionManager() {
     longitude: "",
     divisionId: "",
     zoneId: "",
+    subZoneId: "",
+    teamId: "",
     storeType: "own",
     storeManagerId: "",
     employeeIds: [],
+    // Power bill fields
+    powerBillNumber: "",
+    electricityDistributor: "",
+    electricityDistributorOtherName: "",
+    billAllowance: "",
     // Agreement fields
     landOwnerName: "",
     agreementTimePeriod: "",
     rentAgreementStartDate: "",
     rentAgreementEndDate: "",
     advancePayOfRent: "",
+    securityDeposit: "",
     rentAgreementDocumentBase64: null,
-    // Power bill fields
-    powerBillNumber: "",
-    electricityDistributor: "",
     // Owner details
     ownerAadharNumber: "",
     ownerMobileNumber: "",
@@ -146,6 +163,7 @@ function DivisionManager() {
     // UI state
     agreementImage: null,
     agreementImagePreview: null,
+    panCard: "",
   });
   const [updatingStoreId, setUpdatingStoreId] = useState(null);
   const [storesPagination, setStoresPagination] = useState({
@@ -157,13 +175,11 @@ function DivisionManager() {
 
   useEffect(() => {
     fetchDivisions();
-    fetchEmployees();
 
     // Pre-populate division when opening store form if in a specific division context
     const currentDivisionId = localStorage.getItem("currentDivisionId");
     if (
       currentDivisionId &&
-      currentDivisionId !== "1" &&
       currentDivisionId !== "all"
     ) {
       setNewStore((prev) => ({
@@ -179,11 +195,18 @@ function DivisionManager() {
       const currentDivisionId = localStorage.getItem("currentDivisionId");
       const divisionId =
         currentDivisionId &&
-        currentDivisionId !== "1" &&
         currentDivisionId !== "all"
           ? parseInt(currentDivisionId)
           : null;
       fetchStoreDropdowns(divisionId);
+    } else if (activeTab === "zones") {
+      // Automatically fetch zones when zones tab is active
+      fetchZones();
+      fetchEmployees();
+    } else if (activeTab === "subzones") {
+      // Fetch zones for the Select Zone dropdown in subzones tab
+      fetchZones();
+      fetchEmployees();
     }
   }, [activeTab]);
 
@@ -198,17 +221,219 @@ function DivisionManager() {
     }
   }, [newStore.divisionId, showStoreForm]);
 
+  // Fetch zone head candidates when zone form opens
+  useEffect(() => {
+    if (showZoneForm) {
+      fetchZoneHeadCandidates(newZone.divisionId || null);
+    }
+  }, [showZoneForm]);
+
+  // Refetch zone head candidates when division changes in zone form
+  useEffect(() => {
+    if (showZoneForm && newZone.divisionId) {
+      fetchZoneHeadCandidates(newZone.divisionId);
+    }
+  }, [newZone.divisionId]);
+
+
+  // RBM Discovery Logic
+  const [rbmSubZone, setRbmSubZone] = useState(null);
+  const [rbmDiscoveryLoading, setRbmDiscoveryLoading] = useState(false);
+
+  // For RBM users, pre-populate zone when subzone is discovered and store form is open
+  useEffect(() => {
+    if (isRBM(user) && rbmSubZone?.zoneId && showStoreForm && !newStore.zoneId) {
+      const zoneIdValue = String(rbmSubZone.zoneId);
+      setNewStore((prev) => ({
+        ...prev,
+        zoneId: zoneIdValue,
+      }));
+      fetchStoreSubZones(rbmSubZone.zoneId);
+    }
+  }, [rbmSubZone, showStoreForm]);
+
+  useEffect(() => {
+    const discoverRBMSubZone = async () => {
+      // Only run for RBM and if not already discovered
+      if (!isRBM(user) || rbmSubZone) return;
+      
+      try {
+        setRbmDiscoveryLoading(true);
+        console.log("Discovering RBM SubZone via direct endpoint...");
+        
+        // Use the new endpoint to get sub-zones directly
+        const response = await subZonesService.getSubZones();
+        const data = response?.data || response || {};
+        let subZonesList = data.subZones || data.data || data || [];
+        subZonesList = Array.isArray(subZonesList) ? subZonesList : [];
+        
+        if (subZonesList.length > 0) {
+            console.log("RBM SubZones Found:", subZonesList);
+            // Assuming we focus on the first one for now or all? 
+            // The previous logic took the first one found.
+            const mySubZone = subZonesList[0];
+            
+            // We might need to fetch the zone details if not included, but for filtering we mainly need IDs
+            // The subZone object usually has zoneId
+            setRbmSubZone(mySubZone);
+            setSubZones(subZonesList); // Pre-populate subZones state with ALL assigned sub-zones
+            if (mySubZone.zoneId) {
+                setSelectedZoneForSubZone(mySubZone.zoneId); // Set parent zone of first sub-zone
+            }
+        } else {
+            console.warn("No RBM SubZones found via direct endpoint.");
+        }
+
+      } catch (err) {
+         console.error("Error discovering RBM subzone:", err);
+      } finally {
+         setRbmDiscoveryLoading(false);
+      }
+    };
+    
+    if (isRBM(user)) {
+        discoverRBMSubZone();
+    }
+  }, [user?.id]); // stable dependency to avoid rerender loops
+
+  // Trigger fetchStores when identification is complete for specific roles
+  useEffect(() => {
+    if (activeTab === "stores") {
+        if (isRBM(user) && rbmSubZone) {
+            console.log("RBM SubZone identified, refreshing stores...");
+            fetchStores();
+        }
+    }
+  }, [rbmSubZone]);
+
+  // ABM Discovery Logic
+  const [abmTeam, setAbmTeam] = useState(null);
+  const [abmDiscoveryLoading, setAbmDiscoveryLoading] = useState(false);
+
+  useEffect(() => {
+    const discoverABMTeam = async () => {
+      // Only run for ABM and if not already discovered
+      if (!isAreaBusinessManager(user) || abmTeam) return;
+      
+      try {
+        setAbmDiscoveryLoading(true);
+        console.log("Discovering ABM Team...");
+        
+        // Use the new endpoint to get teams directly
+        const response = await teamsService.getTeams();
+        const data = response?.data || response || {};
+        let teamsList = data.teams || data.data || data || [];
+        teamsList = Array.isArray(teamsList) ? teamsList : [];
+        
+        if (teamsList.length > 0) {
+            console.log("ABM Discovery - User ID:", user?.id, "Type:", typeof user?.id);
+            console.log("ABM Discovery - Teams List:", teamsList);
+            
+            // Priority: Check if Team ID 1 exists in the raw API response (requested override)
+            const team1 = teamsList.find(t => t.id == 1);
+            
+            let myTeam = null;
+            
+            if (team1) {
+                console.log("Found Team ID 1 in API response. Selecting it as priority.");
+                myTeam = team1;
+            } else {
+                // Fallback: Filter ensuring we get the team where user is head
+                const myTeams = teamsList.filter(t => {
+                    console.log(`Checking team ${t.id} (Head: ${t.teamHeadId}) against user ${user?.id}`);
+                    return t.teamHeadId == user?.id; // strict equality might fail if types differ
+                });
+                
+                if (myTeams.length > 0) {
+                    console.log("Selecting first team where user is head.");
+                    myTeam = myTeams[0];
+                } else {
+                     console.warn(`No team found where headId matches user.id (${user?.id}). Defaulting to first team id ${teamsList[0]?.id}.`);
+                     myTeam = teamsList[0];
+                }
+            }
+            
+            console.log("Matched team for ABM:", myTeam);
+            
+            setAbmTeam(myTeam);
+        } else {
+            console.warn("No ABM Teams found for user.");
+        }
+
+      } catch (err) {
+         console.error("Error discovering ABM Team:", err);
+      } finally {
+         setAbmDiscoveryLoading(false);
+      }
+    };
+    
+    if (isAreaBusinessManager(user)) {
+        discoverABMTeam();
+    }
+  }, [user?.id]);
+
+  // For ABM users, pre-populate zone and subzone when team is discovered and store form is open
+  useEffect(() => {
+    if (isAreaBusinessManager(user) && abmTeam && showStoreForm) {
+      // Use the zoneId and subZoneId from the team
+      // Ensure we convert to string to match select values
+      const zoneIdValue = abmTeam.zoneId ? String(abmTeam.zoneId) : "";
+      const subZoneIdValue = abmTeam.subZoneId ? String(abmTeam.subZoneId) : "";
+      const teamIdValue = abmTeam.id ? String(abmTeam.id) : "";
+      
+      console.log("Pre-populating ABM store form:", { zoneIdValue, subZoneIdValue, teamIdValue });
+      
+      setNewStore((prev) => ({
+        ...prev,
+        zoneId: zoneIdValue,
+        subZoneId: subZoneIdValue,
+        teamId: teamIdValue
+      }));
+      
+      // We might need to fetch subzones/teams if not loaded, 
+      // but since they are read-only and pre-filled, maybe not strictly necessary for display 
+      // if we just show the name from context. 
+      // However, for consistency and avoiding ID-only display if we use standard selects:
+      if (zoneIdValue) fetchStoreSubZones(zoneIdValue);
+      if (subZoneIdValue) fetchStoreTeams(subZoneIdValue);
+    }
+  }, [abmTeam, showStoreForm]);
+
+  useEffect(() => {
+    if (activeTab === "stores") {
+        if (isAreaBusinessManager(user) && abmTeam) {
+            console.log("ABM Team identified, refreshing stores...");
+            fetchStores();
+        }
+    }
+  }, [abmTeam]);
+
+  // Check if we need to show loading screen
+
+
   const fetchDivisions = async () => {
     try {
+      // Skip fetching divisions for ZBM as they don't have access and the tab is hidden
+      if (isZBM(user)) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       console.log("Fetching divisions...");
 
       // Try different endpoints as per the backend routes
       let response;
       try {
+        const selectedDivisionLocal = JSON.parse(localStorage.getItem("selectedDivision"));
+        const targetDivisionId = selectedDivisionLocal?.id || user?.divisionId;
+
         if (isDivisionHead(user)) {
           response = await axiosAPI.get("/divisions/user-divisions");
           console.log("Divisions response (user-divisions):", response);
+        } else if ((isRBM(user) || isAreaBusinessManager(user) || isZBM(user)) && targetDivisionId && targetDivisionId !== 'all') {
+             response = await axiosAPI.get(`/divisions/${targetDivisionId}`);
+             console.log("Divisions response (specific):", response);
         } else {
           // First try the main divisions endpoint
           response = await axiosAPI.get("/divisions");
@@ -238,11 +463,16 @@ function DivisionManager() {
           typeof divisionsData === "object" &&
           divisionsData !== null
         ) {
-          // If it's an object, try to extract divisions from it
-          const extractedDivisions =
-            Object.values(divisionsData).find((item) => Array.isArray(item)) ||
-            [];
-          processedDivisions = extractedDivisions;
+          // Check if it's a single division object (has id and name)
+          if (divisionsData.id && (divisionsData.name || divisionsData.divisionName)) {
+             processedDivisions = [divisionsData];
+          } else {
+            // If it's an wrapper object, try to extract divisions array from it
+            const extractedDivisions =
+                Object.values(divisionsData).find((item) => Array.isArray(item)) ||
+                [];
+            processedDivisions = extractedDivisions;
+          }
         } else {
           processedDivisions = [];
         }
@@ -253,8 +483,39 @@ function DivisionManager() {
         const divisionsWithStats = await Promise.all(
           processedDivisions.map(async (division) => {
             console.log(
-              `Fetching statistics for division ${division.id} (${division.name})`,
+              `Processing division ${division.id} (${division.name})`,
             );
+
+            // Skip statistics fetching for ZBM, RBM, and ABM roles as they don't have access
+            if (isZBM(user) || isRBM(user) || isAreaBusinessManager(user)) {
+               const divisionWithFallbackStats = {
+                ...division,
+                userCount:
+                  division.userCount ||
+                  division.usersCount ||
+                  division.totalUsers ||
+                  division.users ||
+                  division.employees ||
+                  division._count?.users ||
+                  0,
+                warehouseCount:
+                  division.warehouseCount ||
+                  division.warehousesCount ||
+                  division.totalWarehouses ||
+                  division.warehouses ||
+                  division._count?.warehouses ||
+                  0,
+                customerCount:
+                  division.customerCount || division.customers || 0,
+                productCount: division.productCount || division.products || 0,
+                salesOrderCount:
+                  division.salesOrderCount || division.salesOrders || 0,
+                purchaseOrderCount:
+                  division.purchaseOrderCount || division.purchaseOrders || 0,
+              };
+              return divisionWithFallbackStats;
+            }
+
             try {
               // Try to fetch statistics for this division
               const statsResponse = await axiosAPI.get(
@@ -367,6 +628,10 @@ function DivisionManager() {
 
       const divisionsWithRefreshedStats = await Promise.all(
         divisions.map(async (division) => {
+          // Skip statistics refresh for ZBM, RBM, and ABM roles
+          if (isZBM(user) || isRBM(user) || isAreaBusinessManager(user)) {
+            return division;
+          }
           console.log(
             `Refreshing statistics for division ${division.id} (${division.name})`,
           );
@@ -613,6 +878,40 @@ function DivisionManager() {
     }
   };
 
+  const fetchZoneHeadCandidates = async (divisionId = null) => {
+    try {
+      console.log("Fetching zone head candidates...", { divisionId, userRole: user?.roleName });
+      let response;
+
+      // Determine which endpoint to use based on role and division context
+      if (isDivisionHead(user)) {
+        // Division Head: use division-specific endpoint
+        const targetDivisionId = divisionId || user?.divisionId;
+        if (!targetDivisionId) {
+          console.warn("No division ID available for Division Head");
+          setZoneHeadCandidates([]);
+          return;
+        }
+        response = await apiService.getZoneHeadCandidatesByDivision(targetDivisionId);
+      } else if (divisionId) {
+        // Admin/Super Admin with specific division selected: use division-specific endpoint
+        response = await apiService.getZoneHeadCandidatesByDivision(divisionId);
+      } else {
+        // Admin/Super Admin without division filter: use all divisions endpoint
+        response = await apiService.getZoneHeadCandidatesAll();
+      }
+
+      const data = await response.json();
+      const candidatesData = data.candidates || data.data || data || [];
+      setZoneHeadCandidates(Array.isArray(candidatesData) ? candidatesData : []);
+      console.log("Zone head candidates fetched:", candidatesData);
+    } catch (error) {
+      console.error("Error fetching zone head candidates:", error);
+      setZoneHeadCandidates([]);
+    }
+  };
+
+
   const fetchStoreDropdowns = async (divisionId = null) => {
     try {
       setStoreDropdownLoading(true);
@@ -662,6 +961,41 @@ function DivisionManager() {
   const ensureStoreDropdowns = () => {
     if (storeManagers.length === 0 || storeEmployees.length === 0) {
       fetchStoreDropdowns();
+    }
+  };
+
+
+  const fetchStoreSubZones = async (zoneId) => {
+    if (!zoneId) {
+      setStoreSubZones([]);
+      return;
+    }
+    try {
+      const response = await axiosAPI.get(
+        `/stores/dropdowns/subzones?zoneId=${zoneId}`,
+      );
+      const data = response.data?.data || response.data || [];
+      setStoreSubZones(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching store subzones:", error);
+      setStoreSubZones([]);
+    }
+  };
+
+  const fetchStoreTeams = async (subZoneId) => {
+    if (!subZoneId) {
+      setStoreTeams([]);
+      return;
+    }
+    try {
+      const response = await axiosAPI.get(
+        `/stores/dropdowns/teams?subZoneId=${subZoneId}`,
+      );
+      const data = response.data?.data || response.data || [];
+      setStoreTeams(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching store teams:", error);
+      setStoreTeams([]);
     }
   };
 
@@ -773,8 +1107,45 @@ function DivisionManager() {
       );
 
       const data = response?.data || response || {};
-      const zonesList = data.zones || data.data || data || [];
-      setZones(Array.isArray(zonesList) ? zonesList : []);
+
+      let zonesList = data.zones || data.data?.zones || data.data || [];
+      zonesList = Array.isArray(zonesList) ? zonesList : [];
+
+      // For ZBM, filter to only show their assigned zone
+      // Check both zoneHeadId (from zone object) and zoneHead (populated object)
+      if (isZBM(user)) {
+        console.log("---- ZBM FILTER DEBUG ----");
+        
+        // Normalize user object just in case
+        const currentUser = user?.user || user || {};
+        console.log("User object:", currentUser);
+        console.log("Raw zones list:", zonesList);
+        
+        // TEMPORARY: Disabling strict filtering to allow testing with mismatched IDs
+        // zonesList = zonesList.filter(z => {
+        //   const userId = String(currentUser.id || "");
+        //   const userEmpId = String(currentUser.employeeId || "");
+        //   const zoneHeadId = String(z.zoneHeadId || "");
+        //   const headId = String(z.zoneHead?.id || "");
+        //   const headEmpId = String(z.zoneHead?.employeeId || "");
+
+        //   console.log(`Checking Zone ID ${z.id}:`);
+        //   console.log(`- User: ID="${userId}", EmpID="${userEmpId}"`);
+        //   console.log(`- Zone: HeadID="${zoneHeadId}", NestedHeadID="${headId}", NestedHeadEmpID="${headEmpId}"`);
+
+        //   const idMatch = userId && (zoneHeadId === userId || headId === userId);
+        //   const empIdMatch = userEmpId && (headEmpId === userEmpId || zoneHeadId === userEmpId);
+          
+        //   console.log(`- Matches: ID=${idMatch}, EmpID=${empIdMatch}`);
+
+        //   return idMatch || empIdMatch;
+        // });
+        
+        console.log("Filtered zones list (Skipped for testing):", zonesList);
+        console.log("--------------------------");
+      }
+
+      setZones(zonesList);
     } catch (error) {
       console.error("Error fetching zones:", error);
       setZones([]);
@@ -896,6 +1267,7 @@ function DivisionManager() {
   };
 
   const handleEditZone = (zone) => {
+    window.scrollTo(0, 0);
     setEditingZone(zone);
     setNewZone({
       name: zone.name || "",
@@ -943,8 +1315,28 @@ function DivisionManager() {
       setSubZonesLoading(true);
       const response = await subZonesService.getSubZonesByZone(zoneId, true);
       const data = response?.data || response || {};
-      const subZonesList = data.subZones || data.data || data || [];
-      setSubZones(Array.isArray(subZonesList) ? subZonesList : []);
+      let subZonesList = data.subZones || data.data || data || [];
+      subZonesList = Array.isArray(subZonesList) ? subZonesList : [];
+
+      
+      // For RBM, filter to only show their assigned sub-zone
+      // Note: This is now partly redundant if we pre-set subZones in the discovery effect, 
+      // but good for safety if fetchSubZones is called manually.
+      if (isRBM(user)) {
+        console.log("Filtering sub-zones for RBM:", { userId: user.id || null, empId: user.employeeId || null });
+        subZonesList = subZonesList.filter(sz => {
+          const userId = String(user.id || "");
+          const userEmpId = String(user.employeeId || "");
+          const subZoneHeadId = String(sz.subZoneHeadId || "");
+          const headId = String(sz.subZoneHead?.id || "");
+          const headEmpId = String(sz.subZoneHead?.employeeId || "");
+
+          return (userId && (subZoneHeadId === userId || headId === userId)) || 
+                 (userEmpId && (headEmpId === userEmpId || subZoneHeadId === userEmpId));
+        });
+      }
+
+      setSubZones(subZonesList);
     } catch (error) {
       console.error("Error fetching sub zones:", error);
       setSubZones([]);
@@ -1137,6 +1529,7 @@ function DivisionManager() {
   };
 
   const handleEditSubZone = (subZone) => {
+    window.scrollTo(0, 0);
     setEditingSubZone(subZone);
     setSelectedZoneForSubZone(subZone.zoneId);
     setNewSubZone({
@@ -1276,7 +1669,86 @@ function DivisionManager() {
       if (search) params.append("search", search);
       if (storeType) params.append("storeType", storeType);
 
-      const response = await axiosAPI.get(`/stores?${params.toString()}`);
+      let url = `/stores?${params.toString()}`;
+
+      // ZBM specific logic
+      if (isZBM(user)) {
+        // Find the zone for this ZBM
+        // We might need to ensure zones are loaded or fetch them if missing
+        let targetZoneId = null;
+        
+        // Try to find from existing zones state
+        if (zones && zones.length > 0) {
+           const zbmZone = zones.find(z => {
+              const userId = String(user.id || "");
+              const userEmpId = String(user.employeeId || "");
+              const zoneHeadId = String(z.zoneHeadId || "");
+              const headId = String(z.zoneHead?.id || "");
+              const headEmpId = String(z.zoneHead?.employeeId || "");
+
+              return (userId && (zoneHeadId === userId || headId === userId)) || 
+                     (userEmpId && (headEmpId === userEmpId || zoneHeadId === userEmpId));
+           });
+           if (zbmZone) targetZoneId = zbmZone.id;
+        }
+
+        // If not found in state (e.g. direct load), we might need to rely on the backend to filter 
+        // OR fetch zones here. For now, assuming if ZBM is logged in, they should know their zone.
+        // If we can't find zoneId, we might face issues. 
+        // However, the requirement says: "ZBM will pass zoneId in query"
+        
+        if (targetZoneId) {
+             params.append("zoneId", targetZoneId);
+             url = `/stores/list?${params.toString()}`;
+        } else {
+             // Fallback: Try to fetch zones first if not present?
+             // Or maybe user object has it?
+             if (user.zoneId) {
+                 params.append("zoneId", user.zoneId);
+                 url = `/stores/list?${params.toString()}`;
+             } else {
+                 // If we absolutely cannot find a zoneId, maybe we shouldn't call logic?
+                 // But let's fallback to standard stores call which might fail or return empty
+                 // or maybe the backend handles it if we don't pass it (unlikely based on request)
+                 console.warn("ZBM user but no zoneId found for stores fetch");
+             }
+        }
+      }
+
+      // RBM specific logic
+      if (isRBM(user)) {
+          // Use the discovered RBM SubZone ID
+          let targetSubZoneId = rbmSubZone?.id;
+          
+          if (targetSubZoneId) {
+             params.append("subZoneId", targetSubZoneId);
+             url = `/stores/list?${params.toString()}`;
+          } else {
+             console.warn("RBM user but no subZoneId found yet (discovery in progress or failed)");
+          }
+      }
+
+      // ABM specific logic
+      if (isAreaBusinessManager(user)) {
+           // Use the discovered ABM Team ID
+           let targetTeamId = abmTeam?.id;
+           
+           if (targetTeamId) {
+               params.append("teamId", targetTeamId);
+               url = `/stores/list?${params.toString()}`;
+           } else {
+               console.warn("ABM user but no teamId found yet (discovery in progress or failed)");
+               // Do not call the default /stores endpoint if we expect an ABM team
+               // This prevents the wrong call
+               if (abmDiscoveryLoading) {
+                   // Or just return to avoid the call
+                   setStoresLoading(false);
+                   return;
+               }
+           }
+      }
+
+      const response = await axiosAPI.get(url);
       console.log("Stores response:", response);
 
       // Handle different possible response structures
@@ -1404,6 +1876,22 @@ function DivisionManager() {
       return;
     }
 
+    if (newStore.storeType === "franchise") {
+      const missingFields = [];
+      if (!newStore.landOwnerName) missingFields.push("Land Owner Name");
+      if (!newStore.agreementTimePeriod) missingFields.push("Agreement Time Period");
+      if (!newStore.rentAgreementStartDate) missingFields.push("Rent Agreement Start Date");
+      if (!newStore.rentAgreementEndDate) missingFields.push("Rent Agreement End Date");
+      if (newStore.advancePayOfRent === "" || newStore.advancePayOfRent === null) missingFields.push("Advance Pay of Rent");
+      if (newStore.monthlyRent === "" || newStore.monthlyRent === null) missingFields.push("Monthly Rent");
+
+      if (missingFields.length > 0) {
+        setError(`Missing required fields for franchise store: ${missingFields.join(", ")}`);
+        setIsModalOpen(true);
+        return;
+      }
+    }
+
     try {
       setCreating(true);
       console.log("Creating store:", newStore);
@@ -1427,10 +1915,17 @@ function DivisionManager() {
         }
       }
 
+      const electricityDistributorValue =
+        newStore.electricityDistributor === "Other"
+          ? (newStore.electricityDistributorOtherName || "").trim()
+          : (newStore.electricityDistributor || "").trim();
+
       const storeData = {
         name: newStore.name,
         divisionId: parseInt(newStore.divisionId),
         zoneId: newStore.zoneId ? parseInt(newStore.zoneId) : undefined,
+        subZoneId: newStore.subZoneId ? parseInt(newStore.subZoneId) : undefined,
+        teamId: newStore.teamId ? parseInt(newStore.teamId) : undefined,
         storeType: newStore.storeType || "own",
         district: newStore.district || "",
         state: newStore.state || "",
@@ -1450,6 +1945,9 @@ function DivisionManager() {
         ...(newStore.storeManagerId && {
           storeManagerId: parseInt(newStore.storeManagerId),
         }),
+        billAllowance: newStore.billAllowance ? String(newStore.billAllowance) : undefined,
+        securityDeposit: newStore.securityDeposit ? String(newStore.securityDeposit) : undefined,
+        ownerAadharNumber: newStore.ownerAadharNumber || undefined,
         ...(newStore.employeeIds &&
           newStore.employeeIds.length > 0 && {
             employeeIds: newStore.employeeIds.map((id) => parseInt(id)),
@@ -1467,12 +1965,12 @@ function DivisionManager() {
         ...(newStore.rentAgreementEndDate && {
           rentAgreementEndDate: newStore.rentAgreementEndDate,
         }),
-        ...(newStore.advancePayOfRent &&
-          parseFloat(newStore.advancePayOfRent) > 0 && {
+        ...(newStore.advancePayOfRent !== "" && newStore.advancePayOfRent !== null &&
+          parseFloat(newStore.advancePayOfRent) >= 0 && {
             advancePayOfRent: parseFloat(newStore.advancePayOfRent),
           }),
-        ...(newStore.monthlyRent &&
-          parseFloat(newStore.monthlyRent) > 0 && {
+        ...(newStore.monthlyRent !== "" && newStore.monthlyRent !== null &&
+          parseFloat(newStore.monthlyRent) >= 0 && {
             monthlyRent: parseFloat(newStore.monthlyRent),
           }),
         ...(newStore.rentAgreementDocumentBase64 && {
@@ -1484,8 +1982,8 @@ function DivisionManager() {
         ...(newStore.powerBillNumber && {
           powerBillNumber: newStore.powerBillNumber.trim(),
         }),
-        ...(newStore.electricityDistributor && {
-          electricityDistributor: newStore.electricityDistributor.trim(),
+        ...(electricityDistributorValue && {
+          electricityDistributor: electricityDistributorValue,
         }),
         // Owner details
         ...(newStore.ownerAadharNumber && {
@@ -1504,6 +2002,7 @@ function DivisionManager() {
         ...(newStore.accountNumber && {
           accountNumber: newStore.accountNumber.trim(),
         }),
+        ...(newStore.panCard && { panCard: newStore.panCard.trim().toUpperCase() }),
         storeCodeNumber: newStore.storeCodeNumber || undefined,
         villages: newStore.villages
           ? newStore.villages
@@ -1611,7 +2110,6 @@ function DivisionManager() {
           longitude: "",
           divisionId:
             currentDivisionId &&
-            currentDivisionId !== "1" &&
             currentDivisionId !== "all"
               ? currentDivisionId
               : "",
@@ -1629,6 +2127,7 @@ function DivisionManager() {
           // Power bill fields
           powerBillNumber: "",
           electricityDistributor: "",
+          electricityDistributorOtherName: "",
           // Owner details
           ownerAadharNumber: "",
           ownerMobileNumber: "",
@@ -1641,6 +2140,9 @@ function DivisionManager() {
           // UI state
           agreementImage: null,
           agreementImagePreview: null,
+          panCard: "",
+          subZoneId: "",
+          teamId: "",
         });
         setShowStoreForm(false);
         setEditingStore(null);
@@ -1673,6 +2175,22 @@ function DivisionManager() {
       return;
     }
 
+    if (newStore.storeType === "franchise") {
+      const missingFields = [];
+      if (!newStore.landOwnerName) missingFields.push("Land Owner Name");
+      if (!newStore.agreementTimePeriod) missingFields.push("Agreement Time Period");
+      if (!newStore.rentAgreementStartDate) missingFields.push("Rent Agreement Start Date");
+      if (!newStore.rentAgreementEndDate) missingFields.push("Rent Agreement End Date");
+      if (newStore.advancePayOfRent === "" || newStore.advancePayOfRent === null) missingFields.push("Advance Pay of Rent");
+      if (newStore.monthlyRent === "" || newStore.monthlyRent === null) missingFields.push("Monthly Rent");
+
+      if (missingFields.length > 0) {
+        setError(`Missing required fields for franchise store: ${missingFields.join(", ")}`);
+        setIsModalOpen(true);
+        return;
+      }
+    }
+
     try {
       setCreating(true);
       console.log("Updating store:", editingStore.id, newStore);
@@ -1696,10 +2214,17 @@ function DivisionManager() {
         }
       }
 
+      const electricityDistributorValue =
+        newStore.electricityDistributor === "Other"
+          ? (newStore.electricityDistributorOtherName || "").trim()
+          : (newStore.electricityDistributor || "").trim();
+
       const storeData = {
         name: newStore.name,
         divisionId: parseInt(newStore.divisionId),
         zoneId: newStore.zoneId ? parseInt(newStore.zoneId) : undefined,
+        subZoneId: newStore.subZoneId ? parseInt(newStore.subZoneId) : undefined,
+        teamId: newStore.teamId ? parseInt(newStore.teamId) : undefined,
         storeType: newStore.storeType || "own",
         district: newStore.district || "",
         state: newStore.state || "",
@@ -1736,12 +2261,12 @@ function DivisionManager() {
         ...(newStore.rentAgreementEndDate && {
           rentAgreementEndDate: newStore.rentAgreementEndDate,
         }),
-        ...(newStore.advancePayOfRent &&
-          parseFloat(newStore.advancePayOfRent) > 0 && {
+        ...(newStore.advancePayOfRent !== "" && newStore.advancePayOfRent !== null &&
+          parseFloat(newStore.advancePayOfRent) >= 0 && {
             advancePayOfRent: parseFloat(newStore.advancePayOfRent),
           }),
-        ...(newStore.monthlyRent &&
-          parseFloat(newStore.monthlyRent) > 0 && {
+        ...(newStore.monthlyRent !== "" && newStore.monthlyRent !== null &&
+          parseFloat(newStore.monthlyRent) >= 0 && {
             monthlyRent: parseFloat(newStore.monthlyRent),
           }),
         ...(newStore.rentAgreementDocumentBase64 && {
@@ -1753,8 +2278,8 @@ function DivisionManager() {
         ...(newStore.powerBillNumber && {
           powerBillNumber: newStore.powerBillNumber.trim(),
         }),
-        ...(newStore.electricityDistributor && {
-          electricityDistributor: newStore.electricityDistributor.trim(),
+        ...(electricityDistributorValue && {
+          electricityDistributor: electricityDistributorValue,
         }),
         // Owner details
         ...(newStore.ownerAadharNumber && {
@@ -1780,6 +2305,7 @@ function DivisionManager() {
               .map((v) => v.trim())
               .filter((v) => v !== "")
           : undefined,
+        ...(newStore.panCard && { panCard: newStore.panCard.trim().toUpperCase() }),
       };
 
       const response = await axiosAPI.put(
@@ -2000,6 +2526,7 @@ function DivisionManager() {
   };
 
   const handleEditStore = async (store) => {
+    window.scrollTo(0, 0);
     ensureStoreDropdowns();
     setEditingStore(store);
 
@@ -2030,6 +2557,23 @@ function DivisionManager() {
       store.storeManagerId ||
       store.staffManagerId ||
       "";
+
+    const zoneIdToUse = storeDetails.zoneId || storeDetails.zone?.id || store.zoneId || store.zone?.id || "";
+    const subZoneIdToUse = storeDetails.subZoneId || store.subZoneId || "";
+
+    // IMPORTANT: Ensure zones are loaded for the store's division
+    const divisionIdToUse = storeDetails.divisionId || storeDetails.division?.id || store.divisionId || store.division?.id || "";
+    if (divisionIdToUse) {
+        // Fetch zones for this specific division to populate the dropdown
+        fetchZones(divisionIdToUse);
+    }
+
+    if (zoneIdToUse) {
+      fetchStoreSubZones(zoneIdToUse);
+    }
+    if (subZoneIdToUse) {
+      fetchStoreTeams(subZoneIdToUse);
+    }
 
     setNewStore({
       name: storeDetails.name || store.name || "",
@@ -2082,6 +2626,7 @@ function DivisionManager() {
         store.monthlyBill ||
         "",
       rentAgreementDocumentBase64: null,
+      securityDeposit: storeDetails.securityDeposit || store.securityDeposit || "",
       // Power bill fields
       powerBillNumber:
         storeDetails.powerBillNumber || store.powerBillNumber || "",
@@ -2089,6 +2634,8 @@ function DivisionManager() {
         storeDetails.electricityDistributor ||
         store.electricityDistributor ||
         "",
+      electricityDistributorOtherName: "",
+      billAllowance: storeDetails.billAllowance || store.billAllowance || "",
       // Owner details
       ownerAadharNumber:
         storeDetails.ownerAadharNumber || store.ownerAadharNumber || "",
@@ -2118,6 +2665,9 @@ function DivisionManager() {
       // UI state
       agreementImage: null,
       agreementImagePreview: null,
+      panCard: storeDetails.panCard || store.panCard || "",
+      subZoneId: storeDetails.subZoneId || store.subZoneId || "",
+      teamId: storeDetails.teamId || store.teamId || "",
     });
     setShowStoreForm(true);
   };
@@ -2139,7 +2689,6 @@ function DivisionManager() {
       longitude: "",
       divisionId:
         currentDivisionId &&
-        currentDivisionId !== "1" &&
         currentDivisionId !== "all"
           ? currentDivisionId
           : "",
@@ -2156,9 +2705,12 @@ function DivisionManager() {
       villages: "",
       advancePayOfRent: "",
       rentAgreementDocumentBase64: null,
+      securityDeposit: "",
       // Power bill fields
       powerBillNumber: "",
       electricityDistributor: "",
+      electricityDistributorOtherName: "",
+      billAllowance: "",
       // Owner details
       ownerAadharNumber: "",
       ownerMobileNumber: "",
@@ -2170,6 +2722,9 @@ function DivisionManager() {
       // UI state
       agreementImage: null,
       agreementImagePreview: null,
+      panCard: "",
+      subZoneId: "",
+      teamId: "",
     });
   };
 
@@ -2193,7 +2748,7 @@ function DivisionManager() {
     }));
   };
 
-  if (loading) {
+  if (loading || (isRBM(user) && rbmDiscoveryLoading) || (isAreaBusinessManager(user) && abmDiscoveryLoading)) {
     return (
       <div className={styles.container}>
         <Loading />
@@ -2236,18 +2791,30 @@ function DivisionManager() {
                 {showCreateForm ? "Cancel" : "Create New Division"}
               </button>
             )}
-            {activeTab === "zones" && (
+            {activeTab === "zones" && !isZBM(user) && (
               <button
                 className="homebtn"
-                onClick={() => setShowZoneForm(!showZoneForm)}
+                onClick={() => {
+                  if (!showZoneForm && employees.length === 0) {
+                    // Fetch employees only when opening the zone form
+                    fetchEmployees();
+                  }
+                  setShowZoneForm(!showZoneForm);
+                }}
               >
                 {showZoneForm ? "Cancel" : "Create New Zone"}
               </button>
             )}
-            {activeTab === "subzones" && (
+            {activeTab === "subzones" && !isRBM(user) && (
               <button
                 className="homebtn"
-                onClick={() => setShowSubZoneForm(!showSubZoneForm)}
+                onClick={() => {
+                  if (!showSubZoneForm && employees.length === 0) {
+                    // Fetch employees only when opening the subzone form
+                    fetchEmployees();
+                  }
+                  setShowSubZoneForm(!showSubZoneForm);
+                }}
               >
                 {showSubZoneForm ? "Cancel" : "Create New Sub Zone"}
               </button>
@@ -2258,22 +2825,100 @@ function DivisionManager() {
                 onClick={() => {
                   if (!showStoreForm) {
                     ensureStoreDropdowns();
+                    // Fetch employees if not already fetched (used as fallback in store form)
+                    if (employees.length === 0) {
+                      fetchEmployees();
+                    }
+                    
+                    // Prepare fresh state to avoid glitch where previous edit data persists
+                    const freshState = {
+                      name: "",
+                      street1: "",
+                      street2: "",
+                      area: "",
+                      district: "",
+                      state: "",
+                      city: "",
+                      pincode: "",
+                      latitude: "",
+                      longitude: "",
+                      divisionId: "",
+                      zoneId: "",
+                      subZoneId: "",
+                      teamId: "",
+                      storeType: "own",
+                      storeManagerId: "",
+                      employeeIds: [],
+                      // Power bill fields
+                      powerBillNumber: "",
+                      electricityDistributor: "",
+                      electricityDistributorOtherName: "",
+                      billAllowance: "",
+                      // Agreement fields
+                      landOwnerName: "",
+                      agreementTimePeriod: "",
+                      rentAgreementStartDate: "",
+                      rentAgreementEndDate: "",
+                      advancePayOfRent: "",
+                      securityDeposit: "",
+                      rentAgreementDocumentBase64: null,
+                      // Owner details
+                      ownerAadharNumber: "",
+                      ownerMobileNumber: "",
+                      beneficiaryName: "",
+                      bankName: "",
+                      ifscCode: "",
+                      accountNumber: "",
+                      monthlyRent: "",
+                      storeCodeNumber: "",
+                      villages: "",
+                      // UI state
+                      agreementImage: null,
+                      agreementImagePreview: null,
+                      panCard: "",
+                    };
+
                     // When opening the form, pre-populate division if in a specific division context
                     const currentDivisionId =
                       localStorage.getItem("currentDivisionId");
+                    
+                    // For RBM users, pre-populate zone from assigned subzone
+                    const rbmZoneId = isRBM(user) && rbmSubZone?.zoneId ? String(rbmSubZone.zoneId) : null;
+                    
                     if (
                       currentDivisionId &&
-                      currentDivisionId !== "1" &&
                       currentDivisionId !== "all"
                     ) {
-                      setNewStore((prev) => ({
-                        ...prev,
+                      setNewStore({
+                        ...freshState,
                         divisionId: currentDivisionId,
-                        employeeIds: prev.employeeIds || [],
-                      }));
+                        zoneId: rbmZoneId || "",
+                      });
                       // Fetch zones for the selected division
-                      fetchZones();
+                      fetchZones().then(() => {
+                        // After zones are fetched, if RBM has assigned zone, fetch subzones
+                        if (rbmZoneId && rbmSubZone?.zoneId) {
+                          fetchStoreSubZones(rbmSubZone.zoneId);
+                        }
+                      });
+                    } else if (rbmZoneId) {
+                      // Even if no division context, set zone for RBM
+                      setNewStore({
+                        ...freshState,
+                        zoneId: rbmZoneId,
+                      });
+                      fetchZones().then(() => {
+                        if (rbmSubZone?.zoneId) {
+                          fetchStoreSubZones(rbmSubZone.zoneId);
+                        }
+                      });
+                    } else {
+                       // Ensure clean state even if no context
+                       setNewStore(freshState);
                     }
+                  } else {
+                    // When canceling/closing
+                    setEditingStore(null);
                   }
                   setShowStoreForm(!showStoreForm);
                 }}
@@ -2284,8 +2929,11 @@ function DivisionManager() {
           </div>
         </div>
 
+
+
         {/* Tabs */}
         <div className={styles.tabs}>
+          {!isZBM(user) && !isRBM(user) && !isAreaBusinessManager(user) && (
           <button
             className={`${styles.tabButton} ${activeTab === "divisions" ? styles.activeTab : ""}`}
             onClick={() => {
@@ -2294,28 +2942,31 @@ function DivisionManager() {
           >
             Divisions
           </button>
+          )}
+          {!isRBM(user) && !isAreaBusinessManager(user) && (
           <button
             className={`${styles.tabButton} ${activeTab === "zones" ? styles.activeTab : ""}`}
             onClick={() => {
               handleTabChange("zones");
-              if (zones.length === 0) {
-                fetchZones();
-              }
+              // fetchZones() will be called automatically by useEffect when activeTab changes
             }}
           >
             Zones
           </button>
+          )}
+          {!isAreaBusinessManager(user) && (
           <button
             className={`${styles.tabButton} ${activeTab === "subzones" ? styles.activeTab : ""}`}
             onClick={() => {
               handleTabChange("subzones");
-              if (zones.length === 0) {
-                fetchZones();
+              if (selectedZoneForSubZone) {
+                fetchSubZones(selectedZoneForSubZone);
               }
             }}
           >
             Sub Zones
           </button>
+          )}
           <button
             className={`${styles.tabButton} ${activeTab === "stores" ? styles.activeTab : ""}`}
             onClick={() => {
@@ -2719,7 +3370,7 @@ function DivisionManager() {
                           }
                         >
                           <option value="">Select head (optional)</option>
-                          {employees.map((employee) => (
+                          {zoneHeadCandidates.map((employee) => (
                             <option key={employee.id} value={employee.id}>
                               {employee.name || employee.employeeName}
                             </option>
@@ -2955,18 +3606,22 @@ function DivisionManager() {
                         )}
                       </div>
                       <div className={styles.divisionActions}>
-                        <button
-                          className="homebtn"
-                          onClick={() => handleEditZone(zone)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="homebtn"
-                          onClick={() => handleDeleteZone(zone.id)}
-                        >
-                          Delete
-                        </button>
+                        {!isZBM(user) && (
+                          <>
+                            <button
+                              className="homebtn"
+                              onClick={() => handleEditZone(zone)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="homebtn"
+                              onClick={() => handleDeleteZone(zone.id)}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -3262,6 +3917,7 @@ function DivisionManager() {
             )}
 
             {/* Zone Selector for Sub Zones */}
+            {!isRBM(user) && (
             <div className={styles.zoneSelector}>
               <label htmlFor="subZoneZoneSelector">
                 Select Zone to View Sub Zones:
@@ -3286,15 +3942,16 @@ function DivisionManager() {
                 ))}
               </select>
             </div>
+            )}
 
             <div className={styles.divisionsList}>
-              {subZonesLoading ? (
+              {subZonesLoading || rbmDiscoveryLoading ? (
                 <div className={styles.loadingContainer}>
                   <Loading />
                 </div>
               ) : !selectedZoneForSubZone ? (
                 <div className={styles.noData}>
-                  <p>Please select a zone to view its sub zones.</p>
+                  <p>{isRBM(user) ? "No assigned sub-zone found." : "Please select a zone to view its sub zones."}</p>
                 </div>
               ) : subZones.length === 0 ? (
                 <div className={styles.noData}>
@@ -3343,18 +4000,22 @@ function DivisionManager() {
                         </div>
                       </div>
                       <div className={styles.divisionActions}>
-                        <button
-                          className="homebtn"
-                          onClick={() => handleEditSubZone(subZone)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="homebtn"
-                          onClick={() => handleDeleteSubZone(subZone.id)}
-                        >
-                          Delete
-                        </button>
+                        {!isRBM(user) && (
+                          <>
+                            <button
+                              className="homebtn"
+                              onClick={() => handleEditSubZone(subZone)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="homebtn"
+                              onClick={() => handleDeleteSubZone(subZone.id)}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -3373,9 +4034,7 @@ function DivisionManager() {
                   localStorage.getItem("currentDivisionId");
                 const isDivisionLocked =
                   currentDivisionId &&
-                  currentDivisionId !== "1" &&
-                  currentDivisionId !== "all" &&
-                  !editingStore;
+                  currentDivisionId !== "all";
 
                 return (
                   <div className={styles.createForm}>
@@ -3417,6 +4076,8 @@ function DivisionManager() {
                                   ...newStore,
                                   divisionId: e.target.value,
                                   zoneId: "",
+                                  subZoneId: "",
+                                  teamId: "",
                                 });
                                 // Fetch zones for the selected division
                                 if (e.target.value) {
@@ -3453,36 +4114,84 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="storeZone">Zone *</label>
-                            <select
-                              id="storeZone"
-                              value={newStore.zoneId}
-                              onChange={(e) =>
-                                setNewStore({
-                                  ...newStore,
-                                  zoneId: e.target.value,
-                                })
-                              }
-                              required
-                              disabled={!newStore.divisionId}
-                            >
-                              <option value="">Select zone</option>
-                              {zones
-                                .filter((zone) => {
-                                  if (!newStore.divisionId) return false;
-                                  return (
-                                    zone.divisionId ===
-                                      parseInt(newStore.divisionId) ||
-                                    zone.division?.id ===
-                                      parseInt(newStore.divisionId)
-                                  );
-                                })
-                                .map((zone) => (
-                                  <option key={zone.id} value={zone.id}>
-                                    {zone.name}
+                            {isRBM(user) && rbmSubZone?.zoneId ? (
+                              <>
+                                <select
+                                  id="storeZone"
+                                  value={newStore.zoneId || String(rbmSubZone.zoneId)}
+                                  disabled={true}
+                                  required
+                                  className={styles.readOnlyField}
+                                >
+                                  <option value={String(rbmSubZone.zoneId)}>
+                                    {zones.find(z => z.id === rbmSubZone.zoneId || z.id === parseInt(rbmSubZone.zoneId))?.name || 
+                                     zones.find(z => String(z.id) === String(rbmSubZone.zoneId))?.name ||
+                                     `Zone ${rbmSubZone.zoneId}`}
                                   </option>
-                                ))}
-                            </select>
+                                </select>
+                                <small
+                                  style={{
+                                    color: "#666",
+                                    fontSize: "12px",
+                                    marginTop: "4px",
+                                    display: "block",
+                                  }}
+                                >
+                                  Zone is set based on your assigned zone
+                                </small>
+                              </>
+                            ) : isAreaBusinessManager(user) && abmTeam?.zoneId ? (
+                                <>
+                                <select
+                                  id="storeZone"
+                                  value={String(abmTeam.zoneId)}
+                                  disabled={true}
+                                  required
+                                  className={styles.readOnlyField}
+                                >
+                                  <option value={String(abmTeam.zoneId)}>
+                                    {zones.find(z => String(z.id) === String(abmTeam.zoneId))?.name ||
+                                     `Zone ${abmTeam.zoneId}`}
+                                  </option>
+                                </select>
+                                <p className={styles.helperText}>This is set based on your current context</p>
+                              </>
+                            ) : (
+                              <select
+                                id="storeZone"
+                                value={newStore.zoneId}
+                                onChange={(e) => {
+                                  setNewStore({
+                                    ...newStore,
+                                    zoneId: e.target.value,
+                                    subZoneId: "",
+                                    teamId: "",
+                                  });
+                                  fetchStoreSubZones(e.target.value);
+                                }}
+                                required
+                                disabled={!newStore.divisionId}
+                              >
+                                <option value="">Select zone</option>
+                                {zones
+                                  .filter((zone) => {
+                                    if (!newStore.divisionId) return false;
+                                    return (
+                                      zone.divisionId ===
+                                        parseInt(newStore.divisionId) ||
+                                      zone.division?.id ===
+                                        parseInt(newStore.divisionId)
+                                    );
+                                  })
+                                  .map((zone) => (
+                                    <option key={zone.id} value={zone.id}>
+                                      {zone.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            )}
                             {newStore.divisionId &&
+                              !isRBM(user) &&
                               zones.filter(
                                 (zone) =>
                                   zone.divisionId ===
@@ -3502,6 +4211,68 @@ function DivisionManager() {
                                   create a zone first.
                                 </small>
                               )}
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeSubZone">Sub Zone (Optional)</label>
+                            {isAreaBusinessManager(user) && abmTeam?.subZoneId ? (
+                                <>
+                                <select
+                                  id="storeSubZone"
+                                  value={String(abmTeam.subZoneId)}
+                                  disabled={true}
+                                  className={styles.readOnlyField}
+                                >
+                                  <option value={String(abmTeam.subZoneId)}>
+                                     {/* Try to find name if available, otherwise show ID or loading */}
+                                     {storeSubZones.find(sz => String(sz.id) === String(abmTeam.subZoneId))?.name || 
+                                      `Sub Zone ${abmTeam.subZoneId}`}
+                                  </option>
+                                </select>
+                                <p className={styles.helperText}>This is set based on your current context</p>
+                                </>
+                            ) : (
+                            <select
+                              id="storeSubZone"
+                              value={newStore.subZoneId || ""}
+                              onChange={(e) => {
+                                setNewStore({
+                                  ...newStore,
+                                  subZoneId: e.target.value,
+                                  teamId: "",
+                                });
+                                fetchStoreTeams(e.target.value);
+                              }}
+                              disabled={!newStore.zoneId}
+                            >
+                              <option value="">Select Sub Zone</option>
+                              {storeSubZones.map((sz) => (
+                                <option key={sz.id} value={sz.id}>
+                                  {sz.name}
+                                </option>
+                              ))}
+                            </select>
+                            )}
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="storeTeam">Team (Optional)</label>
+                            <select
+                              id="storeTeam"
+                              value={newStore.teamId || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  teamId: e.target.value,
+                                })
+                              }
+                              disabled={!newStore.subZoneId}
+                            >
+                              <option value="">Select Team</option>
+                              {storeTeams.map((team) => (
+                                <option key={team.id} value={team.id}>
+                                  {team.name}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="storeType">Store Type *</label>
@@ -3905,7 +4676,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="landOwnerName">
-                              Land Owner Name
+                              Land Owner Name {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="text"
@@ -3922,7 +4693,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="agreementTimePeriod">
-                              Agreement Time Period
+                              Agreement Time Period {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="text"
@@ -3941,7 +4712,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="rentAgreementStartDate">
-                              Rent Agreement Start Date
+                              Rent Agreement Start Date {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="date"
@@ -3957,7 +4728,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="rentAgreementEndDate">
-                              Rent Agreement End Date
+                              Rent Agreement End Date {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="date"
@@ -3975,7 +4746,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="advancePayOfRent">
-                              Advance Pay of Rent (₹)
+                              Advance Pay of Rent (₹) {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="number"
@@ -3994,7 +4765,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="monthlyRent">
-                              Monthly Rent (₹)
+                              Monthly Rent (₹) {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="number"
@@ -4012,6 +4783,29 @@ function DivisionManager() {
                             />
                           </div>
                         </div>
+                        {newStore.storeType === "franchise" && (
+                          <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                              <label htmlFor="securityDeposit">
+                                Security Deposit (₹)
+                              </label>
+                              <input
+                                type="number"
+                                id="securityDeposit"
+                                min="0"
+                                step="0.01"
+                                value={newStore.securityDeposit || ""}
+                                onChange={(e) =>
+                                  setNewStore({
+                                    ...newStore,
+                                    securityDeposit: e.target.value,
+                                  })
+                                }
+                                placeholder="Enter security deposit amount"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Power Bill Details Section */}
@@ -4041,44 +4835,96 @@ function DivisionManager() {
                             <label htmlFor="electricityDistributor">
                               Electricity Distributor
                             </label>
-                            <select
+                            <input
+                              type="text"
                               id="electricityDistributor"
+                              list="electricityDistributorList"
                               value={newStore.electricityDistributor || ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const value = e.target.value;
                                 setNewStore({
                                   ...newStore,
-                                  electricityDistributor: e.target.value,
-                                })
-                              }
+                                  electricityDistributor: value,
+                                  electricityDistributorOtherName:
+                                    value === "Other"
+                                      ? newStore.electricityDistributorOtherName
+                                      : "",
+                                });
+                              }}
                               disabled={storeDropdownLoading}
-                            >
-                              <option value="">
-                                {storeDropdownLoading
+                              placeholder={
+                                storeDropdownLoading
                                   ? "Loading..."
-                                  : "Select Electricity Distributor"}
-                              </option>
-                              {electricityDistributors.map((distributor) => (
-                                <option
-                                  key={distributor.id || distributor}
-                                  value={distributor.name || distributor}
-                                >
-                                  {distributor.name || distributor}
-                                </option>
-                              ))}
-                            </select>
+                                  : "Search / select Electricity Distributor"
+                              }
+                            >
+                            </input>
+                            <datalist id="electricityDistributorList">
+                              {electricityDistributors.map((distributor) => {
+                                const name = distributor.name || distributor;
+                                return (
+                                  <option
+                                    key={distributor.id || name}
+                                    value={name}
+                                  />
+                                );
+                              })}
+                              <option value="Other" />
+                            </datalist>
+                            {newStore.electricityDistributor === "Other" && (
+                              <div style={{ marginTop: "8px" }}>
+                                <label htmlFor="electricityDistributorOtherName">
+                                  Other Electricity Distributor
+                                </label>
+                                <input
+                                  type="text"
+                                  id="electricityDistributorOtherName"
+                                  value={newStore.electricityDistributorOtherName || ""}
+                                  onChange={(e) =>
+                                    setNewStore({
+                                      ...newStore,
+                                      electricityDistributorOtherName: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Enter other electricity distributor name"
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
+                        {newStore.storeType === "franchise" && (
+                          <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                              <label htmlFor="billAllowance">
+                                Bill Allowance (Months)
+                              </label>
+                              <input
+                                type="number"
+                                id="billAllowance"
+                                min="0"
+                                value={newStore.billAllowance || ""}
+                                onChange={(e) =>
+                                  setNewStore({
+                                    ...newStore,
+                                    billAllowance: e.target.value,
+                                  })
+                                }
+                                placeholder="Number of months"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Owner Details Section */}
                       <div className={styles.formSection}>
                         <h4 className={styles.sectionTitle}>
-                          Owner Details (Optional)
+                          Owner Details {newStore.storeType !== "franchise" && "(Optional)"}
                         </h4>
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="ownerAadharNumber">
-                              Owner Aadhar Number
+                              Owner Aadhar Number {newStore.storeType === "franchise" && "*"}
                             </label>
                             <input
                               type="text"
@@ -4098,7 +4944,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="ownerMobileNumber">
-                              Owner Mobile Number
+                              Owner Mobile Number {newStore.storeType === "franchise" && "*"}
                             </label>
                             <input
                               type="tel"
@@ -4120,7 +4966,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="beneficiaryName">
-                              Beneficiary Name
+                              Beneficiary Name {newStore.storeType === "franchise" && "*"}
                             </label>
                             <input
                               type="text"
@@ -4136,7 +4982,7 @@ function DivisionManager() {
                             />
                           </div>
                           <div className={styles.formGroup}>
-                            <label htmlFor="bankName">Bank Name</label>
+                            <label htmlFor="bankName">Bank Name {newStore.storeType === "franchise" && "*"}</label>
                             <input
                               type="text"
                               id="bankName"
@@ -4153,7 +4999,7 @@ function DivisionManager() {
                         </div>
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
-                            <label htmlFor="ifscCode">IFSC Code</label>
+                            <label htmlFor="ifscCode">IFSC Code {newStore.storeType === "franchise" && "*"}</label>
                             <input
                               type="text"
                               id="ifscCode"
@@ -4174,7 +5020,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="accountNumber">
-                              Account Number
+                              Account Number {newStore.storeType === "franchise" && "*"}
                             </label>
                             <input
                               type="text"
@@ -4190,6 +5036,25 @@ function DivisionManager() {
                                 })
                               }
                               placeholder="Enter account number"
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="panCard">PAN Number</label>
+                            <input
+                              type="text"
+                              id="panCard"
+                              value={newStore.panCard || ""}
+                              onChange={(e) =>
+                                setNewStore({
+                                  ...newStore,
+                                  panCard: e.target.value.toUpperCase().slice(0, 10),
+                                })
+                              }
+                              placeholder="Enter PAN Number"
+                              maxLength="10"
+                              style={{ textTransform: "uppercase" }}
                             />
                           </div>
                         </div>
@@ -4263,9 +5128,9 @@ function DivisionManager() {
                                     }
                                   } else if (file.type === "application/pdf") {
                                     // For PDFs, just check size - no compression
-                                    if (file.size > 2 * 1024 * 1024) {
+                                    if (file.size > 3 * 1024 * 1024) {
                                       alert(
-                                        "PDF size should be less than 2MB. Please compress the PDF or use a smaller file.",
+                                        "PDF size should be less than 3MB. Please compress the PDF or use a smaller file.",
                                       );
                                       e.target.value = "";
                                       return;

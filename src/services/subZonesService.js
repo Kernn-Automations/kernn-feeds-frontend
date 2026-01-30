@@ -32,6 +32,28 @@ const createSubZone = async (zoneId, subZoneData) => {
   }
 };
 
+// Get Sub Zones (for RBM/Admins)
+const getSubZones = async () => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithDivision(
+      `/sub-zones`,
+      token,
+      null, 
+      false
+    );
+
+    return response;
+  } catch (error) {
+    console.error('Error fetching sub zones:', error);
+    throw error;
+  }
+};
+
 // Get Sub Zones by Zone
 const getSubZonesByZone = async (zoneId, isActive = true) => {
   try {
@@ -132,6 +154,7 @@ const deleteSubZone = async (subZoneId) => {
 
 export default {
   createSubZone,
+  getSubZones,
   getSubZonesByZone,
   getSubZoneById,
   updateSubZone,
