@@ -338,6 +338,7 @@ const StoresAbstract = () => {
     { header: "Start Date", group: "agreementDetails", accessor: (row) => row.agreementDetails?.startDate ? formatDate(row.agreementDetails.startDate) : "-" },
     { header: "End Date", group: "agreementDetails", accessor: (row) => row.agreementDetails?.endDate ? formatDate(row.agreementDetails.endDate) : "-" },
     { header: "Agreement", group: "agreementDetails", accessor: (row) => row.rentAgreementDocumentUrl ? "Yes" : "No" },
+    { header: "Advance Pay of Rent (₹)", group: "agreementDetails", accessor: (row) => row.agreementDetails?.advanceRent || "-" },
     { header: "Monthly Rent", group: "agreementDetails", accessor: (row) => row.agreementDetails?.monthlyRent || "-" },
     { header: "Security Deposit", group: "agreementDetails", accessor: (row) => row.agreementDetails?.securityDeposit || "-" },
     // Power Bill Details Group
@@ -1241,6 +1242,66 @@ const StoresAbstract = () => {
                 <th
                   className={styles.subHeader}
                   onClick={(e) =>
+                    toggleSearch("agreementDetails.advanceRent", e)
+                  }
+                  data-search-container
+                  style={{ cursor: "pointer" }}
+                >
+                  {showSearch["agreementDetails.advanceRent"] ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        value={
+                          searchFilters["agreementDetails.advanceRent"] || ""
+                        }
+                        onChange={(e) =>
+                          handleSearchChange(
+                            "agreementDetails.advanceRent",
+                            e.target.value,
+                          )
+                        }
+                        autoFocus
+                        placeholder="Adv Rent..."
+                        style={{
+                          width: "80px",
+                          padding: "2px",
+                          fontSize: "12px",
+                          color: "black",
+                        }}
+                      />
+                      <button
+                        onClick={(e) =>
+                          clearSearch("agreementDetails.advanceRent", e)
+                        }
+                        style={{
+                          border: "none",
+                          background: "none",
+                          cursor: "pointer",
+                          color: "red",
+                          fontWeight: "bold",
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      Advance Pay of Rent (₹){" "}
+                      {searchFilters["agreementDetails.advanceRent"] && "*"}
+                    </>
+                  )}
+                </th>
+                <th
+                  className={styles.subHeader}
+                  onClick={(e) =>
                     toggleSearch("agreementDetails.monthlyRent", e)
                   }
                   data-search-container
@@ -2037,6 +2098,11 @@ const StoresAbstract = () => {
 
                           return "-";
                         })()}
+                      </td>
+                      <td>
+                        {agreementDetails.advanceRent
+                          ? formatCurrency(agreementDetails.advanceRent)
+                          : "-"}
                       </td>
                       <td>
                         {agreementDetails.monthlyRent

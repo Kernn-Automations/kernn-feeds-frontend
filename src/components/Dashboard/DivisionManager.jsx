@@ -329,18 +329,31 @@ function DivisionManager() {
             console.log("ABM Discovery - User ID:", user?.id, "Type:", typeof user?.id);
             console.log("ABM Discovery - Teams List:", teamsList);
             
-            // Filter ensuring we get the team where user is head (using loose equality for safety)
-            let myTeam = teamsList.find(t => {
-                console.log(`Checking team ${t.id} (Head: ${t.teamHeadId}) against user ${user?.id}`);
-                return t.teamHeadId == user?.id;
-            });
+            // Priority: Check if Team ID 1 exists in the raw API response (requested override)
+            const team1 = teamsList.find(t => t.id == 1);
             
-            if (!myTeam) {
-                console.warn(`No team found where headId matches user.id (${user?.id}). Defaulting to first team id ${teamsList[0]?.id}.`);
-                myTeam = teamsList[0];
+            let myTeam = null;
+            
+            if (team1) {
+                console.log("Found Team ID 1 in API response. Selecting it as priority.");
+                myTeam = team1;
             } else {
-                console.log("Matched team for ABM:", myTeam);
+                // Fallback: Filter ensuring we get the team where user is head
+                const myTeams = teamsList.filter(t => {
+                    console.log(`Checking team ${t.id} (Head: ${t.teamHeadId}) against user ${user?.id}`);
+                    return t.teamHeadId == user?.id; // strict equality might fail if types differ
+                });
+                
+                if (myTeams.length > 0) {
+                    console.log("Selecting first team where user is head.");
+                    myTeam = myTeams[0];
+                } else {
+                     console.warn(`No team found where headId matches user.id (${user?.id}). Defaulting to first team id ${teamsList[0]?.id}.`);
+                     myTeam = teamsList[0];
+                }
             }
+            
+            console.log("Matched team for ABM:", myTeam);
             
             setAbmTeam(myTeam);
         } else {
@@ -358,6 +371,33 @@ function DivisionManager() {
         discoverABMTeam();
     }
   }, [user?.id]);
+
+  // For ABM users, pre-populate zone and subzone when team is discovered and store form is open
+  useEffect(() => {
+    if (isAreaBusinessManager(user) && abmTeam && showStoreForm) {
+      // Use the zoneId and subZoneId from the team
+      // Ensure we convert to string to match select values
+      const zoneIdValue = abmTeam.zoneId ? String(abmTeam.zoneId) : "";
+      const subZoneIdValue = abmTeam.subZoneId ? String(abmTeam.subZoneId) : "";
+      const teamIdValue = abmTeam.id ? String(abmTeam.id) : "";
+      
+      console.log("Pre-populating ABM store form:", { zoneIdValue, subZoneIdValue, teamIdValue });
+      
+      setNewStore((prev) => ({
+        ...prev,
+        zoneId: zoneIdValue,
+        subZoneId: subZoneIdValue,
+        teamId: teamIdValue
+      }));
+      
+      // We might need to fetch subzones/teams if not loaded, 
+      // but since they are read-only and pre-filled, maybe not strictly necessary for display 
+      // if we just show the name from context. 
+      // However, for consistency and avoiding ID-only display if we use standard selects:
+      if (zoneIdValue) fetchStoreSubZones(zoneIdValue);
+      if (subZoneIdValue) fetchStoreTeams(subZoneIdValue);
+    }
+  }, [abmTeam, showStoreForm]);
 
   useEffect(() => {
     if (activeTab === "stores") {
@@ -1836,6 +1876,22 @@ function DivisionManager() {
       return;
     }
 
+    if (newStore.storeType === "franchise") {
+      const missingFields = [];
+      if (!newStore.landOwnerName) missingFields.push("Land Owner Name");
+      if (!newStore.agreementTimePeriod) missingFields.push("Agreement Time Period");
+      if (!newStore.rentAgreementStartDate) missingFields.push("Rent Agreement Start Date");
+      if (!newStore.rentAgreementEndDate) missingFields.push("Rent Agreement End Date");
+      if (newStore.advancePayOfRent === "" || newStore.advancePayOfRent === null) missingFields.push("Advance Pay of Rent");
+      if (newStore.monthlyRent === "" || newStore.monthlyRent === null) missingFields.push("Monthly Rent");
+
+      if (missingFields.length > 0) {
+        setError(`Missing required fields for franchise store: ${missingFields.join(", ")}`);
+        setIsModalOpen(true);
+        return;
+      }
+    }
+
     try {
       setCreating(true);
       console.log("Creating store:", newStore);
@@ -1909,12 +1965,12 @@ function DivisionManager() {
         ...(newStore.rentAgreementEndDate && {
           rentAgreementEndDate: newStore.rentAgreementEndDate,
         }),
-        ...(newStore.advancePayOfRent &&
-          parseFloat(newStore.advancePayOfRent) > 0 && {
+        ...(newStore.advancePayOfRent !== "" && newStore.advancePayOfRent !== null &&
+          parseFloat(newStore.advancePayOfRent) >= 0 && {
             advancePayOfRent: parseFloat(newStore.advancePayOfRent),
           }),
-        ...(newStore.monthlyRent &&
-          parseFloat(newStore.monthlyRent) > 0 && {
+        ...(newStore.monthlyRent !== "" && newStore.monthlyRent !== null &&
+          parseFloat(newStore.monthlyRent) >= 0 && {
             monthlyRent: parseFloat(newStore.monthlyRent),
           }),
         ...(newStore.rentAgreementDocumentBase64 && {
@@ -2119,6 +2175,22 @@ function DivisionManager() {
       return;
     }
 
+    if (newStore.storeType === "franchise") {
+      const missingFields = [];
+      if (!newStore.landOwnerName) missingFields.push("Land Owner Name");
+      if (!newStore.agreementTimePeriod) missingFields.push("Agreement Time Period");
+      if (!newStore.rentAgreementStartDate) missingFields.push("Rent Agreement Start Date");
+      if (!newStore.rentAgreementEndDate) missingFields.push("Rent Agreement End Date");
+      if (newStore.advancePayOfRent === "" || newStore.advancePayOfRent === null) missingFields.push("Advance Pay of Rent");
+      if (newStore.monthlyRent === "" || newStore.monthlyRent === null) missingFields.push("Monthly Rent");
+
+      if (missingFields.length > 0) {
+        setError(`Missing required fields for franchise store: ${missingFields.join(", ")}`);
+        setIsModalOpen(true);
+        return;
+      }
+    }
+
     try {
       setCreating(true);
       console.log("Updating store:", editingStore.id, newStore);
@@ -2189,12 +2261,12 @@ function DivisionManager() {
         ...(newStore.rentAgreementEndDate && {
           rentAgreementEndDate: newStore.rentAgreementEndDate,
         }),
-        ...(newStore.advancePayOfRent &&
-          parseFloat(newStore.advancePayOfRent) > 0 && {
+        ...(newStore.advancePayOfRent !== "" && newStore.advancePayOfRent !== null &&
+          parseFloat(newStore.advancePayOfRent) >= 0 && {
             advancePayOfRent: parseFloat(newStore.advancePayOfRent),
           }),
-        ...(newStore.monthlyRent &&
-          parseFloat(newStore.monthlyRent) > 0 && {
+        ...(newStore.monthlyRent !== "" && newStore.monthlyRent !== null &&
+          parseFloat(newStore.monthlyRent) >= 0 && {
             monthlyRent: parseFloat(newStore.monthlyRent),
           }),
         ...(newStore.rentAgreementDocumentBase64 && {
@@ -2489,6 +2561,13 @@ function DivisionManager() {
     const zoneIdToUse = storeDetails.zoneId || storeDetails.zone?.id || store.zoneId || store.zone?.id || "";
     const subZoneIdToUse = storeDetails.subZoneId || store.subZoneId || "";
 
+    // IMPORTANT: Ensure zones are loaded for the store's division
+    const divisionIdToUse = storeDetails.divisionId || storeDetails.division?.id || store.divisionId || store.division?.id || "";
+    if (divisionIdToUse) {
+        // Fetch zones for this specific division to populate the dropdown
+        fetchZones(divisionIdToUse);
+    }
+
     if (zoneIdToUse) {
       fetchStoreSubZones(zoneIdToUse);
     }
@@ -2750,6 +2829,55 @@ function DivisionManager() {
                     if (employees.length === 0) {
                       fetchEmployees();
                     }
+                    
+                    // Prepare fresh state to avoid glitch where previous edit data persists
+                    const freshState = {
+                      name: "",
+                      street1: "",
+                      street2: "",
+                      area: "",
+                      district: "",
+                      state: "",
+                      city: "",
+                      pincode: "",
+                      latitude: "",
+                      longitude: "",
+                      divisionId: "",
+                      zoneId: "",
+                      subZoneId: "",
+                      teamId: "",
+                      storeType: "own",
+                      storeManagerId: "",
+                      employeeIds: [],
+                      // Power bill fields
+                      powerBillNumber: "",
+                      electricityDistributor: "",
+                      electricityDistributorOtherName: "",
+                      billAllowance: "",
+                      // Agreement fields
+                      landOwnerName: "",
+                      agreementTimePeriod: "",
+                      rentAgreementStartDate: "",
+                      rentAgreementEndDate: "",
+                      advancePayOfRent: "",
+                      securityDeposit: "",
+                      rentAgreementDocumentBase64: null,
+                      // Owner details
+                      ownerAadharNumber: "",
+                      ownerMobileNumber: "",
+                      beneficiaryName: "",
+                      bankName: "",
+                      ifscCode: "",
+                      accountNumber: "",
+                      monthlyRent: "",
+                      storeCodeNumber: "",
+                      villages: "",
+                      // UI state
+                      agreementImage: null,
+                      agreementImagePreview: null,
+                      panCard: "",
+                    };
+
                     // When opening the form, pre-populate division if in a specific division context
                     const currentDivisionId =
                       localStorage.getItem("currentDivisionId");
@@ -2761,12 +2889,11 @@ function DivisionManager() {
                       currentDivisionId &&
                       currentDivisionId !== "all"
                     ) {
-                      setNewStore((prev) => ({
-                        ...prev,
+                      setNewStore({
+                        ...freshState,
                         divisionId: currentDivisionId,
-                        employeeIds: prev.employeeIds || [],
-                        zoneId: rbmZoneId || prev.zoneId || "",
-                      }));
+                        zoneId: rbmZoneId || "",
+                      });
                       // Fetch zones for the selected division
                       fetchZones().then(() => {
                         // After zones are fetched, if RBM has assigned zone, fetch subzones
@@ -2776,16 +2903,22 @@ function DivisionManager() {
                       });
                     } else if (rbmZoneId) {
                       // Even if no division context, set zone for RBM
-                      setNewStore((prev) => ({
-                        ...prev,
+                      setNewStore({
+                        ...freshState,
                         zoneId: rbmZoneId,
-                      }));
+                      });
                       fetchZones().then(() => {
                         if (rbmSubZone?.zoneId) {
                           fetchStoreSubZones(rbmSubZone.zoneId);
                         }
                       });
+                    } else {
+                       // Ensure clean state even if no context
+                       setNewStore(freshState);
                     }
+                  } else {
+                    // When canceling/closing
+                    setEditingStore(null);
                   }
                   setShowStoreForm(!showStoreForm);
                 }}
@@ -3901,8 +4034,7 @@ function DivisionManager() {
                   localStorage.getItem("currentDivisionId");
                 const isDivisionLocked =
                   currentDivisionId &&
-                  currentDivisionId !== "all" &&
-                  !editingStore;
+                  currentDivisionId !== "all";
 
                 return (
                   <div className={styles.createForm}>
@@ -4008,6 +4140,22 @@ function DivisionManager() {
                                   Zone is set based on your assigned zone
                                 </small>
                               </>
+                            ) : isAreaBusinessManager(user) && abmTeam?.zoneId ? (
+                                <>
+                                <select
+                                  id="storeZone"
+                                  value={String(abmTeam.zoneId)}
+                                  disabled={true}
+                                  required
+                                  className={styles.readOnlyField}
+                                >
+                                  <option value={String(abmTeam.zoneId)}>
+                                    {zones.find(z => String(z.id) === String(abmTeam.zoneId))?.name ||
+                                     `Zone ${abmTeam.zoneId}`}
+                                  </option>
+                                </select>
+                                <p className={styles.helperText}>This is set based on your current context</p>
+                              </>
                             ) : (
                               <select
                                 id="storeZone"
@@ -4043,6 +4191,7 @@ function DivisionManager() {
                               </select>
                             )}
                             {newStore.divisionId &&
+                              !isRBM(user) &&
                               zones.filter(
                                 (zone) =>
                                   zone.divisionId ===
@@ -4065,6 +4214,23 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="storeSubZone">Sub Zone (Optional)</label>
+                            {isAreaBusinessManager(user) && abmTeam?.subZoneId ? (
+                                <>
+                                <select
+                                  id="storeSubZone"
+                                  value={String(abmTeam.subZoneId)}
+                                  disabled={true}
+                                  className={styles.readOnlyField}
+                                >
+                                  <option value={String(abmTeam.subZoneId)}>
+                                     {/* Try to find name if available, otherwise show ID or loading */}
+                                     {storeSubZones.find(sz => String(sz.id) === String(abmTeam.subZoneId))?.name || 
+                                      `Sub Zone ${abmTeam.subZoneId}`}
+                                  </option>
+                                </select>
+                                <p className={styles.helperText}>This is set based on your current context</p>
+                                </>
+                            ) : (
                             <select
                               id="storeSubZone"
                               value={newStore.subZoneId || ""}
@@ -4085,6 +4251,7 @@ function DivisionManager() {
                                 </option>
                               ))}
                             </select>
+                            )}
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="storeTeam">Team (Optional)</label>
@@ -4509,7 +4676,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="landOwnerName">
-                              Land Owner Name
+                              Land Owner Name {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="text"
@@ -4526,7 +4693,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="agreementTimePeriod">
-                              Agreement Time Period
+                              Agreement Time Period {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="text"
@@ -4545,7 +4712,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="rentAgreementStartDate">
-                              Rent Agreement Start Date
+                              Rent Agreement Start Date {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="date"
@@ -4561,7 +4728,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="rentAgreementEndDate">
-                              Rent Agreement End Date
+                              Rent Agreement End Date {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="date"
@@ -4579,7 +4746,7 @@ function DivisionManager() {
                         <div className={styles.formRow}>
                           <div className={styles.formGroup}>
                             <label htmlFor="advancePayOfRent">
-                              Advance Pay of Rent (₹)
+                              Advance Pay of Rent (₹) {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="number"
@@ -4598,7 +4765,7 @@ function DivisionManager() {
                           </div>
                           <div className={styles.formGroup}>
                             <label htmlFor="monthlyRent">
-                              Monthly Rent (₹)
+                              Monthly Rent (₹) {newStore.storeType === "franchise" && <span style={{ color: "red" }}>*</span>}
                             </label>
                             <input
                               type="number"

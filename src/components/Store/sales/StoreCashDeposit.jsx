@@ -534,6 +534,10 @@ export default function StoreCashDeposit() {
     }
   };
 
+  const disableWheel = (e) => {
+    e.target.blur();
+  };
+
   const remainingCash = storeCash - (parseFloat(amount) || 0);
 
   return (
@@ -747,6 +751,7 @@ export default function StoreCashDeposit() {
                       min="0.01"
                       step="0.01"
                       max={storeCash}
+                      onWheel={disableWheel}
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       required
