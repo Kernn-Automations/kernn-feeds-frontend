@@ -210,8 +210,8 @@ export default function StoreCashDeposit() {
               balanceData.balance ||
               balanceData.cashBalance ||
               balanceData.cash ||
-              0
-          )
+              0,
+          ),
         );
         setStoreName(balanceData.storeName || balanceData.name || "");
       }
@@ -349,8 +349,6 @@ export default function StoreCashDeposit() {
       if (file.type.startsWith("image/")) {
         const compressedBlob = await compressImageToUnder100KB(file);
 
-
-
         processedFile = new File([compressedBlob], file.name, {
           type: "image/jpeg",
         });
@@ -410,10 +408,15 @@ export default function StoreCashDeposit() {
       return;
     }
 
+    if (!depositSlip) {
+      showError("Please upload the deposit slip before submitting.");
+      return;
+    }
+
     const depositAmount = parseFloat(amount);
     if (depositAmount > storeCash) {
       showError(
-        `Insufficient cash in store. Available: ₹${storeCash.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+        `Insufficient cash in store. Available: ₹${storeCash.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
       );
       return;
     }
@@ -440,7 +443,7 @@ export default function StoreCashDeposit() {
 
       const res = await axiosAPI.post(
         `/stores/${storeId}/cash-deposits`,
-        payload
+        payload,
       );
       const responseData = res.data || res;
 
@@ -459,7 +462,7 @@ export default function StoreCashDeposit() {
       showError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to record cash deposit"
+          "Failed to record cash deposit",
       );
     } finally {
       setLoading(false);
@@ -484,7 +487,7 @@ export default function StoreCashDeposit() {
     const data = filteredHistory.map((deposit, index) => ({
       "S.No": index + 1,
       Date: formatDate(
-        deposit.createdAt || deposit.date || deposit.depositDate
+        deposit.createdAt || deposit.date || deposit.depositDate,
       ),
       "Store Name":
         deposit.store?.name || deposit.storeName || storeName || "-",
@@ -749,7 +752,7 @@ export default function StoreCashDeposit() {
                     <input
                       type="number"
                       min="0.01"
-                      step="0.01"
+                      step="1"
                       max={storeCash}
                       onWheel={disableWheel}
                       value={amount}
@@ -819,11 +822,12 @@ export default function StoreCashDeposit() {
                     />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label>Deposit Slip (Image/PDF)</label>
+                    <label>Deposit Slip (Image/PDF) *</label>
                     <input
                       type="file"
                       accept="image/*,.pdf"
                       onChange={handleDepositSlipChange}
+                      required
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -876,7 +880,9 @@ export default function StoreCashDeposit() {
                     className="homebtn"
                     type="submit"
                     disabled={
-                      loading || (amount && parseFloat(amount) > storeCash)
+                      loading ||
+                      !depositSlip ||
+                      (amount && parseFloat(amount) > storeCash)
                     }
                   >
                     {loading ? "Submitting..." : "Submit Deposit"}
@@ -989,7 +995,7 @@ export default function StoreCashDeposit() {
                       {renderSearchHeader(
                         "Store Name",
                         "storeName",
-                        "data-store-header"
+                        "data-store-header",
                       )}
                       <th
                         style={{
@@ -1003,7 +1009,7 @@ export default function StoreCashDeposit() {
                       {renderSearchHeader(
                         "Deposited By",
                         "depositedBy",
-                        "data-employee-header"
+                        "data-employee-header",
                       )}
                       <th
                         style={{
@@ -1048,7 +1054,7 @@ export default function StoreCashDeposit() {
                           {formatDate(
                             deposit.createdAt ||
                               deposit.date ||
-                              deposit.depositDate
+                              deposit.depositDate,
                           )}
                         </td>
                         <td>
@@ -1079,7 +1085,7 @@ export default function StoreCashDeposit() {
                                 handleViewImage(
                                   deposit.depositSlip ||
                                     deposit.depositSlipUrl ||
-                                    deposit.image
+                                    deposit.image,
                                 )
                               }
                               title="View Deposit Slip"
