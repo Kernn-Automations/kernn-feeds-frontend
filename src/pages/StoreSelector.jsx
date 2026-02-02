@@ -16,6 +16,18 @@ const StoreSelector = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [storeType, setStoreType] = useState("own");
 
+  // 🔹 HIERARCHY FILTERS (persisted)
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem("storeFilters");
+    return saved
+      ? JSON.parse(saved)
+      : { divisionId: "", zoneId: "", subZoneId: "", teamId: "" };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("storeFilters", JSON.stringify(filters));
+  }, [filters]);
+
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
 
@@ -72,7 +84,13 @@ const StoreSelector = () => {
           ? true
           : store.storeType?.toLowerCase() === storeType.toLowerCase();
 
-      return matchesSearch && matchesType;
+      const matchesHierarchy =
+        (!filters.divisionId || store.division?.id == filters.divisionId) &&
+        (!filters.zoneId || store.zone?.id == filters.zoneId) &&
+        (!filters.subZoneId || store.subZone?.id == filters.subZoneId) &&
+        (!filters.teamId || store.team?.id == filters.teamId);
+
+      return matchesSearch && matchesType && matchesHierarchy;
     })
     .sort((a, b) =>
       a.name?.trim().localeCompare(b.name?.trim(), undefined, {
@@ -80,6 +98,29 @@ const StoreSelector = () => {
         numeric: true,
       }),
     );
+
+  const uniqueBy = (arr, key) =>
+    [...new Map(arr.map((item) => [item[key]?.id, item[key]])).values()].filter(
+      Boolean,
+    );
+
+  const divisions = uniqueBy(stores, "division");
+  const zones = uniqueBy(
+    stores.filter(
+      (s) => !filters.divisionId || s.division?.id == filters.divisionId,
+    ),
+    "zone",
+  );
+  const subZones = uniqueBy(
+    stores.filter((s) => !filters.zoneId || s.zone?.id == filters.zoneId),
+    "subZone",
+  );
+  const teams = uniqueBy(
+    stores.filter(
+      (s) => !filters.subZoneId || s.subZone?.id == filters.subZoneId,
+    ),
+    "team",
+  );
 
   const loadStoresFromUserData = async () => {
     try {
@@ -217,6 +258,12 @@ const StoreSelector = () => {
     }
   };
 
+  const clearFilters = () => {
+    const empty = { divisionId: "", zoneId: "", subZoneId: "", teamId: "" };
+    setFilters(empty);
+    localStorage.setItem("storeFilters", JSON.stringify(empty));
+  };
+
   const handleStoreSelect = async (store) => {
     if (selectingStore) return; // Prevent multiple calls
 
@@ -332,6 +379,85 @@ const StoreSelector = () => {
         <p className={styles.instruction}>Choose your Store to continue</p>
 
         {error && <div className={styles.error}>{error}</div>}
+
+        <div className={styles.hierarchyFilters}>
+          <select
+            value={filters.divisionId}
+            className={styles.filterDropdown}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                divisionId: e.target.value,
+                zoneId: "",
+                subZoneId: "",
+                teamId: "",
+              }))
+            }
+          >
+            <option value="">All Divisions</option>
+            {divisions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.zoneId}
+            className={styles.filterDropdown}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                zoneId: e.target.value,
+                subZoneId: "",
+                teamId: "",
+              }))
+            }
+          >
+            <option value="">All Zones</option>
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.subZoneId}
+            className={styles.filterDropdown}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                subZoneId: e.target.value,
+                teamId: "",
+              }))
+            }
+          >
+            <option value="">All SubZones</option>
+            {subZones.map((sz) => (
+              <option key={sz.id} value={sz.id}>
+                {sz.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.teamId}
+            className={styles.filterDropdown}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, teamId: e.target.value }))
+            }
+          >
+            <option value="">All Teams</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+
+          <button onClick={clearFilters}>Clear Filters</button>
+        </div>
 
         <div className={styles.filterSearchContainer}>
           <input
