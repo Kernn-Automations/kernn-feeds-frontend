@@ -512,6 +512,34 @@ function StoreStockSummary() {
     }
   };
 
+  const refreshRowDetails = async (rowId, productId) => {
+    setLoadingDetails((prev) => ({ ...prev, [rowId]: true }));
+    try {
+      const params = {
+        storeId,
+        productId,
+        fromDate: from,
+        toDate: to,
+      };
+      
+      const res = await storeService.getStoreStockProductSales(params);
+      
+      if (res.success && res.data) {
+        setProductSalesDetails((prev) => ({
+          ...prev,
+          [rowId]: {
+            salesDetails: res.data.salesDetails || [],
+            invoices: res.data.invoices || [],
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Error refreshing product sales details:", err);
+    } finally {
+      setLoadingDetails((prev) => ({ ...prev, [rowId]: false }));
+    }
+  };
+
   const closeModal = () => setIsModalOpen(false);
 
   const handleInvoiceClick = async (invoiceId, orderId) => {
@@ -605,6 +633,11 @@ function StoreStockSummary() {
 
     setLoading(true);
     setError(null);
+    
+    // Clear previously cached details and collapse any expanded row
+    setProductSalesDetails({});
+    setExpandedRowId(null);
+
     try {
       const params = {
         fromDate,
@@ -1450,18 +1483,37 @@ function StoreStockSummary() {
                             borderBottom: "1px solid #e5e7eb",
                           }}
                         >
-                          <h6
-                            style={{
-                              fontFamily: "Poppins",
-                              fontWeight: 600,
-                              fontSize: "14px",
-                              color: "#374151",
-                              marginBottom: "12px",
+                          <div 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              marginBottom: '12px',
+                              paddingBottom: '8px',
+                              borderBottom: '1px solid #eee'
                             }}
                           >
-                            Sales Details for {item.productName} ({from} to {to}
-                            )
-                          </h6>
+                            <h6
+                              style={{
+                                fontFamily: "Poppins",
+                                fontWeight: 600,
+                                fontSize: "14px",
+                                color: "#374151",
+                                margin: 0
+                              }}
+                            >
+                              Sales Details for {item.productName} ({from} to {to})
+                            </h6>
+                            <button 
+                              className="btn btn-sm btn-light border"
+                              onClick={() => refreshRowDetails(item.id || index, item.productId)}
+                              disabled={loadingDetails[item.id || index]}
+                              title="Refresh Sales Data"
+                              style={{ fontSize: '12px' }}
+                            >
+                              <i className={`bi bi-arrow-clockwise ${loadingDetails[item.id || index] ? inventoryStyles.spin : ''}`}></i> Refresh
+                            </button>
+                          </div>
 
                           <div
                             style={{

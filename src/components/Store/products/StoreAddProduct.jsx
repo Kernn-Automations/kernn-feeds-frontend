@@ -60,7 +60,9 @@ export default function StoreAddProduct({ navigate }) {
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Prevent double spaces for string fields
+    const processedValue = typeof value === 'string' ? value.replace(/\s\s+/g, ' ') : value;
+    setFormData(prev => ({ ...prev, [field]: processedValue }));
   };
 
   const handleTaxToggle = (taxId) => {

@@ -15,6 +15,8 @@ import {
   handleExportPDF,
 } from "../../../utils/PDFndXLSGenerator";
 import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
+import paginationStyles from "./StoreSalesOrders.module.css";
 
 export default function StoreCashDeposit() {
   const navigate = useNavigate();
@@ -44,6 +46,10 @@ export default function StoreCashDeposit() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [filteredHistory, setFilteredHistory] = useState([]);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   // Header Search States
   const [showSearch, setShowSearch] = useState({
     storeName: false,
@@ -66,7 +72,8 @@ export default function StoreCashDeposit() {
   };
 
   const handleSearchChange = (key, value) => {
-    setSearchTerms((prev) => ({ ...prev, [key]: value }));
+    const processedValue = value.replace(/\s\s+/g, ' ');
+    setSearchTerms((prev) => ({ ...prev, [key]: processedValue }));
   };
 
   const clearSearch = (key) => {
@@ -228,7 +235,7 @@ export default function StoreCashDeposit() {
     setDepositsLoading(true);
     try {
       let query = `/stores/${storeId}/cash-deposits`;
-      const queryParams = [];
+      const queryParams = ["limit=1000"];
       if (filterFrom) queryParams.push(`fromDate=${filterFrom}`);
       if (filterTo) queryParams.push(`toDate=${filterTo}`);
 
@@ -324,7 +331,25 @@ export default function StoreCashDeposit() {
     }
 
     setFilteredHistory(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [deposits, searchTerms, storeName]);
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedData = filteredHistory.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+
+  const handlePageChange = (direction) => {
+    if (direction === "prev" && currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    } else if (direction === "next" && currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
 
   // Set default date and time when form is opened
   useEffect(() => {
@@ -855,7 +880,7 @@ export default function StoreCashDeposit() {
                     <textarea
                       rows="3"
                       value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+                      onChange={(e) => setNotes(e.target.value.replace(/\s\s+/g, ' '))}
                       placeholder="Add any additional notes about this deposit"
                       style={{
                         width: "100%",
@@ -923,21 +948,40 @@ export default function StoreCashDeposit() {
               Cash Deposit History
             </h4>
 
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-              <button
-                className={salesStyles.xls}
-                onClick={() => handleExport("XLS")}
-              >
-                <p>Export to </p>
-                <img src={xls} alt="Excel" />
-              </button>
-              <button
-                className={salesStyles.xls}
-                onClick={() => handleExport("PDF")}
-              >
-                <p>Export to </p>
-                <img src={pdf} alt="PDF" />
-              </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  className={salesStyles.xls}
+                  onClick={() => handleExport("XLS")}
+                >
+                  <p>Export to </p>
+                  <img src={xls} alt="Excel" />
+                </button>
+                <button
+                  className={salesStyles.xls}
+                  onClick={() => handleExport("PDF")}
+                >
+                  <p>Export to </p>
+                  <img src={pdf} alt="PDF" />
+                </button>
+              </div>
+
+              <div className={paginationStyles.entity} style={{ top: 0 }}>
+                <label>Entity :</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={30}>30</option>
+                  <option value={40}>40</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
             </div>
             {depositsLoading ? (
               <p
@@ -1033,7 +1077,7 @@ export default function StoreCashDeposit() {
                     )}
                   </thead>
                   <tbody>
-                    {filteredHistory.map((deposit, index) => (
+                    {paginatedData.map((deposit, index) => (
                       <tr
                         key={deposit.id || index}
                         style={{
@@ -1043,7 +1087,7 @@ export default function StoreCashDeposit() {
                               : "transparent",
                         }}
                       >
-                        <td>{index + 1}</td>
+                        <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                         <td>
                           {formatDate(
                             deposit.createdAt ||
@@ -1096,6 +1140,32 @@ export default function StoreCashDeposit() {
                 </table>
               </div>
             )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="row m-0 p-0 pt-3 justify-content-between">
+              <div className={`col-2 m-0 p-0 ${paginationStyles.buttonbox}`}>
+                {currentPage > 1 && (
+                  <button onClick={() => handlePageChange("prev")}>
+                    <span>
+                      <FaArrowLeftLong />
+                    </span>{" "}
+                    Previous
+                  </button>
+                )}
+              </div>
+              <div className={`col-2 m-0 p-0 ${paginationStyles.buttonbox}`}>
+                {currentPage < totalPages && (
+                  <button onClick={() => handlePageChange("next")}>
+                    Next{" "}
+                    <span>
+                      <FaArrowRightLong />
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           </div>
         </>
       )}

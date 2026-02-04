@@ -3003,7 +3003,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              name: e.target.value,
+                              name: e.target.value.toUpperCase().replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter division name"
@@ -3019,7 +3019,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              state: e.target.value,
+                              state: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter state name"
@@ -3037,7 +3037,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              stateCode: e.target.value,
+                              stateCode: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="e.g., MH, KA, TN"
@@ -3070,7 +3070,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              plot: e.target.value,
+                              plot: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Plot No. 123"
@@ -3086,7 +3086,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              street1: e.target.value,
+                              street1: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Main Street"
@@ -3104,7 +3104,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              street2: e.target.value,
+                              street2: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Near Market (optional)"
@@ -3119,7 +3119,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              areaLocality: e.target.value,
+                              areaLocality: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Commercial Area"
@@ -3137,7 +3137,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              cityVillage: e.target.value,
+                              cityVillage: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="City Name"
@@ -3153,7 +3153,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewDivision({
                               ...newDivision,
-                              district: e.target.value,
+                              district: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="District Name"
@@ -3328,7 +3328,7 @@ function DivisionManager() {
                           id="zoneName"
                           value={newZone.name}
                           onChange={(e) =>
-                            setNewZone({ ...newZone, name: e.target.value })
+                            setNewZone({ ...newZone, name: e.target.value.toUpperCase().replace(/\s\s+/g, ' ') })
                           }
                           placeholder="Enter zone name"
                           required
@@ -3391,7 +3391,7 @@ function DivisionManager() {
                           id="zonePlot"
                           value={newZone.plot}
                           onChange={(e) =>
-                            setNewZone({ ...newZone, plot: e.target.value })
+                            setNewZone({ ...newZone, plot: e.target.value.replace(/\s\s+/g, ' ') })
                           }
                           placeholder="Plot No. 45"
                         />
@@ -3403,7 +3403,7 @@ function DivisionManager() {
                           id="zoneStreet1"
                           value={newZone.street1}
                           onChange={(e) =>
-                            setNewZone({ ...newZone, street1: e.target.value })
+                            setNewZone({ ...newZone, street1: e.target.value.replace(/\s\s+/g, ' ') })
                           }
                           placeholder="Zone Main Road"
                         />
@@ -3417,7 +3417,7 @@ function DivisionManager() {
                           id="zoneStreet2"
                           value={newZone.street2}
                           onChange={(e) =>
-                            setNewZone({ ...newZone, street2: e.target.value })
+                            setNewZone({ ...newZone, street2: e.target.value.replace(/\s\s+/g, ' ') })
                           }
                           placeholder="Near Zone Center"
                         />
@@ -3431,7 +3431,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewZone({
                               ...newZone,
-                              areaLocality: e.target.value,
+                              areaLocality: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Zone Area"
@@ -3448,7 +3448,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewZone({
                               ...newZone,
-                              cityVillage: e.target.value,
+                              cityVillage: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Mumbai"
@@ -3461,7 +3461,7 @@ function DivisionManager() {
                           id="zoneDistrict"
                           value={newZone.district}
                           onChange={(e) =>
-                            setNewZone({ ...newZone, district: e.target.value })
+                            setNewZone({ ...newZone, district: e.target.value.replace(/\s\s+/g, ' ') })
                           }
                           placeholder="Mumbai"
                         />
@@ -3488,7 +3488,7 @@ function DivisionManager() {
                           id="zoneState"
                           value={newZone.state}
                           onChange={(e) =>
-                            setNewZone({ ...newZone, state: e.target.value })
+                            setNewZone({ ...newZone, state: e.target.value.replace(/\s\s+/g, ' ') })
                           }
                           placeholder="Maharashtra"
                         />
@@ -3516,7 +3516,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewZone({
                               ...newZone,
-                              stateCode: e.target.value,
+                              stateCode: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="MH"
@@ -3657,7 +3657,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              name: e.target.value,
+                              name: e.target.value.toUpperCase().replace(/\s\s+/g, ' '),
                             })
                           }
                           required
@@ -3721,7 +3721,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              plot: e.target.value,
+                              plot: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter plot number"
@@ -3736,7 +3736,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              street1: e.target.value,
+                              street1: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter street address"
@@ -3753,7 +3753,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              street2: e.target.value,
+                              street2: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter additional address"
@@ -3768,7 +3768,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              areaLocality: e.target.value,
+                              areaLocality: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter area or locality"
@@ -3785,7 +3785,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              cityVillage: e.target.value,
+                              cityVillage: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter city or village"
@@ -3819,7 +3819,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              district: e.target.value,
+                              district: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter district"
@@ -3834,7 +3834,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              state: e.target.value,
+                              state: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter state"
@@ -3851,7 +3851,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              country: e.target.value,
+                              country: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter country"
@@ -3866,7 +3866,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              stateCode: e.target.value,
+                              stateCode: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter state code"
@@ -3883,7 +3883,7 @@ function DivisionManager() {
                           onChange={(e) =>
                             setNewSubZone({
                               ...newSubZone,
-                              countryCode: e.target.value,
+                              countryCode: e.target.value.replace(/\s\s+/g, ' '),
                             })
                           }
                           placeholder="Enter country code"
@@ -4059,7 +4059,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  name: e.target.value,
+                                  name: e.target.value.toUpperCase().replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Enter store name"
@@ -4321,7 +4321,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  villages: e.target.value,
+                                  villages: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Village1, Village2 (Optional, comma separated)"
@@ -4522,7 +4522,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  street1: e.target.value,
+                                  street1: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Street 1"
@@ -4537,7 +4537,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  street2: e.target.value,
+                                  street2: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Street 2"
@@ -4554,7 +4554,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  area: e.target.value,
+                                  area: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Area"
@@ -4569,7 +4569,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  district: e.target.value,
+                                  district: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="District"
@@ -4586,7 +4586,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  city: e.target.value,
+                                  city: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="City"
@@ -4621,7 +4621,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  state: e.target.value,
+                                  state: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="State"
@@ -4685,7 +4685,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  landOwnerName: e.target.value,
+                                  landOwnerName: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Enter land owner name"
@@ -4702,7 +4702,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  agreementTimePeriod: e.target.value,
+                                  agreementTimePeriod: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="e.g., 12 months, 2 years"
@@ -4825,7 +4825,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  powerBillNumber: e.target.value,
+                                  powerBillNumber: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Enter power bill number"
@@ -4883,7 +4883,7 @@ function DivisionManager() {
                                   onChange={(e) =>
                                     setNewStore({
                                       ...newStore,
-                                      electricityDistributorOtherName: e.target.value,
+                                      electricityDistributorOtherName: e.target.value.replace(/\s\s+/g, ' '),
                                     })
                                   }
                                   placeholder="Enter other electricity distributor name"
@@ -4972,12 +4972,15 @@ function DivisionManager() {
                               type="text"
                               id="beneficiaryName"
                               value={newStore.beneficiaryName || ""}
-                              onChange={(e) =>
-                                setNewStore({
-                                  ...newStore,
-                                  beneficiaryName: e.target.value,
-                                })
-                              }
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (/^[A-Za-z\s]*$/.test(val)) {
+                                  setNewStore({
+                                    ...newStore,
+                                    beneficiaryName: val.toUpperCase().replace(/\s\s+/g, ' '),
+                                  });
+                                }
+                              }}
                               placeholder="Enter beneficiary name"
                             />
                           </div>
@@ -4990,7 +4993,7 @@ function DivisionManager() {
                               onChange={(e) =>
                                 setNewStore({
                                   ...newStore,
-                                  bankName: e.target.value,
+                                  bankName: e.target.value.replace(/\s\s+/g, ' '),
                                 })
                               }
                               placeholder="Enter bank name"

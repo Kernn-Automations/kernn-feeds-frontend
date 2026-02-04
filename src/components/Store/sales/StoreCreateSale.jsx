@@ -581,7 +581,8 @@ export default function StoreCreateSale() {
 
   // Handle farmer search input with debounce
   const handleFarmerSearchChange = (value) => {
-    setFarmerSearchTerm(value);
+    const processedValue = value.replace(/\s\s+/g, ' ');
+    setFarmerSearchTerm(processedValue);
 
     // Clear existing timeout
     if (farmerSearchTimeoutRef.current) {
@@ -589,10 +590,10 @@ export default function StoreCreateSale() {
     }
 
     // Show all customers if field is focused/clicked, or search if typing
-    if (value && value.trim().length > 0) {
+    if (processedValue && processedValue.trim().length > 0) {
       // Debounce search (wait 300ms after user stops typing)
       farmerSearchTimeoutRef.current = setTimeout(() => {
-        searchFarmers(value);
+        searchFarmers(processedValue);
       }, 300);
     } else {
       // If empty, show all customers

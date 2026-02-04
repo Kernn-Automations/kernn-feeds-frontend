@@ -134,8 +134,9 @@ const CreateReturnRequest = ({ onClose, onSuccess }) => {
 
   // Handle damage description change
   const handleDamageDescriptionChange = (itemId, description) => {
+    const processedDescription = description.replace(/\s\s+/g, ' ');
     const updatedItems = selectedItems.map(item => 
-      item.id === itemId ? { ...item, damageDescription: description } : item
+      item.id === itemId ? { ...item, damageDescription: processedDescription } : item
     );
     setSelectedItems(updatedItems);
   };
@@ -333,7 +334,7 @@ const CreateReturnRequest = ({ onClose, onSuccess }) => {
                 type="text"
                 placeholder="Search orders..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value.replace(/\s\s+/g, ' '))}
                 className={styles.formInput}
                 style={{ marginBottom: '10px' }}
               />
@@ -402,7 +403,7 @@ const CreateReturnRequest = ({ onClose, onSuccess }) => {
               <input
                 type="text"
                 value={formData.customReason}
-                onChange={(e) => setFormData(prev => ({ ...prev, customReason: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, customReason: e.target.value.replace(/\s\s+/g, ' ') }))}
                 className={styles.formInput}
                 placeholder="Enter custom reason if applicable"
               />
@@ -550,7 +551,7 @@ const CreateReturnRequest = ({ onClose, onSuccess }) => {
             </label>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value.replace(/\s\s+/g, ' ') }))}
               className={styles.formTextarea}
               rows={3}
               placeholder="Additional notes about the return request"

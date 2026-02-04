@@ -12,6 +12,7 @@ import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
 import { handleExportExcel } from "../../../utils/PDFndXLSGenerator";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 
 function StoreSalesReports({ onBack }) {
   const { axiosAPI } = useAuth();
@@ -43,6 +44,10 @@ function StoreSalesReports({ onBack }) {
     villageName: "",
     createdBy: "",
   });
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const toggleSearch = (key) => {
     setShowSearch((prev) => {
@@ -576,7 +581,25 @@ function StoreSalesReports({ onBack }) {
       );
     }
     setFilteredSalesData(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [salesData, searchTerms]);
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedData = filteredSalesData.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(filteredSalesData.length / itemsPerPage);
+
+  const handlePageChange = (direction) => {
+    if (direction === "prev" && currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    } else if (direction === "next" && currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
 
   // Format date to DD-Mon-YY format
   // Handles both "DD-MM-YYYY" format from backend and ISO date strings
@@ -892,6 +915,22 @@ function StoreSalesReports({ onBack }) {
                 <img src={pdf} alt="" />
               </button>
             </div>
+            <div className={`col-lg-3 ${styles.entity}`}>
+              <label htmlFor="">Entity :</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+                <option value={40}>40</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
           </div>
         )}
 
@@ -1054,9 +1093,9 @@ function StoreSalesReports({ onBack }) {
                   </td>
                 </tr>
               ) : (
-                filteredSalesData.map((row, index) => (
+                paginatedData.map((row, index) => (
                   <tr key={index}>
-                    <td>{index + 1}</td>
+                    <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                     <td>{formatDate(row.date)}</td>
                     <td>{row.productName}</td>
                     <td>{row.stockIssuedTo}</td>
@@ -1109,6 +1148,32 @@ function StoreSalesReports({ onBack }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="row m-0 p-0 pt-3 justify-content-between">
+            <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+              {currentPage > 1 && (
+                <button onClick={() => handlePageChange("prev")}>
+                  <span>
+                    <FaArrowLeftLong />
+                  </span>{" "}
+                  Previous
+                </button>
+              )}
+            </div>
+            <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+              {currentPage < totalPages && (
+                <button onClick={() => handlePageChange("next")}>
+                  Next{" "}
+                  <span>
+                    <FaArrowRightLong />
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Summary */}
         {salesData.length > 0 && (

@@ -259,9 +259,12 @@ function CreateTargetModal({ isOpen, onClose, onSuccess }) {
    * Handle form field changes
    */
   const handleInputChange = (field, value) => {
+    // Enforce uppercase for target name
+    const processedValue = field === 'name' ? value.toUpperCase().replace(/\s\s+/g, ' ') : value;
+
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: processedValue
     }));
 
     // Clear error for this field
