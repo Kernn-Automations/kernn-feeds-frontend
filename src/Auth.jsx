@@ -5,14 +5,14 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [islogin, setIslogin] = useState(
-    localStorage.getItem("accessToken") ? true : false
+    localStorage.getItem("accessToken") ? true : false,
   );
 
   let token = localStorage.getItem("accessToken") || null;
   let reftoken = localStorage.getItem("refreshToken") || null;
 
   const VITE_API = import.meta.env.VITE_API_URL;
-  const BASE_URL = VITE_API || 'http://localhost:8080';
+  const BASE_URL = VITE_API || "http://localhost:8080";
 
   // API Initialization
   const api = axios.create({
@@ -42,38 +42,44 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Automatically add division parameters to all requests
     // Skip division params for auth endpoints, public endpoints, and supervisors endpoint
-    const skipDivisionParams = 
-      config.url?.includes('/auth/') || 
-      config.url?.includes('/stores/dropdowns/electricity-distributors') ||
-      config.url?.includes('/public/') ||
-      config.url?.includes('/employees/supervisors/');
-    
+    const skipDivisionParams =
+      config.url?.includes("/auth/") ||
+      config.url?.includes("/stores/dropdowns/electricity-distributors") ||
+      config.url?.includes("/public/") ||
+      config.url?.includes("/employees/supervisors/");
+
     if (!skipDivisionParams) {
       try {
-        const selectedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
+        const selectedDivision = JSON.parse(
+          localStorage.getItem("selectedDivision"),
+        );
         const user = JSON.parse(localStorage.getItem("user"));
-        
+
         if (selectedDivision) {
           const divisionId = selectedDivision.id;
-          const isAllDivisions = selectedDivision.isAllDivisions === true || divisionId === "all";
-          
+          const isAllDivisions =
+            selectedDivision.isAllDivisions === true || divisionId === "all";
+
           // Check if user has restricted roles (Business Officer, Warehouse Manager, etc.)
           let hasRestrictedRole = false;
           if (user && user.roles && Array.isArray(user.roles)) {
-            hasRestrictedRole = user.roles.some(role => {
-              const roleName = typeof role === 'string' 
-                ? role.toLowerCase() 
-                : (role.name || role.role || String(role)).toLowerCase();
-              return roleName.includes("business officer") || 
-                     roleName.includes("business office") ||
-                     roleName.includes("warehouse manager") ||
-                     roleName.includes("area business manager");
+            hasRestrictedRole = user.roles.some((role) => {
+              const roleName =
+                typeof role === "string"
+                  ? role.toLowerCase()
+                  : (role.name || role.role || String(role)).toLowerCase();
+              return (
+                roleName.includes("business officer") ||
+                roleName.includes("business office") ||
+                roleName.includes("warehouse manager") ||
+                roleName.includes("area business manager")
+              );
             });
           }
-          
+
           // For restricted roles, always use divisionId, never showAllDivisions
           if (hasRestrictedRole) {
             if (divisionId && divisionId !== "all") {
@@ -88,8 +94,11 @@ export const AuthProvider = ({ children }) => {
             if (isAllDivisions) {
               // Add divisionId=all or showAllDivisions=true
               if (!config.params) config.params = {};
-              if (!config.params.divisionId && !config.params.showAllDivisions) {
-                config.params.divisionId = 'all';
+              if (
+                !config.params.divisionId &&
+                !config.params.showAllDivisions
+              ) {
+                config.params.divisionId = "all";
                 // Alternative: config.params.showAllDivisions = 'true';
               }
             } else if (divisionId && divisionId !== "all") {
@@ -106,7 +115,7 @@ export const AuthProvider = ({ children }) => {
         // Continue with request even if division parsing fails
       }
     }
-    
+
     return config;
   });
 
@@ -115,30 +124,36 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Automatically add division parameters to all requests
     try {
-      const selectedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
+      const selectedDivision = JSON.parse(
+        localStorage.getItem("selectedDivision"),
+      );
       const user = JSON.parse(localStorage.getItem("user"));
-      
+
       if (selectedDivision) {
         const divisionId = selectedDivision.id;
-        const isAllDivisions = selectedDivision.isAllDivisions === true || divisionId === "all";
-        
+        const isAllDivisions =
+          selectedDivision.isAllDivisions === true || divisionId === "all";
+
         // Check if user has restricted roles
         let hasRestrictedRole = false;
         if (user && user.roles && Array.isArray(user.roles)) {
-          hasRestrictedRole = user.roles.some(role => {
-            const roleName = typeof role === 'string' 
-              ? role.toLowerCase() 
-              : (role.name || role.role || String(role)).toLowerCase();
-            return roleName.includes("business officer") || 
-                   roleName.includes("business office") ||
-                   roleName.includes("warehouse manager") ||
-                   roleName.includes("area business manager");
+          hasRestrictedRole = user.roles.some((role) => {
+            const roleName =
+              typeof role === "string"
+                ? role.toLowerCase()
+                : (role.name || role.role || String(role)).toLowerCase();
+            return (
+              roleName.includes("business officer") ||
+              roleName.includes("business office") ||
+              roleName.includes("warehouse manager") ||
+              roleName.includes("area business manager")
+            );
           });
         }
-        
+
         // For restricted roles, always use divisionId
         if (hasRestrictedRole) {
           if (divisionId && divisionId !== "all") {
@@ -152,7 +167,7 @@ export const AuthProvider = ({ children }) => {
           if (isAllDivisions) {
             if (!config.params) config.params = {};
             if (!config.params.showAllDivisions && !config.params.divisionId) {
-              config.params.showAllDivisions = 'true';
+              config.params.showAllDivisions = "true";
             }
           } else if (divisionId && divisionId !== "all") {
             if (!config.params) config.params = {};
@@ -163,9 +178,12 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error("Error adding division parameters to getPdf request:", error);
+      console.error(
+        "Error adding division parameters to getPdf request:",
+        error,
+      );
     }
-    
+
     return config;
   });
 
@@ -174,30 +192,36 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Automatically add division parameters to all requests
     try {
-      const selectedDivision = JSON.parse(localStorage.getItem("selectedDivision"));
+      const selectedDivision = JSON.parse(
+        localStorage.getItem("selectedDivision"),
+      );
       const user = JSON.parse(localStorage.getItem("user"));
-      
+
       if (selectedDivision) {
         const divisionId = selectedDivision.id;
-        const isAllDivisions = selectedDivision.isAllDivisions === true || divisionId === "all";
-        
+        const isAllDivisions =
+          selectedDivision.isAllDivisions === true || divisionId === "all";
+
         // Check if user has restricted roles
         let hasRestrictedRole = false;
         if (user && user.roles && Array.isArray(user.roles)) {
-          hasRestrictedRole = user.roles.some(role => {
-            const roleName = typeof role === 'string' 
-              ? role.toLowerCase() 
-              : (role.name || role.role || String(role)).toLowerCase();
-            return roleName.includes("business officer") || 
-                   roleName.includes("business office") ||
-                   roleName.includes("warehouse manager") ||
-                   roleName.includes("area business manager");
+          hasRestrictedRole = user.roles.some((role) => {
+            const roleName =
+              typeof role === "string"
+                ? role.toLowerCase()
+                : (role.name || role.role || String(role)).toLowerCase();
+            return (
+              roleName.includes("business officer") ||
+              roleName.includes("business office") ||
+              roleName.includes("warehouse manager") ||
+              roleName.includes("area business manager")
+            );
           });
         }
-        
+
         // For restricted roles, always use divisionId
         if (hasRestrictedRole) {
           if (divisionId && divisionId !== "all") {
@@ -211,7 +235,7 @@ export const AuthProvider = ({ children }) => {
           if (isAllDivisions) {
             if (!config.params) config.params = {};
             if (!config.params.showAllDivisions && !config.params.divisionId) {
-              config.params.showAllDivisions = 'true';
+              config.params.showAllDivisions = "true";
             }
           } else if (divisionId && divisionId !== "all") {
             if (!config.params) config.params = {};
@@ -222,9 +246,12 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error("Error adding division parameters to formApi request:", error);
+      console.error(
+        "Error adding division parameters to formApi request:",
+        error,
+      );
     }
-    
+
     return config;
   });
 
@@ -243,27 +270,29 @@ export const AuthProvider = ({ children }) => {
   // Helper function to check if error is token-related
   const isTokenError = (error) => {
     if (!error?.response) return false;
-    
+
     const status = error.response.status;
     const errorData = error.response.data || {};
-    const errorMessage = (errorData.message || errorData.error || '').toString().toLowerCase();
-    
+    const errorMessage = (errorData.message || errorData.error || "")
+      .toString()
+      .toLowerCase();
+
     // Check for 401 status or token-related error messages
     if (status === 401) return true;
-    
+
     return (
-      errorMessage.includes('invalid or expired token') ||
-      errorMessage.includes('authentication failed') ||
-      errorMessage.includes('unauthorized') ||
-      errorMessage.includes('token may be expired') ||
-      errorMessage.includes('token expired') ||
-      errorMessage.includes('expired token') ||
-      errorMessage.includes('invalid token') ||
-      errorMessage.includes('please log in again') ||
-      errorMessage.includes('please login again') ||
-      errorData.errorCode === 'TOKEN_EXPIRED' ||
-      errorData.errorCode === 'TOKEN_INVALID' ||
-      errorData.error === 'TOKEN_MISSING'
+      errorMessage.includes("invalid or expired token") ||
+      errorMessage.includes("authentication failed") ||
+      errorMessage.includes("unauthorized") ||
+      errorMessage.includes("token may be expired") ||
+      errorMessage.includes("token expired") ||
+      errorMessage.includes("expired token") ||
+      errorMessage.includes("invalid token") ||
+      errorMessage.includes("please log in again") ||
+      errorMessage.includes("please login again") ||
+      errorData.errorCode === "TOKEN_EXPIRED" ||
+      errorData.errorCode === "TOKEN_INVALID" ||
+      errorData.error === "TOKEN_MISSING"
     );
   };
 
@@ -272,17 +301,19 @@ export const AuthProvider = ({ children }) => {
     (response) => response,
     (error) => {
       if (isTokenError(error)) {
-        console.log('Token-related error detected in API response, automatically logging out...');
+        console.log(
+          "Token-related error detected in API response, automatically logging out...",
+        );
         removeLogin();
         // Optionally redirect to login page
-        if (window.location.pathname !== '/login') {
+        if (window.location.pathname !== "/login") {
           setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = "/login";
           }, 1000);
         }
       }
       return Promise.reject(error);
-    }
+    },
   );
 
   // Response interceptor for formApi instance
@@ -290,16 +321,18 @@ export const AuthProvider = ({ children }) => {
     (response) => response,
     (error) => {
       if (isTokenError(error)) {
-        console.log('Token-related error detected in FormAPI response, automatically logging out...');
+        console.log(
+          "Token-related error detected in FormAPI response, automatically logging out...",
+        );
         removeLogin();
-        if (window.location.pathname !== '/login') {
+        if (window.location.pathname !== "/login") {
           setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = "/login";
           }, 1000);
         }
       }
       return Promise.reject(error);
-    }
+    },
   );
 
   // Response interceptor for getPdf instance
@@ -307,16 +340,18 @@ export const AuthProvider = ({ children }) => {
     (response) => response,
     (error) => {
       if (isTokenError(error)) {
-        console.log('Token-related error detected in PDF API response, automatically logging out...');
+        console.log(
+          "Token-related error detected in PDF API response, automatically logging out...",
+        );
         removeLogin();
-        if (window.location.pathname !== '/login') {
+        if (window.location.pathname !== "/login") {
           setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = "/login";
           }, 1000);
         }
       }
       return Promise.reject(error);
-    }
+    },
   );
 
   const axiosAPI = {
@@ -390,7 +425,7 @@ export const AuthProvider = ({ children }) => {
             removeLogin();
           }
         },
-        5 * 60 * 1000 // Refresh every 5 minutes
+        33 * 60 * 1000, // Refresh every 5 minutes
       );
     }
   };

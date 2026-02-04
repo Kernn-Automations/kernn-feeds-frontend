@@ -81,7 +81,7 @@ function StoreSwitcher() {
         try {
           const response = await axiosAPI.get("/auth/available-stores");
           const data = response.data;
-
+          console.log(response);
           if (data.success && Array.isArray(data.data)) {
             storesList = data.data;
           } else if (Array.isArray(data.stores)) {
@@ -159,7 +159,12 @@ function StoreSwitcher() {
     // Store Manager & Store Employee: show even with 1 store
     ((isStoreManager(user) || isStoreEmployee(user)) && storesCount >= 1) ||
     // Admin / Super Admin / Division Head: only if multiple stores
-    ((isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user) || isZBM(user) || isRBM(user) || isAreaBusinessManager(user)) &&
+    ((isAdmin(user) ||
+      isSuperAdmin(user) ||
+      isDivisionHead(user) ||
+      isZBM(user) ||
+      isRBM(user) ||
+      isAreaBusinessManager(user)) &&
       storesCount > 1);
 
   if (!shouldShowSwitcher) {

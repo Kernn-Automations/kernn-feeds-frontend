@@ -352,7 +352,7 @@ function StoreSalesReports({ onBack }) {
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.customerId) params.customerId = filters.customerId;
       if (filters.modeOfPayment) params.modeOfPayment = filters.modeOfPayment;
-      console.log('SALE PARAMS:', params);
+      console.log("SALE PARAMS:", params);
       params.limit = 1000; // Get all records for report
 
       // Check if user is admin to use admin endpoint
@@ -385,7 +385,7 @@ function StoreSalesReports({ onBack }) {
             `Sales Reports - Item ${index} villageName:`,
             item.villageName,
             "customer:",
-            item.customer
+            item.customer,
           );
           // Map payment method to uppercase display format
           let paymentMethod = "";
@@ -500,7 +500,7 @@ function StoreSalesReports({ onBack }) {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to fetch sales data."
+          "Failed to fetch sales data.",
       );
       setIsModalOpen(true);
       setSalesData([]);
@@ -556,28 +556,28 @@ function StoreSalesReports({ onBack }) {
       filtered = filtered.filter((item) =>
         item.productName
           ?.toLowerCase()
-          .includes(searchTerms.productName.toLowerCase())
+          .includes(searchTerms.productName.toLowerCase()),
       );
     }
     if (searchTerms.stockIssuedTo) {
       filtered = filtered.filter((item) =>
         item.stockIssuedTo
           ?.toLowerCase()
-          .includes(searchTerms.stockIssuedTo.toLowerCase())
+          .includes(searchTerms.stockIssuedTo.toLowerCase()),
       );
     }
     if (searchTerms.villageName) {
       filtered = filtered.filter((item) =>
         item.villageName
           ?.toLowerCase()
-          .includes(searchTerms.villageName.toLowerCase())
+          .includes(searchTerms.villageName.toLowerCase()),
       );
     }
     if (searchTerms.createdBy) {
       filtered = filtered.filter((item) =>
         item.createdBy
           ?.toLowerCase()
-          .includes(searchTerms.createdBy.toLowerCase())
+          .includes(searchTerms.createdBy.toLowerCase()),
       );
     }
     setFilteredSalesData(filtered);
@@ -791,7 +791,7 @@ function StoreSalesReports({ onBack }) {
       setError(
         err.response?.data?.message ||
           err.message ||
-          `Failed to export ${type}. Please try again.`
+          `Failed to export ${type}. Please try again.`,
       );
       setIsModalOpen(true);
     } finally {
@@ -815,12 +815,11 @@ function StoreSalesReports({ onBack }) {
       totalQuantity: 0,
       subTotalAmount: 0,
       totalFreightAmount: 0,
-    }
+    },
   );
 
   const totalTons = totals.totalQuantity * 0.05;
   const totalAmount = totals.subTotalAmount + totals.totalFreightAmount;
-
 
   return (
     <div>
@@ -959,17 +958,17 @@ function StoreSalesReports({ onBack }) {
                 {renderSearchHeader(
                   "Product Name",
                   "productName",
-                  "data-product-header"
+                  "data-product-header",
                 )}
                 {renderSearchHeader(
                   "Stock Issued To",
                   "stockIssuedTo",
-                  "data-customer-header"
+                  "data-customer-header",
                 )}
                 {renderSearchHeader(
                   "Village Name",
                   "villageName",
-                  "data-village-header"
+                  "data-village-header",
                 )}
                 <th
                   style={{
@@ -1030,7 +1029,7 @@ function StoreSalesReports({ onBack }) {
                 {renderSearchHeader(
                   "Created By",
                   "createdBy",
-                  "data-employee-header"
+                  "data-employee-header",
                 )}
                 <th
                   style={{
@@ -1110,7 +1109,7 @@ function StoreSalesReports({ onBack }) {
                       ₹
                       {formatAmount(
                         (parseFloat(row.freightCharges) || 0) +
-                          (parseFloat(row.fridgeAmount) || 0)
+                          (parseFloat(row.fridgeAmount) || 0),
                       )}
                     </td>
 
@@ -1123,10 +1122,11 @@ function StoreSalesReports({ onBack }) {
                           (row.status || "").toLowerCase() === "completed" ||
                           (row.status || "").toLowerCase() === "verified"
                             ? styles.completed
-                            : (row.status || "").toLowerCase() === "cancelled" ||
-                              (row.status || "").toLowerCase() === "rejected"
-                            ? styles.cancelled
-                            : styles.pending
+                            : (row.status || "").toLowerCase() ===
+                                  "cancelled" ||
+                                (row.status || "").toLowerCase() === "rejected"
+                              ? styles.cancelled
+                              : styles.pending
                         }`}
                       >
                         {row.status || "Pending"}
@@ -1248,7 +1248,7 @@ function StoreSalesReports({ onBack }) {
                 <div>
                   <strong>Freight Charges:</strong> ₹
                   {Number(selectedSale.freightCharges || 0).toLocaleString(
-                    "en-IN"
+                    "en-IN",
                   )}
                 </div>
               </div>
