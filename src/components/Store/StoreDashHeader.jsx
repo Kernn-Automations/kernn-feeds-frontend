@@ -6,6 +6,7 @@ import SearchBar from "../Dashboard/SearchBar";
 import Logo from "../Dashboard/navs/Logo";
 import StoreSwitcher from "./StoreSwitcher";
 import { storeOptions } from "../../utils/searchOptions";
+import { FaSearch, FaTimes } from "react-icons/fa";
 
 function StoreDashHeader({
   notifications,
@@ -26,6 +27,8 @@ function StoreDashHeader({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+
   // Mobile header layout: Logo + Brand centered, Search + Profile on right
   if (isMobile) {
     return (
@@ -35,22 +38,60 @@ function StoreDashHeader({
             {/* Left spacer for hamburger menu */}
             <div className={styles.mobileHeaderSpacer}></div>
             
-            {/* Centered logo + brand */}
-            <div className={styles.mobileHeaderCenter}>
-              <Logo />
-              <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
-            </div>
+            {/* Centered logo + brand - Hide when search is open */}
+            {!showMobileSearch && (
+              <div className={styles.mobileHeaderCenter} style={{ justifyContent: 'flex-start' }}>
+                <Logo />
+                <p className={styles.brand}>Feed Bazaar Pvt Ltd</p>
+              </div>
+            )}
             
             {/* Right: Search only (Profile moved to navbar on mobile) */}
-            <div className={`col-auto ${styles.headcontent}`}>
-              <div className={styles.headerRight}>
-                <div className={styles.searchContainer}>
-                  <SearchBar options={storeOptions} />
-                </div>
+            <div className={`col-auto ${styles.headcontent}`} style={showMobileSearch ? { width: '100%', maxWidth: '100%', flex: '1 1 auto', paddingLeft: '5px', paddingRight: '2px', overflow: 'visible' } : {}}>
+              <div className={styles.headerRight} style={{ width: '100%', justifyContent: showMobileSearch ? 'flex-start' : 'flex-end' }}>
                 
-                <div className={styles.storeContainer}>
-                  <StoreSwitcher />
-                </div>
+                {/* Search Toggle Logic */}
+                {showMobileSearch ? (
+                  /* Removing styles.searchContainer when expanded to bypass max-width !important constraint in CSS */
+                  <div style={{ width: '100%', maxWidth: '100%', flex: 1, display: 'flex', alignItems: 'center', gap: '0' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <SearchBar options={storeOptions} isExpanded={true} />
+                    </div>
+                    <button 
+                      onClick={() => setShowMobileSearch(false)}
+                      style={{ background: 'none', border: 'none', color: '#666', fontSize: '18px', padding: '0 5px', flexShrink: 0 }}
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setShowMobileSearch(true)}
+                    style={{ 
+                      position: 'fixed',
+                      top: '10px', // Adjusted to align with top: 5px switcher
+                      right: '90px', // Increased spacing from right to avoid overlap with auto-width switcher
+                      zIndex: 1002,
+                      background: 'transparent', 
+                      border: 'none', 
+                      width: '40px', 
+                      height: '40px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      color: '#666',
+                    }}
+                  >
+                    <FaSearch size={22} />
+                  </button>
+                )}
+                
+                {/* Hide Switcher when search is open */}
+                {!showMobileSearch && (
+                  <div className={styles.storeContainer}>
+                    <StoreSwitcher />
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -215,7 +215,7 @@ function CreateCreditNote({ navigate }) {
           <textarea
             placeholder="Note"
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(e) => setNote(e.target.value.replace(/\s\s+/g, ' '))}
           ></textarea>
         </div>
       </div>
@@ -298,7 +298,7 @@ function CreateCreditNote({ navigate }) {
                   <input
                     type="text"
                     value={particulars}
-                    onChange={(e) => setParticulars(e.target.value)}
+                    onChange={(e) => setParticulars(e.target.value.replace(/\s\s+/g, ' '))}
                     placeholder="Particulars"
                     className={errors.particulars ? styles.errorinput : ""}
                   />

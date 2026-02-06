@@ -1238,58 +1238,30 @@ function StoreSalesOrders({ onBack }) {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "16px",
-              flexWrap: "wrap",
-              gap: "12px",
-            }}
-          >
-            <div
-              style={{ fontFamily: "Poppins", color: "#666", fontSize: "14px" }}
-            >
-              Showing {(page - 1) * entityCount + 1} to{" "}
-              {Math.min(page * entityCount, total)} of {total} sales
+          {totalPages > 1 && (
+            <div className="row m-0 p-0 pt-3 justify-content-between">
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {page > 1 && (
+                  <button onClick={() => handlePageChange("prev")}>
+                    <span>
+                      <FaArrowLeftLong />
+                    </span>{" "}
+                    Previous
+                  </button>
+                )}
+              </div>
+              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+                {page < totalPages && (
+                  <button onClick={() => handlePageChange("next")}>
+                    Next{" "}
+                    <span>
+                      <FaArrowRightLong />
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                className="btn btn-sm btn-outline-primary"
-                onClick={() => handlePageChange("prev")}
-                disabled={page === 1 || loading}
-                style={{
-                  fontFamily: "Poppins",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <FaArrowLeftLong />
-                Previous
-              </button>
-              <span style={{ fontFamily: "Poppins", padding: "0 12px" }}>
-                Page {page} of {totalPages}
-              </span>
-              <button
-                className="btn btn-sm btn-outline-primary"
-                onClick={() => handlePageChange("next")}
-                disabled={page >= totalPages || loading}
-                style={{
-                  fontFamily: "Poppins",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                Next
-                <FaArrowRightLong />
-              </button>
-            </div>
-          </div>
-        )}
+          )}
       </div>
 
       {isModalOpen && (

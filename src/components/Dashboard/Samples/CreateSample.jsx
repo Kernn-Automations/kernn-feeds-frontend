@@ -101,9 +101,12 @@ function CreateSample({ navigate, isAdmin }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // Prevent double spaces for string inputs
+    const processedValue = typeof value === 'string' ? value.replace(/\s\s+/g, ' ') : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
   };
 

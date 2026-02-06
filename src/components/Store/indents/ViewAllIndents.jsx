@@ -262,7 +262,7 @@ export default function ViewAllIndents() {
       fetchIndents();
       fetchProducts();
     }
-  }, [storeId, pageNo, limit]);
+  }, [storeId]);
 
   // Fetch products for manual stock in
   const fetchProducts = async () => {
@@ -285,8 +285,7 @@ export default function ViewAllIndents() {
     try {
       setLoading(true);
       const params = {
-        page: pageNo,
-        limit: limit,
+        limit: 1000,
       };
 
       const res = await storeService.getStoreIndents(storeId, params);
@@ -316,7 +315,8 @@ export default function ViewAllIndents() {
         : [];
 
       setIndents(mappedIndents);
-      setTotalPages(Math.ceil(total / limit) || 1);
+      setIndents(mappedIndents);
+      // setTotalPages will be handled by the useEffect based on displayIndents
     } catch (err) {
       console.error("Error fetching indents:", err);
       setError(
@@ -346,6 +346,21 @@ export default function ViewAllIndents() {
 
     return filtered;
   }, [indents, searchTerms]);
+
+  // Derived state for pagination
+  const paginatedIndents = React.useMemo(() => {
+    const startIndex = (pageNo - 1) * limit;
+    return displayIndents.slice(startIndex, startIndex + limit);
+  }, [displayIndents, pageNo, limit]);
+
+  // Update total pages when filtered data changes
+  useEffect(() => {
+    setTotalPages(Math.ceil(displayIndents.length / limit) || 1);
+    // Reset to page 1 if current page is out of bounds (e.g. after search)
+    if (pageNo > Math.ceil(displayIndents.length / limit) && displayIndents.length > 0) {
+      setPageNo(1);
+    }
+  }, [displayIndents, limit]);
 
   // Map backend status to UI status
   const mapStatus = (status) => {
@@ -1323,7 +1338,7 @@ export default function ViewAllIndents() {
                   </td>
                 </tr>
               ) : (
-                displayIndents.map((indent, index) => {
+                paginatedIndents.map((indent, index) => {
                   const statusInfo = getStatusBadge(indent.status);
                   const actualIndex = (pageNo - 1) * limit + index + 1;
                   return (

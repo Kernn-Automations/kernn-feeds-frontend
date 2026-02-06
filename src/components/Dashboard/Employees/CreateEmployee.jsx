@@ -81,7 +81,9 @@ function CreateEmployee({ navigate }) {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    // Enforce uppercase for employee name
+    const processedValue = name === "name" ? value.toUpperCase().replace(/\s\s+/g, ' ') : value;
+    setForm((prev) => ({ ...prev, [name]: processedValue }));
   };
 
   const addRole = (roleId) => {
