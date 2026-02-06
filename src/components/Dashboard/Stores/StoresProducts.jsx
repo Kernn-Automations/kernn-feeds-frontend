@@ -168,8 +168,6 @@ const StoresProducts = () => {
     }
   }, [showZoneSearch, showSubZoneSearch, showStoreSearch, showPriceSearch]);
 
-
-
   const applyBulkPrices = () => {
     if (selectedStoreIds.length === 0 || selectedSkus.length === 0) return;
 
@@ -850,58 +848,20 @@ const StoresProducts = () => {
       );
 
       // Update prices for each store
-      const updatePromises = Object.keys(updatesByStore).map(
-        async (storeId) => {
-          const updates = updatesByStore[storeId];
-          if (updates.length === 0) return;
+      // 🚀 Bulk update prices for each store (ONE call per store)
+      // 🚀 Bulk update per store (ONE API call per store)
+      const updatePromises = Object.keys(updatesByStore).map((storeId) => {
+        const updates = updatesByStore[storeId];
+        if (updates.length === 0) return Promise.resolve();
 
-          // Update each product individually using updateStoreProductPricing
-          const productUpdates = updates.map(async (update) => {
-            const payload = {
-              productId: update.productId,
-            };
+        console.log(
+          `🚀 Bulk updating ${updates.length} products for store ${storeId}`,
+        );
 
-            // Only include fields that are defined
-            if (update.customPrice !== undefined) {
-              payload.customPrice = update.customPrice;
-            }
-            if (update.purchasePrice !== undefined) {
-              payload.purchasePrice = update.purchasePrice;
-            }
+        return storeService.bulkUpdateStoreProductPrices(storeId, updates);
+      });
 
-            console.log(
-              `Updating product ${update.productId} in store ${storeId} with payload:`,
-              payload,
-            );
-
-            try {
-              const response = await storeService.updateStoreProductPricing(
-                storeId,
-                payload,
-              );
-              console.log(
-                `Successfully updated product ${update.productId} in store ${storeId}:`,
-                response,
-              );
-              return response;
-            } catch (err) {
-              console.error(
-                `Error updating product ${update.productId} in store ${storeId}:`,
-                err,
-              );
-              console.error("Error details:", {
-                status: err.response?.status,
-                statusText: err.response?.statusText,
-                data: err.response?.data,
-                message: err.message,
-              });
-              throw err; // Re-throw to be caught by outer catch
-            }
-          });
-
-          return Promise.all(productUpdates);
-        },
-      );
+      await Promise.all(updatePromises);
 
       // Wait for all updates to complete
       await Promise.all(updatePromises);
