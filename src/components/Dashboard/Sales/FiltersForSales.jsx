@@ -1,6 +1,7 @@
 import { useAuth } from "@/Auth";
 import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
 import React, { useEffect, useState } from "react";
+import styles from "./Sales.module.css";
 
 function FiltersForSales({
   divisionId,

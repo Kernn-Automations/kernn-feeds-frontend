@@ -777,7 +777,7 @@ export default function StoreCashDeposit() {
                     <input
                       type="number"
                       min="0.01"
-                      step="1"
+                      step="0.01"
                       max={storeCash}
                       onWheel={disableWheel}
                       value={amount}

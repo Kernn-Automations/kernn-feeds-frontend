@@ -1876,6 +1876,17 @@ function DivisionManager() {
       return;
     }
 
+    // Check for duplicate store name (Client-side)
+    const isDuplicate = stores.some(
+      (store) => store.name?.toLowerCase().trim() === newStore.name?.toLowerCase().trim()
+    );
+
+    if (isDuplicate) {
+      setError("Store name already exists. Please use a unique name.");
+      setIsModalOpen(true);
+      return;
+    }
+
     if (newStore.storeType === "franchise") {
       const missingFields = [];
       if (!newStore.landOwnerName) missingFields.push("Land Owner Name");
@@ -2171,6 +2182,17 @@ function DivisionManager() {
 
     if (!newStore.name || !newStore.divisionId || !newStore.zoneId) {
       setError("Please fill in store name, division, and zone");
+      setIsModalOpen(true);
+      return;
+    }
+
+    // Check for duplicate store name (Client-side)
+    const isDuplicate = stores.some(
+      (store) => store.id !== editingStore.id && store.name?.toLowerCase().trim() === newStore.name?.toLowerCase().trim()
+    );
+
+    if (isDuplicate) {
+      setError("Store name already exists. Please use a unique name.");
       setIsModalOpen(true);
       return;
     }
