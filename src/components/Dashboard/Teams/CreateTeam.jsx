@@ -199,10 +199,13 @@ function CreateTeam({ navigate, isAdmin }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // Enforce uppercase for team name
+    const processedValue = name === "name" ? value.toUpperCase().replace(/\s\s+/g, ' ') : value;
+    
     setFormData(prev => {
       const newData = {
         ...prev,
-        [name]: value
+        [name]: processedValue
       };
       
       // Reset dependent fields when division or zone changes

@@ -5,6 +5,7 @@ import styles from "../../Dashboard/Customers/Customer.module.css";
 import tableStyles from "../../Dashboard/Purchases/Purchases.module.css";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
+import SuccessModal from "@/components/SuccessModal";
 import storeService from "../../../services/storeService";
 
 function CreateIndent({ navigate }) {
@@ -12,6 +13,8 @@ function CreateIndent({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [currentStore, setCurrentStore] = useState(null);
   const [products, setProducts] = useState([]);
@@ -123,7 +126,9 @@ function CreateIndent({ navigate }) {
   };
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    // Prevent double spaces for string values
+    const processedValue = typeof value === 'string' ? value.replace(/\s\s+/g, ' ') : value;
+    setForm((prev) => ({ ...prev, [field]: processedValue }));
   };
 
   const handleItemChange = (index, field, value) => {
@@ -209,10 +214,12 @@ function CreateIndent({ navigate }) {
       const res = await storeService.createIndent(payload);
 
       // Handle backend response format
-      const successMessage =
+      const message =
         res.message || res.data?.message || "Indent created successfully";
-      alert(successMessage);
-      navigate("/store/indents");
+        
+      setSuccessMessage(message);
+      setIsSuccessModalOpen(true);
+      // navigation will happen on modal close
     } catch (err) {
       setError(
         err.response?.data?.message || err.message || "Indent creation failed",
@@ -227,6 +234,11 @@ function CreateIndent({ navigate }) {
       .filter((_, idx) => idx !== currentIndex)
       .map((item) => String(item.productId))
       .filter(Boolean);
+  };
+
+  const handleCloseSuccessModal = () => {
+    setIsSuccessModalOpen(false);
+    navigate("/store/indents");
   };
 
   return (
@@ -471,6 +483,13 @@ function CreateIndent({ navigate }) {
           isOpen={isModalOpen}
           message={error}
           onClose={() => setIsModalOpen(false)}
+        />
+      )}
+      {isSuccessModalOpen && (
+        <SuccessModal 
+            isOpen={isSuccessModalOpen}
+            message={successMessage}
+            onClose={handleCloseSuccessModal}
         />
       )}
     </>

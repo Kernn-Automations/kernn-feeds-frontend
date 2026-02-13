@@ -57,7 +57,9 @@ function CreateFarmer({ navigate }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    // Prevent double spaces for string inputs
+    const processedValue = typeof value === 'string' ? value.replace(/\s\s+/g, ' ') : value;
+    setForm((prev) => ({ ...prev, [field]: processedValue }));
   };
 
   const { axiosAPI } = useAuth();
