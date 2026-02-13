@@ -124,7 +124,12 @@ function AddProduct({ navigate }) {
   
 
   function onError(e, vari, setter) {
-    const value = e.target.value === "null" ? null : e.target.value;
+    let value = e.target.value === "null" ? null : e.target.value;
+    // Prevent double spaces for string inputs
+    if (typeof value === 'string') {
+      value = value.replace(/\s\s+/g, ' ');
+    }
+    
     setter(value);
     if (value) {
       setErrors((prev) => ({ ...prev, vari: false }));

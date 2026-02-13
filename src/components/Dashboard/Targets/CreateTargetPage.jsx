@@ -252,9 +252,11 @@ function CreateTargetPage() {
    * Handle form field changes
    */
   const handleInputChange = (field, value) => {
+    // Prevent double spaces for string fields
+    const processedValue = typeof value === 'string' ? value.replace(/\s\s+/g, ' ') : value;
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: processedValue
     }));
 
     // Clear error for this field
