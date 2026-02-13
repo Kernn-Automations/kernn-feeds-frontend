@@ -46,6 +46,7 @@ function EmployeeMonthReport({ navigate }) {
         setSubfilter(null);
         const query = `/reports/employees/sales-monthly?fromDate=${from}&toDate=${to}&groupBy=${filter}`;
         const res = await axiosAPI.get(query);
+        console.log(res);
         setReports(res.data.data);
       } catch (e) {
         setError(e.response?.data?.message);

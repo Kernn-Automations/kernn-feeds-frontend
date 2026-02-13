@@ -425,7 +425,7 @@ export const AuthProvider = ({ children }) => {
             removeLogin();
           }
         },
-        33 * 60 * 1000, // Refresh every 5 minutes
+        33 * 60 * 1000, // Refresh every 33 minutes
       );
     }
   };
