@@ -41,6 +41,12 @@ function ReportsHome({ navigate }) {
           >
             Customer Ledger Reports
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/reports/store-reports")}
+          >
+            Store Reports
+          </button>
         </div>
       </div>
     </>
