@@ -83,7 +83,8 @@
   color: var(--primary-color);
 }
 .dateForms input,
-.dateForms select {
+.dateForms select,
+.dateForms :global(.form-select) {
   /* width: 160px; */
   height: 32px;
   outline: 1.5px solid var(--primary-color);
@@ -94,8 +95,15 @@
   font-size: 15px;
 }
 
+.dateForms select,
+.dateForms :global(.form-select) {
+  padding-right: 35px;
+  background-position: right 10px center;
+}
+
 .dateForms input:focus,
-.dateForms select:focus {
+.dateForms select:focus,
+.dateForms :global(.form-select):focus {
   outline: 1.5px solid var(--primary-color);
   border: none;
   box-shadow: 2px 2px 4px #333;

@@ -63,48 +63,11 @@ export default function StoreReports() {
   const fetchStoresData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch all stores
-      const storesRes = await storeService.getStores({ limit: 1000 });
-      const storesList = storesRes.data || storesRes.stores || [];
+      const res = await axiosAPI.get('/stores/reports/store-list-summary');
+      const storesList = res.data.data || res.data || [];
 
-
-
-      // 2. Fetch Aggregated Sales Data (if available)
-      let salesSummaryMap = {};
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const summaryRes = await storeService.getAllStoresSalesReportsSummary({ 
-            startDate: today, 
-            endDate: today 
-        });
-        if (summaryRes.success && summaryRes.data) {
-            const summaryData = Array.isArray(summaryRes.data) ? summaryRes.data : [];
-            summaryData.forEach(item => {
-                salesSummaryMap[item.storeId] = item;
-            });
-        }
-      } catch (err) {
-        console.warn("Could not fetch sales summary, using defaults", err);
-      }
-
-      // Merge Data
-      const mergedStores = storesList.map(store => {
-        const salesData = salesSummaryMap[store.id] || {};
-        return {
-            ...store,
-            todaySalesValue: salesData.totalSales || 0,
-            todaySalesQty: salesData.totalQuantity || 0,
-            todayBags: salesData.totalBags || 0,
-            
-            monthlySalesValue: 0, 
-            monthlySalesQty: 0,
-            monthlyBags: 0,
-            availableCash: 0 
-        };
-      });
-
-      setStores(mergedStores);
-      setFilteredStores(mergedStores);
+      setStores(storesList);
+      setFilteredStores(storesList);
 
     } catch (err) {
       console.error("Failed to fetch store reports data", err);
@@ -145,9 +108,9 @@ export default function StoreReports() {
         // Build logic to switch context if needed, then navigate
         // Storing selected store in localStorage is a common pattern here to "switch" context
         localStorage.setItem("selectedStore", JSON.stringify(selectedStoreForNav));
-        localStorage.setItem("currentStoreId", selectedStoreForNav.id);
+        localStorage.setItem("currentStoreId", selectedStoreForNav.storeId);
         
-        navigate(`/store/dashboard/${selectedStoreForNav.id}`); // Or just /store/dashboard if context handles it
+        navigate(`/store/dashboard/${selectedStoreForNav.storeId}`); // Or just /store/dashboard if context handles it
     }
     setShowNavModal(false);
   };
@@ -356,8 +319,8 @@ export default function StoreReports() {
                 </button>
             </div>
 
-            {/* Summary Report Table (Rows) */}
-            {comparisonReportData && comparisonReportData.rows && comparisonReportData.rows.length > 0 && (
+            {/* Summary Report Table (Rows) - Only for Summary/Leaderboard */}
+            {reportType !== 'trend' && comparisonReportData && comparisonReportData.rows && comparisonReportData.rows.length > 0 && (
                 <div className="mt-4">
                     <div className="mb-3">
                          <button
@@ -419,8 +382,63 @@ export default function StoreReports() {
                 </div>
             )}
 
-            {/* Date Wise Report Table (Trend/Leaderboard) */}
-            {comparisonReportData && comparisonReportData.dateWise && comparisonReportData.dateWise.length > 0 && (
+            {/* Trend Report Table - Only for Trend */}
+            {reportType === 'trend' && comparisonReportData && comparisonReportData.rows && comparisonReportData.rows.length > 0 && (
+                <div className="mt-4">
+                    <div className="mb-3">
+                         <button
+                           className={commonStyles.xls}
+                           onClick={() => exportToExcel(selectedNames, comparisonReportData)}
+                         >
+                           <p>Export to </p>
+                           <img src={xls} alt="Excel" />
+                         </button>
+                         <button
+                           className={commonStyles.xls}
+                           onClick={() => exportToPDF(selectedNames, comparisonReportData)}
+                         >
+                           <p>Export to </p>
+                           <img src={pdf} alt="PDF" />
+                         </button>
+                    </div>
+
+                    <div className="table-responsive">
+                        <table className="table table-bordered borderedtable bg-white text-center align-middle">
+                            <thead className="table-light">
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>Date</th>
+                                    <th>Store</th>
+                                    <th>Sales</th>
+                                    <th>Prev Month</th>
+                                    <th>Change Accumulated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {comparisonReportData.rows.map((row, index) => {
+                                    // Map storeId to Name using availableStoresForComparison
+                                    const storeObj = availableStoresForComparison.find(s => s.id === row.storeId);
+                                    const storeName = storeObj ? storeObj.name : `Store ${row.storeId}`;
+                                    
+                                    return (
+                                        <tr key={index}>
+                                            <td>{index + 1}</td>
+                                            <td>{row.date || row.isoDate}</td>
+                                            <td>{storeName}</td>
+                                            <td>{row.totalSales}</td>
+                                            <td>{row.previousMonthSameDateSales}</td>
+                                            <td>{row.increaseOrDecrease}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Date Wise Report Table (Leaderboard only now) */}
+            {reportType !== 'trend' && comparisonReportData && comparisonReportData.dateWise && comparisonReportData.dateWise.length > 0 && (
                 <div className="mt-4">
                     <div className="mb-3">
                          <button
@@ -500,8 +518,8 @@ export default function StoreReports() {
                     <th className="ps-4">S.No</th>
                     <th>Store Name</th>
                     <th className="text-center">Type</th>
-                    <th colSpan="3" className="text-center border-start border-end">Today Sales</th>
-                    <th colSpan="3" className="text-center border-end">Monthly Sales</th>
+                    <th colSpan="2" className="text-center border-start border-end">Today Sales</th>
+                    <th colSpan="2" className="text-center border-end">Monthly Sales</th>
                     <th className="text-end">Available Cash</th>
                     <th className="text-center">Actions</th>
                 </tr>
@@ -511,12 +529,10 @@ export default function StoreReports() {
                     <th></th>
                     {/* Today Sub-headers */}
                     <th className="text-center border-start">Value (₹)</th>
-                    <th className="text-center">Qty</th>
-                    <th className="text-center border-end">Bags</th>
+                    <th className="text-center border-end">Qty</th>
                      {/* Monthly Sub-headers */}
                     <th className="text-center">Value (₹)</th>
-                    <th className="text-center">Qty</th>
-                    <th className="text-center border-end">Bags</th>
+                    <th className="text-center border-end">Qty</th>
                     
                     <th></th>
                     <th></th>
@@ -529,7 +545,7 @@ export default function StoreReports() {
                     <tr><td colSpan="11" className="text-center p-5 text-muted">No stores found.</td></tr>
                 ) : (
                     filteredStores.map((store, index) => (
-                        <tr key={store.id}>
+                        <tr key={store.storeId}>
                             <td className="ps-4">{index + 1}</td>
                             <td>
                                 <span 
@@ -537,7 +553,7 @@ export default function StoreReports() {
                                     style={{ cursor: "pointer" }}
                                     onClick={() => handleStoreClick(store)}
                                 >
-                                    {store.name}
+                                    {store.storeName}
                                 </span>
                             </td>
                             <td className="text-center">
@@ -546,15 +562,13 @@ export default function StoreReports() {
                                 </span>
                             </td>
                             
-                            <td className="text-center border-start fw-bold">₹{store.todaySalesValue.toLocaleString()}</td>
-                            <td className="text-center">{store.todaySalesQty}</td>
-                            <td className="text-center border-end">{store.todayBags}</td>
+                            <td className="text-center border-start fw-bold">₹{store.todaySales?.value?.toLocaleString() || 0}</td>
+                            <td className="text-center border-end">{store.todaySales?.qty || 0}</td>
                             
-                            <td className="text-center">₹{store.monthlySalesValue.toLocaleString()}</td>
-                            <td className="text-center">{store.monthlySalesQty}</td>
-                            <td className="text-center border-end">{store.monthlyBags}</td>
+                            <td className="text-center">₹{store.monthlySales?.value?.toLocaleString() || 0}</td>
+                            <td className="text-center border-end">{store.monthlySales?.qty || 0}</td>
 
-                            <td className="text-end fw-bold text-success">₹{store.availableCash.toLocaleString()}</td>
+                            <td className="text-end fw-bold text-success">₹{(store.availableCash || 0).toLocaleString()}</td>
                             <td className="text-center">
                                 <button 
                                     className="btn btn-sm btn-link text-decoration-none"

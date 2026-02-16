@@ -19,6 +19,7 @@ function StockSummary({navigate}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAltValues, setShowAltValues] = useState(false);
   const closeModal = () => setIsModalOpen(false);
 
   // ✅ fetch stores for filter
@@ -179,12 +180,16 @@ function StockSummary({navigate}) {
           <th>Stock In</th>
           <th>Stock Out</th>
           <th>Closing</th>
-          <th>Opening Alt</th>
-          <th>Inward Alt</th>
-          <th>Outward Alt</th>
-          <th>Stock In Alt</th>
-          <th>Stock Out Alt</th>
-          <th>Closing Alt</th>
+          {showAltValues && (
+            <>
+              <th>Opening Alt</th>
+              <th>Inward Alt</th>
+              <th>Outward Alt</th>
+              <th>Stock In Alt</th>
+              <th>Stock Out Alt</th>
+              <th>Closing Alt</th>
+            </>
+          )}
         </tr>
       </thead>
       <tbody>
@@ -197,12 +202,16 @@ function StockSummary({navigate}) {
             <td>{item.stockIn?.toFixed(2)}</td>
             <td>{item.stockOut?.toFixed(2)}</td>
             <td>{item.closingStock?.toFixed(2)}</td>
-            <td>{item.openingStockPrice?.toFixed(2)}</td>
-            <td>{item.inwardStockPrice?.toFixed(2)}</td>
-            <td>{item.outwardStockPrice?.toFixed(2)}</td>
-            <td>{item.stockInPrice?.toFixed(2)}</td>
-            <td>{item.stockOutPrice?.toFixed(2)}</td>
-            <td>{item.closingStockPrice?.toFixed(2)}</td>
+            {showAltValues && (
+              <>
+                <td>{item.openingStockPrice?.toFixed(2)}</td>
+                <td>{item.inwardStockPrice?.toFixed(2)}</td>
+                <td>{item.outwardStockPrice?.toFixed(2)}</td>
+                <td>{item.stockInPrice?.toFixed(2)}</td>
+                <td>{item.stockOutPrice?.toFixed(2)}</td>
+                <td>{item.closingStockPrice?.toFixed(2)}</td>
+              </>
+            )}
           </tr>
         ))}
       </tbody>
@@ -253,32 +262,37 @@ function StockSummary({navigate}) {
                     {selectedStoreIds.length === 0 ? "All Stores" : `${selectedStoreIds.length} Selected`}
                  </button>
                  {isStoreDropdownOpen && (
-                     <div className="card shadow position-absolute w-100 p-2" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
-                        <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
-                           <div className="form-check mb-0">
-                                <input 
-                                    className="form-check-input" 
-                                    type="checkbox" 
-                                    id="selectAllStores"
-                                    checked={warehouses.length > 0 && selectedStoreIds.length === warehouses.length}
-                                    onChange={handleSelectAll}
-                                />
-                                <label className="form-check-label fw-bold" htmlFor="selectAllStores">Select All</label>
+                     <div className="card shadow position-absolute w-100 p-0" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
+                        <div className="d-flex justify-content-between align-items-center border-bottom p-2 bg-light sticky-top">
+                           <div 
+                                className="cursor-pointer fw-bold text-primary"
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Prevent dropdown close if needed, though mostly harmless here
+                                    if (warehouses.length > 0 && selectedStoreIds.length === warehouses.length) {
+                                        setSelectedStoreIds([]);
+                                    } else {
+                                        setSelectedStoreIds(warehouses.map(w => w.id));
+                                    }
+                                }}
+                           >
+                                {warehouses.length > 0 && selectedStoreIds.length === warehouses.length ? "Deselect All" : "Select All"}
                            </div>
                            <button className="btn btn-sm btn-light text-primary" onClick={() => setIsStoreDropdownOpen(false)}>Done</button>
                         </div>
-                        {warehouses.map(w => (
-                            <div key={w.id} className="form-check">
-                                <input 
-                                    className="form-check-input" 
-                                    type="checkbox"
-                                    id={`store-${w.id}`}
-                                    checked={selectedStoreIds.includes(w.id)}
-                                    onChange={() => toggleStoreSelection(w.id)}
-                                />
-                                <label className="form-check-label" htmlFor={`store-${w.id}`}>{w.name}</label>
-                            </div>
-                        ))}
+                        <ul className="list-group list-group-flush">
+                        {warehouses.map(w => {
+                            const isSelected = selectedStoreIds.includes(w.id);
+                            return (
+                            <li 
+                                key={w.id} 
+                                className={`list-group-item cursor-pointer ${isSelected ? 'bg-primary text-white' : ''}`}
+                                onClick={() => toggleStoreSelection(w.id)}
+                            >
+                                {w.name}
+                            </li>
+                            );
+                        })}
+                        </ul>
                      </div>
                  )}
             </div>
@@ -296,11 +310,51 @@ function StockSummary({navigate}) {
            <button className="cancelbtn">Cancel</button>
           </div>
         </div>
+        
+        {/* Selected Stores Tags */}
+        {selectedStoreIds.length > 0 && (
+            <div className="mb-3">
+                <div className="d-flex flex-wrap gap-2">
+                    {selectedStoreIds.map(id => {
+                        const store = warehouses.find(w => w.id === id);
+                        if (!store) return null;
+                        return (
+                            <span key={id} className="badge bg-secondary d-flex align-items-center p-2">
+                                {store.name}
+                                <span 
+                                    className="ms-2 cursor-pointer text-white" 
+                                    style={{ fontSize: '0.8rem', fontWeight: 'bold' }}
+                                    onClick={() => toggleStoreSelection(id)}
+                                >
+                                    &times;
+                                </span>
+                            </span>
+                        );
+                    })}
+                    {selectedStoreIds.length > 0 && (
+                        <span 
+                            className="badge bg-danger d-flex align-items-center p-2 cursor-pointer"
+                            onClick={() => setSelectedStoreIds([])}
+                        >
+                            Clear All
+                        </span>
+                    )}
+                </div>
+            </div>
+        )}
 
         {/* Stock Display */}
         {Array.isArray(stockData) && stockData.length > 0 ? (
           <div className="mb-3">
-            <h5 className="mb-3">Stock Summary Data</h5>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0">Stock Summary Data</h5>
+                <button 
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={() => setShowAltValues(!showAltValues)}
+                >
+                    {showAltValues ? "Hide Values" : "Show Values"}
+                </button>
+            </div>
             {renderArrayData(stockData)}
           </div>
         ) : stockData && typeof stockData === 'object' && Object.keys(stockData?.hierarchy || {}).length > 0 ? (

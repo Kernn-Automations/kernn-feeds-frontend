@@ -15,7 +15,9 @@ function CurrentStock({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [currentStock, setCurrentStock] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-  const [selectedWarehouse, setSelectedWarehouse] = useState("all");
+  const [selectedStoreIds, setSelectedStoreIds] = useState([]);
+  const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
+  
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [filteredStock, setFilteredStock] = useState([]);
@@ -26,8 +28,7 @@ function CurrentStock({ navigate }) {
   const [showProductNameSearch, setShowProductNameSearch] = useState(false);
   const [productCodeSearchTerm, setProductCodeSearchTerm] = useState("");
   const [showProductCodeSearch, setShowProductCodeSearch] = useState(false);
-  const [warehouseSearchTerm, setWarehouseSearchTerm] = useState("");
-  const [showWarehouseSearch, setShowWarehouseSearch] = useState(false);
+
 
   // Add debugging logs
   useEffect(() => {
@@ -46,6 +47,63 @@ function CurrentStock({ navigate }) {
     console.log('CurrentStock - User data loaded:', userData);
     
     // Initial fetch is handled by the useEffect dependent on selectedWarehouse
+  }, []);
+
+  // Fetch available stores based on division
+  useEffect(() => {
+    async function fetchStores() {
+      try {
+        console.log("CurrentStock - Fetching available stores...");
+        const res = await axiosAPI.get("/auth/available-stores");
+        const data = res.data;
+        
+        let stores = [];
+        if (data.success && Array.isArray(data.data)) {
+            stores = data.data;
+        } else if (Array.isArray(data.stores)) {
+            stores = data.stores;
+        } else if (Array.isArray(data)) {
+            stores = data;
+        }
+
+        // Filter by Division
+        const currentDivisionId = localStorage.getItem('currentDivisionId');
+        if (currentDivisionId && currentDivisionId !== '1' && currentDivisionId !== 'all') {
+             stores = stores.filter(s => s.division?.id?.toString() === currentDivisionId.toString());
+        }
+
+        // Filter by Own Stores (matching StockSummary logic)
+        stores = stores.filter(s => s.storeType?.toLowerCase() === 'own');
+
+        setWarehouses(stores);
+        
+        // If only one store is available, auto-select it
+        if (stores.length === 1 && selectedStoreIds.length === 0) {
+             setSelectedStoreIds([stores[0].id]);
+        }
+      } catch (error) {
+        console.error("Failed to load store list", error);
+        // Fallback logic
+         try {
+            const currentDivisionId = localStorage.getItem('currentDivisionId');
+            let endpoint = "/stores?limit=1000"; 
+            if (currentDivisionId && currentDivisionId !== '1') {
+              endpoint += `&divisionId=${currentDivisionId}`;
+            } else if (currentDivisionId === '1') {
+              endpoint += `&showAllDivisions=true`;
+            }
+            
+            const res = await axiosAPI.get(endpoint);
+            const stores = res.data.stores || res.data.data || (Array.isArray(res.data) ? res.data : []);
+            setWarehouses(stores);
+          } catch (fallbackError) {
+             console.error("Fallback failed", fallbackError);
+             setError("Failed to load store list");
+          }
+      }
+    }
+    
+    fetchStores();
   }, []);
 
   useEffect(() => {
@@ -91,16 +149,6 @@ function CurrentStock({ navigate }) {
   useEffect(() => {
     let filtered = currentStock;
     
-    // Filter by warehouse
-    if (selectedWarehouse !== "all") {
-      // Since API call fetches ALL stock (/stores/admin/inventory), 
-      // we filter by warehouse/store ID on the client side.
-      filtered = filtered.filter(item => 
-        String(item.storeId) === String(selectedWarehouse) ||
-        String(item.warehouseId) === String(selectedWarehouse)
-      );
-    }
-    
     // Filter by Product Name search
     if (productNameSearchTerm) {
       filtered = filtered.filter(item => 
@@ -115,23 +163,16 @@ function CurrentStock({ navigate }) {
       );
     }
     
-    // Filter by Warehouse search
-    if (warehouseSearchTerm) {
-      filtered = filtered.filter(item => 
-        item.warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase())
-      );
-    }
+
     
     setFilteredStock(filtered);
     console.log('CurrentStock - Stock filtered:', {
       originalCount: currentStock.length,
       filteredCount: filtered.length,
-      selectedWarehouse,
       productNameSearchTerm,
-      productCodeSearchTerm,
-      warehouseSearchTerm
+      productCodeSearchTerm
     });
-  }, [currentStock, selectedWarehouse, warehouses, productNameSearchTerm, productCodeSearchTerm, warehouseSearchTerm]);
+  }, [currentStock, productNameSearchTerm, productCodeSearchTerm]);
 
   // Add ESC key functionality to exit search mode
   useEffect(() => {
@@ -145,21 +186,17 @@ function CurrentStock({ navigate }) {
           setShowProductCodeSearch(false);
           setProductCodeSearchTerm("");
         }
-        if (showWarehouseSearch) {
-          setShowWarehouseSearch(false);
-          setWarehouseSearchTerm("");
-        }
       }
     };
 
-    if (showProductNameSearch || showProductCodeSearch || showWarehouseSearch) {
+    if (showProductNameSearch || showProductCodeSearch) {
       document.addEventListener('keydown', handleEscKey);
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscKey);
     };
-  }, [showProductNameSearch, showProductCodeSearch, showWarehouseSearch]);
+  }, [showProductNameSearch, showProductCodeSearch]);
 
   // Add click outside functionality to exit search mode
   useEffect(() => {
@@ -167,7 +204,6 @@ function CurrentStock({ navigate }) {
       // Check if click is outside any of the search headers
       const productNameHeader = document.querySelector('[data-productname-header]');
       const productCodeHeader = document.querySelector('[data-productcode-header]');
-      const warehouseHeader = document.querySelector('[data-warehouse-header]');
       
       if (showProductNameSearch && productNameHeader && !productNameHeader.contains(event.target)) {
         setShowProductNameSearch(false);
@@ -178,21 +214,16 @@ function CurrentStock({ navigate }) {
         setShowProductCodeSearch(false);
         setProductCodeSearchTerm("");
       }
-      
-      if (showWarehouseSearch && warehouseHeader && !warehouseHeader.contains(event.target)) {
-        setShowWarehouseSearch(false);
-        setWarehouseSearchTerm("");
-      }
     };
 
-    if (showProductNameSearch || showProductCodeSearch || showWarehouseSearch) {
+    if (showProductNameSearch || showProductCodeSearch) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showProductNameSearch, showProductCodeSearch, showWarehouseSearch]);
+  }, [showProductNameSearch, showProductCodeSearch]);
 
   /* 
    * Fetch Current Stock
@@ -204,7 +235,12 @@ function CurrentStock({ navigate }) {
       setLoading(true);
       setError(null);
       
-      const query = `/stores/admin/inventory`;
+      const queryBase = `/stores/admin/inventory`;
+      let query = queryBase;
+
+      if (selectedStoreIds.length > 0) {
+        query += `?storeIds=${selectedStoreIds.join(",")}`;
+      }
       
       console.log('CurrentStock - Fetching stock with query:', query);
 
@@ -222,8 +258,8 @@ function CurrentStock({ navigate }) {
             productCode: item.productCode || item.product?.SKU || "N/A",
             warehouseName: item.warehouseName || item.storeName || "N/A", 
             currentStock: parseFloat(item.stock || item.currentStock || item.quantity) || 0,
-            unit: item.unit || "units",
-            unitPrice: parseFloat(item.price || item.unitPrice) || 0,
+            unit: item.product?.unit || item.unit || "units",
+            unitPrice: parseFloat(item.product?.basePrice || item.basePrice || item.price || item.unitPrice) || 0,
             stockValue: parseFloat(item.stockValue || (item.stock * item.price)) || 0,
             isLowStock: item.isLowStock || false,
             stockStatus: item.stockStatus || "normal",
@@ -234,25 +270,6 @@ function CurrentStock({ navigate }) {
           setCurrentStock(transformedStock);
           setFilteredStock(transformedStock);
           
-          // Extract unique warehouses from the stock data if we fetched 'all'
-          if (selectedWarehouse === "all") {
-             const uniqueStores = [];
-             const map = new Map();
-             for (const item of transformedStock) {
-                 if (item.storeId && item.warehouseName && !map.has(item.storeId)) {
-                     map.set(item.storeId, true);
-                     uniqueStores.push({
-                         id: item.storeId,
-                         name: item.warehouseName
-                     });
-                 }
-             }
-             // Only update if we found stores (to avoid clearing list on empty stock)
-             if (uniqueStores.length > 0) {
-                 console.log('CurrentStock - Extracted warehouses:', uniqueStores);
-                 setWarehouses(uniqueStores);
-             }
-          }
       } else {
           setCurrentStock([]);
           setFilteredStock([]);
@@ -266,8 +283,16 @@ function CurrentStock({ navigate }) {
     }
   };
 
-  const handleWarehouseChange = (e) => {
-    setSelectedWarehouse(e.target.value);
+
+
+  const toggleStoreSelection = (id) => {
+    setSelectedStoreIds(prev =>
+        prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+      // Logic handled directly in onClick for "Select All" / "Deselect All" text
   };
 
   const closeErrorModal = () => {
@@ -284,7 +309,6 @@ function CurrentStock({ navigate }) {
       "S.No",
       "Product Name",
       "Product Code",
-      "Warehouse",
       "Current Stock",
       "Unit",
       "Unit Price",
@@ -296,7 +320,6 @@ function CurrentStock({ navigate }) {
       index + 1,
       item.productName,
       item.productCode,
-      item.warehouseName,
       item.currentStock,
       item.unit,
       `₹${item.unitPrice}`,
@@ -451,26 +474,63 @@ function CurrentStock({ navigate }) {
           )}
 
           {/* Search and Filter Section - Only show when there's data */}
-          {currentStock.length > 0 && (
+          {(currentStock.length > 0 || warehouses.length > 0) && (
             <div className="row m-0 p-3">
-              <div className="col-md-3">
-                <label htmlFor="warehouseSelect" className="form-label">
-                  Warehouse
-                </label>
-                <select
-                  id="warehouseSelect"
-                  className="form-select"
-                  value={selectedWarehouse}
-                  onChange={handleWarehouseChange}
-                >
-                  <option value="all">-- All Warehouses --</option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name || warehouse.warehouseName}
-                    </option>
-                  ))}
-                </select>
+              <div className="col-md-3 position-relative">
+                <label className="form-label">Stores</label>
+                <div className="dropdown">
+                     <button 
+                        className="form-select text-start" 
+                        type="button"
+                        onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                     >
+                        {selectedStoreIds.length === 0 ? "All Stores" : `${selectedStoreIds.length} Selected`}
+                     </button>
+                     {isStoreDropdownOpen && (
+                         <div className="card shadow position-absolute w-100 p-0" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
+                            <div className="d-flex justify-content-between align-items-center border-bottom p-2 bg-light sticky-top">
+                               <div 
+                                    className="cursor-pointer fw-bold text-primary"
+                                    onClick={(e) => {
+                                        e.stopPropagation(); 
+                                        if (warehouses.length > 0 && selectedStoreIds.length === warehouses.length) {
+                                            setSelectedStoreIds([]);
+                                        } else {
+                                            setSelectedStoreIds(warehouses.map(w => w.id));
+                                        }
+                                    }}
+                               >
+                                    {warehouses.length > 0 && selectedStoreIds.length === warehouses.length ? "Deselect All" : "Select All"}
+                               </div>
+                               <button className="btn btn-sm btn-light text-primary" onClick={() => setIsStoreDropdownOpen(false)}>Done</button>
+                            </div>
+                            <ul className="list-group list-group-flush">
+                            {warehouses.map(w => {
+                                const isSelected = selectedStoreIds.includes(w.id);
+                                return (
+                                <li 
+                                    key={w.id} 
+                                    className={`list-group-item cursor-pointer ${isSelected ? 'bg-primary text-white' : ''}`}
+                                    onClick={() => toggleStoreSelection(w.id)}
+                                >
+                                    {w.name}
+                                </li>
+                                );
+                            })}
+                            </ul>
+                         </div>
+                     )}
+                </div>
+                {isStoreDropdownOpen && (
+                     <div 
+                        className="position-fixed top-0 start-0 w-100 h-100" 
+                        style={{ zIndex: 999 }} 
+                        onClick={() => setIsStoreDropdownOpen(false)}
+                     ></div>
+                )}
               </div>
+
               <div className="col-md-3 d-flex align-items-end">
                 <button 
                   className="submitbtn me-2"
@@ -486,6 +546,40 @@ function CurrentStock({ navigate }) {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Selected Stores Tags */}
+          {selectedStoreIds.length > 0 && (
+              <div className="row m-0 px-3 pb-3">
+                  <div className="col">
+                      <div className="d-flex flex-wrap gap-2">
+                          {selectedStoreIds.map(id => {
+                              const store = warehouses.find(w => w.id === id);
+                              if (!store) return null;
+                              return (
+                                  <span key={id} className="badge bg-secondary d-flex align-items-center p-2">
+                                      {store.name}
+                                      <span 
+                                          className="ms-2 cursor-pointer text-white" 
+                                          style={{ fontSize: '0.8rem', fontWeight: 'bold' }}
+                                          onClick={() => toggleStoreSelection(id)}
+                                      >
+                                          &times;
+                                      </span>
+                                  </span>
+                              );
+                          })}
+                          {selectedStoreIds.length > 0 && (
+                              <span 
+                                  className="badge bg-danger d-flex align-items-center p-2 cursor-pointer"
+                                  onClick={() => setSelectedStoreIds([])}
+                              >
+                                  Clear All
+                              </span>
+                          )}
+                      </div>
+                  </div>
+              </div>
           )}
 
           
@@ -637,72 +731,16 @@ function CurrentStock({ navigate }) {
                           </>
                         )}
                       </th>
-                      <th 
-                        onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
-                        style={{ cursor: 'pointer', position: 'relative' }}
-                        data-warehouse-header
-                      >
-                        {showWarehouseSearch ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <input
-                              type="text"
-                              placeholder="Search by warehouse..."
-                              value={warehouseSearchTerm}
-                              onChange={(e) => setWarehouseSearchTerm(e.target.value)}
-                              style={{
-                                flex: 1,
-                                padding: '2px 6px',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                minWidth: '120px',
-                                height: '28px',
-                                color: '#000',
-                                backgroundColor: '#fff'
-                              }}
-                              autoFocus
-                            />
-                            {warehouseSearchTerm && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setWarehouseSearchTerm("");
-                                }}
-                                style={{
-                                  padding: '4px 8px',
-                                  border: '1px solid #dc3545',
-                                  borderRadius: '4px',
-                                  background: '#dc3545',
-                                  color: '#fff',
-                                  cursor: 'pointer',
-                                  fontSize: '12px',
-                                  fontWeight: 'bold',
-                                  minWidth: '24px',
-                                  height: '28px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center'
-                                }}
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <>
-                            Warehouse
-                          </>
-                        )}
-                      </th>
+
                       <th>Current Stock</th>
                       <th>Unit</th>
                       <th>Unit Price</th>
                       <th>Total Value</th>
                       <th>Last Updated</th>
                     </tr>
-                    {(showProductNameSearch && productNameSearchTerm) || (showProductCodeSearch && productCodeSearchTerm) || (showWarehouseSearch && warehouseSearchTerm) ? (
+                    {(showProductNameSearch && productNameSearchTerm) || (showProductCodeSearch && productCodeSearchTerm) ? (
                       <tr>
-                        <td colSpan={9} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
+                        <td colSpan={8} style={{ padding: '8px', fontSize: '12px', color: '#666', backgroundColor: '#f8f9fa' }}>
                           {filteredStock ? `${filteredStock.length} item(s) found` : 'Searching...'}
                         </td>
                       </tr>
@@ -711,7 +749,7 @@ function CurrentStock({ navigate }) {
                   <tbody>
                     {filteredStock.length === 0 ? (
                       <tr>
-                        <td colSpan={9}>NO DATA FOUND</td>
+                        <td colSpan={8}>NO DATA FOUND</td>
                       </tr>
                     ) : (
                       filteredStock.slice(0, limit).map((item, index) => (
@@ -719,7 +757,7 @@ function CurrentStock({ navigate }) {
                           <td>{index + 1}</td>
                           <td>{item.productName}</td>
                           <td>{item.productCode}</td>
-                          <td>{item.warehouseName}</td>
+
                           <td>
                             <span className={`badge ${
                               item.isLowStock 
