@@ -3,7 +3,7 @@ import styles from "./NavContainer.module.css";
 import { isAdmin, isDivisionHead, isZBM, isRBM, isAreaBusinessManager } from "../../../utils/roleUtils";
 
 
-function NavBg({ hover, setTab, tab }) {
+function NavBg({ hover, setTab, tab, closeMobileMenu }) {
   const location = useLocation();
   // console.log(location.pathname)
 
@@ -12,12 +12,18 @@ function NavBg({ hover, setTab, tab }) {
   const roles = JSON.stringify(user.roles || []);
 
   // console.log(roles);
+  
+  const handleNavClick = (t) => {
+    setTab(t);
+    if (closeMobileMenu) closeMobileMenu();
+  };
+
   return (
     <>
       <div className={styles.navicons}>
         <div
           className={`${location.pathname === "/" ? styles.active : ""} `}
-          onClick={() => setTab("home")}
+          onClick={() => handleNavClick("home")}
         >
           <Link to="/">
             <svg
@@ -43,7 +49,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("inventory") ? styles.active : ""
           } `}
-          onClick={() => setTab("inventory")}
+          onClick={() => handleNavClick("inventory")}
         >
           <Link to="/inventory">
             <svg
@@ -69,7 +75,7 @@ function NavBg({ hover, setTab, tab }) {
             className={`${
               location.pathname.includes("purchases") ? styles.active : ""
             } `}
-            onClick={() => setTab("purchases")}
+            onClick={() => handleNavClick("purchases")}
           >
             <Link to="/purchases">
               <svg
@@ -103,7 +109,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("sales") ? styles.active : ""
           } `}
-          onClick={() => setTab("sales")}
+          onClick={() => handleNavClick("sales")}
         >
           <Link to="/sales">
             <svg
@@ -129,7 +135,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("invoices") ? styles.active : ""
           } `}
-          onClick={() => setTab("invoices")}
+          onClick={() => handleNavClick("invoices")}
         >
           <Link to="/invoices">
             <svg
@@ -176,7 +182,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("customers") ? styles.active : ""
           } `}
-          onClick={() => setTab("customers")}
+          onClick={() => handleNavClick("customers")}
         >
           <Link to="/customers">
             <svg
@@ -213,7 +219,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("farmers") ? styles.active : ""
           } `}
-          onClick={() => setTab("farmers")}
+          onClick={() => handleNavClick("farmers")}
         >
           <Link to="/farmers">
             <svg
@@ -250,7 +256,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("payments") ? styles.active : ""
           } `}
-          onClick={() => setTab("payments")}
+          onClick={() => handleNavClick("payments")}
         >
           <Link to="/payments">
             <svg
@@ -277,7 +283,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("stock-transfer") ? styles.active : ""
           } `}
-          onClick={() => setTab("stock-transfer")}
+          onClick={() => handleNavClick("stock-transfer")}
         >
           <Link to="/stock-transfer">
             <svg
@@ -300,7 +306,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("emp") ? styles.active : ""
           } `}
-          onClick={() => setTab("emp")}
+          onClick={() => handleNavClick("emp")}
         >
           <Link to="/employees">
             <svg
@@ -327,7 +333,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("discounts") ? styles.active : ""
           } `}
-          onClick={() => setTab("discounts")}
+          onClick={() => handleNavClick("discounts")}
         >
           <Link to="/discounts">
             <svg
@@ -347,7 +353,7 @@ function NavBg({ hover, setTab, tab }) {
         </div>
         <div
           className={`${location.pathname.includes("locations") ? styles.active : ""}`}
-          onClick={() => setTab("locations")}
+          onClick={() => handleNavClick("locations")}
         >
           <Link to="/locations">
             <svg
@@ -379,7 +385,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("warehouses") ? styles.active : ""
           } `}
-          onClick={() => setTab("warehouses")}
+          onClick={() => handleNavClick("warehouses")}
         >
           <Link to="/warehouses">
             <svg
@@ -405,7 +411,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("product") ? styles.active : ""
           } `}
-          onClick={() => setTab("product")}
+          onClick={() => handleNavClick("product")}
         >
           <Link to="/products">
             <svg
@@ -456,7 +462,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("samples") ? styles.active : ""
           } `}
-          onClick={() => setTab("samples")}
+          onClick={() => handleNavClick("samples")}
         >
           <Link to="/samples">
             <svg
@@ -518,7 +524,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("targets") ? styles.active : ""
           } `}
-          onClick={() => setTab("targets")}
+          onClick={() => handleNavClick("targets")}
         >
           <Link to="/targets">
             <svg
@@ -580,7 +586,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("reports") ? styles.active : ""
           } `}
-          onClick={() => setTab("reports")}
+          onClick={() => handleNavClick("reports")}
         >
           <Link to="/reports">
             <svg
@@ -606,7 +612,7 @@ function NavBg({ hover, setTab, tab }) {
           className={`${
             location.pathname.includes("returns") ? styles.active : ""
           } `}
-          onClick={() => setTab("returns")}
+          onClick={() => handleNavClick("returns")}
         >
           <Link to="/returns">
             <svg
@@ -688,7 +694,7 @@ function NavBg({ hover, setTab, tab }) {
             className={`${
               location.pathname.includes("settings") ? styles.active : ""
             } `}
-            onClick={() => setTab("settings")}
+            onClick={() => handleNavClick("settings")}
           >
             <Link to="/settings">
               <svg
@@ -721,7 +727,7 @@ function NavBg({ hover, setTab, tab }) {
             className={`${
               location.pathname.includes("divisions") ? styles.active : ""
             } `}
-            onClick={() => setTab("divisions")}
+            onClick={() => handleNavClick("divisions")}
           >
             <Link to="/divisions">
               <svg

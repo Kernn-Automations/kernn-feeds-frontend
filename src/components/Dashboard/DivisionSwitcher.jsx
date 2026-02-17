@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../Auth";
 import { useNavigate } from "react-router-dom";
 import { useDivision } from "../context/DivisionContext";
 import styles from "./DivisionSwitcher.module.css";
+import { FaExchangeAlt } from "react-icons/fa";
 
 function DivisionSwitcher() {
   const { axiosAPI } = useAuth();
@@ -18,6 +19,8 @@ function DivisionSwitcher() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
@@ -72,9 +75,34 @@ function DivisionSwitcher() {
     };
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleDivisionClick = () => {
     // Navigate to the /divs route instead of reloading the page
     navigate("/divs");
+    setIsOpen(false);
+  };
+  
+  const toggleDropdown = (e) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+    
+    // Ensure divisions are loaded when opening
+    if (!isOpen && divisions.length === 0) {
+      reloadDivisions().catch(console.error);
+    }
   };
 
   // Always show the component if user exists, even if no divisions are loaded yet
@@ -87,7 +115,7 @@ function DivisionSwitcher() {
   // console.log("DivisionSwitcher render - selectedDivision:", selectedDivision);
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={dropdownRef}>
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: '10px', fontSize: '12px' }}>
           {error}
@@ -105,17 +133,13 @@ function DivisionSwitcher() {
           </button>
         </div>
       )}
+      
+      {/* Desktop View: Full Selector */}
       <div className={styles.selector}>
         <div className={styles.divisionDisplay}>
           <span className={styles.divisionName}>
             {(() => {
               const displayName = contextLoading || loading ? "Loading..." : (selectedDivision?.name || "Select Division");
-              console.log('DivisionSwitcher - Rendering division name:', {
-                contextLoading,
-                loading,
-                selectedDivisionName: selectedDivision?.name,
-                finalDisplayName: displayName
-              });
               return displayName;
             })()}
           </span>
@@ -129,6 +153,49 @@ function DivisionSwitcher() {
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Mobile View: Icon Switcher */}
+      <div className={styles.switcherWrapper}>
+        <div 
+          className={styles.iconWrapper} 
+          onClick={toggleDropdown}
+          title="Switch Division"
+        >
+          <FaExchangeAlt className={styles.switchIcon} />
+        </div>
+        
+        {isOpen && (
+          <div className={styles.dropdownMenu}>
+            <div className={styles.dropdownHeader}>
+              <span>Select Division</span>
+            </div>
+            
+            <div className={styles.dropdownList}>
+              {loading || contextLoading ? (
+                <div className={styles.dropdownItem}>Loading...</div>
+              ) : divisions.length === 0 ? (
+                <div className={styles.dropdownItem}>No divisions found</div>
+              ) : (
+                divisions.map((div) => (
+                  <div 
+                    key={div.id} 
+                    className={`${styles.dropdownItem} ${selectedDivision?.id === div.id ? styles.activeItem : ''}`}
+                    onClick={() => {
+                      handleDivisionClick();
+                    }}
+                  >
+                    {div.name}
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className={styles.dropdownFooter} onClick={handleDivisionClick}>
+              Manage Divisions →
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

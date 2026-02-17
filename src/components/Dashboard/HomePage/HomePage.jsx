@@ -404,6 +404,44 @@ const STYLES = `
 
 }
 
+
+  /* Responsive Grids */
+  .hp-grid-main { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; }
+  .hp-grid-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .hp-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hp-grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
+  .hp-grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  
+  @media (max-width: 768px) {
+    .hp-grid-main, 
+    .hp-grid-3col, 
+    .hp-grid-1-2 { 
+      grid-template-columns: 1fr !important; 
+    }
+    
+    .hp-grid-auto {
+      grid-template-columns: 1fr !important;
+    }
+
+    .hp-header-content {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    
+    .hp-header-controls {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+    
+    .hp-header-controls .hp-input {
+      flex: 1;
+    }
+    
+    .hp-card {
+      padding: 16px !important;
+    }
+  }
 `;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -513,14 +551,15 @@ function SH({ title, sub, right, Icon, ac = "var(--c-gold)" }) {
 }
 
 // ─── Metric card ──────────────────────────────────────────────────────────────
-function MetricCard({ Icon, label, rawVal, prefix = "", sub, ac, delay = 0 }) {
+function MetricCard({ Icon, label, rawVal, prefix = "", sub, ac, delay = 0, onClick, cursor = "default" }) {
   return (
     <div
       className="hp-card hp-fi"
+      onClick={onClick}
       style={{
         padding: "20px 18px",
         animationDelay: `${delay}ms`,
-        cursor: "default",
+        cursor: cursor,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = `0 0 20px ${ac}22, 0 8px 28px rgba(0,0,0,0.35)`;
@@ -856,7 +895,7 @@ function OrderStatus({ statuses, onNav }) {
     },
   ];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <div className="hp-grid-2col">
       {items.map(({ key, label, v, Icon, c, cbg, cb }) => (
         <div
           key={key}
@@ -1140,13 +1179,7 @@ function CashFlow({ cards }) {
     },
   ];
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 10,
-      }}
-    >
+    <div className="hp-grid-3col">
       {rows.map(({ label, v, Icon, c, note, hl }) => (
         <div
           key={label}
@@ -1679,6 +1712,7 @@ export default function HomePage() {
       sub: `${selectedIds.length} selected · ${availableStores.length} accessible`,
       ac: "#d4a44c",
       delay: 0,
+      path: "/stores-abstract",
     },
     {
       Icon: FaChartLine,
@@ -1688,6 +1722,7 @@ export default function HomePage() {
       sub: `${fmt(cards.totalOrders || 0)} orders`,
       ac: "#3ec98a",
       delay: 55,
+      path: "/inventory/stock-summary",
     },
     {
       Icon: FaSun,
@@ -1697,6 +1732,7 @@ export default function HomePage() {
       sub: data?.todayContext?.from || "Today",
       ac: "#e09644",
       delay: 110,
+      path: "/inventory/current-stock",
     },
     {
       Icon: FaMoneyBillWave,
@@ -1742,6 +1778,7 @@ export default function HomePage() {
       sub: `Expenses ₹${fmt(cards.totalExpenses || 0)}`,
       ac: "#e06060",
       delay: 385,
+      path: "/returns",
     },
   ];
 
@@ -1759,11 +1796,10 @@ export default function HomePage() {
 
       {/* ── Header ── */}
       <div
-        className="hp-fi"
+        className="hp-fi hp-header-content"
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-start",
           marginBottom: 32,
           paddingBottom: 16,
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -1836,11 +1872,11 @@ export default function HomePage() {
 
         {/* Controls */}
         <div
+          className="hp-header-controls"
           style={{
             display: "flex",
             alignItems: "center",
             gap: 8,
-            flexWrap: "wrap",
           }}
         >
           <FaCalendarAlt
@@ -1950,22 +1986,19 @@ export default function HomePage() {
       {!loading && hasData && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* 8 metric cards */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: 14,
-            }}
-          >
+          <div className="hp-grid-auto">
             {metricCards.map((m) => (
-              <MetricCard key={m.label} {...m} />
+              <MetricCard 
+                key={m.label} 
+                {...m} 
+                onClick={() => m.path && navigate(m.path)}
+                cursor={m.path ? "pointer" : "default"}
+              />
             ))}
           </div>
 
           {/* Trend + Top Stores */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 14 }}
-          >
+          <div className="hp-grid-main">
             <div className="hp-card" style={{ padding: 20 }}>
               <SH
                 title="Sales Trend"
@@ -1994,14 +2027,7 @@ export default function HomePage() {
           </div>
 
           {/* Orders + Customers + Low Stock */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-
-              gap: 14,
-            }}
-          >
+          <div className="hp-grid-auto">
             <div className="hp-card" style={{ padding: 20 }}>
               <SH
                 title="Order Status"
@@ -2036,9 +2062,7 @@ export default function HomePage() {
           </div>
 
           {/* Top Products + Cash Flow */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14 }}
-          >
+          <div className="hp-grid-1-2">
             <div className="hp-card" style={{ padding: 20 }}>
               <SH
                 title="Top Products"
