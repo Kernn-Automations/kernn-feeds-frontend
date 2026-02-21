@@ -163,12 +163,45 @@ export default function Dashboard({
   const [hover, setHover] = useState(false);
   const [style, setStyle] = useState("navcont");
   const [tab, setTab] = useState("home");
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+      if (window.innerWidth > 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const onmouseover = () => {
-    setHover(true);
-    setStyle("navover");
+    if (!isMobile) {
+      setHover(true);
+      setStyle("navover");
+    }
   };
   const onmouseleave = () => {
-    setHover(false);
+    if (!isMobile) {
+      setHover(false);
+      setStyle("navcont");
+    }
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+    if (!mobileMenuOpen) {
+      setStyle("navover");
+    } else {
+      setStyle("navcont");
+    }
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
     setStyle("navcont");
   };
 
@@ -199,14 +232,33 @@ export default function Dashboard({
       )}
 
       <div className="container-fluid py-0 my-0">
+        {/* Mobile Hamburger Menu Button */}
+        {isMobile && (
+          <button
+            className={styles.mobileMenuButton}
+            onClick={toggleMobileMenu}
+            aria-label="Toggle menu"
+          >
+            ☰
+          </button>
+        )}
+
+        {/* Mobile Overlay */}
+        {isMobile && (
+          <div
+            className={`${styles.mobileOverlay} ${mobileMenuOpen ? styles.active : ''}`}
+            onClick={closeMobileMenu}
+          />
+        )}
+
         <div className="row py-0 my-0 pr-0">
           <div
-            className={`col ${styles[style]}`}
+            className={`col ${styles[style]} ${mobileMenuOpen ? styles.mobileOpen : ''}`}
             onMouseOver={onmouseover}
             onMouseLeave={onmouseleave}
           >
             <NavContainer
-              hover={hover}
+              hover={hover || mobileMenuOpen}
               onmouseover={onmouseover}
               onmouseleave={onmouseleave}
               style={style}
@@ -214,6 +266,7 @@ export default function Dashboard({
               tab={tab}
               admin={admin}
               orgadmin={orgadmin}
+              closeMobileMenu={closeMobileMenu}
             />
           </div>
 
@@ -231,7 +284,7 @@ export default function Dashboard({
               />
             </div>
 
-            <div className={`col ${styles.tabs}`}>
+            <div className={`col ${styles.tabs}`} onClick={isMobile && mobileMenuOpen ? closeMobileMenu : undefined}>
               <Routes>
                 <Route
                   index

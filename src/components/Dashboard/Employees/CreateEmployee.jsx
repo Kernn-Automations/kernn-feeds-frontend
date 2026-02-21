@@ -81,6 +81,16 @@ function CreateEmployee({ navigate }) {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
+    
+    if (name === "mobile") {
+      // Allow only numbers and restrict to 10 digits
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue.length <= 10) {
+        setForm((prev) => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+
     // Enforce uppercase for employee name
     const processedValue = name === "name" ? value.toUpperCase().replace(/\s\s+/g, ' ') : value;
     setForm((prev) => ({ ...prev, [name]: processedValue }));

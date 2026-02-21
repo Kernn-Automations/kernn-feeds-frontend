@@ -447,7 +447,7 @@
 
   .profileContainer {
     flex-shrink: 0;
-    display: none !important; /* Hide profile from header on mobile - it's in navbar */
+    /* display: none !important; Removed to show profile on mobile */
   }
 
   /* Adjust content area */
