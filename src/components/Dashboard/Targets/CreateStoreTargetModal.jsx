@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Modal, Button, Form, Tabs, Tab, Row, Col, Alert } from "react-bootstrap";
-import Select from "react-select"; // If available, otherwise standard select
-import styles from "./Targets.module.css"; // Reuse existing styles
+import styles from "./Targets.module.css";
 
 const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialData = null }) => {
   const [activeTab, setActiveTab] = useState("single");
-  const [targetType, setTargetType] = useState(""); // 'amount' | 'bags' | 'both'
+  const [singleSearch, setSingleSearch] = useState("");
+  const [bulkSearch, setBulkSearch] = useState("");
   const [formData, setFormData] = useState({
     storeId: "",
     storeIds: [],
@@ -16,15 +16,6 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Derive a targetType from initialData when editing
-  const deriveTargetType = (data) => {
-    if (!data) return "";
-    if (data.targetAmount && data.targetBags) return "both";
-    if (data.targetAmount) return "amount";
-    if (data.targetBags) return "bags";
-    return "both";
-  };
 
   // Initialize form data when modal opens or initialData changes
   useEffect(() => {
@@ -38,20 +29,20 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
           endDate: initialData.endDate ? new Date(initialData.endDate).toISOString().split('T')[0] : "",
           storeIds: []
         });
-        setTargetType(deriveTargetType(initialData));
         setActiveTab("single");
       } else {
         setFormData({
-            storeId: "",
-            storeIds: [],
-            targetAmount: "",
-            targetBags: "",
-            startDate: "",
-            endDate: ""
+          storeId: "",
+          storeIds: [],
+          targetAmount: "",
+          targetBags: "",
+          startDate: "",
+          endDate: ""
         });
-        setTargetType("");
         setActiveTab("single");
       }
+      setSingleSearch("");
+      setBulkSearch("");
       setError(null);
     }
   }, [isOpen, initialData]);
@@ -61,22 +52,18 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleStoreSelect = (e) => {
-    setFormData(prev => ({ ...prev, storeId: e.target.value }));
-  };
-  
-  // For bulk selection - simple multi-select for now
-  const handleBulkStoreChange = (selectedOptions) => {
-      // Assuming React Select or similar if we use it, otherwise native multi-select
-      // If native:
-      // const values = Array.from(e.target.selectedOptions, option => option.value);
-      // setFormData(prev => ({ ...prev, storeIds: values }));
-  };
-  
-  // Using react-select if available would be better for bulk. 
-  // Let's assume standard constrained implementation first or check if react-select is used in project.
-  // Checking package.json would be good but I'll stick to standard UI elements for safety or reusable components.
-  
+  // Filtered stores for single tab
+  const filteredSingleStores = useMemo(() =>
+    stores.filter(s =>
+      `${s.storeName} ${s.storeCode}`.toLowerCase().includes(singleSearch.toLowerCase())
+    ), [stores, singleSearch]);
+
+  // Filtered stores for bulk tab
+  const filteredBulkStores = useMemo(() =>
+    stores.filter(s =>
+      `${s.storeName} ${s.storeCode}`.toLowerCase().includes(bulkSearch.toLowerCase())
+    ), [stores, bulkSearch]);
+
   const validate = () => {
     if (activeTab === "single" && !formData.storeId && !initialData) return "Please select a store.";
     if (activeTab === "bulk" && (!formData.storeIds || formData.storeIds.length === 0)) return "Please select at least one store.";
@@ -105,25 +92,18 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
       };
 
       if (initialData) {
-        // Update
-        // StoreId and StartDate are disabled/ignored in update usually, but API says:
-        // Update Payload: targetAmount, targetBags, endDate. 
-        // StartDate rule says "At least one of...", wait.
-        // Update API example: { targetAmount, targetBags, endDate }. StartDate is NOT in example.
-        // So we only send allowed fields.
         await onSave({
-            id: initialData.id,
-            storeId: initialData.storeId,
-            ...payload
-        }, true); // isUpdate = true
+          id: initialData.id,
+          storeId: initialData.storeId,
+          ...payload
+        }, true);
       } else {
-        // Create
         if (activeTab === 'single') {
-            payload.storeId = Number(formData.storeId);
-            await onSave(payload, false, false); // isUpdate=false, isBulk=false
+          payload.storeId = Number(formData.storeId);
+          await onSave(payload, false, false);
         } else {
-            payload.storeIds = formData.storeIds.map(Number);
-            await onSave(payload, false, true); // isUpdate=false, isBulk=true
+          payload.storeIds = formData.storeIds.map(Number);
+          await onSave(payload, false, true);
         }
       }
       onClose();
@@ -135,8 +115,10 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
     }
   };
 
-  // stores options
-  const storeOptions = stores.map(s => <option key={s.id} value={s.id}>{s.storeName} ({s.storeCode})</option>);
+  // Selected store label for single tab
+  const selectedStoreName = formData.storeId
+    ? stores.find(s => String(s.id) === String(formData.storeId))
+    : null;
 
   return (
     <Modal show={isOpen} onHide={onClose} size="lg" centered>
@@ -145,131 +127,183 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
       </Modal.Header>
       <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
-        
+
         {!initialData && (
-            <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-3">
-                <Tab eventKey="single" title="Single Store">
-                </Tab>
-                <Tab eventKey="bulk" title="Bulk Assign">
-                </Tab>
-            </Tabs>
+          <Tabs activeKey={activeTab} onSelect={(k) => { setActiveTab(k); setSingleSearch(""); setBulkSearch(""); }} className="mb-3">
+            <Tab eventKey="single" title="Single Store" />
+            <Tab eventKey="bulk" title="Bulk Assign" />
+          </Tabs>
         )}
 
         <Form>
-            {/* Store Selection */}
-            {!initialData && activeTab === 'single' && (
-                <Form.Group className="mb-3">
-                    <Form.Label>Store <span className="text-danger">*</span></Form.Label>
-                    <Form.Select 
-                        name="storeId" 
-                        value={formData.storeId} 
-                        onChange={handleInputChange}
-                    >
-                        <option value="">Select Store</option>
-                        {storeOptions}
-                    </Form.Select>
-                </Form.Group>
-            )}
+          {/* ── Single Store selector with search ── */}
+          {!initialData && activeTab === 'single' && (
+            <Form.Group className="mb-3">
+              <Form.Label>Store <span className="text-danger">*</span></Form.Label>
 
-            {!initialData && activeTab === 'bulk' && (
-                <Form.Group className="mb-3">
-                    <Form.Label>Stores <span className="text-danger">*</span></Form.Label>
-                    <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ced4da', padding: '10px', borderRadius: '4px' }}>
-                        {stores.map(store => (
-                            <Form.Check 
-                                key={store.id}
-                                type="checkbox"
-                                name="bulkStore"
-                                id={`store-${store.id}`}
-                                label={`${store.storeName} (${store.storeCode})`}
-                                checked={formData.storeIds.includes(String(store.id))}
-                                onChange={(e) => {
-                                    const id = String(store.id);
-                                    setFormData(prev => {
-                                        const newIds = e.target.checked 
-                                            ? [...prev.storeIds, id]
-                                            : prev.storeIds.filter(i => i !== id);
-                                        return { ...prev, storeIds: newIds };
-                                    });
-                                }}
-                            />
-                        ))}
-                    </div>
-                </Form.Group>
-            )}
+              {/* Search input */}
+              <Form.Control
+                type="text"
+                placeholder=" Search store..."
+                value={singleSearch}
+                onChange={(e) => setSingleSearch(e.target.value)}
+                className="mb-2"
+              />
 
-            {initialData && (
-                <Form.Group className="mb-3">
-                    <Form.Label>Store</Form.Label>
-                    <Form.Control 
-                        type="text" 
-                        value={stores.find(s => String(s.id) === String(formData.storeId))?.storeName || formData.storeId} 
-                        disabled 
-                    />
-                    <Form.Text className="text-muted">Store cannot be changed while editing.</Form.Text>
-                </Form.Group>
-            )}
-
-            {/* Choose Target Type */}
-            <Form.Group className="mb-4">
-              <Form.Label className="fw-bold">Choose a Target <span className="text-danger">*</span></Form.Label>
-              <Form.Select
-                value={targetType}
-                onChange={(e) => {
-                  setTargetType(e.target.value);
-                  // Clear irrelevant fields when switching
-                  if (e.target.value === 'amount') setFormData(prev => ({ ...prev, targetBags: '' }));
-                  if (e.target.value === 'bags') setFormData(prev => ({ ...prev, targetAmount: '' }));
-                }}
-                style={{ borderColor: !targetType ? '#dc3545' : undefined }}
-              >
-                <option value="">-- Select Target Type --</option>
-                <option value="amount">Target Amount (Sales Value)</option>
-                <option value="bags">Target Bags (Quantity)</option>
-                <option value="both">Both (Amount &amp; Bags)</option>
-              </Form.Select>
-              {!targetType && <Form.Text className="text-muted">Select what you want to track for this target.</Form.Text>}
-            </Form.Group>
-
-            {/* Target Amount field — only when 'amount' or 'both' */}
-            {(targetType === 'amount' || targetType === 'both') && (
-              <Row>
-                <Col md={targetType === 'both' ? 6 : 12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Target Amount (₹) <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      type="number"
-                      name="targetAmount"
-                      value={formData.targetAmount}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 100000"
-                      min="0"
-                    />
-                  </Form.Group>
-                </Col>
-                {/* Target Bags alongside if 'both' */}
-                {targetType === 'both' && (
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Target Bags <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="targetBags"
-                        value={formData.targetBags}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 50"
-                        min="0"
-                      />
-                    </Form.Group>
-                  </Col>
+              {/* Scrollable list */}
+              <div style={{
+                maxHeight: '180px',
+                overflowY: 'auto',
+                border: '1px solid #ced4da',
+                borderRadius: '6px',
+                padding: '6px 0'
+              }}>
+                {filteredSingleStores.length === 0 && (
+                  <div className="text-muted text-center py-2" style={{ fontSize: '13px' }}>No stores found</div>
                 )}
-              </Row>
-            )}
+                {filteredSingleStores.map(store => (
+                  <div
+                    key={store.id}
+                    onClick={() => setFormData(prev => ({ ...prev, storeId: String(store.id) }))}
+                    style={{
+                      padding: '8px 14px',
+                      cursor: 'pointer',
+                      backgroundColor: String(formData.storeId) === String(store.id) ? '#0d6efd' : 'transparent',
+                      color: String(formData.storeId) === String(store.id) ? '#fff' : 'inherit',
+                      borderRadius: '4px',
+                      margin: '0 4px',
+                      fontSize: '14px',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (String(formData.storeId) !== String(store.id))
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (String(formData.storeId) !== String(store.id))
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <span className="fw-medium">{store.storeName}</span>
+                    <span className="ms-2 text-muted" style={{ fontSize: '12px' }}>({store.storeCode})</span>
+                  </div>
+                ))}
+              </div>
 
-            {/* Target Bags field — only when 'bags' (standalone) */}
-            {targetType === 'bags' && (
+              {/* Selected store badge */}
+              {selectedStoreName && (
+                <div className="mt-2 text-success" style={{ fontSize: '13px' }}>
+                  ✓ Selected: <strong>{selectedStoreName.storeName}</strong> ({selectedStoreName.storeCode})
+                </div>
+              )}
+            </Form.Group>
+          )}
+
+          {/* ── Bulk Store selector with search ── */}
+          {!initialData && activeTab === 'bulk' && (
+            <Form.Group className="mb-3">
+              <Form.Label>
+                Stores <span className="text-danger">*</span>
+                {formData.storeIds.length > 0 && (
+                  <span className="badge bg-primary ms-2">{formData.storeIds.length} selected</span>
+                )}
+              </Form.Label>
+
+              {/* Search + select-all row */}
+              <div className="d-flex gap-2 mb-2 align-items-center">
+                <Form.Control
+                  type="text"
+                  placeholder="🔍 Search stores..."
+                  value={bulkSearch}
+                  onChange={(e) => setBulkSearch(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => {
+                    const allIds = filteredBulkStores.map(s => String(s.id));
+                    const allSelected = allIds.every(id => formData.storeIds.includes(id));
+                    setFormData(prev => ({
+                      ...prev,
+                      storeIds: allSelected
+                        ? prev.storeIds.filter(id => !allIds.includes(id))
+                        : [...new Set([...prev.storeIds, ...allIds])]
+                    }));
+                  }}
+                  style={{ whiteSpace: 'nowrap', fontSize: '12px' }}
+                >
+                  {filteredBulkStores.every(s => formData.storeIds.includes(String(s.id))) && filteredBulkStores.length > 0
+                    ? 'Deselect All'
+                    : 'Select All'}
+                </Button>
+              </div>
+
+              {/* Scrollable checkbox list */}
+              <div style={{
+                maxHeight: '180px',
+                overflowY: 'auto',
+                border: '1px solid #ced4da',
+                padding: '10px',
+                borderRadius: '6px'
+              }}>
+                {filteredBulkStores.length === 0 && (
+                  <div className="text-muted text-center py-2" style={{ fontSize: '13px' }}>No stores found</div>
+                )}
+                {filteredBulkStores.map(store => (
+                  <Form.Check
+                    key={store.id}
+                    type="checkbox"
+                    id={`store-${store.id}`}
+                    label={`${store.storeName} (${store.storeCode})`}
+                    checked={formData.storeIds.includes(String(store.id))}
+                    onChange={(e) => {
+                      const id = String(store.id);
+                      setFormData(prev => ({
+                        ...prev,
+                        storeIds: e.target.checked
+                          ? [...prev.storeIds, id]
+                          : prev.storeIds.filter(i => i !== id)
+                      }));
+                    }}
+                    className="mb-1"
+                  />
+                ))}
+              </div>
+            </Form.Group>
+          )}
+
+          {/* Edit mode — show current store (read-only) */}
+          {initialData && (
+            <Form.Group className="mb-3">
+              <Form.Label>Store</Form.Label>
+              <Form.Control
+                type="text"
+                value={stores.find(s => String(s.id) === String(formData.storeId))?.storeName || formData.storeId}
+                disabled
+              />
+              <Form.Text className="text-muted">Store cannot be changed while editing.</Form.Text>
+            </Form.Group>
+          )}
+
+          {/* Target Amount & Target Bags — always visible */}
+          <Row>
+            <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Target Bags <span className="text-danger">*</span></Form.Label>
+                <Form.Label>Target Amount (₹)</Form.Label>
+                <Form.Control
+                  type="number"
+                  name="targetAmount"
+                  value={formData.targetAmount}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 100000"
+                  min="0"
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Target Bags</Form.Label>
                 <Form.Control
                   type="number"
                   name="targetBags"
@@ -279,36 +313,36 @@ const CreateStoreTargetModal = ({ isOpen, onClose, onSave, stores = [], initialD
                   min="0"
                 />
               </Form.Group>
-            )}
+            </Col>
+          </Row>
 
-            <Row>
-                <Col md={6}>
-                    <Form.Group className="mb-3">
-                        <Form.Label>Start Date <span className="text-danger">*</span></Form.Label>
-                        <Form.Control 
-                            type="date" 
-                            name="startDate" 
-                            value={formData.startDate} 
-                            onChange={handleInputChange}
-                            disabled={!!initialData} // Disabled in edit mode per rules/logic usually, though API didn't explicitly forbid it in payload, Example Route for update doesn't have it.
-                        />
-                        {initialData && <Form.Text className="text-muted">Start Date cannot be changed.</Form.Text>}
-                    </Form.Group>
-                </Col>
-                <Col md={6}>
-                    <Form.Group className="mb-3">
-                        <Form.Label>End Date <span className="text-danger">*</span></Form.Label>
-                        <Form.Control 
-                            type="date" 
-                            name="endDate" 
-                            value={formData.endDate} 
-                            onChange={handleInputChange}
-                            min={formData.startDate}
-                        />
-                    </Form.Group>
-                </Col>
-            </Row>
-
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Start Date <span className="text-danger">*</span></Form.Label>
+                <Form.Control
+                  type="date"
+                  name="startDate"
+                  value={formData.startDate}
+                  onChange={handleInputChange}
+                  disabled={!!initialData}
+                />
+                {initialData && <Form.Text className="text-muted">Start Date cannot be changed.</Form.Text>}
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>End Date <span className="text-danger">*</span></Form.Label>
+                <Form.Control
+                  type="date"
+                  name="endDate"
+                  value={formData.endDate}
+                  onChange={handleInputChange}
+                  min={formData.startDate}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
         </Form>
       </Modal.Body>
       <Modal.Footer>
