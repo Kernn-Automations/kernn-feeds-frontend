@@ -1927,7 +1927,7 @@ export default function StoreReports() {
                                   {row.growthPercentage?.toFixed(2)}%
                                 </span>
                               </td>
-                              <td>{row.averageDailySales?.toLocaleString()}</td>
+                              <td>₹{row.averageDailySales?.toLocaleString()}</td>
                               <td>
                                 <span className="badge bg-info text-dark">
                                   {row.peakDay || "-"}
