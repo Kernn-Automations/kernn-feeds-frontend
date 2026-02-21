@@ -6,7 +6,6 @@ import { FaPlus, FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import CreateStoreTargetModal from "./CreateStoreTargetModal";
-import storeTargetService from "@/services/storeTargetService";
 
 function StoreTargets({ navigate, isAdmin }) {
   const { axiosAPI } = useAuth();
@@ -36,37 +35,20 @@ function StoreTargets({ navigate, isAdmin }) {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Fetch Stores for mapping and dropdown
-            // Using /stores/abstract as per StoresAbstract.jsx to get list
             const storesRes = await axiosAPI.get("/stores/abstract");
             const storesData = storesRes.data?.data || storesRes.data || [];
             setStores(Array.isArray(storesData) ? storesData : []);
 
-            // Fetch Targets
-            const currentDivisionId = localStorage.getItem('currentDivisionId');
-            let query = "/stores/targets"; 
-            
-            // Backend might filter by role automatically, but adding division if needed
-            // API docs say: GET /stores/targets?storeId=12 or status=active
-            // We want all for now.
-             if (currentDivisionId && currentDivisionId !== '1') {
-                // query += `?divisionId=${currentDivisionId}`; // If supported
-             }
-
-            const response = await storeTargetService.getStoreTargets(currentDivisionId && currentDivisionId !== '1' ? { divisionId: currentDivisionId } : {});
-            // API Doc: { success: true, targets: [...] }
-            let targetsData = response?.targets || response?.data || [];
-            if (!Array.isArray(targetsData) && Array.isArray(response)) {
-                targetsData = response;
+            const targetsRes = await axiosAPI.get("/stores/targets");
+            let targetsData = targetsRes.data?.targets || targetsRes.data?.data || targetsRes.data || [];
+            if (!Array.isArray(targetsData) && Array.isArray(targetsRes.data)) {
+                targetsData = targetsRes.data;
             }
             setTargets(targetsData);
 
         } catch (error) {
             console.error("Error fetching data:", error);
-            // setError("Failed to fetch store targets data.");
-            // setIsErrorModalOpen(true);
-            // Fallback for empty state if API fails (e.g. not deployed yet)
-            setTargets([]); 
+            setTargets([]);
         } finally {
             setLoading(false);
         }
@@ -87,17 +69,14 @@ function StoreTargets({ navigate, isAdmin }) {
   const handleSave = async (payload, isUpdate, isBulk) => {
       try {
           if (isUpdate) {
-               // Update: PUT /stores/:storeId/targets/:targetId
                if (!payload.storeId) throw new Error("Store ID missing for update");
-               await storeTargetService.updateStoreTarget(payload.storeId, payload.id, payload);
+               await axiosAPI.put(`/stores/${payload.storeId}/targets/${payload.id}`, payload);
           } else if (isBulk) {
-               // Bulk: POST /stores/targets/bulk-assign
-               await storeTargetService.bulkAssignStoreTargets(payload);
+               await axiosAPI.post('/stores/targets/bulk-assign', payload);
           } else {
-               // Create Single: POST /stores/:storeId/targets
-               await storeTargetService.createStoreTarget(payload.storeId, payload);
+               await axiosAPI.post(`/stores/${payload.storeId}/targets`, payload);
           }
-          changeTrigger(); // Refresh
+          changeTrigger();
       } catch (err) {
           throw new Error(err.response?.data?.message || err.message || "Operation failed");
       }
@@ -106,8 +85,7 @@ function StoreTargets({ navigate, isAdmin }) {
   const handleDelete = async (target) => {
       if (!window.confirm("Are you sure you want to cancel this target?")) return;
       try {
-          // Cancel: PATCH /stores/:storeId/targets/:targetId/cancel
-          await storeTargetService.cancelStoreTarget(target.storeId, target.id);
+          await axiosAPI.patch(`/stores/${target.storeId}/targets/${target.id}/cancel`);
           changeTrigger();
       } catch (err) {
           setError(err.response?.data?.message || "Failed to cancel target");
@@ -159,13 +137,13 @@ function StoreTargets({ navigate, isAdmin }) {
                   <th>Progress (Amt)</th>
                   <th>Progress (Bags)</th>
                   <th>Status</th>
-                  <th>Action</th>
+                   {/* <th>Action</th> */}
                 </tr>
               </thead>
               <tbody>
                 {targets.length === 0 && (
                   <tr className="animated-row">
-                    <td colSpan={9} className="text-center">NO DATA FOUND</td>
+                    <td colSpan={8} className="text-center">NO DATA FOUND</td>
                   </tr>
                 )}
                 {targets.length > 0 &&
@@ -221,7 +199,7 @@ function StoreTargets({ navigate, isAdmin }) {
                             {status.toUpperCase()}
                           </span>
                         </td>
-                        <td className={styles.delcol}>
+                        {/* <td className={styles.delcol}>
                           {status === 'active' && (
                               <>
                                 <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEdit(target)}>
@@ -234,7 +212,7 @@ function StoreTargets({ navigate, isAdmin }) {
                                 )}
                               </>
                           )}
-                        </td>
+                        </td> */}
                       </tr>
                     );
                   })}
