@@ -11,9 +11,12 @@ import {
   FaMoneyBillWave,
   FaBoxOpen,
   FaChartLine,
+  FaCalendarAlt,
+  FaChartPie,
 } from "react-icons/fa";
 import { Modal, Button } from "react-bootstrap";
 import { exportToExcel, exportToPDF } from "./EmployeeReports/PDFndXLSCode";
+import { exportStoreComparisonToExcel, exportStoreComparisonToPDF } from "./StoreComparisonExport";
 import xls from "@/images/xls-png.png";
 import pdf from "@/images/pdf-png.png";
 
@@ -45,6 +48,7 @@ export default function StoreReports() {
   const [from, setFrom] = useState(date);
   const [to, setTo] = useState(today);
   const [reportType, setReportType] = useState("comparison"); // 'summary', 'leaderboard', 'trend', 'comparison'
+  const [activeReportType, setActiveReportType] = useState("comparison"); // The type currently being displayed
 
   const [availableStoresForComparison, setAvailableStoresForComparison] =
     useState([]);
@@ -155,6 +159,7 @@ export default function StoreReports() {
       console.log(res);
       const data = res.data;
       setComparisonReportData(data);
+      setActiveReportType(reportType); // Update the active type only after successful fetch
 
       // Determine columns based on response or selected IDs
       // If API returns list of stores with data, we can map names from there or use availableStoresForComparison
@@ -248,9 +253,17 @@ export default function StoreReports() {
     }
 
     if (format === "excel") {
-      exportToExcel(selectedNames, dataToExport);
+      if (activeReportType === "comparison") {
+        exportStoreComparisonToExcel(selectedNames, dataToExport);
+      } else {
+        exportToExcel(selectedNames, dataToExport);
+      }
     } else {
-      exportToPDF(selectedNames, dataToExport);
+      if (activeReportType === "comparison") {
+        exportStoreComparisonToPDF(selectedNames, dataToExport);
+      } else {
+        exportToPDF(selectedNames, dataToExport);
+      }
     }
   };
 
@@ -320,7 +333,7 @@ export default function StoreReports() {
           box-shadow: 0 8px 16px rgba(0,0,0,0.1) !important;
         }
       `}</style>
-      <div className="container-fluid p-4">
+      <div className="container-fluid p-4" style={{ overflowX: "hidden", minWidth: 0 }}>
         {/* Header */}
         <h2
           className="mb-4"
@@ -434,6 +447,8 @@ export default function StoreReports() {
               backgroundColor: "#f8f9fa",
               border: "1px solid #dee2e6",
               animation: "slideDown 0.3s ease-out",
+              overflow: "hidden",
+              minWidth: 0,
             }}
           >
             <div className="card-header bg-white border-bottom">
@@ -445,126 +460,175 @@ export default function StoreReports() {
                 <span className="badge bg-primary">Advanced Analytics</span>
               </div>
             </div>
-            <div className="card-body p-4">
+            <div className="card-body p-4" style={{ minWidth: 0, overflow: "hidden" }}>
               {/* Filters */}
-              <div className="card border-0 shadow-sm mb-4">
-                <div className="card-body">
-                  <div className="row g-3">
+              {/* Filters Section V2 (Premium Glassmorphism) */}
+              <div 
+                className="card border-0 mb-5 overflow-hidden" 
+                style={{ 
+                  borderRadius: '24px', 
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.45) !important',
+                  boxShadow: '0 8px 32px rgba(31, 38, 135, 0.07), 0 1px 1px rgba(255, 255, 255, 0.2) inset'
+                }}
+              >
+                <div className="card-body p-4 position-relative">
+                  {/* Subtle Background Glows */}
+                  <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '150px', height: '150px', background: 'rgba(102, 126, 234, 0.05)', filter: 'blur(50px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
+                  <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '150px', height: '150px', background: 'rgba(118, 75, 162, 0.05)', filter: 'blur(50px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
+
+                  <div className="row g-4 align-items-end position-relative">
+                    {/* From Date */}
                     <div className="col-md-3">
-                      <label className="form-label fw-semibold">
-                        <i className="fas fa-calendar-alt me-2 text-primary"></i>
-                        From Date
-                      </label>
+                      <div className="d-flex align-items-center gap-2 mb-2 px-1">
+                        <div style={{ padding: '4px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '6px' }}>
+                          <FaCalendarAlt className="text-primary" size={11} />
+                        </div>
+                        <span className="small fw-bold text-uppercase tracking-wider text-muted opacity-75" style={{ fontSize: '10px' }}>From Date</span>
+                      </div>
                       <input
                         type="date"
-                        className="form-control"
+                        className="form-control border-0 shadow-none transition-all"
+                        style={{ 
+                          borderRadius: '12px', 
+                          padding: '0.75rem 1rem',
+                          background: 'rgba(255, 255, 255, 0.5)',
+                          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(255,255,255,0.8)',
+                          fontSize: '14px',
+                          color: '#1e293b',
+                          fontWeight: '500'
+                        }}
                         value={from}
                         onChange={(e) => setFrom(e.target.value)}
                         max={to}
                       />
                     </div>
+
+                    {/* To Date */}
                     <div className="col-md-3">
-                      <label className="form-label fw-semibold">
-                        <i className="fas fa-calendar-alt me-2 text-primary"></i>
-                        To Date
-                      </label>
+                      <div className="d-flex align-items-center gap-2 mb-2 px-1">
+                        <div style={{ padding: '4px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '6px' }}>
+                          <FaCalendarAlt className="text-primary" size={11} />
+                        </div>
+                        <span className="small fw-bold text-uppercase tracking-wider text-muted opacity-75" style={{ fontSize: '10px' }}>To Date</span>
+                      </div>
                       <input
                         type="date"
-                        className="form-control"
+                        className="form-control border-0 shadow-none transition-all"
+                        style={{ 
+                          borderRadius: '12px', 
+                          padding: '0.75rem 1rem',
+                          background: 'rgba(255, 255, 255, 0.5)',
+                          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(255,255,255,0.8)',
+                          fontSize: '14px',
+                          color: '#1e293b',
+                          fontWeight: '500'
+                        }}
                         value={to}
                         onChange={(e) => setTo(e.target.value)}
                         min={from}
                         max={today}
                       />
                     </div>
+
+                    {/* Report Type */}
                     <div className="col-md-3">
-                      <label className="form-label fw-semibold">
-                        <i className="fas fa-chart-bar me-2 text-primary"></i>
-                        Report Type
-                      </label>
+                      <div className="d-flex align-items-center gap-2 mb-2 px-1">
+                        <div style={{ padding: '4px', background: 'rgba(118, 75, 162, 0.1)', borderRadius: '6px' }}>
+                          <FaChartPie className="text-primary" size={11} style={{ color: '#764ba2 !important' }} />
+                        </div>
+                        <span className="small fw-bold text-uppercase tracking-wider text-muted opacity-75" style={{ fontSize: '10px' }}>Report Layout</span>
+                      </div>
                       <select
-                        className="form-select"
+                        className="form-select border-0 shadow-none transition-all"
+                        style={{ 
+                          borderRadius: '12px', 
+                          padding: '0.75rem 1rem',
+                          background: 'rgba(255, 255, 255, 0.5)',
+                          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(255,255,255,0.8)',
+                          fontSize: '14px',
+                          color: '#1e293b',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
                         value={reportType}
                         onChange={(e) => {
                           setReportType(e.target.value);
-                          clearSelections(); // Clear selections when changing report type
+                          clearSelections();
                         }}
                       >
-                        <option value="comparison">Day-wise Comparison</option>
-                        <option value="summary">Summary Report</option>
-                        {/*<option value="leaderboard">Leaderboard</option>
-                        <option value="trend">Trend Analysis</option>*/}
+                        <option value="comparison">📅 Day-wise Comparison</option>
+                        <option value="summary">📈 Summary Analytics</option>
                       </select>
                     </div>
+
+                    {/* Physical-style Segmented Toggle */}
                     <div className="col-md-3">
-                      <label className="form-label fw-semibold text-white">
-                        .
-                      </label>
-                      <div className="btn-group w-100" role="group">
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary btn-sm"
-                          onClick={() => {
-                            const lastWeek = new Date(
-                              Date.now() - 7 * 24 * 60 * 60 * 1000,
-                            )
-                              .toISOString()
-                              .slice(0, 10);
-                            setFrom(lastWeek);
-                            setTo(today);
-                          }}
-                          title="Last 7 days"
-                        >
-                          7D
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary btn-sm"
-                          onClick={() => {
-                            const lastMonth = new Date(
-                              Date.now() - 30 * 24 * 60 * 60 * 1000,
-                            )
-                              .toISOString()
-                              .slice(0, 10);
-                            setFrom(lastMonth);
-                            setTo(today);
-                          }}
-                          title="Last 30 days"
-                        >
-                          30D
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary btn-sm"
-                          onClick={() => {
-                            const last90 = new Date(
-                              Date.now() - 90 * 24 * 60 * 60 * 1000,
-                            )
-                              .toISOString()
-                              .slice(0, 10);
-                            setFrom(last90);
-                            setTo(today);
-                          }}
-                          title="Last 90 days"
-                        >
-                          90D
-                        </button>
+                      <div className="d-flex align-items-center gap-2 mb-2 px-1">
+                        <span className="small fw-bold text-uppercase tracking-wider text-muted opacity-75" style={{ fontSize: '10px' }}>Quick Presets</span>
+                      </div>
+                      <div 
+                        className="d-flex p-1.5 rounded-4" 
+                        style={{ 
+                          background: 'rgba(241, 245, 249, 0.8)', 
+                          border: '1px solid rgba(226, 232, 240, 0.8)',
+                          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)',
+                          padding: '6px'
+                        }}
+                      >
+                        {[
+                          { label: '7D', days: 7 },
+                          { label: '30D', days: 30 },
+                          { label: '90D', days: 90 }
+                        ].map((preset) => {
+                          const isActive = Math.ceil((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24)) === preset.days;
+                          return (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              className={`btn btn-sm flex-grow-1 border-0 transition-all ${isActive ? 'bg-white shadow-sm text-primary fw-bold' : 'text-muted'}`}
+                              style={{ 
+                                borderRadius: '10px', 
+                                fontSize: '12px', 
+                                padding: '10px 4px',
+                                background: isActive ? '#fff' : 'transparent',
+                                boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                              }}
+                              onClick={() => {
+                                const pastDate = new Date(Date.now() - preset.days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                                setFrom(pastDate);
+                                setTo(today);
+                              }}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
 
-                  {/* Date range info */}
-                  <div className="mt-3 text-center">
-                    <small className="text-muted">
-                      Selected range:{" "}
-                      <strong>
-                        {Math.ceil(
-                          (new Date(to) - new Date(from)) /
-                            (1000 * 60 * 60 * 24),
-                        )}{" "}
-                        days
-                      </strong>
-                    </small>
+                  {/* Floating Range Plate */}
+                  <div className="mt-4 mb-1 d-flex justify-content-center">
+                    <div 
+                      className="px-5 py-2.5 rounded-pill d-flex align-items-center gap-4 transition-all hover-scale"
+                      style={{ 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="bg-white rounded-circle" style={{ width: 8, height: 8, boxShadow: '0 0 8px rgba(255,255,255,0.8)' }}></div>
+                        <span className="text-white-50 fw-medium" style={{ fontSize: '12px', letterSpacing: '0.5px' }}>REPORTING PERIOD</span>
+                      </div>
+                      <div style={{ width: '1px', height: '18px', background: 'rgba(255, 255, 255, 0.2)' }}></div>
+                      <span className="fw-bold text-white text-uppercase" style={{ fontSize: '13px', letterSpacing: '1px' }}>
+                        {Math.ceil((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24))} DAYS ANALYSIS
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -608,8 +672,8 @@ export default function StoreReports() {
                 </div>
               </div>
               <div
-                className="row g-2 mb-4 p-3 border rounded bg-white"
-                style={{ maxHeight: "250px", overflowY: "auto" }}
+                className="row g-3 mb-4 p-3 border rounded bg-white shadow-sm"
+                style={{ maxHeight: "350px", overflowY: "auto", border: '1px solid #e0e6ed !important' }}
               >
                 {availableStoresForComparison.length > 0 ? (
                   availableStoresForComparison
@@ -622,63 +686,138 @@ export default function StoreReports() {
                           ?.toLowerCase()
                           .includes(storeSearchQuery.toLowerCase()),
                     )
-                    .map((store) => (
-                      <div key={store.id} className="col-md-3 col-sm-6">
-                        <div
-                          className="form-check p-2 rounded"
-                          style={{
-                            cursor: "pointer",
-                            transition: "all 0.2s ease",
-                            backgroundColor:
-                              selectedComparisonStoreIds.includes(store.id)
-                                ? "#f0f7ff"
-                                : "transparent",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (
-                              !selectedComparisonStoreIds.includes(store.id)
-                            ) {
-                              e.currentTarget.style.backgroundColor = "#f8f9fa";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (
-                              !selectedComparisonStoreIds.includes(store.id)
-                            ) {
-                              e.currentTarget.style.backgroundColor =
-                                "transparent";
-                            }
-                          }}
-                        >
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id={`store-${store.id}`}
-                            checked={selectedComparisonStoreIds.includes(
-                              store.id,
-                            )}
-                            onChange={() => toggleStoreSelect(store.id)}
-                          />
-                          <label
-                            className="form-check-label w-100"
-                            htmlFor={`store-${store.id}`}
-                            style={{ cursor: "pointer" }}
+                    .map((store) => {
+                      const isSelected = selectedComparisonStoreIds.includes(store.id);
+                      return (
+                        <div key={store.id} className="col-md-4 col-sm-6">
+                          <div
+                            className={`p-3 rounded-3 border h-100 d-flex align-items-center gap-3`}
+                            style={{
+                              cursor: "pointer",
+                              transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                              backgroundColor: isSelected ? "#f0f7ff" : "#fff",
+                              borderColor: isSelected ? "#0d6efd" : "#e0e6ed",
+                              boxShadow: isSelected ? "0 4px 12px rgba(13, 110, 253, 0.12)" : "0 2px 4px rgba(0,0,0,0.02)",
+                              position: 'relative'
+                            }}
+                            onClick={() => toggleStoreSelect(store.id)}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.borderColor = "#0d6efd80";
+                                e.currentTarget.style.backgroundColor = "#f8fbff";
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 6px 15px rgba(0,0,0,0.06)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.borderColor = "#e0e6ed";
+                                e.currentTarget.style.backgroundColor = "#fff";
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.02)";
+                              }
+                            }}
                           >
-                            <div className="d-flex justify-content-between align-items-center">
-                              <span className="fw-medium">{store.name}</span>
-                              <span className="badge bg-light text-dark text-xs">
-                                {store.storeCode}
-                              </span>
+                            {/* Checkbox Icon */}
+                            <div 
+                              style={{ 
+                                width: 20, 
+                                height: 20, 
+                                borderRadius: 4, 
+                                border: `2px solid ${isSelected ? '#0d6efd' : '#d1d5db'}`,
+                                backgroundColor: isSelected ? '#0d6efd' : 'transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s',
+                                flexShrink: 0
+                              }}
+                            >
+                              {isSelected && <i className="fas fa-check text-white" style={{ fontSize: 10 }}></i>}
                             </div>
-                          </label>
+
+                            {/* Store Icon/Avatar */}
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: '50%',
+                                background: isSelected ? '#0d6efd15' : '#f8f9fa',
+                                color: isSelected ? '#0d6efd' : '#6c757d',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 14,
+                                flexShrink: 0
+                              }}
+                            >
+                              <FaStore />
+                            </div>
+
+                            <div className="flex-grow-1 min-width-0">
+                              <div 
+                                className="fw-bold text-truncate" 
+                                style={{ 
+                                  fontSize: '13.5px',
+                                  color: isSelected ? '#084298' : '#1e293b'
+                                }}
+                              >
+                                {store.name}
+                              </div>
+                              <div 
+                                className="text-muted" 
+                                style={{ 
+                                  fontSize: '11px',
+                                  fontFamily: 'JetBrains Mono, monospace',
+                                  opacity: 0.8
+                                }}
+                              >
+                                {store.storeCode}
+                              </div>
+
+                              {/* Target Progress */}
+                              {store.target ? (
+                                <div className="mt-2" style={{ fontSize: '10px' }}>
+                                  {/* Amount */}
+                                  <div className="d-flex align-items-center gap-1 mb-1">
+                                    <span className="text-muted" style={{ width: '28px', flexShrink: 0 }}>Amt</span>
+                                    <div className="progress flex-grow-1" style={{ height: '4px', background: '#e9ecef' }}>
+                                      <div
+                                        className="progress-bar bg-warning"
+                                        style={{ width: `${Math.min(store.target.amount?.percentage || 0, 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="fw-bold" style={{ color: '#856404', width: '30px', textAlign: 'right' }}>
+                                      {Number(store.target.amount?.percentage || 0).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                  {/* Bags */}
+                                  <div className="d-flex align-items-center gap-1">
+                                    <span className="text-muted" style={{ width: '28px', flexShrink: 0 }}>Bags</span>
+                                    <div className="progress flex-grow-1" style={{ height: '4px', background: '#e9ecef' }}>
+                                      <div
+                                        className="progress-bar bg-info"
+                                        style={{ width: `${Math.min(store.target.bags?.percentage || 0, 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className="fw-bold" style={{ color: '#055160', width: '30px', textAlign: 'right' }}>
+                                      {Number(store.target.bags?.percentage || 0).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-1" style={{ fontSize: '10px', color: '#adb5bd' }}>No active target</div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                 ) : (
-                  <div className="col-12 text-muted text-center py-4">
-                    <FaStore size={40} className="mb-2 opacity-50" />
-                    <p className="mb-0">
-                      Loading stores or no stores available...
+                  <div className="col-12 text-muted text-center py-5">
+                    <FaStore size={48} className="mb-3 opacity-25" />
+                    <p className="mb-0 fw-medium">
+                      Gathering available stores...
                     </p>
                   </div>
                 )}
@@ -799,7 +938,7 @@ export default function StoreReports() {
               )}
 
               {/* Comparison Report Table - Only for Comparison */}
-              {reportType === "comparison" &&
+              {activeReportType === "comparison" &&
                 comparisonReportData &&
                 comparisonReportData.rows &&
                 comparisonReportData.rows.length > 0 && (
@@ -879,28 +1018,68 @@ export default function StoreReports() {
                       </div>
                     </div>
 
-                    <div
-                      className="table-responsive"
-                      style={{ maxHeight: "600px", overflowY: "auto" }}
-                    >
-                      <table className="table table-bordered table-hover borderedtable bg-white text-center align-middle sticky-header">
+                    <div className={styles.tableContainer}>
+                      <table className="table table-hover mb-0 text-center align-middle" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                         <thead
-                          className="table-light"
-                          style={{ position: "sticky", top: 0, zIndex: 10 }}
+                          style={{ position: "sticky", top: 0, zIndex: 100 }}
                         >
                           <tr>
-                            <th rowSpan={2} style={{ verticalAlign: "middle" }}>
+                            <th 
+                              rowSpan={2} 
+                              style={{ 
+                                verticalAlign: "middle", 
+                                position: "sticky", 
+                                left: 0, 
+                                background: "#003176", 
+                                zIndex: 102,
+                                border: '1px solid #dee2e6',
+                                width: '45px',
+                                minWidth: '45px',
+                                color: 'white',
+                                fontWeight: 700
+                              }}
+                            >
                               <input
                                 type="checkbox"
                                 checked={selectAllRows}
                                 onChange={toggleAllRowsSelection}
                                 className="form-check-input"
+                                style={{ filter: 'invert(1) grayscale(1) brightness(2)' }}
                               />
                             </th>
-                            <th rowSpan={2} style={{ verticalAlign: "middle" }}>
+                            <th 
+                              rowSpan={2} 
+                              style={{ 
+                                verticalAlign: "middle", 
+                                position: "sticky", 
+                                left: 45, 
+                                background: "#003176", 
+                                zIndex: 102,
+                                border: '1px solid #dee2e6',
+                                width: '60px',
+                                minWidth: '60px',
+                                color: "white",
+                                fontWeight: 700
+                              }}
+                            >
                               S.No
                             </th>
-                            <th rowSpan={2} style={{ verticalAlign: "middle" }}>
+                            <th 
+                              rowSpan={2} 
+                              style={{ 
+                                verticalAlign: "middle", 
+                                position: "sticky", 
+                                left: 105, 
+                                background: "#003176", 
+                                zIndex: 102,
+                                border: '1px solid #dee2e6',
+                                width: '130px',
+                                minWidth: '130px',
+                                whiteSpace: "nowrap",
+                                color: "white",
+                                fontWeight: 700
+                              }}
+                            >
                               Date
                             </th>
                             {comparisonReportData.stores &&
@@ -909,8 +1088,15 @@ export default function StoreReports() {
                                   key={store.id}
                                   colSpan={3}
                                   className="text-center"
+                                  style={{ 
+                                    background: "#003176",
+                                    color: "white",
+                                    border: '1px solid #dee2e6',
+                                    fontWeight: 700,
+                                    padding: '8px'
+                                  }}
                                 >
-                                  <div className="d-flex flex-column align-items-center gap-1">
+                                  <div className="d-flex align-items-center justify-content-center gap-2">
                                     <input
                                       type="checkbox"
                                       checked={selectedColumns.includes(
@@ -919,9 +1105,10 @@ export default function StoreReports() {
                                       onChange={() =>
                                         toggleColumnSelection(store.id)
                                       }
-                                      className="form-check-input"
+                                      className="form-check-input mt-0"
+                                      style={{ filter: 'invert(1) grayscale(1) brightness(2)' }}
                                     />
-                                    <span>{store.name}</span>
+                                    <span style={{ fontSize: '13px', letterSpacing: '0.3px' }}>{store.name}</span>
                                   </div>
                                 </th>
                               ))}
@@ -930,9 +1117,9 @@ export default function StoreReports() {
                             {comparisonReportData.stores &&
                               comparisonReportData.stores.map((store) => (
                                 <React.Fragment key={store.id + "-headers"}>
-                                  <th>Sales</th>
-                                  <th>Change</th>
-                                  <th>Accumulated</th>
+                                  <th style={{ fontSize: '12px', color: 'white', background: '#495057', border: '1px solid #dee2e6', fontWeight: 600, padding: '6px' }}>Sales</th>
+                                  <th style={{ fontSize: '12px', color: 'white', background: '#495057', border: '1px solid #dee2e6', fontWeight: 600, padding: '6px' }}>Change</th>
+                                  <th style={{ fontSize: '12px', color: 'white', background: '#495057', border: '1px solid #dee2e6', fontWeight: 600, padding: '6px' }}>Accum.</th>
                                 </React.Fragment>
                               ))}
                           </tr>
@@ -946,9 +1133,18 @@ export default function StoreReports() {
                                   ? "table-active"
                                   : ""
                               }
-                              style={{ cursor: "pointer" }}
+                              style={{ cursor: "pointer", transition: 'background 0.2s' }}
                             >
-                              <td onClick={() => toggleRowSelection(index)}>
+                              <td 
+                                onClick={() => toggleRowSelection(index)}
+                                style={{ 
+                                  position: "sticky", 
+                                  left: 0, 
+                                  background: selectedRows.includes(index) ? "#f1f5f9" : "#fff", 
+                                  zIndex: 10,
+                                  borderRight: '1px solid #e2e8f0'
+                                }}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.includes(index)}
@@ -956,14 +1152,18 @@ export default function StoreReports() {
                                   className="form-check-input"
                                 />
                               </td>
-                              <td>{row.sNo}</td>
-                              <td className="fw-bold">{row.date}</td>
+                              <td style={{ position: "sticky", left: 45, background: selectedRows.includes(index) ? "#f1f5f9" : "#fff", zIndex: 10, borderRight: '1px solid #e2e8f0' }}>{row.sNo}</td>
+                              <td className="fw-bold" style={{ position: "sticky", left: 105, background: selectedRows.includes(index) ? "#f1f5f9" : "#fff", zIndex: 10, borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                {row.date}
+                              </td>
                               {comparisonReportData.stores &&
-                                comparisonReportData.stores.map((store) => {
+                                comparisonReportData.stores.map((store, sIdx) => {
                                   const storeData =
                                     row.stores?.[store.id] || {};
                                   const isColumnSelected =
                                     selectedColumns.includes(store.id);
+                                  const groupBg = sIdx % 2 === 0 ? 'rgba(102, 126, 234, 0.015)' : 'rgba(118, 75, 162, 0.015)';
+                                  
                                   return (
                                     <React.Fragment
                                       key={store.id + "-data-" + index}
@@ -972,29 +1172,29 @@ export default function StoreReports() {
                                         className={
                                           isColumnSelected ? "table-info" : ""
                                         }
+                                        style={{ background: isColumnSelected ? undefined : groupBg, borderLeft: '1px solid #e2e8f0', fontSize: '13.5px' }}
                                       >
-                                        {storeData.sales ?? 0}
+                                        <span className="text-dark fw-medium">₹{storeData.sales?.toLocaleString() ?? 0}</span>
                                       </td>
                                       <td
-                                        className={`${isColumnSelected ? "table-info" : ""} ${
-                                          (storeData.increaseOrDecrease ?? 0) >=
-                                          0
-                                            ? "text-success fw-bold"
-                                            : "text-danger fw-bold"
-                                        }`}
+                                        className={isColumnSelected ? "table-info" : ""}
+                                        style={{ 
+                                          background: isColumnSelected ? undefined : groupBg,
+                                          fontSize: '13px',
+                                          color: (storeData.increaseOrDecrease ?? 0) >= 0 ? "#10b981" : "#ef4444",
+                                          fontWeight: '600'
+                                        }}
                                       >
-                                        {(storeData.increaseOrDecrease ?? 0) >=
-                                        0
-                                          ? "↑ "
-                                          : "↓ "}
-                                        {Math.abs(
-                                          storeData.increaseOrDecrease ?? 0,
-                                        )}
+                                        <div className="d-flex align-items-center justify-content-center gap-1">
+                                          {(storeData.increaseOrDecrease ?? 0) >= 0 ? "↑" : "↓"}
+                                          <span>{Math.abs(storeData.increaseOrDecrease ?? 0).toLocaleString()}</span>
+                                        </div>
                                       </td>
                                       <td
-                                        className={`${isColumnSelected ? "table-info" : ""} fw-bold`}
+                                        className={isColumnSelected ? "table-info" : ""}
+                                        style={{ background: isColumnSelected ? undefined : groupBg, fontSize: '13px', fontWeight: '500', color: '#64748b' }}
                                       >
-                                        {storeData.accumulated ?? 0}
+                                        ₹{storeData.accumulated?.toLocaleString() ?? 0}
                                       </td>
                                     </React.Fragment>
                                   );
@@ -1041,7 +1241,7 @@ export default function StoreReports() {
                                   Report Type
                                 </small>
                                 <h6 className="mb-0 text-capitalize">
-                                  {reportType}
+                                  {activeReportType}
                                 </h6>
                               </div>
                             </div>
@@ -1053,7 +1253,7 @@ export default function StoreReports() {
                 )}
 
               {/* Summary Report Table (Rows) - Only for Summary/Leaderboard */}
-              {(reportType === "summary" || reportType === "leaderboard") &&
+              {(activeReportType === "summary" || activeReportType === "leaderboard") &&
                 comparisonReportData &&
                 comparisonReportData.rows &&
                 comparisonReportData.rows.length > 0 && (
@@ -1061,7 +1261,7 @@ export default function StoreReports() {
                     <div className="d-flex justify-content-between align-items-center mb-3">
                       <div>
                         <h6 className="mb-2">
-                          {reportType === "summary" ? "Summary" : "Leaderboard"}{" "}
+                          {activeReportType === "summary" ? "Summary" : "Leaderboard"}{" "}
                           Report
                         </h6>
                         <small className="text-muted">
@@ -1129,10 +1329,7 @@ export default function StoreReports() {
                       </div>
                     </div>
 
-                    <div
-                      className="table-responsive"
-                      style={{ maxHeight: "600px", overflowY: "auto" }}
-                    >
+                    <div className={styles.tableContainer}>
                       <table className="table table-bordered table-hover borderedtable bg-white text-center align-middle">
                         <thead
                           className="table-light"
@@ -1157,6 +1354,7 @@ export default function StoreReports() {
                             <th>Avg Daily Sales</th>
                             <th>Peak Day</th>
                             <th>Peak Day Sales</th>
+                            <th>Qty</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1188,10 +1386,10 @@ export default function StoreReports() {
                                 </span>
                               </td>
                               <td className="fw-bold text-primary">
-                                ₹{row.totalSales?.toLocaleString()}
+                                {row.totalSales?.toLocaleString()}
                               </td>
                               <td className="text-muted">
-                                ₹{row.previousMonthTotalSales?.toLocaleString()}
+                                {row.previousMonthTotalSales?.toLocaleString()}
                               </td>
                               <td
                                 className={
@@ -1200,7 +1398,7 @@ export default function StoreReports() {
                                     : "text-danger fw-bold"
                                 }
                               >
-                                {row.increaseOrDecrease >= 0 ? "↑ " : "↓ "}₹
+                                {row.increaseOrDecrease >= 0 ? "↑ " : "↓ "}
                                 {Math.abs(
                                   row.increaseOrDecrease,
                                 )?.toLocaleString()}
@@ -1214,7 +1412,7 @@ export default function StoreReports() {
                                 </span>
                               </td>
                               <td>
-                                ₹{row.averageDailySales?.toLocaleString()}
+                                {row.averageDailySales?.toLocaleString()}
                               </td>
                               <td>
                                 <span className="badge bg-info text-dark">
@@ -1222,8 +1420,9 @@ export default function StoreReports() {
                                 </span>
                               </td>
                               <td className="text-success fw-bold">
-                                ₹{row.peakDaySales?.toLocaleString()}
+                                {row.peakDaySales?.toLocaleString()}
                               </td>
+                              <td>bags</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1247,7 +1446,6 @@ export default function StoreReports() {
                           <div className="card-body text-center">
                             <small className="text-muted">Total Sales</small>
                             <h5 className="mb-0 text-success">
-                              ₹
                               {comparisonReportData.rows
                                 .reduce(
                                   (sum, row) => sum + (row.totalSales || 0),
@@ -1297,7 +1495,7 @@ export default function StoreReports() {
                 )}
 
               {/* Trend Report Table - Only for Trend */}
-              {reportType === "trend" &&
+              {activeReportType === "trend" &&
                 comparisonReportData &&
                 comparisonReportData.rows &&
                 comparisonReportData.rows.length > 0 && (
@@ -1370,10 +1568,7 @@ export default function StoreReports() {
                       </div>
                     </div>
 
-                    <div
-                      className="table-responsive"
-                      style={{ maxHeight: "600px", overflowY: "auto" }}
-                    >
+                    <div className={styles.tableContainer}>
                       <table className="table table-bordered table-hover borderedtable bg-white text-center align-middle">
                         <thead
                           className="table-light"
@@ -1394,6 +1589,8 @@ export default function StoreReports() {
                             <th>Sales</th>
                             <th>Prev Month</th>
                             <th>Change</th>
+                            <th style={{ whiteSpace: 'nowrap', background: '#fff3cd', color: '#856404' }}>Target (Amt)</th>
+                            <th style={{ whiteSpace: 'nowrap', background: '#cff4fc', color: '#055160' }}>Target (Bags)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1450,6 +1647,48 @@ export default function StoreReports() {
                                   {change >= 0 ? "↑ " : "↓ "}₹
                                   {Math.abs(change)?.toLocaleString()}
                                 </td>
+                                {/* Target Amount */}
+                                <td style={{ background: '#fffdf0' }}>
+                                  {row.target?.amount ? (
+                                    <div className="d-flex flex-column align-items-center gap-1">
+                                      <small className="text-muted" style={{ fontSize: '11px' }}>
+                                        ₹{Number(row.target.amount.achieved || 0).toLocaleString()}
+                                        <span className="text-secondary mx-1">/</span>
+                                        ₹{Number(row.target.amount.target || 0).toLocaleString()}
+                                      </small>
+                                      <div className="progress w-100" style={{ height: '5px' }}>
+                                        <div
+                                          className="progress-bar bg-warning"
+                                          style={{ width: `${Math.min(row.target.amount.percentage || 0, 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className={`badge ${(row.target.amount.percentage || 0) >= 100 ? 'bg-success' : 'bg-warning text-dark'}`} style={{ fontSize: '10px' }}>
+                                        {Number(row.target.amount.percentage || 0).toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  ) : <span className="text-muted">—</span>}
+                                </td>
+                                {/* Target Bags */}
+                                <td style={{ background: '#f0feff' }}>
+                                  {row.target?.bags ? (
+                                    <div className="d-flex flex-column align-items-center gap-1">
+                                      <small className="text-muted" style={{ fontSize: '11px' }}>
+                                        {Number(row.target.bags.achieved || 0).toLocaleString()}
+                                        <span className="text-secondary mx-1">/</span>
+                                        {Number(row.target.bags.target || 0).toLocaleString()}
+                                      </small>
+                                      <div className="progress w-100" style={{ height: '5px' }}>
+                                        <div
+                                          className="progress-bar bg-info"
+                                          style={{ width: `${Math.min(row.target.bags.percentage || 0, 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className={`badge ${(row.target.bags.percentage || 0) >= 100 ? 'bg-success' : 'bg-info'}`} style={{ fontSize: '10px' }}>
+                                        {Number(row.target.bags.percentage || 0).toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  ) : <span className="text-muted">—</span>}
+                                </td>
                               </tr>
                             );
                           })}
@@ -1498,7 +1737,7 @@ export default function StoreReports() {
                 )}
 
               {/* Date Wise Report Table (Leaderboard only now) */}
-              {reportType !== "trend" &&
+              {activeReportType !== "trend" &&
                 comparisonReportData &&
                 comparisonReportData.dateWise &&
                 comparisonReportData.dateWise.length > 0 && (
@@ -1647,6 +1886,8 @@ export default function StoreReports() {
                   Monthly Sales
                 </th>
                 <th className="text-end">Available Cash</th>
+                <th className="text-center" style={{ background: '#fff3cd', color: '#856404', whiteSpace: 'nowrap' }}>Target (Amt)</th>
+                <th className="text-center" style={{ background: '#cff4fc', color: '#055160', whiteSpace: 'nowrap' }}>Target (Bags)</th>
                 <th className="text-center">Actions</th>
               </tr>
               <tr>
@@ -1660,6 +1901,7 @@ export default function StoreReports() {
                 <th className="text-center">Value (₹)</th>
                 <th className="text-center border-end">Qty</th>
 
+                <th></th>
                 <th></th>
                 <th></th>
               </tr>
@@ -1715,10 +1957,65 @@ export default function StoreReports() {
                     <td className="text-end fw-bold text-success">
                       ₹{(store.availableCash || 0).toLocaleString()}
                     </td>
+
+                    {/* Target Amount Column */}
+                    <td className="text-center" style={{ background: '#fffdf0' }}>
+                      {store.target?.amount ? (
+                        <div className="d-flex flex-column align-items-center gap-1 px-2">
+                          <small className="text-muted" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                            ₹{Number(store.target.amount.achieved || 0).toLocaleString()}
+                            <span className="mx-1">/</span>
+                            ₹{Number(store.target.amount.target || 0).toLocaleString()}
+                          </small>
+                          <div className="progress w-100" style={{ height: '5px' }}>
+                            <div
+                              className="progress-bar bg-warning"
+                              style={{ width: `${Math.min(store.target.amount.percentage || 0, 100)}%` }}
+                            />
+                          </div>
+                          <span
+                            className={`badge ${(store.target.amount.percentage || 0) >= 100 ? 'bg-success' : 'bg-warning text-dark'}`}
+                            style={{ fontSize: '10px' }}
+                          >
+                            {Number(store.target.amount.percentage || 0).toFixed(1)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: '12px' }}>—</span>
+                      )}
+                    </td>
+
+                    {/* Target Bags Column */}
+                    <td className="text-center" style={{ background: '#f0feff' }}>
+                      {store.target?.bags ? (
+                        <div className="d-flex flex-column align-items-center gap-1 px-2">
+                          <small className="text-muted" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                            {Number(store.target.bags.achieved || 0).toLocaleString()}
+                            <span className="mx-1">/</span>
+                            {Number(store.target.bags.target || 0).toLocaleString()}
+                          </small>
+                          <div className="progress w-100" style={{ height: '5px' }}>
+                            <div
+                              className="progress-bar bg-info"
+                              style={{ width: `${Math.min(store.target.bags.percentage || 0, 100)}%` }}
+                            />
+                          </div>
+                          <span
+                            className={`badge ${(store.target.bags.percentage || 0) >= 100 ? 'bg-success' : 'bg-info'}`}
+                            style={{ fontSize: '10px' }}
+                          >
+                            {Number(store.target.bags.percentage || 0).toFixed(1)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: '12px' }}>—</span>
+                      )}
+                    </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-link text-decoration-none"
-                        onClick={() => navigate("/store/stock-summary")} // Adjust link as needed, maybe pass store ID via query or context
+                        onClick={() => navigate("/store/stock-summary")}
                       >
                         Closing Stock
                       </button>

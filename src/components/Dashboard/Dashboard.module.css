@@ -5,6 +5,7 @@
   background-color: #d9d9d9;
   transition: 0.2s ease;
   position: fixed;
+  top: 0;
   /* box-shadow: 1px 1px 4px black; */
 }
 .navover {
@@ -14,6 +15,7 @@
   background-color: #d9d9d9;
   transition: 0.2s ease;
   position: fixed;
+  top: 0;
   z-index: 9;
   /* box-shadow: 1px 1px 4px black; */
 }
@@ -27,6 +29,7 @@
 
 .headline {
   position: fixed;
+  top: 0;
   left: 80.5px;
   width: 97%;
   height: 40px;

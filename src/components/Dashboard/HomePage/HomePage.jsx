@@ -1402,6 +1402,8 @@ function StoreTable({ stores }) {
         className="hp-scroll"
         style={{
           overflowX: "auto",
+          overflowY: "auto",
+          maxHeight: "550px",
           borderRadius: 12,
           border: "1px solid var(--border-soft)",
         }}
@@ -1425,6 +1427,10 @@ function StoreTable({ stores }) {
                     userSelect: "none",
                     width: c.w,
                     background: "#f9fafb",
+                    position: "sticky",
+                    top: 0,
+                    left: c.k === "_idx" ? 0 : c.k === "storeName" ? 36 : undefined,
+                    zIndex: (c.k === "_idx" || c.k === "storeName") ? 11 : 10,
                   }}
                 >
                   {c.label}
@@ -1442,7 +1448,16 @@ function StoreTable({ stores }) {
                   className="hp-tr"
                   style={{ borderBottom: "1px solid #f1f5f9" }}
                 >
-                  <td style={{ padding: "10px 13px", textAlign: "center" }}>
+                  <td
+                    style={{
+                      padding: "10px 13px",
+                      textAlign: "center",
+                      position: "sticky",
+                      left: 0,
+                      background: "white",
+                      zIndex: 9,
+                    }}
+                  >
                     <div
                       style={{
                         display: "flex",
@@ -1477,7 +1492,15 @@ function StoreTable({ stores }) {
                     </div>
                   </td>
 
-                  <td style={{ padding: "10px 13px" }}>
+                  <td
+                    style={{
+                      padding: "10px 13px",
+                      position: "sticky",
+                      left: 36,
+                      background: "white",
+                      zIndex: 9,
+                    }}
+                  >
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 9 }}
                     >
