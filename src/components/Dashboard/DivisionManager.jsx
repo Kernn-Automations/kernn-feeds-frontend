@@ -2034,20 +2034,8 @@ function DivisionManager() {
           parseFloat(newStore.longitude) && {
             longitude: parseFloat(newStore.longitude),
           }),
-        ...(newStore.storeManagerId && {
-          storeManagerId: parseInt(newStore.storeManagerId),
-        }),
-        billAllowance: newStore.billAllowance
-          ? String(newStore.billAllowance)
-          : undefined,
-        securityDeposit: newStore.securityDeposit
-          ? String(newStore.securityDeposit)
-          : undefined,
-        ownerAadharNumber: newStore.ownerAadharNumber || undefined,
-        ...(newStore.employeeIds &&
-          newStore.employeeIds.length > 0 && {
-            employeeIds: newStore.employeeIds.map((id) => parseInt(id)),
-          }),
+        storeManagerId: newStore.storeManagerId ? parseInt(newStore.storeManagerId) : null,
+        employeeIds: (newStore.employeeIds || []).map((id) => parseInt(id)),
         // Agreement fields
         ...(newStore.landOwnerName && {
           landOwnerName: newStore.landOwnerName.trim(),
@@ -2363,13 +2351,8 @@ function DivisionManager() {
           parseFloat(newStore.longitude) && {
             longitude: parseFloat(newStore.longitude),
           }),
-        ...(newStore.storeManagerId && {
-          storeManagerId: parseInt(newStore.storeManagerId),
-        }),
-        ...(newStore.employeeIds &&
-          newStore.employeeIds.length > 0 && {
-            employeeIds: newStore.employeeIds.map((id) => parseInt(id)),
-          }),
+        storeManagerId: newStore.storeManagerId ? parseInt(newStore.storeManagerId) : null,
+        employeeIds: (newStore.employeeIds || []).map((id) => parseInt(id)),
         // Agreement fields
         ...(newStore.landOwnerName && {
           landOwnerName: newStore.landOwnerName.trim(),
@@ -4496,33 +4479,52 @@ function DivisionManager() {
                           <div className={styles.formGroup}>
                             <label htmlFor="storeManager">Store Manager</label>
                             {editingStore && newStore.storeManagerId && (
-                              <small
-                                style={{
-                                  color: "#1976d2",
-                                  fontSize: "12px",
-                                  marginBottom: "4px",
-                                  display: "block",
-                                  fontWeight: "500",
-                                }}
-                              >
-                                Current Manager:{" "}
-                                {storeManagers.find(
-                                  (m) =>
-                                    String(m.id) ===
-                                    String(newStore.storeManagerId),
-                                )?.name ||
-                                  storeManagers.find(
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <small
+                                  style={{
+                                    color: "#1976d2",
+                                    fontSize: "12px",
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  Current Manager:{" "}
+                                  {storeManagers.find(
                                     (m) =>
                                       String(m.id) ===
                                       String(newStore.storeManagerId),
-                                  )?.fullName ||
-                                  storeManagers.find(
-                                    (m) =>
-                                      String(m.id) ===
-                                      String(newStore.storeManagerId),
-                                  )?.employeeName ||
-                                  "Loading..."}
-                              </small>
+                                  )?.name ||
+                                    storeManagers.find(
+                                      (m) =>
+                                        String(m.id) ===
+                                        String(newStore.storeManagerId),
+                                    )?.fullName ||
+                                    storeManagers.find(
+                                      (m) =>
+                                        String(m.id) ===
+                                        String(newStore.storeManagerId),
+                                    )?.employeeName ||
+                                    "Loading..."}
+                                </small>
+                                <button
+                                  type="button"
+                                  onClick={() => setNewStore(prev => ({ ...prev, storeManagerId: "" }))}
+                                  style={{
+                                    background: "#ffebee",
+                                    border: "1px solid #ffcdd2",
+                                    color: "#d32f2f",
+                                    borderRadius: "4px",
+                                    padding: "0 6px",
+                                    fontSize: "10px",
+                                    cursor: "pointer",
+                                    height: "18px",
+                                    display: "flex",
+                                    alignItems: "center"
+                                  }}
+                                  title="Unassign manager"
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             )}
                             <select
                               id="storeManager"

@@ -24,6 +24,8 @@ import {
   FaWallet,
   FaStore,
   FaExchangeAlt,
+  FaCalendarAlt,
+  FaBullseye,
 } from "react-icons/fa";
 
 import {
@@ -70,6 +72,7 @@ export default function StoreHome() {
       activeCustomers: 0,
     },
     salesActivity: [],
+    targetSummary: null,
     pendingIndents: [],
     lowStockProducts: [],
     quickInsights: {
@@ -437,6 +440,7 @@ export default function StoreHome() {
 
   // Prepare lists for rendering (prefer fetched data over dashboard summary)
   const salesList = fetchedSales.length > 0 ? fetchedSales : (dashboardData.salesActivity || []);
+  const targetSummary = dashboardData.targetSummary;
   const indentsList = fetchedIndents.length > 0 ? fetchedIndents : (dashboardData.pendingIndents || []);
 
   return (
@@ -583,6 +587,129 @@ export default function StoreHome() {
         {/* Main Dashboard Content */}
         <div className={styles.dashboardContainer}>
           <div className={styles.dashboardGrid}>
+            {/* Target Summary Section - IMPORTANT NEW COMPONENT */}
+            <div className="mb-4">
+              <div 
+                className={styles.orderStatusCard}
+                style={{ 
+                  borderRadius: '20px',
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
+                  border: '1px solid rgba(102, 126, 234, 0.1)',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}
+              >
+                {/* Decorative background element */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-20px',
+                  right: '-20px',
+                  opacity: 0.05,
+                  transform: 'rotate(-15deg)'
+                }}>
+                  <FaBullseye size={120} color="#667eea" />
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center mb-4 position-relative">
+                  <h4 style={{ margin: 0, fontWeight: 700, fontSize: '20px', color: '#003176', letterSpacing: '-0.5px' }}>
+                    Target Progress
+                  </h4>
+                  {targetSummary && (
+                    <span 
+                      className="badge rounded-pill" 
+                      style={{ 
+                        background: 'rgba(102, 126, 234, 0.1)', 
+                        color: '#667eea',
+                        padding: '6px 14px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Store Performance
+                    </span>
+                  )}
+                </div>
+
+                {loading ? (
+                  <div className="py-3">
+                    <Skeleton height={60} width="100%" className="mb-3" />
+                    <Skeleton height={60} width="100%" />
+                  </div>
+                ) : targetSummary ? (
+                  <div className="row g-4 position-relative">
+                    {/* Sales Target */}
+                    <div className="col-md-6">
+                      <div className="p-3 rounded-4 bg-white shadow-sm border" style={{ transition: 'all 0.3s ease' }}>
+                        <div className="d-flex justify-content-between align-items-end mb-2">
+                          <div>
+                            <span className="text-muted small text-uppercase fw-bold" style={{ letterSpacing: '0.5px' }}>Sales Target</span>
+                            <h3 className="mb-0 mt-1" style={{ color: '#003176', fontWeight: 800 }}>
+                              ₹{Number(targetSummary.currentProgress || 0).toLocaleString()} 
+                              <span className="text-muted fw-normal mx-1" style={{ fontSize: '14px' }}>/ ₹{Number(targetSummary.targetAmount).toLocaleString()}</span>
+                            </h3>
+                          </div>
+                          <div className="text-end">
+                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#3b82f6' }}>{Number(targetSummary.progressPercentage || 0).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <div className="progress rounded-pill shadow-sm" style={{ height: '10px', background: '#f1f5f9' }}>
+                          <div 
+                            className="progress-bar progress-bar-striped progress-bar-animated rounded-pill" 
+                            style={{ 
+                              width: `${targetSummary.progressPercentage || 0}%`,
+                              background: 'linear-gradient(90deg, #667eea 0%, #3b82f6 100%)' 
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quantity Target */}
+                    <div className="col-md-6">
+                      <div className="p-3 rounded-4 bg-white shadow-sm border">
+                        <div className="d-flex justify-content-between align-items-end mb-2">
+                          <div>
+                            <span className="text-muted small text-uppercase fw-bold" style={{ letterSpacing: '0.5px' }}>Quantity Target (Bags)</span>
+                            <h3 className="mb-0 mt-1" style={{ color: '#003176', fontWeight: 800 }}>
+                              {Number(targetSummary.currentBagsProgress || 0).toLocaleString()} 
+                              <span className="text-muted fw-normal mx-1" style={{ fontSize: '14px' }}>/ {Number(targetSummary.targetBags).toLocaleString()}</span>
+                            </h3>
+                          </div>
+                          <div className="text-end">
+                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b' }}>{Number(targetSummary.bagsPercentage || 0).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <div className="progress rounded-pill shadow-sm" style={{ height: '10px', background: '#f1f5f9' }}>
+                          <div 
+                            className="progress-bar progress-bar-striped progress-bar-animated bg-warning rounded-pill" 
+                            style={{ width: `${targetSummary.bagsPercentage || 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-12 mt-3">
+                      <div className="d-flex align-items-center justify-content-center gap-2 text-muted">
+                        <FaCalendarAlt />
+                        <span className="small">Target valid until <strong>{new Date(targetSummary.endDate).toLocaleDateString()}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-5">
+                    <div 
+                      className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                      style={{ width: '60px', height: '60px', background: '#f1f5f9' }}
+                    >
+                      <FaBullseye size={24} className="text-muted" />
+                    </div>
+                    <h5 className="text-muted mb-1">No Active Target</h5>
+                    <p className="text-muted small mb-0">Set your store targets to track progress here.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Row 1: Sales Activity + Pending Indents */}
             <div className={styles.firstRow}>
               {/* Sales Activity Card */}
@@ -646,16 +773,34 @@ export default function StoreHome() {
                             marginBottom: "8px",
                           }}
                         >
-                          <div>
-                            <div
-                              style={{
-                                fontWeight: 600,
-                                color: "#111827",
-                                fontFamily: "Poppins",
-                                fontSize: "14px",
+                          <div className="d-flex align-items-center gap-3">
+                            <div 
+                              className="rounded-circle d-flex align-items-center justify-content-center"
+                              style={{ 
+                                width: '36px', 
+                                height: '36px', 
+                                background: idx % 2 === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(102, 126, 234, 0.1)',
+                                color: idx % 2 === 0 ? '#3b82f6' : '#667eea'
                               }}
                             >
-                              {s.customerName || "-"}
+                              <FaUserCheck size={16} />
+                            </div>
+                            <div>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  color: "#111827",
+                                  fontFamily: "Poppins",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {s.customerName || "-"}
+                              </div>
+                              {s.amount && (
+                                <div style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
+                                  ₹{Number(s.amount).toLocaleString()}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div
@@ -664,9 +809,13 @@ export default function StoreHome() {
                               color: "#6b7280",
                               fontFamily: "Poppins",
                               fontSize: "13px",
+                              textAlign: 'right'
                             }}
                           >
-                            {s.timeAgo || "-"}
+                            <div className="d-flex align-items-center gap-1 text-muted" style={{ fontSize: '11px' }}>
+                              <FaClock size={10} />
+                              {s.timeAgo || "-"}
+                            </div>
                           </div>
                         </div>
                       ))}

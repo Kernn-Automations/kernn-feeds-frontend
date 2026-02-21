@@ -1,17 +1,26 @@
+import { useState, useEffect } from "react";
+import Logo from "./Logo";
 import NavBg from "./NavBg";
 
 function NavContainer({hover, setTab, tab, role, dept, closeMobileMenu}) {
-  // console.log(role)
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <>
+       {!isMobile && <Logo />}
        <NavBg hover={hover} setTab={setTab} tab={tab} closeMobileMenu={closeMobileMenu} />
-      {/* {(dept === "procurement" && role ==="Village Agent") && <VLPNavBg hover={hover} setTab={setTab} tab={tab} />}
-      {dept === "production" && <ProductionNavBg hover={hover} setTab={setTab} tab={tab}/>}
-      {dept === "sales" && <SalesNavBg hover={hover} setTab={setTab} tab={tab} /> }
-      {dept === "stores" && <StoresNavBg hover={hover} setTab={setTab} tab={tab} />}
-      {dept === "finance" && <FinanceNavBg hover={hover} setTab={setTab} tab={tab} />} */}
     </>
   );
 }
 
 export default NavContainer;
+
