@@ -1871,7 +1871,6 @@ export default function StoreReports() {
                             <th>Avg Daily Sales</th>
                             <th>Peak Day</th>
                             <th>Peak Day Sales</th>
-                            <th>Qty</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1903,10 +1902,10 @@ export default function StoreReports() {
                                 </span>
                               </td>
                               <td className="fw-bold text-primary">
-                                {row.totalSales?.toLocaleString()}
+                                ₹{row.totalSales?.toLocaleString()}
                               </td>
                               <td className="text-muted">
-                                {row.previousMonthTotalSales?.toLocaleString()}
+                                ₹{row.previousMonthTotalSales?.toLocaleString()}
                               </td>
                               <td
                                 className={
@@ -1916,7 +1915,7 @@ export default function StoreReports() {
                                 }
                               >
                                 {row.increaseOrDecrease >= 0 ? "↑ " : "↓ "}
-                                {Math.abs(
+                                ₹{Math.abs(
                                   row.increaseOrDecrease,
                                 )?.toLocaleString()}
                               </td>
@@ -1928,16 +1927,15 @@ export default function StoreReports() {
                                   {row.growthPercentage?.toFixed(2)}%
                                 </span>
                               </td>
-                              <td>{row.averageDailySales?.toLocaleString()}</td>
+                              <td>₹{row.averageDailySales?.toLocaleString()}</td>
                               <td>
                                 <span className="badge bg-info text-dark">
                                   {row.peakDay || "-"}
                                 </span>
                               </td>
                               <td className="text-success fw-bold">
-                                {row.peakDaySales?.toLocaleString()}
+                                ₹{row.peakDaySales?.toLocaleString()}
                               </td>
-                              <td>bags</td>
                             </tr>
                           ))}
                         </tbody>
