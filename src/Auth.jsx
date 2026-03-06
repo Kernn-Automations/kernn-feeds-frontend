@@ -358,6 +358,7 @@ export const AuthProvider = ({ children }) => {
     get: (url, params = {}) => api.get(url, { params }),
     post: (url, data) => api.post(url, data),
     put: (url, data) => api.put(url, data),
+    patch: (url, data) => api.patch(url, data),
     delete: (url) => api.delete(url),
     formData: (url, formdata) => formApi.post(url, formdata),
     getpdf: (url, params = {}) => getPdf.get(url, { params }),

@@ -137,13 +137,13 @@ function StoreTargets({ navigate, isAdmin }) {
                   <th>Progress (Amt)</th>
                   <th>Progress (Bags)</th>
                   <th>Status</th>
-                   {/* <th>Action</th> */}
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {targets.length === 0 && (
                   <tr className="animated-row">
-                    <td colSpan={8} className="text-center">NO DATA FOUND</td>
+                    <td colSpan={9} className="text-center">NO DATA FOUND</td>
                   </tr>
                 )}
                 {targets.length > 0 &&
@@ -157,9 +157,14 @@ function StoreTargets({ navigate, isAdmin }) {
                     // Backend returns 'bagsPercentage', not 'bagsProgressPercentage'
                     const progressBags = target.bagsPercentage ? Number(target.bagsPercentage).toFixed(1) : "0.0";
                     
-                    const status = target.status || 'active';
+                    const now = new Date();
+                    const endDateObj = target.endDate ? new Date(target.endDate) : null;
+                    const isExpired = target.status === 'active' && endDateObj && endDateObj < now;
+                    
+                    const status = isExpired ? 'expired' : (target.status || 'active');
                     const statusBadgeClass = status === 'active' ? 'bg-success' : 
-                                             status === 'completed' ? 'bg-primary' : 'bg-secondary';
+                                             status === 'completed' ? 'bg-primary' : 
+                                             status === 'expired' ? 'bg-danger' : 'bg-secondary';
 
                     return (
                       <tr
@@ -199,7 +204,7 @@ function StoreTargets({ navigate, isAdmin }) {
                             {status.toUpperCase()}
                           </span>
                         </td>
-                        {/* <td className={styles.delcol}>
+                        <td className={styles.delcol}>
                           {status === 'active' && (
                               <>
                                 <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEdit(target)}>
@@ -212,7 +217,7 @@ function StoreTargets({ navigate, isAdmin }) {
                                 )}
                               </>
                           )}
-                        </td> */}
+                        </td>
                       </tr>
                     );
                   })}

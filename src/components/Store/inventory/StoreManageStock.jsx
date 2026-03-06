@@ -259,24 +259,7 @@ function StoreManageStock() {
       </p>
 
       <div className="row m-0 p-3">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className={styles.head} style={{ margin: 0 }}>Manage Stock</h5>
-          <button 
-            className="homebtn"
-            onClick={() => navigate("/store/inventory/manage-stock/history")}
-            style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '36px',
-              border: '1px solid var(--primary-color)',
-              color: 'var(--primary-color)',
-              background: '#fff'
-            }}
-          >
-            History
-          </button>
-        </div>
+        <h5 className={styles.head}>Manage Stock</h5>
         
         {/* Product Selection */}
         <div className={`col-4 ${styles.longform}`}>
@@ -339,6 +322,7 @@ function StoreManageStock() {
             <option value="stockin">Stock In (Add Stock)</option>
             <option value="stockout">Stock Out (Remove Stock)</option>
             <option value="inward">Inward (Add Stock)</option>
+            <option value="outward">Outward (Remove Stock)</option>
           </select>
         </div>
 
