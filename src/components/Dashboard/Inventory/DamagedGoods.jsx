@@ -1,1022 +1,1026 @@
-import React, { useEffect, useState } from "react";
-import styles from "./Inventory.module.css";
+import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/Auth";
-import shadows from "@mui/material/styles/shadows";
-import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import CustomSearchDropdown from "@/utils/CustomSearchDropDown";
+import {
+  LayoutGrid,
+  ChevronRight,
+  AlertTriangle,
+  Package,
+  Store,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight as ChevRight,
+  Eye,
+  RefreshCw,
+  ArrowLeft,
+  Filter,
+  Calendar,
+  Tag,
+  Hash,
+  MapPin,
+  FileText,
+  ShieldAlert,
+  ClipboardList,
+  Boxes,
+  TrendingDown,
+  Info,
+  XCircle,
+} from "lucide-react";
 
-function DamagedGoods({ navigate }) {
-  const [warehouses, setWarehouses] = useState();
-  const [products, setProducts] = useState();
-  const [orders, setOrders] = useState([]); // Initialize as empty array
+/* ═══════════════════════════════════════
+   BRAND  #003176 navy | #22a634 green
+═══════════════════════════════════════ */
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap');
 
-  const { axiosAPI } = useAuth();
+.dg * { box-sizing:border-box; font-family:'DM Sans',sans-serif; }
+.dg { background:#f0f4fa; min-height:100vh; padding:0 0 60px; }
 
-  const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+/* ── Loader overlay ── */
+.dg-loader {
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(240,244,250,0.88); backdrop-filter:blur(10px);
+  display:flex; align-items:center; justify-content:center;
+  animation:lgFade .2s ease;
+}
+@keyframes lgFade{from{opacity:0}to{opacity:1}}
+.dg-loader-box {
+  background:#fff; border-radius:24px; padding:38px 52px;
+  display:flex; flex-direction:column; align-items:center; gap:24px;
+  box-shadow:0 12px 56px rgba(0,49,118,.18); border:1px solid rgba(0,49,118,.08);
+  animation:lgBox .28s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes lgBox{from{opacity:0;transform:scale(.9) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
 
-  const [warehouse, setWarehouse] = useState("");
-  const [product, setProduct] = useState("");
-  const [order, setOrder] = useState("");
-  const [trigger, setTrigger] = useState();
-  const [filterError, setFilterError] = useState("");
+/* warning boxes animation */
+.dg-loader-boxes { display:flex; gap:10px; align-items:flex-end; }
+.dg-lb {
+  border-radius:4px; position:relative; overflow:hidden;
+  animation:lbPulse 1.4s ease-in-out infinite;
+}
+.dg-lb::after {
+  content:'✕';
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-size:10px; font-weight:700; color:rgba(255,255,255,.7);
+}
+.dg-lb:nth-child(1){width:18px;height:28px;background:linear-gradient(180deg,#e53e3e,#c0392b);animation-delay:0s}
+.dg-lb:nth-child(2){width:18px;height:40px;background:linear-gradient(180deg,#f59e0b,#d97706);animation-delay:.16s}
+.dg-lb:nth-child(3){width:18px;height:22px;background:linear-gradient(180deg,#e53e3e,#c0392b);animation-delay:.32s}
+.dg-lb:nth-child(4){width:18px;height:34px;background:linear-gradient(180deg,#003176,#004aad);animation-delay:.48s}
+.dg-lb:nth-child(5){width:18px;height:44px;background:linear-gradient(180deg,#f59e0b,#d97706);animation-delay:.64s}
+@keyframes lbPulse{0%,100%{transform:scaleY(.65);opacity:.55}50%{transform:scaleY(1.15);opacity:1}}
 
-  const [goods, setGoods] = useState();
-  const [allGoods, setAllGoods] = useState([]); // Store all items for frontend pagination
+/* caution stripe */
+.dg-loader-stripe {
+  width:160px; height:6px; border-radius:99px; overflow:hidden; margin-top:2px;
+  background:repeating-linear-gradient(90deg,#e53e3e 0,#e53e3e 8px,#f59e0b 8px,#f59e0b 16px);
+  opacity:.35;
+}
+.dg-loader-scan {
+  width:160px; height:3px; background:#e8edf5; border-radius:99px; overflow:hidden;
+}
+.dg-loader-scan-inner {
+  height:100%; width:38%;
+  background:linear-gradient(to right,transparent,#e53e3e,#f59e0b,transparent);
+  animation:scanMove 1.5s ease-in-out infinite;
+}
+@keyframes scanMove{0%{transform:translateX(-120%)}100%{transform:translateX(380%)}}
+.dg-loader-txt { font-size:14px; font-weight:600; color:#1a2236; text-align:center; }
+.dg-loader-sub { font-size:12px; color:#8a94b0; text-align:center; margin-top:-16px; }
 
-  // Add search state variables for searchable fields
-  const [productSearchTerm, setProductSearchTerm] = useState("");
-  const [showProductSearch, setShowProductSearch] = useState(false);
-  const [warehouseSearchTerm, setWarehouseSearchTerm] = useState("");
-  const [showWarehouseSearch, setShowWarehouseSearch] = useState(false);
+/* ── Breadcrumb ── */
+.dg-bc{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#7a88a8;padding:16px 28px 0}
+.dg-bc-link{cursor:pointer;transition:color .15s;display:flex;align-items:center;gap:4px}
+.dg-bc-link:hover{color:#003176}
+.dg-bc .cur{color:#e53e3e;font-weight:600}
 
-  // Pagination state
-  const [pageNo, setPageNo] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
+/* ── Page header ── */
+.dg-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 28px 0;flex-wrap:wrap;gap:12px}
+.dg-hdr-title h1{font-size:22px;font-weight:700;color:#0d1a36;margin:0;letter-spacing:-.025em;display:flex;align-items:center;gap:10px}
+.dg-hdr-title p{font-size:13px;color:#7a88a8;margin:4px 0 0}
+.dg-title-icon{width:38px;height:38px;border-radius:11px;background:rgba(229,62,62,.1);display:flex;align-items:center;justify-content:center;color:#e53e3e;flex-shrink:0}
 
-  // View modal state
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+/* ── KPI strip ── */
+.dg-kpi{display:flex;gap:12px;padding:18px 28px 0;flex-wrap:wrap}
+.dg-kpi-card{flex:1;min-width:130px;background:#fff;border-radius:14px;padding:14px 16px;border:1px solid rgba(0,49,118,.07);box-shadow:0 1px 6px rgba(0,49,118,.04);position:relative;overflow:hidden;animation:kpiIn .4s ease both;transition:box-shadow .18s,transform .18s}
+.dg-kpi-card:hover{box-shadow:0 4px 18px rgba(0,49,118,.1);transform:translateY(-2px)}
+.dg-kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.dg-kpi-card.red::before   {background:#e53e3e}
+.dg-kpi-card.amber::before {background:#f59e0b}
+.dg-kpi-card.navy::before  {background:#003176}
+.dg-kpi-card.purple::before{background:#7c3aed}
+@keyframes kpiIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.dg-kpi-card:nth-child(1){animation-delay:.04s}.dg-kpi-card:nth-child(2){animation-delay:.08s}
+.dg-kpi-card:nth-child(3){animation-delay:.12s}.dg-kpi-card:nth-child(4){animation-delay:.16s}
+.dg-kpi-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.dg-kpi-card.red    .dg-kpi-icon{background:rgba(229,62,62,.1);color:#e53e3e}
+.dg-kpi-card.amber  .dg-kpi-icon{background:rgba(245,158,11,.1);color:#d97706}
+.dg-kpi-card.navy   .dg-kpi-icon{background:rgba(0,49,118,.08);color:#003176}
+.dg-kpi-card.purple .dg-kpi-icon{background:rgba(124,58,237,.08);color:#7c3aed}
+.dg-kpi-num{font-size:21px;font-weight:700;color:#0d1a36;line-height:1;margin-bottom:3px}
+.dg-kpi-lbl{font-size:10.5px;font-weight:600;color:#8a94b0;text-transform:uppercase;letter-spacing:.05em}
 
-  const openViewModal = (item) => {
-    console.log("Opening view modal for item:", item);
-    console.log("Image fields:", {
-      proofFilePath: item.proofFilePath,
-      proofFileSignedUrl: item.proofFileSignedUrl,
-      imageFile: item.imageFile,
-      image: item.image,
+/* ── Filter card ── */
+.dg-filter{margin:18px 28px 0;background:#fff;border-radius:16px;border:1px solid rgba(0,49,118,.08);box-shadow:0 2px 10px rgba(0,49,118,.05);padding:20px 22px}
+.dg-filter-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#003176;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.dg-filter-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.dg-ff{display:flex;flex-direction:column;gap:5px;min-width:185px;flex:1}
+.dg-ff label{font-size:10.5px;font-weight:700;color:#4a5878;text-transform:uppercase;letter-spacing:.05em}
+
+/* Buttons */
+.dg-btn{display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .16s;border:none;white-space:nowrap}
+.dg-btn-primary{background:linear-gradient(135deg,#003176,#004299);color:#fff;box-shadow:0 2px 8px rgba(0,49,118,.22)}
+.dg-btn-primary:hover{background:linear-gradient(135deg,#00276a,#003c8a);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,49,118,.3)}
+.dg-btn-reset{background:#fff;color:#e53e3e;border:1.5px solid rgba(229,62,62,.25)}
+.dg-btn-reset:hover{background:rgba(229,62,62,.06);border-color:#e53e3e}
+.dg-btn-ghost{background:#fff;color:#4a5878;border:1.5px solid #d0d8ee}
+.dg-btn-ghost:hover{border-color:#003176;color:#003176}
+
+/* ── Table section ── */
+.dg-section{margin:18px 28px 0;background:#fff;border-radius:16px;border:1px solid rgba(0,49,118,.08);box-shadow:0 2px 12px rgba(0,49,118,.05);overflow:hidden}
+.dg-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #edf0f7;background:linear-gradient(to right,rgba(229,62,62,.025),transparent);flex-wrap:wrap;gap:8px}
+.dg-section-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#0d1a36}
+.dg-badge{font-size:11px;font-weight:700;padding:2px 9px;background:rgba(229,62,62,.08);color:#e53e3e;border-radius:99px}
+.dg-filter-badge{font-size:11px;font-weight:600;padding:2px 9px;background:rgba(0,49,118,.08);color:#003176;border-radius:99px;display:flex;align-items:center;gap:4px}
+
+/* per-page select */
+.dg-per-page{padding:6px 10px;border:1.5px solid #d0d8ee;border-radius:8px;font-size:12.5px;font-family:inherit;color:#1a2236;background:#fff;outline:none;cursor:pointer}
+.dg-per-page:focus{border-color:#003176}
+
+/* ── Table ── */
+.dg-table-scroll{overflow-x:auto}
+.dg-tbl{width:100%;border-collapse:collapse}
+.dg-tbl thead th{padding:10px 14px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#8a94b0;border-bottom:1px solid #edf0f7;white-space:nowrap;background:#f7f9fd;position:sticky;top:0;z-index:2}
+.dg-tbl thead th.searchable{cursor:pointer;transition:color .15s,background .15s}
+.dg-tbl thead th.searchable:hover{color:#003176;background:#f0f4fb}
+.dg-tbl thead th.has-filter{color:#003176;background:rgba(0,49,118,.04)}
+.dg-th-inner{display:flex;align-items:center;gap:5px}
+.dg-th-search{display:flex;align-items:center;gap:5px;background:#fff;border:1.5px solid #003176;border-radius:7px;padding:3px 7px;box-shadow:0 0 0 2px rgba(0,49,118,.08)}
+.dg-th-search input{border:none;outline:none;background:transparent;font-size:11.5px;font-family:inherit;color:#1a2236;width:100px}
+.dg-th-search input::placeholder{color:#b8c4d8}
+.dg-th-clear{background:none;border:none;cursor:pointer;padding:0;color:#a0aabf;display:flex;line-height:1}
+.dg-th-clear:hover{color:#e53e3e}
+
+.dg-tbl tbody tr{border-bottom:1px solid #f0f3fa;transition:background .1s;animation:rowIn .25s ease both}
+@keyframes rowIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
+.dg-tbl tbody tr:hover{background:#f7faff}
+.dg-tbl tbody tr:last-child{border-bottom:none}
+.dg-tbl tbody td{padding:11px 14px;font-size:13px;color:#2a3452;vertical-align:middle}
+.dg-tbl td.sno{color:#a0aabf;font-size:11.5px;font-weight:500;width:44px}
+
+/* Product cell */
+.dg-prod-cell{display:flex;align-items:center;gap:9px}
+.dg-prod-icon{width:30px;height:30px;border-radius:8px;background:rgba(229,62,62,.08);display:flex;align-items:center;justify-content:center;color:#e53e3e;flex-shrink:0}
+.dg-prod-name{font-weight:600;color:#0d1a36;font-size:13px}
+
+/* Store cell */
+.dg-store-cell{display:flex;align-items:center;gap:6px;font-size:13px}
+.dg-store-dot{width:7px;height:7px;border-radius:50%;background:#003176;flex-shrink:0}
+
+/* Qty badge */
+.dg-qty{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;font-size:12.5px;font-weight:700;background:rgba(229,62,62,.08);color:#e53e3e;font-family:'DM Mono',monospace}
+
+/* Date cell */
+.dg-date{font-family:'DM Mono',monospace;font-size:12px;color:#5a6880}
+
+/* View button */
+.dg-view-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;font-family:inherit;background:rgba(0,49,118,.07);color:#003176;border:1px solid rgba(0,49,118,.15);cursor:pointer;transition:all .15s;white-space:nowrap}
+.dg-view-btn:hover{background:rgba(0,49,118,.12);border-color:#003176}
+
+/* ── Pagination ── */
+.dg-pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px solid #edf0f7;background:#f7f9fd;flex-wrap:wrap;gap:8px}
+.dg-page-info{font-size:12.5px;color:#7a88a8}
+.dg-page-info strong{color:#0d1a36}
+.dg-page-btns{display:flex;align-items:center;gap:6px}
+.dg-page-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid #d0d8ee;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#4a5878;transition:all .15s;font-family:inherit;font-size:12px;font-weight:600}
+.dg-page-btn:hover:not(:disabled){border-color:#003176;color:#003176;background:rgba(0,49,118,.04)}
+.dg-page-btn:disabled{opacity:.38;cursor:not-allowed}
+.dg-page-btn.active{background:#003176;border-color:#003176;color:#fff;box-shadow:0 2px 6px rgba(0,49,118,.25)}
+.dg-page-ellipsis{font-size:12px;color:#a0aabf;padding:0 2px}
+
+/* ── Detail Modal ── */
+.dg-modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(10,20,50,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:moFade .2s ease}
+@keyframes moFade{from{opacity:0}to{opacity:1}}
+.dg-modal{background:#fff;border-radius:20px;width:100%;max-width:520px;box-shadow:0 24px 80px rgba(0,49,118,.22);animation:moSlide .28s cubic-bezier(.34,1.56,.64,1);overflow:hidden}
+@keyframes moSlide{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+.dg-modal-hdr{padding:20px 22px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.dg-modal-icon{width:46px;height:46px;border-radius:14px;background:rgba(229,62,62,.1);display:flex;align-items:center;justify-content:center;color:#e53e3e;flex-shrink:0}
+.dg-modal-title{font-size:17px;font-weight:700;color:#0d1a36;margin:0}
+.dg-modal-sub{font-size:12.5px;color:#7a88a8;margin:3px 0 0}
+.dg-modal-close{width:32px;height:32px;border-radius:8px;border:1.5px solid #edf0f7;background:#f7f9fd;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#7a88a8;transition:all .15s;flex-shrink:0}
+.dg-modal-close:hover{border-color:#e53e3e;color:#e53e3e;background:rgba(229,62,62,.06)}
+
+.dg-modal-body{padding:20px 22px}
+.dg-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.dg-modal-field{display:flex;flex-direction:column;gap:4px;background:#f7f9fd;border-radius:10px;padding:12px 14px;border:1px solid #edf0f7}
+.dg-modal-field.full{grid-column:1/-1}
+.dg-modal-field.highlight{background:rgba(229,62,62,.04);border-color:rgba(229,62,62,.15)}
+.dg-field-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#a0aabf;display:flex;align-items:center;gap:5px}
+.dg-field-val{font-size:14px;font-weight:600;color:#0d1a36}
+.dg-field-val.big{font-size:22px;font-weight:700;color:#e53e3e;font-family:'DM Mono',monospace}
+.dg-field-val.mono{font-family:'DM Mono',monospace;font-size:13px}
+.dg-field-val.reason{font-size:13px;font-weight:400;color:#4a5878;line-height:1.5}
+
+.dg-modal-footer{padding:0 22px 20px}
+.dg-modal-close-btn{width:100%;padding:10px;border-radius:10px;border:1.5px solid #d0d8ee;background:#fff;font-size:13px;font-weight:600;font-family:inherit;color:#4a5878;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px}
+.dg-modal-close-btn:hover{border-color:#003176;color:#003176}
+
+/* ── Empty / inline loading ── */
+.dg-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px;gap:10px}
+.dg-empty-icon{width:60px;height:60px;border-radius:16px;background:rgba(229,62,62,.06);display:flex;align-items:center;justify-content:center;color:#e0a0a0;margin-bottom:4px}
+.dg-empty h3{font-size:15px;font-weight:700;color:#4a5878;margin:0}
+.dg-empty p{font-size:13px;color:#a0aabf;margin:0;text-align:center}
+
+/* skeleton shimmer */
+.dg-skeleton{background:linear-gradient(90deg,#f0f3fa 25%,#e4e9f2 50%,#f0f3fa 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px;height:14px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.dg-spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .dg-bc,.dg-hdr,.dg-kpi,.dg-filter,.dg-section{padding-left:14px;padding-right:14px;margin-left:12px;margin-right:12px}
+  .dg-modal-grid{grid-template-columns:1fr}
+}
+`;
+
+/* ─── Loader ─── */
+function DamagedLoader({ message = "Loading damaged goods" }) {
+  return (
+    <div className="dg-loader">
+      <div className="dg-loader-box">
+        <div>
+          <div className="dg-loader-boxes">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="dg-lb" />
+            ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              marginTop: 6,
+            }}
+          >
+            <div className="dg-loader-scan">
+              <div className="dg-loader-scan-inner" />
+            </div>
+            <div className="dg-loader-stripe" />
+          </div>
+        </div>
+        <div>
+          <div className="dg-loader-txt">
+            {message}
+            <span style={{ color: "#e53e3e" }}>…</span>
+          </div>
+          <div className="dg-loader-sub">
+            Scanning inventory for damage records
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Skeleton rows ─── */
+function SkeletonRows({ count = 5 }) {
+  return Array.from({ length: count }).map((_, i) => (
+    <tr key={i} style={{ opacity: 1 - i * 0.15 }}>
+      {[44, 90, 140, 80, 120, 80].map((w, j) => (
+        <td key={j} style={{ padding: "14px" }}>
+          <div className="dg-skeleton" style={{ width: w, height: 13 }} />
+        </td>
+      ))}
+    </tr>
+  ));
+}
+
+/* ─── Searchable TH ─── */
+function SearchableTH({
+  label,
+  icon: Icon,
+  searchTerm,
+  setSearchTerm,
+  show,
+  setShow,
+}) {
+  const inputRef = useRef(null);
+  useEffect(() => {
+    if (show) setTimeout(() => inputRef.current?.focus(), 40);
+  }, [show]);
+  return (
+    <th
+      className={`searchable${show || searchTerm ? " has-filter" : ""}`}
+      onClick={() => !show && setShow(true)}
+    >
+      {show ? (
+        <div className="dg-th-search" onClick={(e) => e.stopPropagation()}>
+          <Search size={11} color="#003176" />
+          <input
+            ref={inputRef}
+            placeholder={`Filter…`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              className="dg-th-clear"
+              onClick={() => {
+                setSearchTerm("");
+                setShow(false);
+              }}
+            >
+              <X size={10} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="dg-th-inner">
+          {Icon && <Icon size={11} />}
+          {label}
+          {searchTerm ? (
+            <span
+              style={{
+                fontSize: 9,
+                background: "#003176",
+                color: "#fff",
+                borderRadius: 4,
+                padding: "1px 5px",
+              }}
+            >
+              ●
+            </span>
+          ) : (
+            <Search size={10} style={{ color: "#c0c8dc", marginLeft: 2 }} />
+          )}
+        </div>
+      )}
+    </th>
+  );
+}
+
+/* ─── Detail Modal ─── */
+function DetailModal({ item, onClose }) {
+  const formatDate = (d) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
-    console.log("Full item object:", JSON.stringify(item, null, 2));
-    setSelectedItem(item);
-    setIsViewModalOpen(true);
   };
 
-  const closeViewModal = () => {
-    setIsViewModalOpen(false);
-    setSelectedItem(null);
-  };
-
-  // Reset page number when limit changes
   useEffect(() => {
-    setPageNo(1);
-  }, [limit]);
-
-  // Refresh data when limit changes
-  useEffect(() => {
-    if (pageNo === 1) {
-      refreshDamagedGoods();
-    }
-  }, [limit]);
-
-  // Update pagination when page number changes
-  useEffect(() => {
-    if (allGoods.length > 0) {
-      updatePagination(allGoods, pageNo, limit);
-    }
-  }, [pageNo, allGoods, limit]);
-
-  // Update pagination when limit changes
-  useEffect(() => {
-    if (allGoods.length > 0) {
-      updatePagination(allGoods, pageNo, limit);
-    }
-  }, [limit, allGoods, pageNo]);
-
-  // Add ESC key functionality to exit search mode
-  useEffect(() => {
-    const handleEscKey = (event) => {
-      if (event.key === "Escape") {
-        if (showProductSearch) {
-          setShowProductSearch(false);
-          setProductSearchTerm("");
-        }
-        if (showWarehouseSearch) {
-          setShowWarehouseSearch(false);
-          setWarehouseSearchTerm("");
-        }
-      }
+    const h = (e) => {
+      if (e.key === "Escape") onClose();
     };
-
-    if (showProductSearch || showWarehouseSearch) {
-      document.addEventListener("keydown", handleEscKey);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleEscKey);
-    };
-  }, [showProductSearch, showWarehouseSearch]);
-
-  // Add click outside functionality to exit search mode
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Check if click is outside any of the search headers
-      const productHeader = document.querySelector("[data-product-header]");
-      const warehouseHeader = document.querySelector("[data-warehouse-header]");
-
-      if (
-        showProductSearch &&
-        productHeader &&
-        !productHeader.contains(event.target)
-      ) {
-        setShowProductSearch(false);
-        setProductSearchTerm("");
-      }
-
-      if (
-        showWarehouseSearch &&
-        warehouseHeader &&
-        !warehouseHeader.contains(event.target)
-      ) {
-        setShowWarehouseSearch(false);
-        setWarehouseSearchTerm("");
-      }
-    };
-
-    if (showProductSearch || showWarehouseSearch) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showProductSearch, showWarehouseSearch]);
-
-  // Global refresh function for damaged goods
-  const refreshDamagedGoods = async () => {
-    try {
-      setLoading(true);
-
-      // ✅ Get division ID from localStorage for division filtering
-      const currentDivisionId = localStorage.getItem("currentDivisionId");
-      const currentDivisionName = localStorage.getItem("currentDivisionName");
-
-      // ✅ Add division parameters to prevent wrong division data
-      let endpoint = `/damaged-goods?page=${pageNo}&limit=${limit}`;
-      if (currentDivisionId && currentDivisionId !== "1") {
-        endpoint += `&divisionId=${currentDivisionId}`;
-      } else if (currentDivisionId === "1") {
-        endpoint += `&showAllDivisions=true`;
-      }
-
-      console.log("🔄 Refreshing damaged goods with endpoint:", endpoint);
-      console.log("DamagedGoods - Division ID:", currentDivisionId);
-      console.log("DamagedGoods - Division Name:", currentDivisionName);
-
-      const res = await axiosAPI.get(endpoint);
-      console.log("🔄 Refreshing damaged goods...");
-      console.log("Damaged goods API response:", res.data);
-
-      // Get all items from response
-      const allItems = Array.isArray(res.data.damagedGoods)
-        ? res.data.damagedGoods
-        : res.data;
-      console.log("All damaged goods items:", allItems);
-      console.log("Total items received:", allItems.length);
-
-      // Store all items for frontend pagination
-      setAllGoods(allItems);
-
-      // Apply frontend pagination
-      updatePagination(allItems, pageNo, limit);
-
-      console.log("✅ Damaged goods refreshed successfully");
-    } catch (e) {
-      console.error("❌ Error refreshing damaged goods:", e);
-      setError(e.response?.data?.message);
-      setIsModalOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Set global function for other components to use
-  React.useEffect(() => {
-    window.refreshDamagedGoods = refreshDamagedGoods;
-    return () => {
-      delete window.refreshDamagedGoods;
-    };
-  }, [pageNo, limit, trigger]);
-
-  // On initial mount, fetch ALL damaged goods (no filters)
-  useEffect(() => {
-    async function fetchAllDamagedGoods() {
-      try {
-        setLoading(true);
-
-        // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem("currentDivisionId");
-        const currentDivisionName = localStorage.getItem("currentDivisionName");
-
-        // ✅ Add division parameters to prevent wrong division data
-        let endpoint = `/damaged-goods?page=${pageNo}&limit=${limit}`;
-        if (currentDivisionId && currentDivisionId !== "1") {
-          endpoint += `&divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === "1") {
-          endpoint += `&showAllDivisions=true`;
-        }
-
-        console.log("🔄 Fetching damaged goods with endpoint:", endpoint);
-        console.log("DamagedGoods - Division ID:", currentDivisionId);
-        console.log("DamagedGoods - Division Name:", currentDivisionName);
-
-        const res = await axiosAPI.get(endpoint);
-        console.log("🔄 Fetching damaged goods...");
-        console.log("Damaged goods API response:", res.data);
-
-        // Get all items from response
-        const allItems = Array.isArray(res.data.damagedGoods)
-          ? res.data.damagedGoods
-          : res.data;
-        console.log("All damaged goods items:", allItems);
-        console.log("Total items received:", allItems.length);
-
-        // Store all items for frontend pagination
-        setAllGoods(allItems);
-
-        // Apply frontend pagination
-        updatePagination(allItems, pageNo, limit);
-      } catch (e) {
-        console.error("❌ Error fetching damaged goods:", e);
-        setError(e.response?.data?.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchAllDamagedGoods();
-  }, [pageNo, limit, trigger]); // Added trigger to dependencies
-
-  // Fetch orders when warehouse or product changes
-  useEffect(() => {
-    if (!warehouse || !product) {
-      setOrders([]);
-      return;
-    }
-    async function fetchOrders() {
-      try {
-        setLoading(true);
-        const res = await axiosAPI.get(
-          `/purchases?warehouseId=${warehouse}&productId=${product}`
-        );
-        setOrders(
-          Array.isArray(res.data.purchaseOrders) ? res.data.purchaseOrders : []
-        );
-        console.log(res);
-      } catch (e) {
-        setError(e.response?.data?.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchOrders();
-  }, [warehouse, product]);
-
-  // Fetch dropdown data for filters on mount
-  useEffect(() => {
-    async function fetchDropdowns() {
-      try {
-        setLoading(true);
-
-        // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem("currentDivisionId");
-        const currentDivisionName = localStorage.getItem("currentDivisionName");
-
-        // ✅ Add division parameters to warehouses endpoint
-        let warehousesEndpoint = "/warehouses";
-        if (currentDivisionId && currentDivisionId !== "1") {
-          warehousesEndpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === "1") {
-          warehousesEndpoint += `?showAllDivisions=true`;
-        }
-
-        console.log(
-          "DamagedGoods - Fetching warehouses with endpoint:",
-          warehousesEndpoint
-        );
-        console.log("DamagedGoods - Division ID:", currentDivisionId);
-        console.log("DamagedGoods - Division Name:", currentDivisionName);
-
-        // ✅ Add division parameters to products endpoint as well
-        let productsEndpoint = "/products/list";
-        if (currentDivisionId && currentDivisionId !== "1") {
-          productsEndpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === "1") {
-          productsEndpoint += `?showAllDivisions=true`;
-        }
-
-        console.log(
-          "DamagedGoods - Fetching products with endpoint:",
-          productsEndpoint
-        );
-
-        const [w, p, o] = await Promise.all([
-          axiosAPI.get(warehousesEndpoint),
-          axiosAPI.get(productsEndpoint),
-          axiosAPI.get("/purchases?limit=100"),
-        ]);
-        setWarehouses(w.data.warehouses);
-        setProducts(p.data.products);
-        setOrders(
-          Array.isArray(o.data.purchaseOrders) ? o.data.purchaseOrders : []
-        );
-      } catch (e) {
-        setError(e.response?.data?.message);
-        setIsModalOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDropdowns();
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
   }, []);
 
-  // Format date to DD-MM-YYYY
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
+  return (
+    <div
+      className="dg-modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="dg-modal">
+        {/* Header */}
+        <div className="dg-modal-hdr">
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div className="dg-modal-icon">
+              <ShieldAlert size={22} />
+            </div>
+            <div>
+              <div className="dg-modal-title">Damage Report</div>
+              <div className="dg-modal-sub">
+                Full details for this damage record
+              </div>
+            </div>
+          </div>
+          <button className="dg-modal-close" onClick={onClose}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="dg-modal-body">
+          <div className="dg-modal-grid">
+            {/* Quantity — big highlight */}
+            <div className="dg-modal-field highlight">
+              <div className="dg-field-label">
+                <AlertTriangle size={10} color="#e53e3e" /> Damaged Qty
+              </div>
+              <div className="dg-field-val big">{item.quantity}</div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#a0aabf",
+                  marginTop: 2,
+                  fontFamily: "'DM Mono',monospace",
+                }}
+              >
+                bags
+              </div>
+            </div>
+
+            {/* Date */}
+            <div className="dg-modal-field">
+              <div className="dg-field-label">
+                <Calendar size={10} /> Recorded On
+              </div>
+              <div className="dg-field-val mono">
+                {formatDate(item.createdAt)}
+              </div>
+            </div>
+
+            {/* Product */}
+            <div className="dg-modal-field">
+              <div className="dg-field-label">
+                <Package size={10} /> Product
+              </div>
+              <div className="dg-field-val">{item.product?.name || "—"}</div>
+            </div>
+
+            {/* Store */}
+            <div className="dg-modal-field">
+              <div className="dg-field-label">
+                <Store size={10} /> Store
+              </div>
+              <div className="dg-field-val">{item.store?.name || "—"}</div>
+            </div>
+
+            {/* Store code */}
+            <div className="dg-modal-field">
+              <div className="dg-field-label">
+                <Hash size={10} /> Store Code
+              </div>
+              <div className="dg-field-val mono">
+                {item.store?.storeCode || "—"}
+              </div>
+            </div>
+
+            {/* Reason — full width */}
+            {item.damageReason && (
+              <div className="dg-modal-field full">
+                <div className="dg-field-label">
+                  <FileText size={10} /> Damage Reason
+                </div>
+                <div className="dg-field-val reason">{item.damageReason}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="dg-modal-footer">
+          <button className="dg-modal-close-btn" onClick={onClose}>
+            <X size={13} /> Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════ */
+function DamagedGoods({ navigate }) {
+  const { axiosAPI } = useAuth();
+
+  const [stores, setStores] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [store, setStore] = useState("");
+  const [product, setProduct] = useState("");
+
+  const [allGoods, setAllGoods] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [hasFetched, setHasFetched] = useState(false);
+  const [isFiltered, setIsFiltered] = useState(false);
+
+  const [pageNo, setPageNo] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // Column search
+  const [prodSearch, setProdSearch] = useState("");
+  const [showProdSearch, setShowProdSearch] = useState(false);
+  const [storeSearch, setStoreSearch] = useState("");
+  const [showStoreSearch, setShowStoreSearch] = useState(false);
+
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  /* ─ filter + paginate ─ */
+  const displayed = allGoods.filter((item) => {
+    if (
+      prodSearch &&
+      !(item.product?.name || "")
+        .toLowerCase()
+        .includes(prodSearch.toLowerCase())
+    )
+      return false;
+    if (
+      storeSearch &&
+      !(item.store?.name || "")
+        .toLowerCase()
+        .includes(storeSearch.toLowerCase())
+    )
+      return false;
+    return true;
+  });
+
+  const totalPages = Math.ceil(displayed.length / limit);
+  const pageItems = displayed.slice((pageNo - 1) * limit, pageNo * limit);
+
+  const formatDate = (d) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    return `${String(dt.getDate()).padStart(2, "0")}-${String(dt.getMonth() + 1).padStart(2, "0")}-${dt.getFullYear()}`;
+  };
+
+  /* ─ Fetch dropdowns ─ */
+  useEffect(() => {
+    async function go() {
+      try {
+        const [s, p] = await Promise.all([
+          axiosAPI.get("/stores?all=true"),
+          axiosAPI.get("/products/list"),
+        ]);
+        setStores(s.data.data || []);
+        setProducts(p.data.products || []);
+      } catch {}
+    }
+    go();
+  }, []);
+
+  /* ─ Initial load ─ */
+  const fetchDamagedGoods = async (
+    storeId = "",
+    productId = "",
+    showFullLoader = true,
+  ) => {
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "-";
+      if (showFullLoader) setLoading(true);
+      else setTableLoading(true);
 
-      const day = String(date.getDate()).padStart(2, "0");
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const year = date.getFullYear();
+      let query = "/damaged-goods";
+      const params = [];
+      if (storeId) params.push(`storeId=${storeId}`);
+      if (productId) params.push(`productId=${productId}`);
+      if (params.length) query += `?${params.join("&")}`;
 
-      return `${day}-${month}-${year}`;
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "-";
+      const res = await axiosAPI.get(query);
+      setAllGoods(res.data.damagedGoods || []);
+      setPageNo(1);
+      setHasFetched(true);
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to fetch damaged goods.");
+    } finally {
+      setLoading(false);
+      setTableLoading(false);
     }
   };
 
-  // Handle frontend pagination
-  const updatePagination = (allItems, currentPage, itemsPerPage) => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedItems = allItems.slice(startIndex, endIndex);
+  useEffect(() => {
+    fetchDamagedGoods();
+  }, []);
 
-    console.log("🔄 Frontend pagination:", {
-      totalItems: allItems.length,
-      currentPage,
-      itemsPerPage,
-      startIndex,
-      endIndex,
-      paginatedItemsCount: paginatedItems.length,
-      totalPages: Math.ceil(allItems.length / itemsPerPage),
-    });
-
-    setGoods(paginatedItems);
-    setTotalPages(Math.ceil(allItems.length / itemsPerPage));
+  const applyFilters = () => {
+    if (!store && !product) {
+      setError("Select at least one filter (Store or Product).");
+      return;
+    }
+    setIsFiltered(true);
+    fetchDamagedGoods(store, product, false);
   };
+
+  const resetFilters = () => {
+    setStore("");
+    setProduct("");
+    setIsFiltered(false);
+    fetchDamagedGoods("", "", false);
+  };
+
+  /* ─ KPIs ─ */
+  const uniqueProducts = [
+    ...new Set(allGoods.map((i) => i.product?.name).filter(Boolean)),
+  ].length;
+  const uniqueStores = [
+    ...new Set(allGoods.map((i) => i.store?.name).filter(Boolean)),
+  ].length;
+  const totalQty = allGoods.reduce((s, i) => s + (i.quantity || 0), 0);
+
+  const kpis = [
+    {
+      cls: "red",
+      Icon: AlertTriangle,
+      label: "Total Records",
+      value: allGoods.length,
+    },
+    { cls: "amber", Icon: TrendingDown, label: "Damaged Qty", value: totalQty },
+    { cls: "navy", Icon: Boxes, label: "Products", value: uniqueProducts },
+    {
+      cls: "purple",
+      Icon: Store,
+      label: "Stores Affected",
+      value: uniqueStores,
+    },
+  ];
+
+  /* ─ Page numbers to render ─ */
+  const getPageNums = () => {
+    if (totalPages <= 5)
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (pageNo <= 3) return [1, 2, 3, 4, "…", totalPages];
+    if (pageNo >= totalPages - 2)
+      return [
+        1,
+        "…",
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ];
+    return [1, "…", pageNo - 1, pageNo, pageNo + 1, "…", totalPages];
+  };
+
+  const anyColFilter = prodSearch || storeSearch;
 
   return (
     <>
-      <p className="path">
-        <span onClick={() => navigate("/inventory")}>Inventory</span>{" "}
-        <i class="bi bi-chevron-right"></i> Damaged Goods
-      </p>
-
-      <div className="row m-0 p-3">
-        <CustomSearchDropdown
-          label="Warehouse"
-          onSelect={setWarehouse}
-          options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
-        />
-
-        <CustomSearchDropdown
-          label="Products"
-          onSelect={setProduct}
-          options={products?.map((p) => ({ value: p.id, label: p.name }))}
-        />
-
-        <div className={`col-3 formcontent`}>
-          <label htmlFor="">Order :</label>
-          <select
-            name=""
-            id=""
-            value={order || ""}
-            onChange={(e) =>
-              setOrder(e.target.value === "null" ? "" : e.target.value)
-            }
-          >
-            <option value="null">--select--</option>
-            {orders &&
-              orders.map((order) => (
-                <option key={order.id} value={order.id}>
-                  {order.ordernumber}
-                </option>
-              ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Submit/Cancel Buttons */}
-      <div className="row m-0 p-3 pt-4 justify-content-center">
-        <div className="col-3">
-          <button
-            className="submitbtn"
-            onClick={async () => {
-              // At least one filter must be selected
-              if (!warehouse && !product && !order) {
-                setFilterError(
-                  "Select at least one filter (Warehouse, Product, or Order)"
-                );
-                return;
-              }
-              setFilterError("");
-              setLoading(true);
-              try {
-                let query = "/damaged-goods";
-                if (warehouse && !product && !order) {
-                  // Use the correct endpoint for warehouse filtering only
-                  query = `/damaged-goods/warehouse/${warehouse}`;
-                } else {
-                  let params = [];
-                  if (warehouse) params.push(`warehouseId=${warehouse}`);
-                  if (product) params.push(`productId=${product}`);
-                  if (order) params.push(`orderId=${order}`);
-                  if (params.length > 0) {
-                    query += `?${params.join("&")}`;
-                  }
-                }
-                const res = await axiosAPI.get(query);
-
-                // Get filtered items
-                const filteredItems = Array.isArray(res.data.damagedGoods)
-                  ? res.data.damagedGoods
-                  : res.data;
-                console.log("Filtered items:", filteredItems);
-                console.log("Total filtered items:", filteredItems.length);
-
-                // Store filtered items and reset to page 1
-                setAllGoods(filteredItems);
-                setPageNo(1);
-
-                // Apply frontend pagination
-                updatePagination(filteredItems, 1, limit);
-              } catch (e) {
-                setError(
-                  e.response?.data?.message || "Failed to fetch damaged goods"
-                );
-                setIsModalOpen(true);
-              } finally {
-                setLoading(false);
-              }
+      <style>{css}</style>
+      <div className="dg">
+        {loading && <DamagedLoader message="Loading damaged goods" />}
+        {error && (
+          <div
+            style={{
+              position: "fixed",
+              top: 20,
+              right: 20,
+              z: 9999,
+              background: "#fff",
+              border: "1.5px solid rgba(229,62,62,.3)",
+              borderRadius: 12,
+              padding: "12px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              boxShadow: "0 4px 20px rgba(229,62,62,.15)",
+              animation: "tagIn .2s ease",
+              maxWidth: 360,
+              zIndex: 9990,
             }}
           >
-            Submit
-          </button>
-          <button className="cancelbtn" onClick={() => navigate("/inventory")}>
-            Cancel
-          </button>
-        </div>
-      </div>
-      {filterError && (
-        <div className="row m-0 p-0 justify-content-center">
-          <div className="col-6 text-danger text-center">{filterError}</div>
-        </div>
-      )}
+            <AlertTriangle size={16} color="#e53e3e" />
+            <span
+              style={{
+                fontSize: 13,
+                color: "#3a1010",
+                fontWeight: 500,
+                flex: 1,
+              }}
+            >
+              {error}
+            </span>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                color: "#a0aabf",
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
-      {/* Damaged Goods Table */}
-      <div className="row m-0 p-3 justify-content-center">
-        <div className="col-lg-10">
-          {/* Entity Limit */}
-          <div className="row m-0 p-0 mb-3 justify-content-end">
-            <div className="col-lg-2">
-              <label htmlFor="">Entity :</label>
-              <select
-                name=""
-                id=""
-                value={limit}
-                onChange={(e) => {
-                  const newLimit = Number(e.target.value);
-                  console.log("🔄 Entity selection changed:", {
-                    oldLimit: limit,
-                    newLimit,
-                  });
-                  setLimit(newLimit);
+        {/* Breadcrumb */}
+        <div className="dg-bc">
+          <span className="dg-bc-link" onClick={() => navigate("/inventory")}>
+            <LayoutGrid size={13} /> Inventory
+          </span>
+          <ChevRight size={12} style={{ color: "#c0c8dc" }} />
+          <span className="cur">Damaged Goods</span>
+        </div>
+
+        {/* Header */}
+        <div className="dg-hdr">
+          <div className="dg-hdr-title">
+            <h1>
+              <div className="dg-title-icon">
+                <ShieldAlert size={20} />
+              </div>
+              Damaged Goods
+            </h1>
+            <p>Track and review all damaged inventory records across stores</p>
+          </div>
+          <button
+            className="dg-btn dg-btn-primary"
+            onClick={() => fetchDamagedGoods(store, product, false)}
+          >
+            <RefreshCw size={14} className={tableLoading ? "dg-spin" : ""} />{" "}
+            Refresh
+          </button>
+        </div>
+
+        {/* KPI Strip */}
+        {hasFetched && (
+          <div className="dg-kpi">
+            {kpis.map((k) => (
+              <div key={k.label} className={`dg-kpi-card ${k.cls}`}>
+                <div className="dg-kpi-icon">
+                  <k.Icon size={17} />
+                </div>
+                <div className="dg-kpi-num">{k.value.toLocaleString()}</div>
+                <div className="dg-kpi-lbl">{k.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Filter Card */}
+        <div className="dg-filter">
+          <div className="dg-filter-lbl">
+            <Filter size={12} /> Filter Records
+          </div>
+          <div className="dg-filter-row">
+            <div className="dg-ff">
+              <label>Store</label>
+              <CustomSearchDropdown
+                label="Store"
+                onSelect={setStore}
+                options={stores.map((s) => ({ value: s.id, label: s.name }))}
+              />
+            </div>
+            <div className="dg-ff">
+              <label>Product</label>
+              <CustomSearchDropdown
+                label="Product"
+                onSelect={setProduct}
+                options={products.map((p) => ({ value: p.id, label: p.name }))}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, paddingTop: 22 }}>
+              <button className="dg-btn dg-btn-primary" onClick={applyFilters}>
+                <Filter size={14} /> Apply
+              </button>
+              {isFiltered && (
+                <button className="dg-btn dg-btn-reset" onClick={resetFilters}>
+                  <XCircle size={14} /> Reset
+                </button>
+              )}
+              <button
+                className="dg-btn dg-btn-ghost"
+                onClick={() => navigate("/inventory")}
+              >
+                <ArrowLeft size={14} /> Back
+              </button>
+            </div>
+          </div>
+          {isFiltered && (
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 12.5,
+                color: "#7a88a8",
+              }}
+            >
+              <Info size={13} color="#003176" />
+              Showing filtered results.
+              <button
+                onClick={resetFilters}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#e53e3e",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  padding: 0,
                 }}
               >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={30}>30</option>
-                <option value={40}>40</option>
-                <option value={50}>50</option>
-              </select>
+                Clear filter →
+              </button>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Pagination Info */}
-          <div className="row m-0 p-0 mb-3 justify-content-between">
-            <div className="col-lg-6">
-              <p className="text-muted mb-0">
-                Showing{" "}
-                {goods && goods.length > 0 ? (pageNo - 1) * limit + 1 : 0} to{" "}
-                {goods && goods.length > 0
-                  ? Math.min(
-                      pageNo * limit,
-                      (pageNo - 1) * limit + goods.length
-                    )
-                  : 0}{" "}
-                of {allGoods ? allGoods.length : 0} entries
-                {totalPages > 1 && ` (Page ${pageNo} of ${totalPages})`}
-              </p>
+        {/* Table Section */}
+        {hasFetched && (
+          <div className="dg-section">
+            <div className="dg-section-hdr">
+              <div className="dg-section-title">
+                <ClipboardList size={15} color="#e53e3e" />
+                Damage Records
+                <span className="dg-badge">{displayed.length} records</span>
+                {anyColFilter && (
+                  <span className="dg-filter-badge">
+                    <Filter size={10} /> Filtered
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12, color: "#7a88a8" }}>Rows:</span>
+                <select
+                  className="dg-per-page"
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(parseInt(e.target.value));
+                    setPageNo(1);
+                  }}
+                >
+                  {[10, 20, 30, 50].map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
-          <table className="table table-bordered borderedtable">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Date</th>
-                <th
-                  onClick={() => setShowProductSearch(!showProductSearch)}
-                  style={{ cursor: "pointer", position: "relative" }}
-                  data-product-header
-                >
-                  {showProductSearch ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <input
-                        type="text"
-                        placeholder="Search by product..."
-                        value={productSearchTerm}
-                        onChange={(e) => setProductSearchTerm(e.target.value)}
-                        style={{
-                          flex: 1,
-                          padding: "2px 6px",
-                          border: "1px solid #ddd",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          minWidth: "120px",
-                          height: "28px",
-                          color: "#000",
-                          backgroundColor: "#fff",
-                        }}
-                        autoFocus
-                      />
-                      {productSearchTerm && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setProductSearchTerm("");
-                          }}
-                          style={{
-                            padding: "4px 8px",
-                            border: "1px solid #dc3545",
-                            borderRadius: "4px",
-                            background: "#dc3545",
-                            color: "#fff",
-                            cursor: "pointer",
-                            fontSize: "12px",
-                            fontWeight: "bold",
-                            minWidth: "24px",
-                            height: "28px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
+            <div className="dg-table-scroll">
+              <table className="dg-tbl">
+                <thead>
+                  <tr>
+                    <th>
+                      <div className="dg-th-inner">#</div>
+                    </th>
+                    <th>
+                      <div className="dg-th-inner">
+                        <Calendar size={11} /> Date
+                      </div>
+                    </th>
+                    <SearchableTH
+                      label="Product"
+                      icon={Package}
+                      searchTerm={prodSearch}
+                      setSearchTerm={setProdSearch}
+                      show={showProdSearch}
+                      setShow={setShowProdSearch}
+                    />
+                    <th>
+                      <div className="dg-th-inner">
+                        <AlertTriangle size={11} /> Damage Qty
+                      </div>
+                    </th>
+                    <SearchableTH
+                      label="Store"
+                      icon={Store}
+                      searchTerm={storeSearch}
+                      setSearchTerm={setStoreSearch}
+                      show={showStoreSearch}
+                      setShow={setShowStoreSearch}
+                    />
+                    <th>
+                      <div className="dg-th-inner">Action</div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableLoading ? (
+                    <SkeletonRows count={limit} />
+                  ) : pageItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div className="dg-empty">
+                          <div className="dg-empty-icon">
+                            <ShieldAlert size={26} />
+                          </div>
+                          <h3>
+                            {anyColFilter || isFiltered
+                              ? "No Matching Records"
+                              : "No Damaged Goods Found"}
+                          </h3>
+                          <p>
+                            {anyColFilter
+                              ? "Try clearing the column search filters."
+                              : isFiltered
+                                ? "No records match the selected store/product."
+                                : "No damage records exist in the system."}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
                   ) : (
-                    <>Product</>
-                  )}
-                </th>
-                <th>Damage Quantity</th>
-                <th
-                  onClick={() => setShowWarehouseSearch(!showWarehouseSearch)}
-                  style={{ cursor: "pointer", position: "relative" }}
-                  data-warehouse-header
-                >
-                  {showWarehouseSearch ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <input
-                        type="text"
-                        placeholder="Search by warehouse..."
-                        value={warehouseSearchTerm}
-                        onChange={(e) => setWarehouseSearchTerm(e.target.value)}
-                        style={{
-                          flex: 1,
-                          padding: "2px 6px",
-                          border: "1px solid #ddd",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          minWidth: "120px",
-                          height: "28px",
-                          color: "#000",
-                          backgroundColor: "#fff",
-                        }}
-                        autoFocus
-                      />
-                      {warehouseSearchTerm && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWarehouseSearchTerm("");
-                          }}
-                          style={{
-                            padding: "4px 8px",
-                            border: "1px solid #dc3545",
-                            borderRadius: "4px",
-                            background: "#dc3545",
-                            color: "#fff",
-                            cursor: "pointer",
-                            fontSize: "12px",
-                            fontWeight: "bold",
-                            minWidth: "24px",
-                            height: "28px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <>Warehouse</>
-                  )}
-                </th>
-                <th>Action</th>
-              </tr>
-              {(showProductSearch && productSearchTerm) ||
-              (showWarehouseSearch && warehouseSearchTerm) ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    style={{
-                      padding: "8px",
-                      fontSize: "12px",
-                      color: "#666",
-                      backgroundColor: "#f8f9fa",
-                    }}
-                  >
-                    {(() => {
-                      const filteredItems = allGoods.filter((item) => {
-                        let pass = true;
-                        if (productSearchTerm) {
-                          const productName =
-                            item.productName || item.product?.name || "";
-                          if (
-                            !productName
-                              .toLowerCase()
-                              .includes(productSearchTerm.toLowerCase())
-                          ) {
-                            pass = false;
-                          }
-                        }
-                        if (warehouseSearchTerm) {
-                          const warehouseName =
-                            item.warehouseName || item.warehouse?.name || "";
-                          if (
-                            !warehouseName
-                              .toLowerCase()
-                              .includes(warehouseSearchTerm.toLowerCase())
-                          ) {
-                            pass = false;
-                          }
-                        }
-                        return pass;
-                      });
-                      return `${filteredItems.length} item(s) found`;
-                    })()}
-                  </td>
-                </tr>
-              ) : null}
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="text-center">
-                    Loading...
-                  </td>
-                </tr>
-              ) : (
-                (() => {
-                  // Apply search filters to the current page data
-                  let filteredGoods = goods || [];
-
-                  if (productSearchTerm || warehouseSearchTerm) {
-                    filteredGoods = filteredGoods.filter((item) => {
-                      let pass = true;
-
-                      // Apply existing filters: warehouse, product, order
-                      if (warehouse) {
-                        const itemWarehouseId =
-                          item.warehouseId ||
-                          (item.warehouse && item.warehouse.id);
-                        if (String(itemWarehouseId) !== String(warehouse))
-                          pass = false;
-                      }
-                      if (product) {
-                        const itemProductId =
-                          item.productId || (item.product && item.product.id);
-                        if (String(itemProductId) !== String(product))
-                          pass = false;
-                      }
-                      if (order) {
-                        if (String(item.purchaseOrderId) !== String(order))
-                          pass = false;
-                      }
-
-                      // Apply new search filters
-                      if (productSearchTerm) {
-                        const productName =
-                          item.productName || item.product?.name || "";
-                        if (
-                          !productName
-                            .toLowerCase()
-                            .includes(productSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-                      if (warehouseSearchTerm) {
-                        const warehouseName =
-                          item.warehouseName || item.warehouse?.name || "";
-                        if (
-                          !warehouseName
-                            .toLowerCase()
-                            .includes(warehouseSearchTerm.toLowerCase())
-                        ) {
-                          pass = false;
-                        }
-                      }
-
-                      return pass;
-                    });
-                  }
-
-                  return filteredGoods.length > 0 ? (
-                    filteredGoods.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>{(pageNo - 1) * limit + idx + 1}</td>
-                        <td>{formatDate(item.date || item.createdAt)}</td>
-                        <td>{item.productName || item.product?.name || ""}</td>
-                        <td>
-                          {item.damagedQuantity ||
-                            item.damageQuantity ||
-                            item.quantity ||
-                            ""}
+                    pageItems.map((item, idx) => (
+                      <tr
+                        key={item.id || idx}
+                        style={{ animationDelay: `${idx * 0.03}s` }}
+                      >
+                        <td className="sno">
+                          {(pageNo - 1) * limit + idx + 1}
                         </td>
                         <td>
-                          {item.warehouseName || item.warehouse?.name || ""}
+                          <span className="dg-date">
+                            {formatDate(item.createdAt)}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="dg-prod-cell">
+                            <div className="dg-prod-icon">
+                              <Package size={14} />
+                            </div>
+                            <div className="dg-prod-name">
+                              {item.product?.name || "—"}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="dg-qty">
+                            <AlertTriangle size={11} />
+                            {item.quantity}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="dg-store-cell">
+                            <div className="dg-store-dot" />
+                            {item.store?.name || "—"}
+                          </div>
                         </td>
                         <td>
                           <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => openViewModal(item)}
+                            className="dg-view-btn"
+                            onClick={() => setSelectedItem(item)}
                           >
-                            View
+                            <Eye size={12} /> View
                           </button>
                         </td>
                       </tr>
                     ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="text-center">
-                        No Damaged Goods Found
-                      </td>
-                    </tr>
-                  );
-                })()
-              )}
-            </tbody>
-          </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          {/* Pagination */}
-          <div className="row m-0 p-0 pt-3 justify-content-between">
-            <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
-              {pageNo > 1 && (
-                <button onClick={() => setPageNo(pageNo - 1)}>
-                  <span>
-                    <FaArrowLeftLong />
-                  </span>{" "}
-                  Previous
-                </button>
-              )}
-            </div>
-            <div className="col-4 text-center">
-              <span className="text-muted">
-                Page {pageNo} of {totalPages || 1}
-              </span>
-            </div>
-            <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
-              {pageNo < totalPages && (
-                <button onClick={() => setPageNo(pageNo + 1)}>
-                  Next{" "}
-                  <span>
-                    <FaArrowRightLong />
-                  </span>
-                </button>
-              )}
-            </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="dg-pagination">
+                <div className="dg-page-info">
+                  Showing{" "}
+                  <strong>
+                    {(pageNo - 1) * limit + 1}–
+                    {Math.min(pageNo * limit, displayed.length)}
+                  </strong>{" "}
+                  of <strong>{displayed.length}</strong> records
+                </div>
+                <div className="dg-page-btns">
+                  <button
+                    className="dg-page-btn"
+                    disabled={pageNo === 1}
+                    onClick={() => setPageNo((p) => p - 1)}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  {getPageNums().map((n, i) =>
+                    n === "…" ? (
+                      <span key={`e${i}`} className="dg-page-ellipsis">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={n}
+                        className={`dg-page-btn${pageNo === n ? " active" : ""}`}
+                        onClick={() => setPageNo(n)}
+                      >
+                        {n}
+                      </button>
+                    ),
+                  )}
+                  <button
+                    className="dg-page-btn"
+                    disabled={pageNo === totalPages}
+                    onClick={() => setPageNo((p) => p + 1)}
+                  >
+                    <ChevRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Detail Modal */}
+        {selectedItem && (
+          <DetailModal
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+          />
+        )}
       </div>
-
-      {/* View Modal */}
-      {isViewModalOpen && selectedItem && (
-        <div
-          className="modal fade show"
-          style={{ display: "block" }}
-          tabIndex="-1"
-        >
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Damaged Goods Details</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={closeViewModal}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="row">
-                  <div className="col-md-6">
-                    <p>
-                      <strong>Date:</strong>{" "}
-                      {formatDate(selectedItem.date || selectedItem.createdAt)}
-                    </p>
-                    <p>
-                      <strong>Product ID:</strong>{" "}
-                      {selectedItem.productId ||
-                        selectedItem.product?.id ||
-                        "-"}
-                    </p>
-                    <p>
-                      <strong>Product Name:</strong>{" "}
-                      {selectedItem.productName ||
-                        selectedItem.product?.name ||
-                        "-"}
-                    </p>
-                    <p>
-                      <strong>Damaged Quantity:</strong>{" "}
-                      {selectedItem.damagedQuantity ||
-                        selectedItem.damageQuantity ||
-                        selectedItem.quantity ||
-                        "-"}
-                    </p>
-                    <p>
-                      <strong>Reason:</strong>{" "}
-                      {selectedItem.reason || selectedItem.damageReason || "-"}
-                    </p>
-                  </div>
-                  <div className="col-md-6">
-                    <p>
-                      <strong>Reported By:</strong>{" "}
-                      {selectedItem.reportedByName ||
-                        selectedItem.user?.name ||
-                        "-"}
-                    </p>
-                    <p>
-                      <strong>Warehouse:</strong>{" "}
-                      {selectedItem.warehouseName ||
-                        selectedItem.warehouse?.name ||
-                        "-"}
-                    </p>
-                    <p>
-                      <strong>Warehouse ID:</strong>{" "}
-                      {selectedItem.warehouseId ||
-                        selectedItem.warehouse?.id ||
-                        "-"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Damage Proof Images Section */}
-                <div className="mt-3">
-                  <h6>Damage Proof Images:</h6>
-                  {(() => {
-                    // Check multiple possible image field names
-                    const possibleImageFields = [
-                      "proofFileSignedUrl",
-                      "proofFilePath",
-                      "signedImageUrls",
-                      "imageFile",
-                      "image",
-                      "proofImage",
-                      "imageUrl",
-                      "fileUrl",
-                      "photo",
-                      "photoUrl",
-                    ];
-
-                    let imageUrl = null;
-                    let fieldName = null;
-
-                    // Find the first field that has a valid image URL
-                    for (const field of possibleImageFields) {
-                      const value = selectedItem[field];
-                      if (
-                        value &&
-                        value !== null &&
-                        value !== "null" &&
-                        value !== undefined &&
-                        value.trim() !== "" &&
-                        (typeof value === "string" || value.url)
-                      ) {
-                        imageUrl =
-                          typeof value === "string" ? value : value.url;
-                        fieldName = field;
-                        break;
-                      }
-                    }
-
-                    console.log("🔍 Debug - Image field check:");
-                    console.log("  - Found image URL:", imageUrl);
-                    console.log("  - Field name:", fieldName);
-                    console.log(
-                      "  - All possible fields:",
-                      possibleImageFields.map((field) => ({
-                        field,
-                        value: selectedItem[field],
-                        type: typeof selectedItem[field],
-                      }))
-                    );
-
-                    if (imageUrl) {
-                      return (
-                        <div className="row">
-                          <div className="col-md-4 mb-2">
-                            <img
-                              src={imageUrl}
-                              alt="Damage Proof"
-                              className="img-fluid rounded"
-                              style={{
-                                maxHeight: "200px",
-                                width: "100%",
-                                objectFit: "cover",
-                                cursor: "pointer",
-                              }}
-                              onClick={() => window.open(imageUrl, "_blank")}
-                              onError={(e) => {
-                                console.error(
-                                  "Image failed to load:",
-                                  imageUrl
-                                );
-                                e.target.style.display = "none";
-                                e.target.nextSibling.style.display = "block";
-                              }}
-                            />
-                            <p
-                              className="text-muted small mt-1"
-                              style={{ display: "none" }}
-                            >
-                              Image failed to load: {imageUrl}
-                            </p>
-                            <p className="text-muted small mt-1">
-                              Damage Proof Image (from {fieldName})
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <p className="text-muted">
-                          No damage proof images available for this report.
-                        </p>
-                      );
-                    }
-                  })()}
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={closeViewModal}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Backdrop for modal */}
-      {isViewModalOpen && <div className="modal-backdrop fade show"></div>}
     </>
   );
 }
