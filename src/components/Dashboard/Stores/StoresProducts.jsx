@@ -190,7 +190,24 @@ const StoresProducts = () => {
         }
 
         selectedSkus.forEach((sku) => {
-          if (!updated[storeId].prices[sku]) return;
+          if (!updated[storeId].prices[sku]) {
+            // find productId from any store that already has this SKU
+            let productId = null;
+
+            const sourceRow = storeProductsData.find(
+              (r) => r.prices?.[sku]?.productId,
+            );
+
+            if (sourceRow) {
+              productId = sourceRow.prices[sku].productId;
+            }
+
+            updated[storeId].prices[sku] = {
+              sellingPrice: null,
+              purchasePrice: null,
+              productId,
+            };
+          }
 
           if (bulkPrices.sellingPrice !== "") {
             updated[storeId].prices[sku].sellingPrice = parseFloat(
@@ -725,7 +742,21 @@ const StoresProducts = () => {
           const originalPrice = originalRow.prices?.[sku];
           const editedPrice = editRow.prices?.[sku];
 
-          if (!originalPrice) {
+          if (!originalPrice && editedPrice) {
+            const productId = editedPrice.productId;
+
+            if (!productId) return;
+
+            if (!updatesByStore[storeId]) {
+              updatesByStore[storeId] = [];
+            }
+
+            updatesByStore[storeId].push({
+              productId,
+              customPrice: editedPrice.sellingPrice ?? null,
+              purchasePrice: editedPrice.purchasePrice ?? null,
+            });
+
             return;
           }
 
@@ -1871,7 +1902,7 @@ const StoresProducts = () => {
                                   type="number"
                                   className={styles.priceInput}
                                   value={
-                                    editRow.prices?.[fb]?.sellingPrice || ""
+                                    editRow.prices?.[fb]?.sellingPrice ?? ""
                                   }
                                   onChange={(e) =>
                                     handlePriceChange(
@@ -1895,7 +1926,7 @@ const StoresProducts = () => {
                                   type="number"
                                   className={styles.priceInput}
                                   value={
-                                    editRow.prices?.[fb]?.purchasePrice || ""
+                                    editRow.prices?.[fb]?.purchasePrice ?? ""
                                   }
                                   onChange={(e) =>
                                     handlePriceChange(
