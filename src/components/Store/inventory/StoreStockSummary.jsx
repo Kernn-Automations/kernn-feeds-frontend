@@ -11,7 +11,13 @@ import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import { isAdmin, isSuperAdmin, isDivisionHead, isStoreEmployee, isStoreManager } from "@/utils/roleUtils";
+import {
+  isAdmin,
+  isSuperAdmin,
+  isDivisionHead,
+  isStoreEmployee,
+  isStoreManager,
+} from "@/utils/roleUtils";
 
 function StoreStockSummary() {
   const navigate = useNavigate();
@@ -40,11 +46,12 @@ function StoreStockSummary() {
   const [loadingDetails, setLoadingDetails] = useState({});
   const [storeId, setStoreId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Get user from local storage for role check
   const userData = JSON.parse(localStorage.getItem("user") || "{}");
   const user = userData.user || userData;
-  const canShowValues = isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user);
+  const canShowValues =
+    isAdmin(user) || isSuperAdmin(user) || isDivisionHead(user);
   const shouldHideDetailsPrice = isStoreEmployee(user) || isStoreManager(user);
 
   // Invoice Details Modal States
@@ -615,7 +622,7 @@ function StoreStockSummary() {
       };
 
       const res = await storeService.getStoreStockSummary(params);
-      console.log(res);
+      console.log("📊 Stock Summary API Response:", res);
       const summaryData = res.data || res.summary || res || [];
       const paginationData = res.pagination || {};
 
@@ -1496,9 +1503,15 @@ function StoreStockSummary() {
                                         <th style={thStyle}>Invoice ID</th>
                                         <th style={thStyle}>Customer</th>
                                         <th style={thStyle}>Quantity</th>
-                                        <th style={thStyle}>Received Quantity</th>
-                                        {!shouldHideDetailsPrice && <th style={thStyle}>Price</th>}
-                                        {!shouldHideDetailsPrice && <th style={thStyle}>Total</th>}
+                                        <th style={thStyle}>
+                                          Received Quantity
+                                        </th>
+                                        {!shouldHideDetailsPrice && (
+                                          <th style={thStyle}>Price</th>
+                                        )}
+                                        {!shouldHideDetailsPrice && (
+                                          <th style={thStyle}>Total</th>
+                                        )}
                                         <th style={thStyle}>Action</th>
                                       </tr>
                                     </thead>
@@ -1534,7 +1547,8 @@ function StoreStockSummary() {
                                               </span>
                                             </td>
                                             <td style={tdStyle}>
-                                              {sale.receivedQuantity || "-"} {sale.unit || item.unit}
+                                              {sale.receivedQuantity || "-"}{" "}
+                                              {sale.unit || item.unit}
                                             </td>
                                             {!shouldHideDetailsPrice && (
                                               <td style={tdStyle}>
@@ -1549,7 +1563,10 @@ function StoreStockSummary() {
                                                 }}
                                               >
                                                 ₹
-                                                {(sale.receivedTotalAmount || sale.totalAmount).toLocaleString()}
+                                                {(
+                                                  sale.receivedTotalAmount ||
+                                                  sale.totalAmount
+                                                ).toLocaleString()}
                                               </td>
                                             )}
                                             <td style={tdStyle}>
@@ -1560,9 +1577,10 @@ function StoreStockSummary() {
                                                   openInvoicePopup(
                                                     sale.type === "sale"
                                                       ? sale.orderId
-                                                      : sale.type === "damaged_goods"
-                                                      ? sale.reportCode
-                                                      : sale.transferNumber,
+                                                      : sale.type ===
+                                                          "damaged_goods"
+                                                        ? sale.reportCode
+                                                        : sale.transferNumber,
                                                     rowData?.invoices,
                                                   )
                                                 }
@@ -3361,8 +3379,8 @@ function StoreStockSummary() {
                   {selectedInvoice.type === "sale"
                     ? "Sale Invoice"
                     : selectedInvoice.type === "damaged_goods"
-                    ? "Damaged Goods Report"
-                    : "Transfer Note"}
+                      ? "Damaged Goods Report"
+                      : "Transfer Note"}
                 </h4>
                 <button
                   onClick={() => setShowInvoicePopup(false)}
@@ -3384,14 +3402,14 @@ function StoreStockSummary() {
                       {selectedInvoice.type === "sale"
                         ? "Invoice No: "
                         : selectedInvoice.type === "damaged_goods"
-                        ? "Report Code: "
-                        : "Transfer No: "}
+                          ? "Report Code: "
+                          : "Transfer No: "}
                     </strong>
                     {selectedInvoice.type === "sale"
                       ? selectedInvoice.invoice?.invoiceNumber
                       : selectedInvoice.type === "damaged_goods"
-                      ? selectedInvoice.reportCode
-                      : selectedInvoice.transferNumber}
+                        ? selectedInvoice.reportCode
+                        : selectedInvoice.transferNumber}
                   </div>
                   <div>
                     <strong>Date:</strong>{" "}
@@ -3452,7 +3470,10 @@ function StoreStockSummary() {
                           </td>
                           <td>₹{Number(i.unitPrice || 0).toLocaleString()}</td>
                           <td align="right">
-                            ₹{Number(i.receivedAmount || i.amount || 0).toLocaleString()}
+                            ₹
+                            {Number(
+                              i.receivedAmount || i.amount || 0,
+                            ).toLocaleString()}
                           </td>
                         </tr>
                       ))}
