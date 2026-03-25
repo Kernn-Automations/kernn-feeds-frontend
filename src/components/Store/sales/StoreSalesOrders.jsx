@@ -629,6 +629,23 @@ function StoreSalesOrders({ onBack }) {
     setCancelReason("");
   };
 
+  const handleEditClick = (order) => {
+    const createdAt = new Date(order.originalData?.createdAt || order.date);
+    const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceCreation > 24) {
+      setError("This sale can only be edited within 24 hours from generation.");
+      setIsModalOpen(true);
+      return;
+    }
+
+    localStorage.setItem(
+      "storeSaleEditDraft",
+      JSON.stringify(order.originalData || order),
+    );
+    navigate(`/store/sales?mode=create&editSaleId=${order.originalData?.id || order.id}`);
+  };
+
   const confirmCancellation = async () => {
     if (!saleToCancel) return;
     
@@ -1144,6 +1161,19 @@ function StoreSalesOrders({ onBack }) {
                         )}
                         
                         {/* Cancellation Button */}
+                        <button
+                          className="submitbtn"
+                          onClick={() => handleEditClick(order)}
+                          title="Edit Sale"
+                          style={{
+                            padding: "4px 8px",
+                            fontSize: "12px",
+                            minWidth: "48px",
+                            marginLeft: "6px",
+                          }}
+                        >
+                          Edit
+                        </button>
                         <button
                           className="cancelbtn"
                           onClick={() => handleCancelClick(order)}

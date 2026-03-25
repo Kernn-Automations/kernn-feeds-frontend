@@ -111,6 +111,12 @@ const storeService = {
 
     return res.json();
   },
+  async editSale(editSaleId, body) {
+    return this.createSale({
+      ...body,
+      editSaleId,
+    });
+  },
   async calculateSaleTotal(body) {
     // Preview/calculate sale total with tax without creating the sale
     // POST /stores/sales/calculate - Calculate sale totals (preview)
@@ -502,6 +508,34 @@ const storeService = {
       `/stores/${storeId}/sales/${saleCode}/cancel`,
       { method: "POST" },
     );
+    return res.json();
+  },
+  async manageStoreStock(storeId, body) {
+    const res = await api.request(`/stores/${storeId}/manage-stock`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  },
+  async importStoreLedgerRows(body) {
+    const res = await api.request(`/stores/ledger/import`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
     return res.json();
   },
   // All Stores Sales Reports operations (Admin/Super Admin only)

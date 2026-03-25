@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ApiService from "../../../services/apiService";
 import { QRCodeSVG } from "qrcode.react";
 import storeService from "../../../services/storeService";
@@ -164,6 +164,7 @@ function StepIndicator({ step, steps, isMobile }) {
 }
 
 export default function StoreCreateSale() {
+  const singleStepCheckout = true;
   const [step, setStep] = useState(0);
 
   // Step 1: mobile number
@@ -326,6 +327,7 @@ export default function StoreCreateSale() {
     const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
+  const getCurrentDateTimeLocal = () => new Date().toISOString().slice(0, 16);
   const [payments, setPayments] = useState([
     {
       transactionDate: getTodayDate(),
@@ -356,6 +358,9 @@ export default function StoreCreateSale() {
   const [calculatedTotal, setCalculatedTotal] = useState(null); // { subtotal, tax, total }
   const [calculatingTotal, setCalculatingTotal] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editSaleId = searchParams.get("editSaleId");
+  const [recordedAt, setRecordedAt] = useState(getCurrentDateTimeLocal());
 
   // Get current store ID from localStorage
   const getStoreId = () => {
@@ -377,6 +382,87 @@ export default function StoreCreateSale() {
     String(value || "")
       .replace(/[^0-9]/g, "")
       .slice(-10);
+
+  useEffect(() => {
+    if (!editSaleId) return;
+
+    const draftRaw = localStorage.getItem("storeSaleEditDraft");
+    if (!draftRaw) return;
+
+    try {
+      const draft = JSON.parse(draftRaw);
+      setRecordedAt(
+        draft.createdAt
+          ? new Date(draft.createdAt).toISOString().slice(0, 16)
+          : getCurrentDateTimeLocal(),
+      );
+
+      if (draft.customer) {
+        setExistingCustomer(draft.customer);
+        setCustomerChecked(true);
+        setCustomerForm((prev) => ({
+          ...prev,
+          name: draft.customer.name || draft.customer.farmerName || "",
+          mobile: draft.customer.mobile || "",
+        }));
+        setMobileNumber(draft.customer.mobile || "");
+        setFarmerName(draft.customer.farmerName || draft.customer.name || "");
+        setVillageName(draft.customer.village || "");
+      }
+
+      if (Array.isArray(draft.items) && draft.items.length > 0) {
+        const nextCart = {};
+        draft.items.forEach((item) => {
+          const key = item.productId;
+          nextCart[key] = {
+            id: key,
+            storeProductId: key,
+            productId: item.productId,
+            name: item.product?.name || item.productName || "Product",
+            sku: item.product?.SKU || item.sku || "",
+            productType: item.product?.productType || item.productType || "packed",
+            unit: "bag",
+            price: Number(item.unitPrice || 0),
+            unitPrice: Number(item.unitPrice || 0),
+            quantity: Number(item.quantity || 0),
+            totalPrice: Number(item.totalPrice || 0),
+            discountAmount: Number(item.discountAmount || 0),
+            finalAmount: Number(item.finalAmount || 0),
+          };
+        });
+        setCartItems(nextCart);
+      }
+
+      if (Array.isArray(draft.payments) && draft.payments.length > 0) {
+        setPayments(
+          draft.payments.map((payment) => ({
+            transactionDate: payment.transactionDate
+              ? new Date(payment.transactionDate).toISOString().slice(0, 10)
+              : getTodayDate(),
+            paymentMethod: payment.paymentMethod || "cash",
+            paymentMode: "",
+            amount: payment.amount || "",
+            cashAmount: "",
+            bankAmount: "",
+            reference: "",
+            remark: payment.remarks || "",
+            utrNumber: payment.transactionNumber || "",
+            cashProofFile: null,
+            cashProofPreviewUrl: null,
+            cashProofBase64: null,
+            bankProofFile: null,
+            bankProofPreviewUrl: null,
+            bankProofBase64: null,
+          })),
+        );
+      }
+
+      setNotes(draft.notes || "");
+      setStep(1);
+    } catch (error) {
+      console.error("Failed to hydrate edit draft:", error);
+    }
+  }, [editSaleId]);
 
   const handleCheckMobile = async (mobileNumber = mobile) => {
     const cleanedMobile = sanitizeMobile(mobileNumber);
@@ -767,6 +853,16 @@ export default function StoreCreateSale() {
           }));
           console.log("Mapped products for sale:", mappedProducts);
           setProducts(mappedProducts);
+          if (Array.isArray(response.villages)) {
+            setStoreVillages(
+              response.villages.map((villageName, index) => ({
+                id: `prefetched-${index}`,
+                villageName,
+              })),
+            );
+          } else if (Array.isArray(response.data?.villages)) {
+            setStoreVillages(response.data.villages || []);
+          }
         } else {
           const errorMsg = response.message || "Failed to load products";
           console.error("Failed to fetch products:", errorMsg, response);
@@ -782,28 +878,6 @@ export default function StoreCreateSale() {
     };
 
     fetchProducts();
-  }, []);
-
-  // Fetch villages for the store
-  useEffect(() => {
-    const fetchVillages = async () => {
-      const storeId = getStoreId();
-      if (!storeId) return;
-
-      try {
-        setVillagesLoading(true);
-        const response = await storeService.getStoreVillages(storeId);
-        if (response && response.success) {
-          setStoreVillages(response.data || []);
-        }
-      } catch (err) {
-        console.error("Error fetching villages:", err);
-      } finally {
-        setVillagesLoading(false);
-      }
-    };
-
-    fetchVillages();
   }, []);
 
   const cartItemsList = useMemo(() => Object.values(cartItems), [cartItems]);
@@ -1541,8 +1615,10 @@ export default function StoreCreateSale() {
         storeId: storeId,
         items: items, // Array of { productId, quantity, unitPrice, discountAmount }
         payments: formattedPayments, // Array of { paymentMethod, amount }
+        recordedAt,
         discountAmount: 0, // Explicitly 0 for per-item discounts
         ...(notes && notes.trim() && { notes: notes.trim() }), // Optional notes field
+        ...(editSaleId && { editSaleId: Number(editSaleId) }),
       };
 
       // Removed legacy root discountAmount accumulation logic
@@ -1686,7 +1762,14 @@ export default function StoreCreateSale() {
           }
         }
 
-        setSuccessMessage("✅ Sale created successfully!");
+        if (editSaleId) {
+          localStorage.removeItem("storeSaleEditDraft");
+        }
+        setSuccessMessage(
+          editSaleId
+            ? "Sale updated through reversal flow."
+            : "Sale created successfully!",
+        );
         setIsSuccessModalOpen(true);
       } else {
         // Check if error is about payment amount mismatch
@@ -1938,9 +2021,11 @@ export default function StoreCreateSale() {
       >
         Create Sale
       </h4>
-      <StepIndicator step={step} steps={steps} isMobile={isMobile} />
+      {!singleStepCheckout && (
+        <StepIndicator step={step} steps={steps} isMobile={isMobile} />
+      )}
 
-      {steps[step] === "Products" && (
+      {(singleStepCheckout || steps[step] === "Products") && (
         <div
           style={{
             background: "#fff",
@@ -2176,37 +2261,40 @@ export default function StoreCreateSale() {
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              marginTop: 16,
-              justifyContent: "flex-end",
-              flexDirection: isMobile ? "column" : "row",
-            }}
-          >
-            <button
-              className="btn btn-secondary"
-              onClick={next}
-              disabled={cartItemsCount === 0}
+          {!singleStepCheckout && (
+            <div
               style={{
-                minHeight: isMobile ? "44px" : "auto",
-                width: isMobile ? "100%" : "auto",
+                display: "flex",
+                gap: 8,
+                marginTop: 16,
+                justifyContent: "flex-end",
+                flexDirection: isMobile ? "column" : "row",
               }}
             >
-              Continue to Overview
-            </button>
-          </div>
+              <button
+                className="btn btn-secondary"
+                onClick={next}
+                disabled={cartItemsCount === 0}
+                style={{
+                  minHeight: isMobile ? "44px" : "auto",
+                  width: isMobile ? "100%" : "auto",
+                }}
+              >
+                Continue to Overview
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {steps[step] === "Overview" && (
+      {(singleStepCheckout || steps[step] === "Overview") && (
         <div
           style={{
             background: "#fff",
             border: "1px solid #e5e7eb",
             borderRadius: 8,
             padding: 16,
+            marginTop: 16,
           }}
         >
           <div
@@ -2529,60 +2617,63 @@ export default function StoreCreateSale() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  justifyContent: "flex-end",
-                  flexDirection: isMobile ? "column" : "row",
-                }}
-              >
-                <button
-                  className="btn btn-light"
-                  onClick={prev}
+              {!singleStepCheckout && (
+                <div
                   style={{
-                    minHeight: isMobile ? "44px" : "auto",
-                    width: isMobile ? "100%" : "auto",
+                    display: "flex",
+                    gap: 8,
+                    justifyContent: "flex-end",
+                    flexDirection: isMobile ? "column" : "row",
                   }}
                 >
-                  Back to Products
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={next}
-                  disabled={!reviewData}
-                  style={{
-                    minHeight: isMobile ? "44px" : "auto",
-                    width: isMobile ? "100%" : "auto",
-                  }}
-                >
-                  Continue to Payment
-                </button>
-              </div>
+                  <button
+                    className="btn btn-light"
+                    onClick={prev}
+                    style={{
+                      minHeight: isMobile ? "44px" : "auto",
+                      width: isMobile ? "100%" : "auto",
+                    }}
+                  >
+                    Back to Products
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={next}
+                    disabled={!reviewData}
+                    style={{
+                      minHeight: isMobile ? "44px" : "auto",
+                      width: isMobile ? "100%" : "auto",
+                    }}
+                  >
+                    Continue to Payment
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
       )}
 
-      {steps[step] === "Payment" && (
+      {(singleStepCheckout || steps[step] === "Payment") && (
         <div
           style={{
             background: "#fff",
             border: "1px solid #e5e7eb",
             borderRadius: 8,
             padding: 16,
+            marginTop: 16,
           }}
         >
           <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
-            Payment Details
+            Checkout Details
           </div>
           <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 16 }}>
-            Complete payment information to finalize the order
+            Complete customer and payment information to finalize the order
           </p>
 
           {!reviewData ? (
             <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>
-              Complete the overview step to proceed with payment.
+              Add at least one product to continue with checkout.
             </div>
           ) : (
             <>
@@ -4093,6 +4184,24 @@ export default function StoreCreateSale() {
                 </div>
               </div>
 
+              <div style={{ marginTop: 16, marginBottom: 16 }}>
+                <label
+                  className="form-label"
+                  style={{ fontWeight: 600, marginBottom: 8 }}
+                >
+                  Recorded At
+                </label>
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={recordedAt}
+                  onChange={(e) => setRecordedAt(e.target.value)}
+                />
+                <div style={{ fontSize: "12px", color: "#64748b", marginTop: 6 }}>
+                  Ledger posting follows this recorded time for backdated sales and edits.
+                </div>
+              </div>
+
               {/* Notes field (optional) */}
               <div style={{ marginTop: 16, marginBottom: 16 }}>
                 <label
@@ -4120,17 +4229,19 @@ export default function StoreCreateSale() {
                   flexDirection: isMobile ? "column" : "row",
                 }}
               >
-                <button
-                  className="btn btn-light"
-                  type="button"
-                  onClick={prev}
-                  style={{
-                    minHeight: isMobile ? "44px" : "auto",
-                    width: isMobile ? "100%" : "auto",
-                  }}
-                >
-                  Back to Overview
-                </button>
+                {!singleStepCheckout && (
+                  <button
+                    className="btn btn-light"
+                    type="button"
+                    onClick={prev}
+                    style={{
+                      minHeight: isMobile ? "44px" : "auto",
+                      width: isMobile ? "100%" : "auto",
+                    }}
+                  >
+                    Back to Overview
+                  </button>
+                )}
                 <button
                   className="btn btn-primary"
                   type="button"
