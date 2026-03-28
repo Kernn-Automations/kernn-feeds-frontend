@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, {
+  useDeferredValue,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ApiService from "../../../services/apiService";
 import { QRCodeSVG } from "qrcode.react";
@@ -112,6 +118,22 @@ const styles = {
     width: "14px",
     height: "14px",
     animation: "spin 1s linear infinite",
+  },
+  surfaceCard: {
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 18,
+    padding: 16,
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  sidebarCard: {
+    background:
+      "linear-gradient(180deg, rgba(239, 246, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%)",
+    border: "1px solid #dbeafe",
+    borderRadius: 20,
+    padding: 18,
+    boxShadow: "0 22px 50px rgba(15, 23, 42, 0.08)",
   },
 };
 
@@ -242,8 +264,6 @@ export default function StoreCreateSale() {
   // Village search states
   const [villageSearchTerm, setVillageSearchTerm] = useState("");
   const [storeVillages, setStoreVillages] = useState([]);
-  const [villagesLoading, setVillagesLoading] = useState(false);
-
   // Village creation states
   const [showAddVillageModal, setShowAddVillageModal] = useState(false);
   const [newVillageNameInput, setNewVillageNameInput] = useState("");
@@ -355,6 +375,11 @@ export default function StoreCreateSale() {
   const [error, setError] = useState("");
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [editDraftMeta, setEditDraftMeta] = useState(null);
+  const [editSettlementMode, setEditSettlementMode] = useState("collect_now");
+  const [editSettlementNote, setEditSettlementNote] = useState("");
+  const [editSettlementAcknowledged, setEditSettlementAcknowledged] =
+    useState(false);
   const [calculatedTotal, setCalculatedTotal] = useState(null); // { subtotal, tax, total }
   const [calculatingTotal, setCalculatingTotal] = useState(false);
   const navigate = useNavigate();
@@ -391,6 +416,27 @@ export default function StoreCreateSale() {
 
     try {
       const draft = JSON.parse(draftRaw);
+      setEditDraftMeta({
+        saleId: draft.id || null,
+        saleCode: draft.saleCode || null,
+        invoiceNumber:
+          draft.invoice?.invoiceNumber ||
+          draft.invoices?.[0]?.invoiceNumber ||
+          null,
+        originalGrandTotal:
+          Number(
+            draft.invoice?.grandTotal ||
+              draft.invoices?.[0]?.grandTotal ||
+              draft.grandTotal ||
+              0,
+          ) || 0,
+        customerName:
+          draft.customer?.farmerName ||
+          draft.customer?.name ||
+          draft.customerName ||
+          null,
+        createdAt: draft.createdAt || null,
+      });
       setRecordedAt(
         draft.createdAt
           ? new Date(draft.createdAt).toISOString().slice(0, 16)
@@ -899,9 +945,8 @@ export default function StoreCreateSale() {
       discount: item.discountAmount, // Included the per-item discount here
     })),
   );
-
-  // 2. Add a similar stable dependency for discounts and freight
-  const discountDependency = JSON.stringify(discounts);
+  const deferredCartFingerprint = useDeferredValue(cartFingerprint);
+  const deferredFreightAmount = useDeferredValue(fridgeAmount);
 
   useEffect(() => {
     if (submitting || cartItemsCount === 0) {
@@ -956,12 +1001,12 @@ export default function StoreCreateSale() {
     };
 
     // Debounce to prevent rapid typing from hitting the server
-    const timeoutId = setTimeout(calculateTotal, 1000);
+    const timeoutId = setTimeout(calculateTotal, 350);
     return () => clearTimeout(timeoutId);
 
     // We only re-run if the fingerprint changes or freight changes
     // We EXCLUDE 'originalItemValues' from here to stop the infinite loop
-  }, [cartFingerprint, fridgeAmount, submitting]);
+  }, [deferredCartFingerprint, deferredFreightAmount, submitting]);
   // Update original item values with tax when calculatedTotal is available
   useEffect(() => {
     if (!calculatedTotal || !cartItemsCount) return;
@@ -1135,6 +1180,17 @@ export default function StoreCreateSale() {
     fridgeAmount,
     originalItemValues,
   ]);
+
+  const originalInvoiceTotal = Number(editDraftMeta?.originalGrandTotal || 0);
+  const revisedInvoiceTotal = Number(reviewData?.totals?.total || 0);
+  const invoiceDelta = Number(
+    (revisedInvoiceTotal - originalInvoiceTotal).toFixed(2),
+  );
+  const hasInvoiceDelta = Boolean(
+    editSaleId && reviewData && Math.abs(invoiceDelta) >= 0.01,
+  );
+  const invoiceDeltaDirection =
+    invoiceDelta > 0 ? "collect" : invoiceDelta < 0 ? "refund" : "none";
 
   const canGoNext = () => {
     if (step === 0) return cartItemsCount > 0; // Products step - need at least one item
@@ -1439,6 +1495,14 @@ export default function StoreCreateSale() {
     const expectedTotal =
       calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
 
+    if (hasInvoiceDelta && !editSettlementAcknowledged) {
+      setError(
+        "Please acknowledge the invoice amount change and choose how the difference will be handled before saving the edited invoice.",
+      );
+      setIsErrorModalOpen(true);
+      return;
+    }
+
     const totalPaymentAmount = payments.reduce((sum, p) => {
       if (p.paymentMethod === "both") {
         const cashAmt = parseFloat(p.cashAmount) || 0;
@@ -1619,6 +1683,16 @@ export default function StoreCreateSale() {
         discountAmount: 0, // Explicitly 0 for per-item discounts
         ...(notes && notes.trim() && { notes: notes.trim() }), // Optional notes field
         ...(editSaleId && { editSaleId: Number(editSaleId) }),
+        ...(editSaleId && {
+          editSettlement: {
+            originalInvoiceTotal,
+            revisedInvoiceTotal,
+            invoiceDelta,
+            settlementMode: editSettlementMode,
+            settlementNote: editSettlementNote?.trim() || null,
+            acknowledgedByManager: editSettlementAcknowledged,
+          },
+        }),
       };
 
       // Removed legacy root discountAmount accumulation logic
@@ -1767,7 +1841,7 @@ export default function StoreCreateSale() {
         }
         setSuccessMessage(
           editSaleId
-            ? "Sale updated through reversal flow."
+            ? "Sale updated successfully. The previous invoice was superseded and a corrected invoice has been generated."
             : "Sale created successfully!",
         );
         setIsSuccessModalOpen(true);
@@ -1860,7 +1934,8 @@ export default function StoreCreateSale() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          background:
+            "radial-gradient(circle at top, rgba(37, 99, 235, 0.22), rgba(15, 23, 42, 0.66))",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1876,65 +1951,137 @@ export default function StoreCreateSale() {
       >
         <div
           style={{
-            backgroundColor: "white",
-            borderRadius: "12px",
-            padding: isMobile ? "16px" : "24px",
-            width: isMobile ? "95vw" : "400px",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)",
+            borderRadius: "24px",
+            padding: isMobile ? "18px" : "26px",
+            width: isMobile ? "95vw" : "440px",
             maxWidth: "95vw",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+            border: "1px solid rgba(191, 219, 254, 0.9)",
+            boxShadow: "0 26px 60px rgba(15, 23, 42, 0.28)",
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <h3
+          <div
             style={{
-              margin: "0 0 16px 0",
-              fontSize: "18px",
-              fontWeight: "600",
-              color: "#2d3748",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 12,
+              marginBottom: 18,
             }}
           >
-            Add to Cart
-          </h3>
-          <div style={{ marginBottom: "12px" }}>
-            <strong>Product:</strong>
-            <div>{selectedProductForQty.name}</div>
-          </div>
-          <div style={{ marginBottom: "20px" }}>
-            <strong>Available Stock:</strong>
             <div>
-              {selectedProductForQty.quantity || 0}{" "}
-              {selectedProductForQty.productType === "packed"
-                ? "packs"
-                : selectedProductForQty.unit || "units"}
-              {selectedProductForQty.isOutOfStock && (
-                <span
-                  style={{
-                    color: "#dc2626",
-                    marginLeft: "8px",
-                    fontSize: "12px",
-                  }}
-                >
-                  (Out of Stock)
-                </span>
-              )}
-              {selectedProductForQty.isLowStock &&
-                !selectedProductForQty.isOutOfStock && (
-                  <span
-                    style={{
-                      color: "#f97316",
-                      marginLeft: "8px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    (Low Stock)
-                  </span>
-                )}
+              <div
+                style={{
+                  fontSize: 21,
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Quick Add
+              </div>
+              <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
+                Add quantity without leaving the checkout flow.
+              </div>
+            </div>
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: 999,
+                background: "rgba(37, 99, 235, 0.1)",
+                color: "#1d4ed8",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              SKU {selectedProductForQty.sku || "N/A"}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.2fr 1fr",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 18,
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "#64748b" }}>Product</div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  marginTop: 4,
+                }}
+              >
+                {selectedProductForQty.name}
+              </div>
+              <div style={{ fontSize: 13, color: "#475569", marginTop: 6 }}>
+                ₹
+                {(
+                  selectedProductForQty.price ||
+                  selectedProductForQty.customPrice ||
+                  selectedProductForQty.basePrice ||
+                  0
+                ).toLocaleString("en-IN")}{" "}
+                per bag
+              </div>
+            </div>
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 18,
+                background: selectedProductForQty.isOutOfStock
+                  ? "rgba(254, 242, 242, 0.95)"
+                  : selectedProductForQty.isLowStock
+                    ? "rgba(255, 247, 237, 0.95)"
+                    : "rgba(240, 253, 244, 0.95)",
+                border: `1px solid ${
+                  selectedProductForQty.isOutOfStock
+                    ? "#fecaca"
+                    : selectedProductForQty.isLowStock
+                      ? "#fed7aa"
+                      : "#86efac"
+                }`,
+              }}
+            >
+              <div style={{ fontSize: 12, color: "#64748b" }}>Available</div>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  marginTop: 4,
+                }}
+              >
+                {selectedProductForQty.quantity || 0}
+              </div>
+              <div style={{ fontSize: 12, marginTop: 6, color: "#475569" }}>
+                {selectedProductForQty.productType === "packed"
+                  ? "bags ready to sell"
+                  : selectedProductForQty.unit || "units"}
+              </div>
             </div>
           </div>
           <label
-            style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}
+            style={{
+              display: "block",
+              fontWeight: "700",
+              marginBottom: "8px",
+              color: "#0f172a",
+            }}
           >
-            Quantity
+            Quantity to add
           </label>
           <input
             type="number"
@@ -1947,12 +2094,37 @@ export default function StoreCreateSale() {
             placeholder="Enter quantity"
             style={{
               width: "100%",
-              padding: "10px 12px",
-              borderRadius: "8px",
-              border: "1px solid #dbeafe",
+              padding: "14px 16px",
+              borderRadius: "16px",
+              border: "1px solid #bfdbfe",
+              fontSize: 24,
+              fontWeight: 800,
+              color: "#0f172a",
+              boxShadow: "inset 0 1px 2px rgba(15,23,42,0.04)",
             }}
             autoFocus
           />
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            {[1, 2, 5, 10].map((quickQty) => (
+              <button
+                key={quickQty}
+                type="button"
+                onClick={() => setInputQuantity(String(quickQty))}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: "#fff",
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#334155",
+                  cursor: "pointer",
+                }}
+              >
+                +{quickQty}
+              </button>
+            ))}
+          </div>
           <div
             style={{
               display: "flex",
@@ -1974,6 +2146,11 @@ export default function StoreCreateSale() {
               className="btn btn-primary"
               disabled={!inputQuantity || parseInt(inputQuantity, 10) <= 0}
               onClick={handleQuantityConfirm}
+              style={{
+                borderRadius: 12,
+                minWidth: 144,
+                fontWeight: 700,
+              }}
             >
               Add to Cart
             </button>
@@ -2004,14 +2181,15 @@ export default function StoreCreateSale() {
   return (
     <div
       style={{
-        padding: isMobile ? 8 : 12,
-        maxWidth: "100%",
+        padding: isMobile ? 8 : 14,
+        maxWidth: 1480,
+        margin: "0 auto",
         overflowX: "hidden",
       }}
     >
       <p className="path">
         <span onClick={() => navigate("/store/sales")}>Sales</span>{" "}
-        <i className="bi bi-chevron-right"></i> Create Sale
+        <i className="bi bi-chevron-right"></i> {editSaleId ? "Edit Sale" : "Create Sale"}
       </p>
       <h4
         style={{
@@ -2019,27 +2197,238 @@ export default function StoreCreateSale() {
           fontSize: isMobile ? "18px" : "20px",
         }}
       >
-        Create Sale
+        {editSaleId ? "Edit And Replace Items" : "Quick Checkout"}
       </h4>
+      <div
+        style={{
+          background: "linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)",
+          border: "1px solid #dbeafe",
+          borderRadius: 12,
+          padding: isMobile ? 12 : 16,
+          marginBottom: 16,
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr",
+          gap: 12,
+          alignItems: "end",
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+            {editSaleId ? "Editing an invoiced sale" : "Single-page sale checkout"}
+          </div>
+          <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
+            {editSaleId
+              ? "You can remove a wrong product, add a replacement item, change quantities, customer details, payment details, or recorded time. Saving will cancel the older invoice and generate a corrected one."
+              : "Add products, review the order, and complete payment in one flow. The sale ledger posts against the recorded date and time below."}
+          </div>
+        </div>
+        <div>
+          <label
+            className="form-label"
+            style={{ fontWeight: 600, marginBottom: 8 }}
+          >
+            Recorded At
+          </label>
+          <input
+            type="datetime-local"
+            className="form-control"
+            value={recordedAt}
+            onChange={(e) => setRecordedAt(e.target.value)}
+          />
+        </div>
+      </div>
+      {editSaleId && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%)",
+            border: "1px solid #fed7aa",
+            borderRadius: 12,
+            padding: isMobile ? 12 : 16,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#9a3412" }}>
+            Replacement workflow
+          </div>
+          <div style={{ fontSize: 13, color: "#7c2d12", marginTop: 6, display: "grid", gap: 4 }}>
+            <div>
+              Original sale: <strong>{editDraftMeta?.saleCode || `Sale #${editSaleId}`}</strong>
+            </div>
+            <div>
+              Current invoice: <strong>{editDraftMeta?.invoiceNumber || "Already generated"}</strong>
+            </div>
+            <div>
+              Customer: <strong>{editDraftMeta?.customerName || "Existing customer"}</strong>
+            </div>
+            <div>
+              To replace a product like <strong>FB-22</strong>, click <strong>Remove</strong> on that line and then add the new product to the cart. You can also change quantity and price before saving.
+            </div>
+          </div>
+        </div>
+      )}
+      {cartItemsCount > 0 && (
+        <div
+          style={{
+            position: "sticky",
+            top: 12,
+            zIndex: 8,
+            marginBottom: 16,
+            padding: isMobile ? 12 : 14,
+            borderRadius: 18,
+            border: "1px solid #bfdbfe",
+            background:
+              "linear-gradient(135deg, rgba(219, 234, 254, 0.96) 0%, rgba(240, 249, 255, 0.96) 100%)",
+            boxShadow: "0 18px 36px rgba(37, 99, 235, 0.12)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              gap: 12,
+              flexDirection: isMobile ? "column" : "row",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: isMobile ? 15 : 16,
+                  fontWeight: 700,
+                  color: "#0f172a",
+                }}
+              >
+                Selected Items
+              </div>
+              <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
+                Remove a wrong item here instantly, then add the replacement from
+                the product grid below.
+              </div>
+            </div>
+            <div style={{ textAlign: isMobile ? "left" : "right" }}>
+              <div style={{ fontSize: 12, color: "#64748b" }}>
+                Live checkout total
+              </div>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                ₹
+                {(
+                  calculatedTotal?.total || reviewData?.totals?.total || totalCartValue
+                ).toLocaleString("en-IN")}
+              </div>
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              overflowX: "auto",
+              marginTop: 14,
+              paddingBottom: 4,
+            }}
+          >
+            {cartItemsList.map((item) => (
+              <div
+                key={`quick-${item.id}`}
+                style={{
+                  minWidth: isMobile ? 240 : 260,
+                  padding: 12,
+                  borderRadius: 14,
+                  background: "rgba(255,255,255,0.9)",
+                  border: "1px solid rgba(59, 130, 246, 0.18)",
+                  display: "grid",
+                  gap: 8,
+                  boxShadow: "0 10px 22px rgba(15, 23, 42, 0.05)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                      SKU {item.sku || "N/A"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => removeFromCart(item.productId)}
+                    style={{
+                      borderRadius: 999,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    color: "#334155",
+                  }}
+                >
+                  <span>{item.quantity} bag</span>
+                  <strong>
+                    ₹{(item.totalPrice || 0).toLocaleString("en-IN")}
+                  </strong>
+                </div>
+              </div>
+            ))}
+          </div>
+          {calculatingTotal && (
+            <div style={{ fontSize: 12, color: "#1d4ed8", marginTop: 10 }}>
+              Updating totals in the background...
+            </div>
+          )}
+        </div>
+      )}
       {!singleStepCheckout && (
         <StepIndicator step={step} steps={steps} isMobile={isMobile} />
       )}
-
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.7fr) 360px",
+          gap: 18,
+          alignItems: "start",
+        }}
+      >
+        <div style={{ display: "grid", gap: 16 }}>
       {(singleStepCheckout || steps[step] === "Products") && (
         <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: 12,
-          }}
+          style={styles.surfaceCard}
         >
           <div style={{ fontWeight: 600, fontSize: "16px", marginBottom: 4 }}>
             Add Products
           </div>
           <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 16 }}>
-            Select products and build the cart just like the sales order
-            experience.
+            {editSaleId
+              ? "Review the loaded items, remove anything incorrect, and add the replacement products before saving the corrected invoice."
+              : "Select products and build the cart just like the sales order experience."}
           </p>
 
           {cartItemsCount > 0 && (
@@ -2289,13 +2678,7 @@ export default function StoreCreateSale() {
 
       {(singleStepCheckout || steps[step] === "Overview") && (
         <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: 16,
-            marginTop: 16,
-          }}
+          style={styles.surfaceCard}
         >
           <div
             style={{
@@ -2337,10 +2720,12 @@ export default function StoreCreateSale() {
               >
                 <div
                   style={{
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 12,
-                    padding: 14,
-                    backgroundColor: "#f8fafc",
+                    border: "1px solid #dbeafe",
+                    borderRadius: 18,
+                    padding: 16,
+                    background:
+                      "linear-gradient(180deg, rgba(239,246,255,0.95) 0%, rgba(255,255,255,0.98) 100%)",
+                    boxShadow: "0 12px 28px rgba(15, 23, 42, 0.05)",
                   }}
                 >
                   <div
@@ -2370,10 +2755,12 @@ export default function StoreCreateSale() {
 
                 <div
                   style={{
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 12,
-                    padding: 14,
-                    backgroundColor: "#f8fafc",
+                    border: "1px solid #dbeafe",
+                    borderRadius: 18,
+                    padding: 16,
+                    background:
+                      "linear-gradient(180deg, rgba(240,253,250,0.95) 0%, rgba(255,255,255,0.98) 100%)",
+                    boxShadow: "0 12px 28px rgba(15, 23, 42, 0.05)",
                   }}
                 >
                   <div
@@ -2408,23 +2795,245 @@ export default function StoreCreateSale() {
                 </div>
               </div>
 
+              {editSaleId && (
+                <div
+                  style={{
+                    border: `1px solid ${
+                      !hasInvoiceDelta
+                        ? "#bbf7d0"
+                        : invoiceDeltaDirection === "collect"
+                          ? "#fed7aa"
+                          : "#fbcfe8"
+                    }`,
+                    borderRadius: 18,
+                    padding: 18,
+                    background:
+                      !hasInvoiceDelta
+                        ? "linear-gradient(180deg, rgba(240,253,244,0.96) 0%, rgba(255,255,255,0.98) 100%)"
+                        : invoiceDeltaDirection === "collect"
+                          ? "linear-gradient(180deg, rgba(255,247,237,0.96) 0%, rgba(255,255,255,0.98) 100%)"
+                          : "linear-gradient(180deg, rgba(253,242,248,0.96) 0%, rgba(255,255,255,0.98) 100%)",
+                    marginBottom: 16,
+                    boxShadow: "0 12px 28px rgba(15,23,42,0.05)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: isMobile ? "flex-start" : "center",
+                      flexDirection: isMobile ? "column" : "row",
+                      gap: 12,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>
+                        Invoice Change Acknowledgement
+                      </div>
+                      <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
+                        Keep the same invoice number visible to the store team, but
+                        make the amount change explicit before saving the correction.
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 999,
+                        background:
+                          !hasInvoiceDelta
+                            ? "rgba(34,197,94,0.12)"
+                            : invoiceDeltaDirection === "collect"
+                              ? "rgba(249,115,22,0.12)"
+                              : "rgba(236,72,153,0.12)",
+                        color:
+                          !hasInvoiceDelta
+                            ? "#166534"
+                            : invoiceDeltaDirection === "collect"
+                              ? "#9a3412"
+                              : "#9d174d",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {!hasInvoiceDelta
+                        ? "No amount change"
+                        : invoiceDeltaDirection === "collect"
+                          ? `Collect ₹${Math.abs(invoiceDelta).toLocaleString("en-IN")}`
+                          : `Return ₹${Math.abs(invoiceDelta).toLocaleString("en-IN")}`}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                      gap: 12,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: 14,
+                        borderRadius: 14,
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: "#64748b" }}>Original invoice total</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>
+                        ₹{originalInvoiceTotal.toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: 14,
+                        borderRadius: 14,
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: "#64748b" }}>Revised total</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>
+                        ₹{revisedInvoiceTotal.toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: 14,
+                        borderRadius: 14,
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: "#64748b" }}>Difference</div>
+                      <div
+                        style={{
+                          fontSize: 24,
+                          fontWeight: 800,
+                          color:
+                            !hasInvoiceDelta
+                              ? "#166534"
+                              : invoiceDeltaDirection === "collect"
+                                ? "#9a3412"
+                                : "#9d174d",
+                          marginTop: 4,
+                        }}
+                      >
+                        {invoiceDelta > 0 ? "+" : invoiceDelta < 0 ? "-" : ""}
+                        ₹{Math.abs(invoiceDelta).toLocaleString("en-IN")}
+                      </div>
+                    </div>
+                  </div>
+                  {hasInvoiceDelta && (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+                        How will this difference be handled?
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          marginBottom: 12,
+                        }}
+                      >
+                        {(
+                          invoiceDeltaDirection === "collect"
+                            ? [
+                                ["collect_now", "Collect Now"],
+                                ["collect_later", "Collect Later"],
+                                ["manager_adjustment", "Manager Adjustment"],
+                              ]
+                            : [
+                                ["refund_now", "Refund Now"],
+                                ["customer_credit", "Customer Credit"],
+                                ["manager_adjustment", "Manager Adjustment"],
+                              ]
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setEditSettlementMode(value)}
+                            style={{
+                              border: `1px solid ${
+                                editSettlementMode === value ? "#1d4ed8" : "#cbd5e1"
+                              }`,
+                              background:
+                                editSettlementMode === value ? "#eff6ff" : "#fff",
+                              color:
+                                editSettlementMode === value ? "#1d4ed8" : "#334155",
+                              borderRadius: 999,
+                              padding: "8px 14px",
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        className="form-control"
+                        rows={2}
+                        placeholder="Optional note: who collected the difference, who approved the adjustment, or why the refund is being carried as credit."
+                        value={editSettlementNote}
+                        onChange={(e) => setEditSettlementNote(e.target.value)}
+                        style={{ marginBottom: 12, borderRadius: 12 }}
+                      />
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 10,
+                          fontSize: 13,
+                          color: "#334155",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editSettlementAcknowledged}
+                          onChange={(e) =>
+                            setEditSettlementAcknowledged(e.target.checked)
+                          }
+                          style={{ marginTop: 3 }}
+                        />
+                        <span>
+                          I acknowledge this edited invoice changes the amount by{" "}
+                          <strong>₹{Math.abs(invoiceDelta).toLocaleString("en-IN")}</strong>
+                          {" "}and the store team will handle it using the selected option above.
+                        </span>
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div
                 style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
+                  border: "1px solid #dbeafe",
+                  borderRadius: 18,
                   marginBottom: 16,
                   overflow: "hidden",
+                  boxShadow: "0 16px 36px rgba(15, 23, 42, 0.05)",
                 }}
               >
                 <div
                   style={{
-                    backgroundColor: "#f1f5f9",
-                    padding: 12,
-                    fontWeight: 600,
-                    color: "#1e293b",
+                    background:
+                      "linear-gradient(90deg, #eff6ff 0%, #f8fafc 100%)",
+                    padding: 16,
+                    fontWeight: 700,
+                    color: "#0f172a",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  Products
+                  <span>Products Review</span>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>
+                    Edit amount or remove/re-add items above
+                  </span>
                 </div>
                 {reviewData.items.map((item) => {
                   return (
@@ -2560,11 +3169,13 @@ export default function StoreCreateSale() {
 
               <div
                 style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  padding: 16,
-                  backgroundColor: "#f8fafc",
+                  border: "1px solid #dbeafe",
+                  borderRadius: 18,
+                  padding: 18,
+                  background:
+                    "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(255,255,255,0.98) 100%)",
                   marginBottom: 16,
+                  boxShadow: "0 16px 36px rgba(15, 23, 42, 0.05)",
                 }}
               >
                 <div
@@ -2656,13 +3267,7 @@ export default function StoreCreateSale() {
 
       {(singleStepCheckout || steps[step] === "Payment") && (
         <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: 16,
-            marginTop: 16,
-          }}
+          style={styles.surfaceCard}
         >
           <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
             Checkout Details
@@ -3377,14 +3982,21 @@ export default function StoreCreateSale() {
               <div
                 style={{
                   border: "1px solid #c7d2fe",
-                  borderRadius: 12,
-                  padding: 16,
-                  backgroundColor: "#eef2ff",
+                  borderRadius: 20,
+                  padding: 18,
+                  background:
+                    "linear-gradient(135deg, rgba(238,242,255,0.98) 0%, rgba(224,231,255,0.92) 100%)",
                   marginBottom: 16,
+                  boxShadow: "0 18px 40px rgba(79, 70, 229, 0.1)",
                 }}
               >
                 <div
-                  style={{ display: "flex", justifyContent: "space-between" }}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexDirection: isMobile ? "column" : "row",
+                  }}
                 >
                   <div>
                     <div style={{ fontWeight: 600, color: "#312e81" }}>
@@ -3438,21 +4050,31 @@ export default function StoreCreateSale() {
               {/* Payment Info */}
               <div
                 style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  padding: 16,
-                  backgroundColor: "#f8fafc",
+                  border: "1px solid #dbeafe",
+                  borderRadius: 18,
+                  padding: 18,
+                  background:
+                    "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(255,255,255,0.98) 100%)",
                   marginBottom: 16,
+                  boxShadow: "0 16px 36px rgba(15, 23, 42, 0.05)",
                 }}
               >
                 <div
                   style={{
-                    fontWeight: 600,
-                    color: "#0f172a",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: 8,
                     marginBottom: 12,
                   }}
                 >
-                  Payment Info
+                  <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 18 }}>
+                    Payment Info
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>
+                    Keep the sale moving while payment proof and UTR are captured.
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
@@ -4184,22 +4806,8 @@ export default function StoreCreateSale() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 16, marginBottom: 16 }}>
-                <label
-                  className="form-label"
-                  style={{ fontWeight: 600, marginBottom: 8 }}
-                >
-                  Recorded At
-                </label>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  value={recordedAt}
-                  onChange={(e) => setRecordedAt(e.target.value)}
-                />
-                <div style={{ fontSize: "12px", color: "#64748b", marginTop: 6 }}>
-                  Ledger posting follows this recorded time for backdated sales and edits.
-                </div>
+              <div style={{ marginTop: 16, marginBottom: 16, fontSize: "12px", color: "#64748b" }}>
+                Ledger posting follows the selected recorded time shown at the top of the checkout page.
               </div>
 
               {/* Notes field (optional) */}
@@ -4258,7 +4866,11 @@ export default function StoreCreateSale() {
                     opacity: submitting || !reviewData ? 0.6 : 1,
                   }}
                 >
-                  {submitting ? "Submitting..." : "Submit Payment"}
+                  {submitting
+                    ? "Submitting..."
+                    : editSaleId
+                      ? "Save Changes And Regenerate Invoice"
+                      : "Complete Sale"}
                 </button>
               </div>
               {successMessage && (
@@ -4281,6 +4893,166 @@ export default function StoreCreateSale() {
           )}
         </div>
       )}
+        </div>
+        {!isMobile && (
+          <div
+            style={{
+              position: "sticky",
+              top: 108,
+              display: "grid",
+              gap: 14,
+            }}
+          >
+            <div style={styles.sidebarCard}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: "#0f172a" }}>
+                    Fast Checkout
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                    Everything you need to edit and save, without hunting around.
+                  </div>
+                </div>
+                <div
+                  style={{
+                    minWidth: 56,
+                    height: 56,
+                    borderRadius: 16,
+                    background:
+                      "linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%)",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    fontSize: 20,
+                    boxShadow: "0 14px 28px rgba(29, 78, 216, 0.18)",
+                  }}
+                >
+                  {cartItemsCount}
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  marginBottom: 14,
+                }}
+              >
+                <div
+                  style={{
+                    padding: 12,
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,0.88)",
+                    border: "1px solid rgba(59,130,246,0.16)",
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: "#64748b" }}>Items in cart</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
+                    {cartItemsCount}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    padding: 12,
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,0.88)",
+                    border: "1px solid rgba(59,130,246,0.16)",
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: "#64748b" }}>Current total</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>
+                    ₹
+                    {(
+                      calculatedTotal?.total ||
+                      reviewData?.totals?.total ||
+                      totalCartValue
+                    ).toLocaleString("en-IN")}
+                  </div>
+                  <div style={{ fontSize: 12, color: calculatingTotal ? "#1d4ed8" : "#64748b" }}>
+                    {calculatingTotal
+                      ? "Refreshing totals..."
+                      : "Updates as you edit quantity, price, and freight."}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {cartItemsCount === 0 ? (
+                  <div
+                    style={{
+                      padding: 14,
+                      borderRadius: 14,
+                      background: "rgba(255,255,255,0.75)",
+                      color: "#64748b",
+                      fontSize: 13,
+                    }}
+                  >
+                    Add products from the left to start checkout.
+                  </div>
+                ) : (
+                  cartItemsList.map((item) => (
+                    <div
+                      key={`rail-${item.id}`}
+                      style={{
+                        padding: 12,
+                        borderRadius: 14,
+                        background: "rgba(255,255,255,0.92)",
+                        border: "1px solid rgba(59,130,246,0.14)",
+                        display: "grid",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#64748b" }}>
+                            Qty {item.quantity} bag
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => removeFromCart(item.productId)}
+                          style={{ borderRadius: 999, fontWeight: 600 }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: 13,
+                          color: "#334155",
+                        }}
+                      >
+                        <span>{item.sku || "N/A"}</span>
+                        <strong>₹{(item.totalPrice || 0).toLocaleString("en-IN")}</strong>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       {renderQuantityModal()}
 
       {/* Loading overlay */}

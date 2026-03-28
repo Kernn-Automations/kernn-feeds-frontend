@@ -928,8 +928,15 @@ const storeService = {
     return res.json();
   },
 
-  getManageStockHistory: async (storeId) => {
-    const res = await api.request(`/stores/${storeId}/manage-stock/history`, {
+  getManageStockHistory: async (storeId, params = {}) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        queryParams.append(key, value);
+      }
+    });
+    const queryString = queryParams.toString();
+    const res = await api.request(`/stores/${storeId}/manage-stock/history${queryString ? `?${queryString}` : ""}`, {
       method: "GET",
     });
     return res.json();

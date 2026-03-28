@@ -202,7 +202,10 @@ function StoreManageStock() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      ...(name === "transactionType" && value === "openingstock"
+        ? { reason: prev.reason || "Opening stock for new store" }
+        : {}),
     }));
   };
 
@@ -241,7 +244,11 @@ function StoreManageStock() {
       const responseData = response.data || response;
 
       if (responseData.success || response.status === 200 || response.status === 201) {
-        setSuccess("Stock updated successfully!");
+        setSuccess(
+          formData.transactionType === "openingstock"
+            ? "Opening stock saved successfully!"
+            : "Stock updated successfully!",
+        );
         setShowSuccessModal(true);
         
         // Reset form
@@ -382,7 +389,7 @@ function StoreManageStock() {
             ["Column", "Required", "Notes"],
             ["storeCode", "Yes", "Use the store code visible in the selected store screen"],
             ["productSku", "Yes", "Product SKU code, not internal product id"],
-            ["transactionType", "Yes", "Use inward, outward, stockin, stockout, or adjustment"],
+            ["transactionType", "Yes", "Use stockin, stockout, or adjustment"],
             ["quantity", "Yes", "Positive bag quantity only"],
             ["recordedAt", "Yes", "Use YYYY-MM-DDTHH:mm for backdated posting"],
             ["referenceId", "Optional", "Unique row reference for idempotent imports"],
@@ -391,6 +398,7 @@ function StoreManageStock() {
             ["totalPrice", "Optional", "Numeric total value"],
             ["Rule", "", "Do not use kg anywhere. quantity is always bags."],
             ["Rule", "", "adjustment resets stock to the absolute quantity value."],
+            ["Rule", "", "Use store invoice template for backdated sales instead of outward rows."],
             ["Rule", "", "No PDF upload is supported. Excel data only."],
           ],
     );
@@ -421,7 +429,10 @@ function StoreManageStock() {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rawRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+      const rawRows = XLSX.utils.sheet_to_json(firstSheet, {
+        defval: "",
+        raw: false,
+      });
 
       if (!rawRows.length) {
         throw new Error("The uploaded file does not contain any data rows.");
@@ -485,7 +496,7 @@ function StoreManageStock() {
         if (!productSku) {
           throw new Error(`Row ${index + 2}: productSku is required.`);
         }
-        if (!["inward", "outward", "stockin", "stockout", "adjustment"].includes(transactionType)) {
+        if (!["stockin", "stockout", "adjustment"].includes(transactionType)) {
           throw new Error(`Row ${index + 2}: invalid transactionType.`);
         }
         if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -671,10 +682,12 @@ function StoreManageStock() {
           >
             <option value="stockin">Stock In</option>
             <option value="stockout">Stock Out</option>
-            <option value="inward">Inward</option>
-            <option value="outward">Outward</option>
             <option value="adjustment">Adjustment Reset</option>
+            <option value="openingstock">Opening Stock</option>
           </select>
+          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
+            Manual stock only supports stock in, stock out, adjustment reset, and opening stock.
+          </div>
         </div>
 
         <div className={`col-3 ${styles.longform}`}>
@@ -696,7 +709,11 @@ function StoreManageStock() {
             name="reason"
             value={formData.reason}
             onChange={handleInputChange}
-            placeholder="Enter reason for this stock movement"
+            placeholder={
+              formData.transactionType === "openingstock"
+                ? "Enter opening stock note for this store"
+                : "Enter reason for this stock movement"
+            }
             required
           />
         </div>
@@ -721,7 +738,9 @@ function StoreManageStock() {
                 Updating...
               </span>
             ) : (
-              'Update Stock'
+              formData.transactionType === "openingstock"
+                ? "Save Opening Stock"
+                : 'Update Stock'
             )}
           </button>
           <button
@@ -752,14 +771,14 @@ function StoreManageStock() {
         <div className={`col-12 ${styles.longform}`} style={{ background: "#fff", borderRadius: "10px", padding: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
             <div>
-              <h6 style={{ marginBottom: "6px" }}>Backdated Excel Import</h6>
+              <h6 style={{ marginBottom: "6px" }}>Backdated Excel / CSV Import</h6>
               <div style={{ fontSize: "13px", color: "#64748b" }}>
-                Upload structured Excel data only. No PDF upload is supported. Choose the template type, format your sheet exactly like that template, then upload the workbook.
+                Upload structured Excel or CSV data only. No PDF upload is supported. Choose the template type, format your sheet exactly like that template, then upload the file.
               </div>
               <div style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>
                 {importType === "store_invoices"
                   ? "Format: invoiceNumber, storeCode, recordedAt, customerName, customerMobile, farmerName, village, paymentMethod, paymentAmount, transactionNumber, notes, productSku, quantity, unitPrice, discountAmount, taxAmount, finalAmount"
-                  : "Format: storeCode, productSku, transactionType, quantity, recordedAt, referenceId, remarks, unitPrice, totalPrice"}
+                  : "Format: storeCode, productSku, transactionType(stockin/stockout/adjustment), quantity, recordedAt, referenceId, remarks, unitPrice, totalPrice"}
               </div>
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
@@ -775,10 +794,10 @@ function StoreManageStock() {
                 Download Template
               </button>
               <label className="submitbtn" style={{ margin: 0, cursor: importing ? "not-allowed" : "pointer", opacity: importing ? 0.7 : 1 }}>
-                {importing ? "Preparing Preview..." : "Upload Excel"}
+                {importing ? "Preparing Preview..." : "Upload Excel / CSV"}
                 <input
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv,text/csv"
                   onChange={handleImportFile}
                   disabled={importing}
                   style={{ display: "none" }}
@@ -868,7 +887,7 @@ function StoreManageStock() {
                   File: {pendingImportFileName} | Type: {importType} | Rows: {pendingImportRows.length}
                 </div>
                 <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
-                  Review the parsed Excel data below. Import will be sent to backend only after you click Import.
+                  Review the parsed file data below. These exact rows are what will be sent to the backend after you click Import.
                 </div>
               </div>
             </div>
