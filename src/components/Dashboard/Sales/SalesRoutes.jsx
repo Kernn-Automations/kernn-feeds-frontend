@@ -27,6 +27,7 @@ function SalesRoutes() {
 
   const [customers, setCustomers] = useState();
   const [warehouses, setWarehouses] = useState();
+  const [stores, setStores] = useState();
   const [orderId, setOrderId] = useState(null);
   const [managers, setManagers] = useState();
 
@@ -62,12 +63,14 @@ function SalesRoutes() {
       try {
         const res1 = await axiosAPI.get("/warehouses");
         const res2 = await axiosAPI.get("/customers");
+        const res3 = await axiosAPI.get("/stores?limit=500");
 
         // console.log(res1);
         // console.log(res2);
 
         setWarehouses(res1.data.warehouses);
         setCustomers(res2.data.customers);
+        setStores(res3.data.stores || []);
         // setManagers(res.data.employees);
       } catch (e) {
         // console.log(e);
@@ -102,6 +105,7 @@ function SalesRoutes() {
             <Orders
               navigate={navigate}
               warehouses={warehouses}
+              stores={stores}
               customers={customers}
               setOrderId={setOrderId}
               from={from}

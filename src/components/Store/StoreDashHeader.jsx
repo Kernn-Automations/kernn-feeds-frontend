@@ -5,11 +5,14 @@ import StoreProfileAvatar from "./StoreProfileAvatar";
 import SearchBar from "../Dashboard/SearchBar";
 import Logo from "../Dashboard/navs/Logo";
 import StoreSwitcher from "./StoreSwitcher";
+import Notification from "../Dashboard/Notification";
 import { storeOptions } from "../../utils/searchOptions";
 import { FaSearch, FaTimes } from "react-icons/fa";
 
 function StoreDashHeader({
   notifications,
+  onNotificationClick,
+  onMarkAllNotificationsRead,
   user,
   setTab,
   admin,
@@ -88,6 +91,17 @@ function StoreDashHeader({
                 
                 {/* Hide Switcher when search is open */}
                 {!showMobileSearch && (
+                  <div style={{ display: "flex", alignItems: "center", marginRight: 10 }}>
+                    <Notification
+                      notifications={notifications || []}
+                      onItemClick={onNotificationClick}
+                      onMarkAllRead={onMarkAllNotificationsRead}
+                      emptyLabel="No store alerts"
+                    />
+                  </div>
+                )}
+
+                {!showMobileSearch && (
                   <div className={styles.storeContainer}>
                     <StoreSwitcher />
                   </div>
@@ -116,6 +130,15 @@ function StoreDashHeader({
               
               <div className={styles.storeContainer}>
                 <StoreSwitcher />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Notification
+                  notifications={notifications || []}
+                  onItemClick={onNotificationClick}
+                  onMarkAllRead={onMarkAllNotificationsRead}
+                  emptyLabel="No store alerts"
+                />
               </div>
               
               <div className={styles.profileContainer}>

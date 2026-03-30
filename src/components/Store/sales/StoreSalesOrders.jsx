@@ -51,6 +51,7 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchRef = useRef(null);
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+  const [historyOrder, setHistoryOrder] = useState(null);
   
   // Cancellation Modal States
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -424,6 +425,14 @@ function StoreSalesOrders({ onBack }) {
               invoices: sale.invoices || [], // Include invoices array
               invoiceNumber: sale.invoice?.invoiceNumber || "N/A", // Get first invoice number
               invoiceId: sale.invoice?.id || null, // Get first invoice ID
+              editableUntil: sale.editableUntil || null,
+              isBeyondEditableWindow: Boolean(sale.isBeyondEditableWindow),
+              editHistoryCount: sale.editHistoryCount || 0,
+              editHistory: sale.editHistory || [],
+              adjustments: sale.adjustments || [],
+              customerOutstandingCredit: sale.customerOutstandingCredit || 0,
+              pendingAdditionalCollection: sale.pendingAdditionalCollection || 0,
+              customerCreditLimit: sale.customerCreditLimit || 0,
               originalData: sale,
             };
           })
@@ -630,15 +639,6 @@ function StoreSalesOrders({ onBack }) {
   };
 
   const handleEditClick = (order) => {
-    const createdAt = new Date(order.originalData?.createdAt || order.date);
-    const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
-
-    if (hoursSinceCreation > 24) {
-      setError("This sale can only be edited within 24 hours from generation.");
-      setIsModalOpen(true);
-      return;
-    }
-
     localStorage.setItem(
       "storeSaleEditDraft",
       JSON.stringify(order.originalData || order),
@@ -1107,6 +1107,24 @@ function StoreSalesOrders({ onBack }) {
                       <td>{formatDate(order.date)}</td>
                       <td style={{ fontWeight: 600 }}>
                         {order.invoiceNumber || order.invoiceNumber || "N/A"}
+                        {order.editHistoryCount > 0 && (
+                          <div
+                            style={{
+                              marginTop: "4px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              background: "#eff6ff",
+                              color: "#1d4ed8",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {order.editHistoryCount} edit{order.editHistoryCount > 1 ? "s" : ""}
+                          </div>
+                        )}
                       </td>
 
                       <td>{order.customerName}</td>
@@ -1174,6 +1192,24 @@ function StoreSalesOrders({ onBack }) {
                         >
                           Edit
                         </button>
+                        {order.editHistoryCount > 0 && (
+                          <button
+                            className="btn btn-light"
+                            onClick={() => setHistoryOrder(order)}
+                            title="View Edit History"
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: "12px",
+                              minWidth: "58px",
+                              marginLeft: "6px",
+                              border: "1px solid #bfdbfe",
+                              color: "#1d4ed8",
+                              background: "#eff6ff",
+                            }}
+                          >
+                            History
+                          </button>
+                        )}
                         <button
                           className="cancelbtn"
                           onClick={() => handleCancelClick(order)}
@@ -1200,6 +1236,161 @@ function StoreSalesOrders({ onBack }) {
         </div>
 
         {/* Cancellation Confirmation Modal */}
+        {historyOrder && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1050,
+            }}
+            onClick={() => setHistoryOrder(null)}
+          >
+            <div
+              style={{
+                width: "min(760px, 94vw)",
+                maxHeight: "80vh",
+                overflowY: "auto",
+                background: "#fff",
+                borderRadius: "18px",
+                padding: "20px",
+                boxShadow: "0 24px 60px rgba(15, 23, 42, 0.24)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "16px",
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0 }}>Invoice Edit History</h4>
+                  <div style={{ color: "#64748b", fontSize: "13px" }}>
+                    {historyOrder.invoiceNumber || historyOrder.saleCode}
+                  </div>
+                </div>
+                <button className="btn btn-secondary" onClick={() => setHistoryOrder(null)}>
+                  Close
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {(historyOrder.editHistory || []).map((entry) => (
+                  <div
+                    key={entry.id}
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "14px",
+                      padding: "14px",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 700, color: "#0f172a" }}>
+                        Edited on {new Date(entry.editedAt).toLocaleString("en-IN")}
+                      </div>
+                      <div style={{ fontSize: "13px", color: "#475569" }}>
+                        By {entry.editor?.name || "Unknown"}
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginTop: "12px" }}>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Old Total</div>
+                        <div style={{ fontWeight: 700 }}>₹{Number(entry.originalGrandTotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>New Total</div>
+                        <div style={{ fontWeight: 700 }}>₹{Number(entry.revisedGrandTotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Difference</div>
+                        <div style={{ fontWeight: 700, color: Number(entry.deltaAmount || 0) >= 0 ? "#166534" : "#b91c1c" }}>
+                          ₹{Number(entry.deltaAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Settlement</div>
+                        <div style={{ fontWeight: 600, textTransform: "capitalize" }}>
+                          {(entry.settlementMode || "not specified").replace(/_/g, " ")}
+                        </div>
+                      </div>
+                    </div>
+                    {entry.settlementNote && (
+                      <div style={{ marginTop: "10px", fontSize: "13px", color: "#334155" }}>
+                        Note: {entry.settlementNote}
+                      </div>
+                    )}
+                    {Array.isArray(entry.adjustments) && entry.adjustments.length > 0 && (
+                      <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
+                        {entry.adjustments.map((adjustment) => (
+                          <div
+                            key={adjustment.id}
+                            style={{
+                              borderRadius: "12px",
+                              padding: "10px 12px",
+                              background: "#ffffff",
+                              border: "1px solid #dbeafe",
+                              fontSize: "12px",
+                              color: "#334155",
+                            }}
+                          >
+                            <strong style={{ textTransform: "capitalize" }}>
+                              {(adjustment.adjustmentKind || adjustment.settlementMode || "adjustment").replace(/_/g, " ")}
+                            </strong>
+                            {" "} | Amount ₹{Number(adjustment.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {" "} | Balance ₹{Number(adjustment.balanceAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {" "} | Status {(adjustment.status || "pending").replace(/_/g, " ")}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {entry.diff?.items && (
+                      <div style={{ marginTop: "12px", display: "grid", gap: "10px" }}>
+                        {entry.diff.items.added?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: "12px", color: "#166534", fontWeight: 700, marginBottom: 4 }}>Added Items</div>
+                            {entry.diff.items.added.map((item, idx) => (
+                              <div key={`added-${idx}`} style={{ fontSize: "12px", color: "#334155" }}>
+                                {item.productName || item.productSku || item.productId}: Qty {Number(item.quantity || 0)} at ₹{Number(item.unitPrice || 0).toLocaleString("en-IN")}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {entry.diff.items.removed?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: "12px", color: "#b91c1c", fontWeight: 700, marginBottom: 4 }}>Removed Items</div>
+                            {entry.diff.items.removed.map((item, idx) => (
+                              <div key={`removed-${idx}`} style={{ fontSize: "12px", color: "#334155" }}>
+                                {item.productName || item.productSku || item.productId}: Qty {Number(item.quantity || 0)} at ₹{Number(item.unitPrice || 0).toLocaleString("en-IN")}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {entry.diff.items.changed?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: "12px", color: "#0f172a", fontWeight: 700, marginBottom: 4 }}>Changed Items</div>
+                            {entry.diff.items.changed.map((item) => (
+                              <div key={item.key} style={{ fontSize: "12px", color: "#334155" }}>
+                                {item.productName || item.productSku || item.key}: Qty {Number(item.before?.quantity || 0)} → {Number(item.after?.quantity || 0)}, Price ₹{Number(item.before?.unitPrice || 0).toLocaleString("en-IN")} → ₹{Number(item.after?.unitPrice || 0).toLocaleString("en-IN")}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {showCancelModal && (
           <div
             style={{

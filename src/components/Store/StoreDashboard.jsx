@@ -1,10 +1,12 @@
-import React, { lazy, Suspense, useState, useEffect } from "react";
+import React, { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import styles from "../Dashboard/Dashboard.module.css";
 import StoreDashHeader from "./StoreDashHeader";
 import StoreNavContainer from "./StoreNavContainer";
 import FootLink from "../Dashboard/FootLink";
 import { useAuth } from "../../Auth";
+import storeService from "../../services/storeService";
+import { connectStoreNotificationSocket } from "../../services/storeNotificationSocket";
 import { isStoreManager, isAdmin, isDivisionHead,  isZBM,
   isRBM,
   isAreaBusinessManager,
@@ -39,8 +41,10 @@ export default function StoreDashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [checkingStore, setCheckingStore] = useState(true);
+  const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
+  const notificationSocketRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -125,6 +129,89 @@ export default function StoreDashboard() {
     checkStoreSelection();
   }, [navigate]);
 
+  useEffect(() => {
+    const selectedStoreId = Number(localStorage.getItem("currentStoreId") || 0);
+    if (!selectedStoreId) return undefined;
+
+    let mounted = true;
+
+    const loadNotifications = async () => {
+      try {
+        const response = await storeService.getStoreNotifications({
+          storeId: selectedStoreId,
+          limit: 12,
+        });
+        if (mounted && response?.success) {
+          setNotifications(Array.isArray(response.data) ? response.data : []);
+        }
+      } catch (error) {
+        console.warn(
+          "StoreDashboard - Failed to load notifications:",
+          error.message,
+        );
+      }
+    };
+
+    loadNotifications();
+
+    notificationSocketRef.current?.disconnect();
+    notificationSocketRef.current = connectStoreNotificationSocket({
+      storeIds: [selectedStoreId],
+      onNotification: (notification) => {
+        if (!mounted) return;
+        setNotifications((current) => {
+          const deduped = current.filter((item) => item.id !== notification.id);
+          return [notification, ...deduped].slice(0, 20);
+        });
+      },
+    });
+
+    return () => {
+      mounted = false;
+      notificationSocketRef.current?.disconnect();
+      notificationSocketRef.current = null;
+    };
+  }, [checkingStore]);
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      if (!notification?.id || notification.isRead) return;
+      const storeId = Number(localStorage.getItem("currentStoreId") || 0) || null;
+      await storeService.markStoreNotificationRead(notification.id, storeId);
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id
+            ? { ...item, isRead: true, readAt: new Date().toISOString() }
+            : item,
+        ),
+      );
+    } catch (error) {
+      console.warn(
+        "StoreDashboard - Failed to mark notification as read:",
+        error.message,
+      );
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      const storeId = Number(localStorage.getItem("currentStoreId") || 0) || null;
+      await storeService.markAllStoreNotificationsRead(storeId);
+      setNotifications((current) =>
+        current.map((item) => ({
+          ...item,
+          isRead: true,
+          readAt: item.readAt || new Date().toISOString(),
+        })),
+      );
+    } catch (error) {
+      console.warn(
+        "StoreDashboard - Failed to mark all notifications as read:",
+        error.message,
+      );
+    }
+  };
+
   const onmouseover = () => {
     if (!isMobile) {
       setHover(true);
@@ -208,7 +295,9 @@ export default function StoreDashboard() {
         <div className="col p-0">
           <div className={`row p-0 ${styles.headline}`}>
             <StoreDashHeader
-              notifications={null}
+              notifications={notifications}
+              onNotificationClick={handleNotificationClick}
+              onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
               user={storedUser}
               setTab={setTab}
               admin={false}

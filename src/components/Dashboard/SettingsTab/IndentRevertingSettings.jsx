@@ -13,6 +13,8 @@ const IndentRevertingSettings = ({ navigate }) => {
   
   const [settings, setSettings] = useState({
     audit_lock_day: 0,
+    invoice_edit_window_hours: 24,
+    store_customer_credit_limit: 10000,
       role_revert_periods: {
       store_manager: 0,
       division_head: 0,
@@ -146,6 +148,40 @@ const IndentRevertingSettings = ({ navigate }) => {
                   min="0"
                 />
                 <small className="text-muted">Number of days before audit locks</small>
+              </div>
+              <div className="form-group mb-3">
+                <label className="form-label fw-bold">Invoice Edit Window (Hours)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={settings.invoice_edit_window_hours}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    invoice_edit_window_hours: parseInt(e.target.value) || 0
+                  }))}
+                  min="0"
+                  max="720"
+                />
+                <small className="text-muted">
+                  Controls how long store invoices can be edited while keeping the same invoice number.
+                </small>
+              </div>
+              <div className="form-group mb-3">
+                <label className="form-label fw-bold">Store Customer Credit Limit (₹)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={settings.store_customer_credit_limit}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    store_customer_credit_limit: parseInt(e.target.value) || 0
+                  }))}
+                  min="0"
+                  max="10000000"
+                />
+                <small className="text-muted">
+                  Maximum outstanding customer credit allowed from edited store invoices.
+                </small>
               </div>
             </div>
           </div>

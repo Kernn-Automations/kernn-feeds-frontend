@@ -196,6 +196,7 @@ export default function ViewAllIndents() {
   const [manualStockItems, setManualStockItems] = useState([
     { productId: "", quantity: "", unit: "units" },
   ]);
+  const [manualStockEntryType, setManualStockEntryType] = useState("inward");
   const [manualStockDamagedGoods, setManualStockDamagedGoods] = useState([]);
   const [hasManualDamagedGoods, setHasManualDamagedGoods] = useState(false);
   const [manualStockInLoading, setManualStockInLoading] = useState(false);
@@ -424,6 +425,7 @@ export default function ViewAllIndents() {
   const handleCloseManualStockIn = () => {
     setShowManualStockIn(false);
     setManualStockItems([{ productId: "", quantity: "", unit: "units" }]);
+    setManualStockEntryType("inward");
     setManualStockDamagedGoods([]);
     setHasManualDamagedGoods(false);
   };
@@ -571,6 +573,7 @@ export default function ViewAllIndents() {
 
       const finalPayload = {
         storeId: storeId,
+        isOpeningStock: manualStockEntryType === "openingstock",
         isDamagedGoods: hasAnyDamagedGoods || false, // Optional flag
         items: validItems.map((item) => {
           const productId = parseInt(item.productId);
@@ -635,7 +638,9 @@ export default function ViewAllIndents() {
       const successMessage =
         res.message ||
         res.data?.message ||
-        "Manual stock in processed successfully";
+        (manualStockEntryType === "openingstock"
+          ? "Opening stock processed successfully"
+          : "Manual stock in processed successfully");
       showToast({
         title: successMessage,
         status: "success",
@@ -2071,7 +2076,9 @@ export default function ViewAllIndents() {
                     fontFamily: "Poppins",
                   }}
                 >
-                  Manual Stock In
+                  {manualStockEntryType === "openingstock"
+                    ? "Set Opening Stock"
+                    : "Manual Stock In"}
                 </h5>
                 <button
                   type="button"
@@ -2088,6 +2095,54 @@ export default function ViewAllIndents() {
                   overflowY: "auto",
                 }}
               >
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h6
+                    style={{
+                      fontFamily: "Poppins",
+                      fontWeight: 600,
+                      marginBottom: "0.75rem",
+                      color: "var(--primary-color)",
+                    }}
+                  >
+                    Stock Entry Type
+                  </h6>
+                  <select
+                    value={manualStockEntryType}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setManualStockEntryType(value);
+                      if (value === "openingstock") {
+                        setHasManualDamagedGoods(false);
+                        setManualStockDamagedGoods([]);
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      maxWidth: "320px",
+                      padding: "10px 12px",
+                      border: "1px solid #d0d7e2",
+                      borderRadius: "10px",
+                      fontFamily: "Poppins",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <option value="inward">Manual Stock In</option>
+                    <option value="openingstock">Opening Stock For New Store</option>
+                  </select>
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      fontSize: "12px",
+                      color: "#64748b",
+                      fontFamily: "Poppins",
+                    }}
+                  >
+                    {manualStockEntryType === "openingstock"
+                      ? "Opening stock resets the starting quantity for the selected products."
+                      : "Manual stock in adds received quantity as inward stock."}
+                  </div>
+                </div>
+
                 <div style={{ marginBottom: "2rem" }}>
                   <h6
                     style={{
@@ -2267,14 +2322,30 @@ export default function ViewAllIndents() {
                       onChange={(e) =>
                         handleManualDamagedGoodsToggle(e.target.checked)
                       }
+                      disabled={manualStockEntryType === "openingstock"}
                       style={{
                         width: "18px",
                         height: "18px",
-                        cursor: "pointer",
+                        cursor:
+                          manualStockEntryType === "openingstock"
+                            ? "not-allowed"
+                            : "pointer",
                       }}
                     />
                     <span style={{ fontWeight: 600 }}>Damaged Goods</span>
                   </label>
+                  {manualStockEntryType === "openingstock" && (
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "12px",
+                        color: "#94a3b8",
+                        fontFamily: "Poppins",
+                      }}
+                    >
+                      Damaged-goods capture is disabled while setting opening stock.
+                    </div>
+                  )}
                 </div>
 
                 {/* Damaged Goods Table */}
@@ -2441,7 +2512,11 @@ export default function ViewAllIndents() {
                   disabled={manualStockInLoading}
                   style={{ fontFamily: "Poppins" }}
                 >
-                  {manualStockInLoading ? "Processing..." : "Confirm Stock In"}
+                  {manualStockInLoading
+                    ? "Processing..."
+                    : manualStockEntryType === "openingstock"
+                      ? "Confirm Opening Stock"
+                      : "Confirm Stock In"}
                 </button>
               </div>
             </div>

@@ -436,6 +436,15 @@ export default function StoreCreateSale() {
           draft.customerName ||
           null,
         createdAt: draft.createdAt || null,
+        editableUntil: draft.editableUntil || null,
+        customerOutstandingCredit:
+          Number(draft.customerOutstandingCredit || 0) || 0,
+        pendingAdditionalCollection:
+          Number(draft.pendingAdditionalCollection || 0) || 0,
+        customerCreditLimit: Number(draft.customerCreditLimit || 0) || 0,
+        customerRequiresIdentityForCredit: Boolean(
+          draft.customerRequiresIdentityForCredit,
+        ),
       });
       setRecordedAt(
         draft.createdAt
@@ -1186,6 +1195,42 @@ export default function StoreCreateSale() {
   const invoiceDelta = Number(
     (revisedInvoiceTotal - originalInvoiceTotal).toFixed(2),
   );
+  const customerOutstandingCredit = Number(
+    editDraftMeta?.customerOutstandingCredit || 0,
+  );
+  const pendingAdditionalCollection = Number(
+    editDraftMeta?.pendingAdditionalCollection || 0,
+  );
+  const customerCreditLimit = Number(editDraftMeta?.customerCreditLimit || 0);
+  const invoiceEditCutoff =
+    editDraftMeta?.editableUntil ? new Date(editDraftMeta.editableUntil) : null;
+  const isPastNormalEditWindow =
+    Boolean(editSaleId) &&
+    Boolean(invoiceEditCutoff) &&
+    invoiceEditCutoff.getTime() < Date.now();
+  const effectiveCustomerIdentity = {
+    name:
+      customerForm.name?.trim() ||
+      farmerName?.trim() ||
+      selectedCustomer?.name?.trim() ||
+      selectedCustomer?.farmerName?.trim() ||
+      "",
+    mobile:
+      sanitizeMobile(
+        mobileNumber ||
+          customerForm.mobile ||
+          selectedCustomer?.mobile ||
+          selectedCustomer?.phoneNo ||
+          "",
+      ) || "",
+  };
+  const canCarryCustomerCredit = Boolean(
+    effectiveCustomerIdentity.name || effectiveCustomerIdentity.mobile,
+  );
+  const projectedCustomerCredit =
+    editSettlementMode === "customer_credit"
+      ? customerOutstandingCredit + Math.abs(invoiceDelta || 0)
+      : customerOutstandingCredit;
   const hasInvoiceDelta = Boolean(
     editSaleId && reviewData && Math.abs(invoiceDelta) >= 0.01,
   );
@@ -1501,6 +1546,63 @@ export default function StoreCreateSale() {
       );
       setIsErrorModalOpen(true);
       return;
+    }
+
+    if (isPastNormalEditWindow) {
+      if (!editSettlementAcknowledged) {
+        setError(
+          "This invoice is outside the normal edit window. Please acknowledge the correction before saving.",
+        );
+        setIsErrorModalOpen(true);
+        return;
+      }
+
+      if (!editSettlementNote?.trim()) {
+        setError(
+          "Please add a reason note for editing this invoice after the normal edit window.",
+        );
+        setIsErrorModalOpen(true);
+        return;
+      }
+    }
+
+    if (
+      hasInvoiceDelta &&
+      ["manager_adjustment", "collect_later", "customer_credit"].includes(
+        editSettlementMode,
+      ) &&
+      !editSettlementNote?.trim()
+    ) {
+      setError(
+        "Please add a note so this edited invoice adjustment can be tracked clearly.",
+      );
+      setIsErrorModalOpen(true);
+      return;
+    }
+
+    if (hasInvoiceDelta && editSettlementMode === "customer_credit") {
+      if (!canCarryCustomerCredit) {
+        setError(
+          "Customer credit needs a real customer. Please add farmer name or mobile number before saving this edited invoice.",
+        );
+        setIsErrorModalOpen(true);
+        return;
+      }
+
+      if (
+        customerCreditLimit > 0 &&
+        projectedCustomerCredit - customerCreditLimit > 0.01
+      ) {
+        setError(
+          `Customer credit limit exceeded. Current credit is ₹${customerOutstandingCredit.toLocaleString(
+            "en-IN",
+          )} and this change would take it to ₹${projectedCustomerCredit.toLocaleString(
+            "en-IN",
+          )}, above the limit of ₹${customerCreditLimit.toLocaleString("en-IN")}.`,
+        );
+        setIsErrorModalOpen(true);
+        return;
+      }
     }
 
     const totalPaymentAmount = payments.reduce((sum, p) => {
@@ -1841,7 +1943,7 @@ export default function StoreCreateSale() {
         }
         setSuccessMessage(
           editSaleId
-            ? "Sale updated successfully. The previous invoice was superseded and a corrected invoice has been generated."
+            ? "Sale updated successfully. The same invoice number has been updated with the corrected details."
             : "Sale created successfully!",
         );
         setIsSuccessModalOpen(true);
@@ -2218,7 +2320,7 @@ export default function StoreCreateSale() {
           </div>
           <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
             {editSaleId
-              ? "You can remove a wrong product, add a replacement item, change quantities, customer details, payment details, or recorded time. Saving will cancel the older invoice and generate a corrected one."
+              ? "You can remove a wrong product, add a replacement item, change quantities, customer details, payment details, or recorded time. Saving will update the same invoice number with the corrected details."
               : "Add products, review the order, and complete payment in one flow. The sale ledger posts against the recorded date and time below."}
           </div>
         </div>
@@ -2262,6 +2364,9 @@ export default function StoreCreateSale() {
             </div>
             <div>
               To replace a product like <strong>FB-22</strong>, click <strong>Remove</strong> on that line and then add the new product to the cart. You can also change quantity and price before saving.
+            </div>
+            <div>
+              The invoice number will remain the same after saving. Only the invoice contents and totals will be updated.
             </div>
           </div>
         </div>
@@ -2427,7 +2532,7 @@ export default function StoreCreateSale() {
           </div>
           <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 16 }}>
             {editSaleId
-              ? "Review the loaded items, remove anything incorrect, and add the replacement products before saving the corrected invoice."
+              ? "Review the loaded items, remove anything incorrect, and add the replacement products before saving the updated invoice."
               : "Select products and build the cart just like the sales order experience."}
           </p>
 
@@ -2862,6 +2967,81 @@ export default function StoreCreateSale() {
                           : `Return ₹${Math.abs(invoiceDelta).toLocaleString("en-IN")}`}
                     </div>
                   </div>
+                  {isPastNormalEditWindow && (
+                    <div
+                      style={{
+                        marginTop: 14,
+                        padding: 14,
+                        borderRadius: 14,
+                        background:
+                          "linear-gradient(135deg, rgba(254,240,138,0.28) 0%, rgba(255,255,255,0.96) 100%)",
+                        border: "1px solid rgba(217,119,6,0.28)",
+                        color: "#92400e",
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      This invoice is beyond the normal edit window. The correction is still allowed, but manager acknowledgement and a reason note are required so the audit trail remains clean.
+                    </div>
+                  )}
+                  {(customerOutstandingCredit > 0 ||
+                    pendingAdditionalCollection > 0 ||
+                    customerCreditLimit > 0) && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                        gap: 12,
+                        marginTop: 14,
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: 12,
+                          borderRadius: 14,
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          Current customer credit
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
+                          ₹{customerOutstandingCredit.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          padding: 12,
+                          borderRadius: 14,
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          Pending extra collection
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
+                          ₹{pendingAdditionalCollection.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          padding: 12,
+                          borderRadius: 14,
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                          Customer credit limit
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
+                          ₹{customerCreditLimit.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div
                     style={{
                       display: "grid",
@@ -2980,6 +3160,28 @@ export default function StoreCreateSale() {
                         onChange={(e) => setEditSettlementNote(e.target.value)}
                         style={{ marginBottom: 12, borderRadius: 12 }}
                       />
+                      {editSettlementMode === "customer_credit" && (
+                        <div
+                          style={{
+                            marginBottom: 12,
+                            padding: 14,
+                            borderRadius: 14,
+                            border: `1px solid ${canCarryCustomerCredit ? "#bfdbfe" : "#fecaca"}`,
+                            background: canCarryCustomerCredit ? "#eff6ff" : "#fff7ed",
+                            color: canCarryCustomerCredit ? "#1d4ed8" : "#b91c1c",
+                            fontSize: 13,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {canCarryCustomerCredit
+                            ? `Credit after this edit: ₹${projectedCustomerCredit.toLocaleString(
+                                "en-IN",
+                              )} of ₹${customerCreditLimit.toLocaleString(
+                                "en-IN",
+                              )} allowed.`
+                            : "This sale still looks like a walk-in customer. Add farmer name or mobile number below before using Customer Credit."}
+                        </div>
+                      )}
                       <label
                         style={{
                           display: "flex",
@@ -3292,6 +3494,26 @@ export default function StoreCreateSale() {
                   border: "1px solid #e2e8f0",
                 }}
               >
+                {editSaleId &&
+                  editSettlementMode === "customer_credit" &&
+                  !canCarryCustomerCredit && (
+                    <div className="col-12" style={{ marginBottom: 14 }}>
+                      <div
+                        style={{
+                          padding: 14,
+                          borderRadius: 14,
+                          background:
+                            "linear-gradient(135deg, rgba(254,242,242,0.96) 0%, rgba(255,255,255,0.98) 100%)",
+                          border: "1px solid #fecaca",
+                          color: "#991b1b",
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        Customer credit cannot be issued against an anonymous walk-in invoice. Please create or complete the customer details first by adding at least a farmer name or mobile number.
+                      </div>
+                    </div>
+                  )}
                 {/* Farmer Name - Searchable Dropdown */}
                 <div
                   className="col-4 formcontent"

@@ -538,6 +538,77 @@ const storeService = {
 
     return res.json();
   },
+  async validateStoreImportRows(body) {
+    const res = await api.request(`/stores/ledger/import/validate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async getStoreNotifications(params = {}) {
+    const query = new URLSearchParams();
+    if (params.storeId) query.append("storeId", params.storeId);
+    if (params.page) query.append("page", params.page);
+    if (params.limit) query.append("limit", params.limit);
+    if (params.unreadOnly) query.append("unreadOnly", params.unreadOnly);
+    const res = await api.request(
+      `/stores/notifications${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "GET" },
+    );
+    return res.json();
+  },
+  async getStoreActivityTimeline(params = {}) {
+    const query = new URLSearchParams();
+    if (params.storeId) query.append("storeId", params.storeId);
+    if (params.limit) query.append("limit", params.limit);
+    const res = await api.request(
+      `/stores/activity-timeline${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "GET" },
+    );
+    return res.json();
+  },
+  async markStoreNotificationRead(notificationId, storeId = null) {
+    const query = new URLSearchParams();
+    if (storeId) query.append("storeId", storeId);
+    const res = await api.request(
+      `/stores/notifications/${notificationId}/read${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "PATCH" },
+    );
+    return res.json();
+  },
+  async markAllStoreNotificationsRead(storeId = null) {
+    const query = new URLSearchParams();
+    if (storeId) query.append("storeId", storeId);
+    const res = await api.request(
+      `/stores/notifications/read-all${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "PATCH" },
+    );
+    return res.json();
+  },
+  async getStoreImportHistory(params = {}) {
+    const query = new URLSearchParams();
+    if (params.storeId) query.append("storeId", params.storeId);
+    if (params.limit) query.append("limit", params.limit);
+    const res = await api.request(
+      `/stores/ledger/import/history${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "GET" },
+    );
+    return res.json();
+  },
   // All Stores Sales Reports operations (Admin/Super Admin only)
   async getAllStoresSalesReports(params = {}) {
     // GET /stores/reports/sales - Get sales report for all stores
