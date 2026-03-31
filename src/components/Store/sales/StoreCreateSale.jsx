@@ -1,18 +1,22 @@
 import React, {
   useDeferredValue,
-  useMemo,
-  useState,
   useEffect,
+  useMemo,
   useRef,
+  useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import ApiService from "../../../services/apiService";
 import { QRCodeSVG } from "qrcode.react";
 import storeService from "../../../services/storeService";
+import settingsService from "../../../services/settingsService";
 import Loading from "../../Loading";
 import ErrorModal from "../../ErrorModal";
 import SuccessModal from "../../SuccessModal";
 import compressImageToUnder100KB from "@/services/compressImageUnder100kb";
+import {
+  formatDateTimeIN,
+  getCurrentDateTimeLocal,
+} from "@/utils/dateFormat";
 
 const styles = {
   stepIndicator: {
@@ -260,6 +264,10 @@ export default function StoreCreateSale() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const farmerSearchRef = useRef(null);
   const farmerSearchTimeoutRef = useRef(null);
+  const recentCustomersCacheRef = useRef([]);
+  const customerSearchCacheRef = useRef(new Map());
+  const mobileLookupCacheRef = useRef(new Map());
+  const villageSearchCacheRef = useRef(new Map());
 
   // Village search states
   const [villageSearchTerm, setVillageSearchTerm] = useState("");
@@ -347,7 +355,6 @@ export default function StoreCreateSale() {
     const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
-  const getCurrentDateTimeLocal = () => new Date().toISOString().slice(0, 16);
   const [payments, setPayments] = useState([
     {
       transactionDate: getTodayDate(),
@@ -386,6 +393,7 @@ export default function StoreCreateSale() {
   const [searchParams] = useSearchParams();
   const editSaleId = searchParams.get("editSaleId");
   const [recordedAt, setRecordedAt] = useState(getCurrentDateTimeLocal());
+  const [creditUsageEnabled, setCreditUsageEnabled] = useState(false);
 
   // Get current store ID from localStorage
   const getStoreId = () => {
@@ -403,10 +411,98 @@ export default function StoreCreateSale() {
     }
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOperationalSettings = async () => {
+      try {
+        const response = await settingsService.getSettings();
+        const value = response?.setting?.value || {};
+        if (isMounted) {
+          setCreditUsageEnabled(Boolean(value.customer_credit_usage_enabled));
+        }
+      } catch (err) {
+        console.warn("Could not load credit usage settings:", err?.message);
+      }
+    };
+
+    loadOperationalSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const sanitizeMobile = (value = "") =>
     String(value || "")
       .replace(/[^0-9]/g, "")
       .slice(-10);
+
+  const normalizeCustomerResults = (customers = []) =>
+    Array.isArray(customers)
+      ? customers.map((customer) => {
+          const displayName =
+            customer.name ||
+            customer.farmerName ||
+            customer.label ||
+            customer.customerName ||
+            "";
+          const displayVillage =
+            customer.villageName || customer.village || customer.area || "";
+
+          return {
+            id: customer.id || customer.customerId,
+            name: displayName,
+            farmerName: customer.farmerName || displayName,
+            customerCode: customer.customerCode || "",
+            mobile:
+              customer.mobile || customer.phone || customer.phoneNo || "",
+            village:
+              displayVillage ||
+              customer.villageName ||
+              customer.village ||
+              customer.area ||
+              "",
+            villageName:
+              customer.villageName ||
+              displayVillage ||
+              customer.village ||
+              customer.area ||
+              "",
+            area: customer.area || "",
+            city: customer.city || "",
+            state: customer.state || "",
+            pincode: customer.pincode || "",
+            address: customer.address || "",
+            noOfCows: customer.noOfCows || "",
+            noOfBuffaloes: customer.noOfBuffaloes || "",
+            totalPurchases: customer.totalPurchases,
+            lastPurchaseDate: customer.lastPurchaseDate,
+            createdAt: customer.createdAt,
+            updatedAt: customer.updatedAt,
+            storeId: customer.storeId,
+          };
+        })
+      : [];
+
+  const cacheCustomers = (customers = []) => {
+    if (!Array.isArray(customers) || customers.length === 0) return;
+    const existingById = new Map(
+      recentCustomersCacheRef.current.map((customer) => [customer.id, customer]),
+    );
+    customers.forEach((customer) => {
+      if (customer?.id) {
+        existingById.set(customer.id, customer);
+      }
+      const mobileKey = sanitizeMobile(customer?.mobile);
+      if (mobileKey) {
+        mobileLookupCacheRef.current.set(mobileKey, customer);
+      }
+    });
+    recentCustomersCacheRef.current = Array.from(existingById.values()).slice(
+      0,
+      150,
+    );
+  };
 
   useEffect(() => {
     if (!editSaleId) return;
@@ -521,62 +617,34 @@ export default function StoreCreateSale() {
 
   const handleCheckMobile = async (mobileNumber = mobile) => {
     const cleanedMobile = sanitizeMobile(mobileNumber);
-    console.log(
-      "handleCheckMobile called with mobileNumber:",
-      mobileNumber,
-      "cleaned:",
-      cleanedMobile,
-      "length:",
-      cleanedMobile.length,
-    );
-    if (cleanedMobile.length !== 10) {
-      console.log("Mobile length is not 10, returning");
-      return;
-    }
+    const storeId = getStoreId();
+    if (cleanedMobile.length !== 10 || !storeId) return;
+
     try {
-      console.log("Setting checking to true");
       setChecking(true);
       setCustomerChecked(false);
-      console.log("Checking customer for mobile:", mobileNumber);
-      const matchCustomersByMobile = (list = []) => {
-        const matched = list.filter(
-          (c) => sanitizeMobile(c.mobile) === cleanedMobile,
+      let customer = mobileLookupCacheRef.current.get(cleanedMobile) || null;
+
+      if (!customer) {
+        const response = await storeService.searchStoreCustomers(
+          storeId,
+          cleanedMobile,
+          10,
         );
-        console.log(`Matched ${matched.length} customers out of`, list.length);
-        return matched;
-      };
-
-      // Make actual API call
-      const resp = await ApiService.get(`/customers?mobile=${cleanedMobile}`);
-      let customers = [];
-      if (resp && typeof resp.json === "function") {
-        const data = await resp.json();
-        console.log("API response:", data);
-        const apiCustomers = Array.isArray(data?.customers)
-          ? data.customers
-          : [];
-        customers = matchCustomersByMobile(apiCustomers);
+        const customers = normalizeCustomerResults(
+          response.data || response.customers || response || [],
+        );
+        cacheCustomers(customers);
+        customer =
+          customers.find(
+            (entry) => sanitizeMobile(entry.mobile) === cleanedMobile,
+          ) || null;
       }
 
-      // Fallback: fetch all and match by mobile
-      if (!customers.length) {
-        console.log("Falling back to /customers list fetch");
-        const allResp = await ApiService.get(`/customers`);
-        if (allResp && typeof allResp.json === "function") {
-          const allData = await allResp.json();
-          const all = Array.isArray(allData?.customers)
-            ? allData.customers
-            : [];
-          customers = matchCustomersByMobile(all);
-        }
-      }
-
-      if (customers.length > 0) {
-        const customer = customers[0];
-        console.log("Customer found:", customer);
+      if (customer) {
         setExistingCustomer(customer);
         setCustomerForm({
-          name: customer.name || "",
+          name: customer.name || customer.farmerName || "",
           mobile: customer.mobile || cleanedMobile,
           email: customer.email || "",
           area: customer.area || "",
@@ -611,93 +679,38 @@ export default function StoreCreateSale() {
 
     setFarmerSearchLoading(true);
     try {
-      let response;
       const trimmedTerm = searchTerm.trim();
+      let formattedCustomers = [];
 
-      // If search term is empty or too short, fetch all customers
-      // Otherwise, use the search endpoint
-      if (!trimmedTerm || trimmedTerm.length < 1) {
-        // Fetch all customers using GET /stores/:storeId/customers
-        response = await storeService.getStoreCustomers(storeId, {
-          limit: 100,
-        });
+      if (!trimmedTerm) {
+        if (recentCustomersCacheRef.current.length > 0) {
+          formattedCustomers = recentCustomersCacheRef.current;
+        } else {
+          const response = await storeService.getStoreCustomers(storeId, {
+            limit: 100,
+          });
+          formattedCustomers = normalizeCustomerResults(
+            response.data?.customers || response.customers || response.data || [],
+          );
+          cacheCustomers(formattedCustomers);
+        }
       } else {
-        // Call the backend API endpoint: GET /stores/:storeId/customers/search?search=term
-        response = await storeService.searchStoreCustomers(
-          storeId,
-          trimmedTerm,
-        );
+        const cacheKey = trimmedTerm.toLowerCase();
+        if (customerSearchCacheRef.current.has(cacheKey)) {
+          formattedCustomers = customerSearchCacheRef.current.get(cacheKey);
+        } else {
+          const response = await storeService.searchStoreCustomers(
+            storeId,
+            trimmedTerm,
+            20,
+          );
+          formattedCustomers = normalizeCustomerResults(
+            response.data || response.customers || response || [],
+          );
+          customerSearchCacheRef.current.set(cacheKey, formattedCustomers);
+          cacheCustomers(formattedCustomers);
+        }
       }
-
-      console.log("Farmer search response:", response);
-
-      // Extract customers from response
-      const customers = response.data || response.customers || response || [];
-
-      // Transform to match component format if needed
-      // Note: Map name from farmerName/label if name is null
-      const formattedCustomers = Array.isArray(customers)
-        ? customers.map((customer) => {
-            // Get display name - prefer name, then farmerName, then label, then customerName
-            const displayName =
-              customer.name ||
-              customer.farmerName ||
-              customer.label ||
-              customer.customerName ||
-              "";
-            // Get village name - check all possible field names from backend
-            // Backend may return: villageName, village, or area
-            const displayVillage =
-              customer.villageName || customer.village || customer.area || "";
-
-            console.log("Mapping customer - Original:", {
-              id: customer.id,
-              name: customer.name,
-              farmerName: customer.farmerName,
-              label: customer.label,
-              villageName: customer.villageName,
-              village: customer.village,
-              area: customer.area,
-              fullCustomer: customer,
-            });
-            console.log("Mapping customer - Mapped:", {
-              displayName,
-              displayVillage,
-            });
-
-            return {
-              id: customer.id || customer.customerId,
-              name: displayName, // Use the display name we determined
-              farmerName: customer.farmerName || displayName, // Preserve farmerName
-              customerCode: customer.customerCode || "",
-              mobile:
-                customer.mobile || customer.phone || customer.phoneNo || "",
-              // Ensure village is set - check all possible sources
-              village:
-                displayVillage ||
-                customer.villageName ||
-                customer.village ||
-                customer.area ||
-                "",
-              villageName:
-                customer.villageName ||
-                displayVillage ||
-                customer.village ||
-                customer.area ||
-                "",
-              area: customer.area || "",
-              city: customer.city || "",
-              // Preserve other important fields from original customer object
-              createdAt: customer.createdAt,
-              updatedAt: customer.updatedAt,
-              storeId: customer.storeId,
-              totalPurchases: customer.totalPurchases,
-              lastPurchaseDate: customer.lastPurchaseDate,
-            };
-          })
-        : [];
-
-      console.log("Formatted farmers:", formattedCustomers);
 
       setFarmerSearchResults(formattedCustomers);
       if (!showFarmerDropdown) {
@@ -773,15 +786,29 @@ export default function StoreCreateSale() {
       );
 
       if (response && response.success) {
-        // Refresh village list
-        const villagesResponse = await storeService.getStoreVillages(storeId);
-        if (villagesResponse && villagesResponse.success) {
-          setStoreVillages(villagesResponse.data || []);
-        }
-
         // Select the newly created village
         const createdVillageName =
           response.data?.villageName || newVillageNameInput.trim();
+        setStoreVillages((prev) => {
+          const exists = prev.some(
+            (village) =>
+              String(village.villageName || village.value || "")
+                .toLowerCase()
+                .trim() === createdVillageName.toLowerCase().trim(),
+          );
+          if (exists) return prev;
+          const next = [
+            ...prev,
+            {
+              id: response.data?.id || `local-${Date.now()}`,
+              villageName: createdVillageName,
+            },
+          ];
+          return next.sort((a, b) =>
+            String(a.villageName || "").localeCompare(String(b.villageName || "")),
+          );
+        });
+        villageSearchCacheRef.current.clear();
         setVillageName(createdVillageName);
         setVillageSearchTerm(createdVillageName);
 
@@ -887,7 +914,12 @@ export default function StoreCreateSale() {
         console.log("Fetching products for store:", storeId);
 
         // Use the for-sale endpoint specifically for sale creation
-        const response = await storeService.getStoreProductsForSale(storeId);
+        const response = await storeService.getStoreProductsForSale(
+          storeId,
+          "",
+          "",
+          recordedAt,
+        );
 
         console.log("Store products for-sale response:", response);
 
@@ -933,6 +965,32 @@ export default function StoreCreateSale() {
     };
 
     fetchProducts();
+  }, [recordedAt]);
+
+  useEffect(() => {
+    const storeId = getStoreId();
+    if (!storeId) return;
+
+    let active = true;
+    const preloadRecentCustomers = async () => {
+      try {
+        const response = await storeService.getStoreCustomers(storeId, {
+          limit: 100,
+        });
+        if (!active) return;
+        const customers = normalizeCustomerResults(
+          response.data?.customers || response.customers || response.data || [],
+        );
+        cacheCustomers(customers);
+      } catch (error) {
+        console.warn("Could not preload recent store customers:", error?.message);
+      }
+    };
+
+    preloadRecentCustomers();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const cartItemsList = useMemo(() => Object.values(cartItems), [cartItems]);
@@ -1236,6 +1294,94 @@ export default function StoreCreateSale() {
   );
   const invoiceDeltaDirection =
     invoiceDelta > 0 ? "collect" : invoiceDelta < 0 ? "refund" : "none";
+  const requiresImmediateCollection =
+    !editSaleId ||
+    (hasInvoiceDelta &&
+      invoiceDeltaDirection === "collect" &&
+      editSettlementMode === "collect_now");
+  const requiredPaymentAmount = requiresImmediateCollection
+    ? Number(
+        editSaleId
+          ? Math.abs(invoiceDelta || 0)
+          : calculatedTotal?.total || reviewData?.totals?.total || totalCartValue,
+      )
+    : 0;
+  const shouldShowPaymentSection = requiresImmediateCollection;
+  const shouldShowNoPaymentNotice =
+    Boolean(editSaleId) &&
+    (!hasInvoiceDelta ||
+      invoiceDeltaDirection === "refund" ||
+      (invoiceDeltaDirection === "collect" &&
+        ["collect_later", "manager_adjustment"].includes(editSettlementMode)));
+  const submitBlockedReason = (() => {
+    if (submitting || !reviewData) return "Review data is not ready yet.";
+    if (cartItemsCount <= 0) return "Add at least one product.";
+    if (hasInvoiceDelta && !editSettlementAcknowledged) {
+      return "Acknowledge the invoice amount change before saving.";
+    }
+    if (isPastNormalEditWindow && !editSettlementNote?.trim()) {
+      return "Late invoice edits need a reason note.";
+    }
+    if (
+      hasInvoiceDelta &&
+      ["manager_adjustment", "collect_later", "customer_credit"].includes(
+        editSettlementMode,
+      ) &&
+      !editSettlementNote?.trim()
+    ) {
+      return "Add a note for this invoice adjustment.";
+    }
+    if (
+      hasInvoiceDelta &&
+      editSettlementMode === "customer_credit" &&
+      !canCarryCustomerCredit
+    ) {
+      return "Customer credit needs farmer name or mobile number.";
+    }
+    if (
+      hasInvoiceDelta &&
+      editSettlementMode === "customer_credit" &&
+      customerCreditLimit > 0 &&
+      projectedCustomerCredit - customerCreditLimit > 0.01
+    ) {
+      return "Customer credit limit would be exceeded.";
+    }
+    if (!shouldShowPaymentSection) return "";
+    if (!Array.isArray(payments) || payments.length === 0) {
+      return "Add a payment method.";
+    }
+    const invalidBothPayments = payments.some(
+      (payment) =>
+        payment.paymentMethod === "both" &&
+        ((!payment.cashAmount || parseFloat(payment.cashAmount) <= 0) ||
+          (!payment.bankAmount || parseFloat(payment.bankAmount) <= 0)),
+    );
+    if (invalidBothPayments) {
+      return "Enter both cash and bank amounts.";
+    }
+    const invalidUtrPayments = payments.some(
+      (payment) =>
+        (payment.paymentMethod === "bank" || payment.paymentMethod === "both") &&
+        (!payment.utrNumber || payment.utrNumber.trim() === ""),
+    );
+    if (invalidUtrPayments) {
+      return "UTR number is required for bank payments.";
+    }
+    const totalPaymentAmount = payments.reduce((sum, payment) => {
+      if (payment.paymentMethod === "both") {
+        return (
+          sum +
+          (parseFloat(payment.cashAmount) || 0) +
+          (parseFloat(payment.bankAmount) || 0)
+        );
+      }
+      return sum + requiredPaymentAmount;
+    }, 0);
+    if (Math.abs(totalPaymentAmount - requiredPaymentAmount) > 1) {
+      return "Payment amount does not match the amount to be collected.";
+    }
+    return "";
+  })();
 
   const canGoNext = () => {
     if (step === 0) return cartItemsCount > 0; // Products step - need at least one item
@@ -1537,8 +1683,7 @@ export default function StoreCreateSale() {
     // Validate payments
     // For "both" payment method, calculate total from cashAmount + bankAmount
     // For "cash" or "bank", the amount is auto-filled from expectedTotal
-    const expectedTotal =
-      calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
+    const expectedTotal = requiredPaymentAmount;
 
     if (hasInvoiceDelta && !editSettlementAcknowledged) {
       setError(
@@ -1605,32 +1750,34 @@ export default function StoreCreateSale() {
       }
     }
 
-    const totalPaymentAmount = payments.reduce((sum, p) => {
-      if (p.paymentMethod === "both") {
-        const cashAmt = parseFloat(p.cashAmount) || 0;
-        const bankAmt = parseFloat(p.bankAmount) || 0;
-        return sum + cashAmt + bankAmt;
-      } else {
-        // For cash or bank, use the expectedTotal (which is auto-filled in the read-only field)
-        return sum + expectedTotal;
-      }
-    }, 0);
+    const totalPaymentAmount = shouldShowPaymentSection
+      ? payments.reduce((sum, p) => {
+          if (p.paymentMethod === "both") {
+            const cashAmt = parseFloat(p.cashAmount) || 0;
+            const bankAmt = parseFloat(p.bankAmount) || 0;
+            return sum + cashAmt + bankAmt;
+          }
+          return sum + expectedTotal;
+        }, 0)
+      : 0;
 
-    if (totalPaymentAmount <= 0) {
+    if (shouldShowPaymentSection && totalPaymentAmount <= 0) {
       setError("Please enter payment amounts");
       setIsErrorModalOpen(true);
       return;
     }
 
     // Validate "both" payments have both amounts
-    const invalidBothPayments = payments.filter(
-      (p) =>
-        p.paymentMethod === "both" &&
-        (!p.cashAmount ||
-          parseFloat(p.cashAmount) <= 0 ||
-          !p.bankAmount ||
-          parseFloat(p.bankAmount) <= 0),
-    );
+    const invalidBothPayments = shouldShowPaymentSection
+      ? payments.filter(
+          (p) =>
+            p.paymentMethod === "both" &&
+            (!p.cashAmount ||
+              parseFloat(p.cashAmount) <= 0 ||
+              !p.bankAmount ||
+              parseFloat(p.bankAmount) <= 0),
+        )
+      : [];
 
     if (invalidBothPayments.length > 0) {
       setError(
@@ -1641,11 +1788,13 @@ export default function StoreCreateSale() {
     }
 
     // Validate UTR number for Bank or Both payments
-    const invalidUtrPayments = payments.filter(
-      (p) =>
-        (p.paymentMethod === "bank" || p.paymentMethod === "both") &&
-        (!p.utrNumber || p.utrNumber.trim() === ""),
-    );
+    const invalidUtrPayments = shouldShowPaymentSection
+      ? payments.filter(
+          (p) =>
+            (p.paymentMethod === "bank" || p.paymentMethod === "both") &&
+            (!p.utrNumber || p.utrNumber.trim() === ""),
+        )
+      : [];
 
     if (invalidUtrPayments.length > 0) {
       setError("UTR Number is mandatory for Bank payments");
@@ -1653,9 +1802,28 @@ export default function StoreCreateSale() {
       return;
     }
 
+    const hasCreditPayment = shouldShowPaymentSection && payments.some(
+      (p) => p.paymentMethod === "credit",
+    );
+    if (hasCreditPayment) {
+      if (!creditUsageEnabled) {
+        setError("Customer credit usage is disabled in settings.");
+        setIsErrorModalOpen(true);
+        return;
+      }
+
+      if (!canCarryCustomerCredit) {
+        setError(
+          "Customer credit can only be used for an identified customer. Please add farmer name or mobile number first.",
+        );
+        setIsErrorModalOpen(true);
+        return;
+      }
+    }
+
     // Validate payment amount matches calculated total (with tolerance for rounding)
     const paymentDifference = Math.abs(totalPaymentAmount - expectedTotal);
-    if (paymentDifference > 1) {
+    if (shouldShowPaymentSection && paymentDifference > 1) {
       // Allow 1 rupee difference for rounding
       setError(
         `Payment amount (₹${totalPaymentAmount.toLocaleString("en-IN")}) does not match order total (₹${expectedTotal.toLocaleString("en-IN")}). Please enter the correct amount.`,
@@ -1721,55 +1889,54 @@ export default function StoreCreateSale() {
       // Payment proof is handled separately via UTR endpoint if needed
       const formattedPayments = [];
 
-      const expectedTotal =
-        calculatedTotal?.total || reviewData?.totals?.total || totalCartValue;
+      if (shouldShowPaymentSection) {
+        payments.forEach((payment) => {
+          if (payment.paymentMethod === "both") {
+            const cashAmt = parseFloat(payment.cashAmount) || 0;
+            const bankAmt = parseFloat(payment.bankAmount) || 0;
 
-      payments.forEach((payment) => {
-        if (payment.paymentMethod === "both") {
-          // For "both" payment method, split into cash and bank payments
-          const cashAmt = parseFloat(payment.cashAmount) || 0;
-          const bankAmt = parseFloat(payment.bankAmount) || 0;
+            if (cashAmt > 0) {
+              formattedPayments.push({
+                paymentMethod: "cash",
+                amount: cashAmt,
+                paymentProof: payment.cashProofBase64 || null,
+                remarks: payment.remarks || null,
+              });
+            }
 
-          if (cashAmt > 0) {
-            formattedPayments.push({
-              paymentMethod: "cash",
-              amount: cashAmt,
-              paymentProof: payment.cashProofBase64 || null,
-              remarks: payment.remarks || null,
-            });
+            if (bankAmt > 0) {
+              formattedPayments.push({
+                paymentMethod: "bank",
+                amount: bankAmt,
+                transactionNumber: payment.utrNumber || null,
+                paymentProof: payment.bankProofBase64 || null,
+                remarks: payment.remarks || null,
+              });
+            }
+          } else {
+            const amount = expectedTotal;
+            if (amount > 0) {
+              formattedPayments.push({
+                paymentMethod: payment.paymentMethod || "cash",
+                amount: amount,
+                transactionNumber:
+                  payment.paymentMethod === "bank"
+                    ? payment.utrNumber || null
+                    : null,
+                paymentProof:
+                  payment.paymentMethod === "bank"
+                    ? payment.bankProofBase64 || null
+                    : payment.paymentMethod === "credit"
+                      ? null
+                      : payment.cashProofBase64 || null,
+                remarks: payment.remarks || null,
+              });
+            }
           }
+        });
+      }
 
-          if (bankAmt > 0) {
-            formattedPayments.push({
-              paymentMethod: "bank",
-              amount: bankAmt,
-              transactionNumber: payment.utrNumber || null,
-              paymentProof: payment.bankProofBase64 || null,
-              remarks: payment.remarks || null,
-            });
-          }
-        } else {
-          // Regular cash or bank payment - use the total amount
-          const amount = expectedTotal;
-          if (amount > 0) {
-            formattedPayments.push({
-              paymentMethod: payment.paymentMethod || "cash",
-              amount: amount,
-              transactionNumber:
-                payment.paymentMethod === "bank"
-                  ? payment.utrNumber || null
-                  : null,
-              paymentProof:
-                payment.paymentMethod === "bank"
-                  ? payment.bankProofBase64 || null
-                  : payment.cashProofBase64 || null,
-              remarks: payment.remarks || null,
-            });
-          }
-        }
-      });
-
-      if (formattedPayments.length === 0) {
+      if (shouldShowPaymentSection && formattedPayments.length === 0) {
         setError("Please enter at least one payment with a valid amount");
         setIsErrorModalOpen(true);
         setSubmitting(false);
@@ -2337,6 +2504,10 @@ export default function StoreCreateSale() {
             value={recordedAt}
             onChange={(e) => setRecordedAt(e.target.value)}
           />
+          <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+            Date format: DD/MM/YYYY HH:mm
+            {recordedAt ? ` | ${formatDateTimeIN(recordedAt)}` : ""}
+          </div>
         </div>
       </div>
       {editSaleId && (
@@ -4270,6 +4441,7 @@ export default function StoreCreateSale() {
               </div>
 
               {/* Payment Info */}
+              {shouldShowPaymentSection ? (
               <div
                 style={{
                   border: "1px solid #dbeafe",
@@ -4292,10 +4464,12 @@ export default function StoreCreateSale() {
                   }}
                 >
                   <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 18 }}>
-                    Payment Info
+                    {editSaleId ? "Additional Collection" : "Payment Info"}
                   </div>
                   <div style={{ fontSize: 12, color: "#64748b" }}>
-                    Keep the sale moving while payment proof and UTR are captured.
+                    {editSaleId
+                      ? `Collect only the extra amount of ₹${requiredPaymentAmount.toLocaleString("en-IN")} before saving this edited invoice.`
+                      : "Keep the sale moving while payment proof and UTR are captured."}
                   </div>
                 </div>
 
@@ -4436,6 +4610,39 @@ export default function StoreCreateSale() {
                           >
                             Bank
                           </button>
+                          {creditUsageEnabled && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updatePaymentField(idx, "paymentMethod", "credit")
+                              }
+                              style={{
+                                padding: isMobile ? "12px 20px" : "10px 24px",
+                                borderRadius: "8px",
+                                border: "2px solid",
+                                borderColor:
+                                  payment.paymentMethod === "credit"
+                                    ? "#166534"
+                                    : "#e2e8f0",
+                                backgroundColor:
+                                  payment.paymentMethod === "credit"
+                                    ? "#166534"
+                                    : "#fff",
+                                color:
+                                  payment.paymentMethod === "credit"
+                                    ? "#fff"
+                                    : "#4a5568",
+                                fontWeight: "600",
+                                fontSize: isMobile ? "14px" : "14px",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                minHeight: isMobile ? "44px" : "auto",
+                                flex: isMobile ? "1" : "none",
+                              }}
+                            >
+                              Credit
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() =>
@@ -4509,7 +4716,25 @@ export default function StoreCreateSale() {
                         </div>
 
                         {/* Amount fields - different based on payment method */}
-                        {payment.paymentMethod === "both" ? (
+                        {payment.paymentMethod === "credit" ? (
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <div
+                              style={{
+                                borderRadius: 12,
+                                border: `1px solid ${canCarryCustomerCredit ? "#bbf7d0" : "#fecaca"}`,
+                                background: canCarryCustomerCredit ? "#f0fdf4" : "#fff7ed",
+                                padding: 14,
+                                color: canCarryCustomerCredit ? "#166534" : "#b91c1c",
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {canCarryCustomerCredit
+                                ? `This invoice will be posted against customer credit for ₹${expectedTotal.toLocaleString("en-IN")}.`
+                                : "Customer credit requires a saved customer with at least a farmer name or mobile number."}
+                            </div>
+                          </div>
+                        ) : payment.paymentMethod === "both" ? (
                           <>
                             <div>
                               <label className="form-label">
@@ -4561,9 +4786,9 @@ export default function StoreCreateSale() {
                                 }}
                               >
                                 Total to pay: ₹
-                                {(
-                                  reviewData?.totals?.total || 0
-                                ).toLocaleString("en-IN")}
+                                {(requiredPaymentAmount || 0).toLocaleString(
+                                  "en-IN",
+                                )}
                                 {payment.cashAmount && payment.bankAmount && (
                                   <span
                                     style={{
@@ -4598,7 +4823,7 @@ export default function StoreCreateSale() {
                               className="form-control"
                               min="0"
                               step="0.01"
-                              value={reviewData?.totals?.total || 0}
+                              value={requiredPaymentAmount || 0}
                               readOnly
                               style={{
                                 backgroundColor: "#f8f9fa",
@@ -4613,7 +4838,9 @@ export default function StoreCreateSale() {
                                 marginTop: "4px",
                               }}
                             >
-                              Total amount to pay (auto-filled)
+                              {editSaleId
+                                ? "Additional amount to collect (auto-filled)"
+                                : "Total amount to pay (auto-filled)"}
                             </small>
                           </div>
                         )}
@@ -5027,6 +5254,42 @@ export default function StoreCreateSale() {
                   ))}
                 </div>
               </div>
+              ) : shouldShowNoPaymentNotice ? (
+              <div
+                style={{
+                  border: "1px solid #dbeafe",
+                  borderRadius: 18,
+                  padding: 18,
+                  background:
+                    "linear-gradient(180deg, rgba(248,250,252,0.98) 0%, rgba(255,255,255,0.98) 100%)",
+                  marginBottom: 16,
+                  boxShadow: "0 16px 36px rgba(15, 23, 42, 0.05)",
+                }}
+              >
+                <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 18 }}>
+                  Payment Info
+                </div>
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 14,
+                    borderRadius: 14,
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    color: "#475569",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {invoiceDeltaDirection === "refund"
+                    ? `This edited invoice is lower by ₹${Math.abs(
+                        invoiceDelta,
+                      ).toLocaleString(
+                        "en-IN",
+                      )}. No new payment will be collected here. Handle the difference using Refund, Customer Credit, or Manager Adjustment above.`
+                    : "No immediate payment is required for this edited invoice. Save will stay enabled once the selected adjustment rules are satisfied."}
+                </div>
+              </div>
+              ) : null}
 
               <div style={{ marginTop: 16, marginBottom: 16, fontSize: "12px", color: "#64748b" }}>
                 Ledger posting follows the selected recorded time shown at the top of the checkout page.
@@ -5079,22 +5342,36 @@ export default function StoreCreateSale() {
                     console.log("Button clicked, calling handleSubmitPayment");
                     handleSubmitPayment(e);
                   }}
-                  disabled={submitting || !reviewData}
+                  disabled={Boolean(submitBlockedReason)}
+                  title={submitBlockedReason || ""}
                   style={{
                     minHeight: isMobile ? "44px" : "auto",
                     width: isMobile ? "100%" : "auto",
                     cursor:
-                      submitting || !reviewData ? "not-allowed" : "pointer",
-                    opacity: submitting || !reviewData ? 0.6 : 1,
+                      submitBlockedReason ? "not-allowed" : "pointer",
+                    opacity: submitBlockedReason ? 0.6 : 1,
                   }}
                 >
                   {submitting
                     ? "Submitting..."
                     : editSaleId
-                      ? "Save Changes And Regenerate Invoice"
+                      ? "Save Invoice Changes"
                       : "Complete Sale"}
                 </button>
               </div>
+              {submitBlockedReason && !submitting && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    color: "#b42318",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textAlign: "right",
+                  }}
+                >
+                  {submitBlockedReason}
+                </div>
+              )}
               {successMessage && (
                 <div
                   style={{

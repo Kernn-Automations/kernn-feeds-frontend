@@ -10,7 +10,9 @@ function SuccessModal({isOpen, message, onClose}) {
         <Modal.Title>Success</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p className={styles.success}>{message}</p>
+        <p className={styles.success} style={{ whiteSpace: "pre-line" }}>
+          {message}
+        </p>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>

@@ -17,6 +17,8 @@ const StoreSales = lazy(() => import("./sales/StoreSales"));
 const StoreSalesReports = lazy(() => import("./sales/StoreSalesReports"));
 const StoreCashDeposit = lazy(() => import("./sales/StoreCashDeposit"));
 const StoreBankReceipts = lazy(() => import("./sales/StoreBankReceipts"));
+const StoreCashBook = lazy(() => import("./sales/StoreCashBook"));
+const StoreBankBook = lazy(() => import("./sales/StoreBankBook"));
 const StoreDamaged = lazy(() => import("./damaged/StoreDamaged"));
 const StoreInventory = lazy(() => import("./inventory/StoreInventory"));
 const StoreCurrentStock = lazy(() => import("./inventory/StoreCurrentStock"));
@@ -310,6 +312,8 @@ export default function StoreDashboard() {
           <Route index element={<Suspense fallback={<div>Loading...</div>}><StoreHome /></Suspense>} />
           <Route path="sales" element={<Suspense fallback={<div>Loading...</div>}><StoreSales /></Suspense>} />
           <Route path="sales-reports" element={<Suspense fallback={<div>Loading...</div>}><StoreSalesReports onBack={() => navigate("/store/sales")} /></Suspense>} />
+          <Route path="cash-book" element={<Suspense fallback={<div>Loading...</div>}><StoreCashBook /></Suspense>} />
+          <Route path="bank-book" element={<Suspense fallback={<div>Loading...</div>}><StoreBankBook /></Suspense>} />
           <Route path="cashdeposit" element={<Suspense fallback={<div>Loading...</div>}><StoreCashDeposit /></Suspense>} />
           <Route path="bank-receipts" element={<Suspense fallback={<div>Loading...</div>}><StoreBankReceipts /></Suspense>} />
           <Route path="damaged" element={<Suspense fallback={<div>Loading...</div>}><StoreDamaged /></Suspense>} />

@@ -427,6 +427,8 @@ function StoreSalesOrders({ onBack }) {
               invoiceId: sale.invoice?.id || null, // Get first invoice ID
               editableUntil: sale.editableUntil || null,
               isBeyondEditableWindow: Boolean(sale.isBeyondEditableWindow),
+              lockDeadline: sale.lockDeadline || null,
+              isLockedByMonthlyClose: Boolean(sale.isLockedByMonthlyClose),
               editHistoryCount: sale.editHistoryCount || 0,
               editHistory: sale.editHistory || [],
               adjustments: sale.adjustments || [],
@@ -1125,6 +1127,24 @@ function StoreSalesOrders({ onBack }) {
                             {order.editHistoryCount} edit{order.editHistoryCount > 1 ? "s" : ""}
                           </div>
                         )}
+                        {order.isLockedByMonthlyClose && (
+                          <div
+                            style={{
+                              marginTop: "4px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              background: "#fef2f2",
+                              color: "#b91c1c",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Month Locked
+                          </div>
+                        )}
                       </td>
 
                       <td>{order.customerName}</td>
@@ -1182,12 +1202,18 @@ function StoreSalesOrders({ onBack }) {
                         <button
                           className="submitbtn"
                           onClick={() => handleEditClick(order)}
-                          title="Edit Sale"
+                          title={
+                            order.isLockedByMonthlyClose
+                              ? "This invoice is locked after month close"
+                              : "Edit Sale"
+                          }
+                          disabled={order.isLockedByMonthlyClose}
                           style={{
                             padding: "4px 8px",
                             fontSize: "12px",
                             minWidth: "48px",
                             marginLeft: "6px",
+                            opacity: order.isLockedByMonthlyClose ? 0.6 : 1,
                           }}
                         >
                           Edit
@@ -1213,11 +1239,17 @@ function StoreSalesOrders({ onBack }) {
                         <button
                           className="cancelbtn"
                           onClick={() => handleCancelClick(order)}
-                          title="Cancel Invoice"
+                          title={
+                            order.isLockedByMonthlyClose
+                              ? "This invoice is locked after month close"
+                              : "Cancel Invoice"
+                          }
+                          disabled={order.isLockedByMonthlyClose}
                           style={{
                             padding: "4px 8px",
                             fontSize: "12px",
                             minWidth: "30px",
+                            opacity: order.isLockedByMonthlyClose ? 0.6 : 1,
                             marginLeft: "6px",
                             display: "inline-flex",
                             alignItems: "center",

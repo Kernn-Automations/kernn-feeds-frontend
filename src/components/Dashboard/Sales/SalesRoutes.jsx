@@ -21,6 +21,8 @@ const PartialDispatchRequestDetail = lazy(
   () => import("./PartialDispatchRequestDetail"),
 );
 const StoreIndentRequests = lazy(() => import("./StoreIndentRequests"));
+const CashBook = lazy(() => import("./CashBook"));
+const BankBook = lazy(() => import("./BankBook"));
 
 function SalesRoutes() {
   const navigate = useNavigate();
@@ -169,6 +171,22 @@ function SalesRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <PartialDispatchRequests />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/cash-book"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CashBook stores={stores} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/bank-book"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <BankBook stores={stores} />
           </Suspense>
         }
       />

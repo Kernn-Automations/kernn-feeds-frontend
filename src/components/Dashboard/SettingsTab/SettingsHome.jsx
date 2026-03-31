@@ -22,7 +22,7 @@ function SettingsHome({ navigate }) {
             className="homebtn"
             onClick={() => navigate("/settings/indent-reverting")}
           >
-            Indent Reverting & Invoice Edit Window
+            Audit, Editing & Credit Policies
           </button>
           {/* <button
             className="homebtn"

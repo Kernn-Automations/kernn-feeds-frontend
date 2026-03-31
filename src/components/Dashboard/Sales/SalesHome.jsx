@@ -218,6 +218,18 @@ function SalesHome({ navigate }) {
           >
             Store Indent Requests
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/sales/cash-book")}
+          >
+            Cash Book
+          </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/sales/bank-book")}
+          >
+            Bank Book
+          </button>
         </div>
       </div>
 

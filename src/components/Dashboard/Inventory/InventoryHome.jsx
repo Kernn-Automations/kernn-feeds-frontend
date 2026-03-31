@@ -5,7 +5,7 @@ import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import StoreImportPanel from "@/components/Store/inventory/StoreImportPanel";
-import { isAdmin, isSuperAdmin } from "@/utils/roleUtils";
+import { isAdmin, isDivisionHead, isSuperAdmin } from "@/utils/roleUtils";
 
 // ========================================
 // STYLES - Modify these to change the design
@@ -232,7 +232,9 @@ function InventoryHome({ navigate }) {
   })();
   const actualUser = userData?.user || userData || {};
   const canUseGlobalStoreImport =
-    isAdmin(actualUser) || isSuperAdmin(actualUser);
+    isAdmin(actualUser) ||
+    isSuperAdmin(actualUser) ||
+    isDivisionHead(actualUser);
 
   useEffect(() => {
     async function fetchInventoryDashboard() {
@@ -423,7 +425,10 @@ function InventoryHome({ navigate }) {
                 const res = await axiosAPI.get("/dashboard/inventory");
                 setInventoryData(res.data);
               } catch (err) {
-                console.error("Inventory dashboard refresh after import failed:", err);
+                console.error(
+                  "Inventory dashboard refresh after import failed:",
+                  err,
+                );
               } finally {
                 setLoading(false);
               }
