@@ -96,6 +96,7 @@ export default function StoreHome() {
   const [storeId, setStoreId] = useState(null);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activityTimeline, setActivityTimeline] = useState([]);
 
   const [storePerformance, setStorePerformance] = useState([]);
   
@@ -256,6 +257,7 @@ export default function StoreHome() {
     // Fetch dashboard data - storeId can be null for store manager/employee
     fetchDashboardData();
     fetchStorePerformance();
+    fetchActivityTimeline();
   }, [storeId]);
 
   const fetchDashboardData = async () => {
@@ -307,6 +309,20 @@ export default function StoreHome() {
     } catch (err) {
       console.error("Error fetching store performance:", err);
       // Don't show error for performance data, just log it
+    }
+  };
+
+  const fetchActivityTimeline = async () => {
+    try {
+      const response = await storeService.getStoreActivityTimeline({
+        storeId,
+        limit: 10,
+      });
+      if (response.success && Array.isArray(response.data)) {
+        setActivityTimeline(response.data);
+      }
+    } catch (err) {
+      console.error("Error fetching activity timeline:", err);
     }
   };
 
@@ -707,6 +723,76 @@ export default function StoreHome() {
                     <p className="text-muted small mb-0">Set your store targets to track progress here.</p>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div
+                className={styles.orderStatusCard}
+                style={{
+                  borderRadius: "20px",
+                  background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+                  border: "1px solid rgba(15, 23, 42, 0.08)",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h4
+                    style={{
+                      margin: 0,
+                      fontWeight: 700,
+                      fontSize: "20px",
+                      color: "#003176",
+                    }}
+                  >
+                    Activity Timeline
+                  </h4>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    Latest store actions
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gap: "10px" }}>
+                  {activityTimeline.length > 0 ? (
+                    activityTimeline.map((entry) => (
+                      <div
+                        key={entry.id}
+                        style={{
+                          display: "grid",
+                          gap: "4px",
+                          padding: "12px 14px",
+                          borderRadius: "14px",
+                          border: "1px solid #e2e8f0",
+                          background: "#fff",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <strong style={{ color: "#0f172a" }}>{entry.title}</strong>
+                          <span style={{ fontSize: "12px", color: "#64748b" }}>
+                            {new Date(entry.occurredAt).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "13px", color: "#475569" }}>
+                          {entry.description}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                          {entry.category}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ color: "#64748b", fontSize: "13px" }}>
+                      No recent activity found for this store.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

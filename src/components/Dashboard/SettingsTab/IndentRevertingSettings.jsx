@@ -13,6 +13,19 @@ const IndentRevertingSettings = ({ navigate }) => {
   
   const [settings, setSettings] = useState({
     audit_lock_day: 0,
+    invoice_edit_window_hours: 24,
+    store_invoice_edit_window_hours: 24,
+    admin_invoice_edit_window_days: 30,
+    store_transfer_edit_window_hours: 24,
+    admin_transfer_edit_window_days: 30,
+    store_customer_credit_limit: 10000,
+    customer_credit_base_limit: 10000,
+    company_customer_credit_pool_limit: 500000,
+    customer_credit_usage_enabled: false,
+    customer_credit_growth_purchase_step: 25000,
+    customer_credit_growth_increment: 1000,
+    customer_credit_inactive_days: 45,
+    customer_credit_inactivity_penalty: 1000,
       role_revert_periods: {
       store_manager: 0,
       division_head: 0,
@@ -146,6 +159,240 @@ const IndentRevertingSettings = ({ navigate }) => {
                   min="0"
                 />
                 <small className="text-muted">Number of days before audit locks</small>
+              </div>
+              <div className="form-group mb-3">
+                <label className="form-label fw-bold">Invoice Edit Window (Hours)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={settings.invoice_edit_window_hours}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    invoice_edit_window_hours: parseInt(e.target.value) || 0
+                  }))}
+                  min="0"
+                  max="720"
+                />
+                <small className="text-muted">
+                  Legacy fallback window. The role-based store and admin windows below are now used for invoice edits.
+                </small>
+              </div>
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Store Sale Edit Window (Hours)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.store_invoice_edit_window_hours}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        store_invoice_edit_window_hours: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="720"
+                    />
+                    <small className="text-muted">
+                      Applies to Store Manager and Store Employee invoice edits.
+                    </small>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Admin Sale Edit Window (Days)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.admin_invoice_edit_window_days}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        admin_invoice_edit_window_days: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="365"
+                    />
+                    <small className="text-muted">
+                      Applies to Admin, Division Head, and Super Admin invoice edits.
+                    </small>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Store Transfer Edit Window (Hours)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.store_transfer_edit_window_hours}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        store_transfer_edit_window_hours: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="720"
+                    />
+                    <small className="text-muted">
+                      Applies to Store Manager and Store Employee transfer modifications.
+                    </small>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Admin Transfer Edit Window (Days)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.admin_transfer_edit_window_days}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        admin_transfer_edit_window_days: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="365"
+                    />
+                    <small className="text-muted">
+                      Applies to Admin, Division Head, and Super Admin transfer modifications.
+                    </small>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group mb-3">
+                <label className="form-label fw-bold">Store Customer Credit Limit (₹)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={settings.store_customer_credit_limit}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    store_customer_credit_limit: parseInt(e.target.value) || 0
+                  }))}
+                  min="0"
+                  max="10000000"
+                />
+                <small className="text-muted">
+                  Maximum outstanding customer credit allowed from edited store invoices.
+                </small>
+              </div>
+              <div className="form-check form-switch mb-3">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="customerCreditUsageEnabled"
+                  checked={Boolean(settings.customer_credit_usage_enabled)}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    customer_credit_usage_enabled: e.target.checked
+                  }))}
+                />
+                <label className="form-check-label fw-bold" htmlFor="customerCreditUsageEnabled">
+                  Allow Customer Credit In Store Sales
+                </label>
+                <div className="text-muted small">
+                  When enabled, checkout can use customer credit instead of cash or bank payment for identified customers.
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Base Customer Credit Limit (INR)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.customer_credit_base_limit}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        customer_credit_base_limit: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="10000000"
+                    />
+                    <small className="text-muted">
+                      Starting per-customer limit before purchase growth, inactivity penalty, and manual overrides.
+                    </small>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Company Credit Pool Limit (INR)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.company_customer_credit_pool_limit}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        company_customer_credit_pool_limit: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="100000000"
+                    />
+                    <small className="text-muted">
+                      Combined company-wide credit pool shared across all customers and all stores.
+                    </small>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Purchase Step For Credit Growth (INR)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.customer_credit_growth_purchase_step}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        customer_credit_growth_purchase_step: parseInt(e.target.value) || 0
+                      }))}
+                      min="1"
+                      max="10000000"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Credit Growth Increment (INR)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.customer_credit_growth_increment}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        customer_credit_growth_increment: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="1000000"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Inactive Customer Days</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.customer_credit_inactive_days}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        customer_credit_inactive_days: parseInt(e.target.value) || 0
+                      }))}
+                      min="1"
+                      max="3650"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="form-group mb-3">
+                    <label className="form-label fw-bold">Inactivity Penalty (INR)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={settings.customer_credit_inactivity_penalty}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        customer_credit_inactivity_penalty: parseInt(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max="1000000"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

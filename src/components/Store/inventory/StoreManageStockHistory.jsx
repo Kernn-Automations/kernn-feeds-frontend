@@ -1,10 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import storeService from "../../../services/storeService";
 import styles from "../../Dashboard/Customers/Customer.module.css";
 import { Spinner } from "@chakra-ui/react";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
-import { FaHistory } from "react-icons/fa";
+
+const sourceTone = {
+  "Excel Import": { bg: "#dbeafe", color: "#1d4ed8" },
+  "Opening Stock": { bg: "#fef3c7", color: "#b45309" },
+  "Manual Adjustment": { bg: "#fde2e8", color: "#be123c" },
+  "Manual Stock In": { bg: "#dcfce7", color: "#166534" },
+  "Manual Stock Out": { bg: "#fee2e2", color: "#b91c1c" },
+};
+
+const actionTone = {
+  stockin: { bg: "#dcfce7", color: "#166534", label: "Added" },
+  inward: { bg: "#dcfce7", color: "#166534", label: "Added" },
+  stockout: { bg: "#fee2e2", color: "#b91c1c", label: "Removed" },
+  outward: { bg: "#fee2e2", color: "#b91c1c", label: "Removed" },
+  adjustment: { bg: "#fef3c7", color: "#b45309", label: "Reset" },
+};
 
 const StoreManageStockHistory = () => {
   const navigate = useNavigate();
@@ -12,13 +27,12 @@ const StoreManageStockHistory = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [storeId, setStoreId] = useState(null);
-  
-  // Pagination (client-side for now as endpoint details on pagination weren't specified, but prepared structure)
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit] = useState(12);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    // Logic to get storeId, similar to other components
     try {
       let id = null;
       const selectedStore = localStorage.getItem("selectedStore");
@@ -26,10 +40,10 @@ const StoreManageStockHistory = () => {
         const store = JSON.parse(selectedStore);
         id = store.id;
       }
-      
+
       if (!id) {
         const currentStoreId = localStorage.getItem("currentStoreId");
-        id = currentStoreId ? parseInt(currentStoreId) : null;
+        id = currentStoreId ? parseInt(currentStoreId, 10) : null;
       }
 
       if (!id) {
@@ -51,113 +65,222 @@ const StoreManageStockHistory = () => {
 
   useEffect(() => {
     if (storeId) {
-      fetchHistory();
+      fetchHistory(page);
     }
-  }, [storeId]);
+  }, [storeId, page]);
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (nextPage = 1) => {
     setLoading(true);
     try {
-      const res = await storeService.getManageStockHistory(storeId);
+      const res = await storeService.getManageStockHistory(storeId, {
+        page: nextPage,
+        limit,
+      });
       if (res.success) {
         setHistory(res.data || []);
+        setTotal(res.total || 0);
+        setTotalPages(res.totalPages || 1);
       } else {
         setError(res.message || "Failed to fetch history");
       }
     } catch (err) {
       console.error("Error fetching history:", err);
-      setError("An error occurred while fetching history");
+      setError(
+        err?.response?.data?.message ||
+          err.message ||
+          "An error occurred while fetching history",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Pagination logic
-  const totalPages = Math.ceil(history.length / limit);
-  const paginatedHistory = history.slice((page - 1) * limit, page * limit);
+  const summary = useMemo(() => {
+    return history.reduce(
+      (acc, item) => {
+        const type = String(item.transactionType || "").toLowerCase();
+        if (type === "adjustment") acc.resets += 1;
+        else if (type === "stockin" || type === "inward") acc.added += Number(item.quantity || 0);
+        else if (type === "stockout" || type === "outward") acc.removed += Number(item.quantity || 0);
+        if (item.sourceLabel === "Excel Import") acc.importRows += 1;
+        return acc;
+      },
+      { added: 0, removed: 0, resets: 0, importRows: 0 },
+    );
+  }, [history]);
+
+  const visibleStart = total === 0 ? 0 : (page - 1) * limit + 1;
+  const visibleEnd = Math.min(page * limit, total);
 
   return (
-    <div style={{ padding: '20px' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ 
-          fontFamily: 'Poppins', 
-          fontWeight: 700, 
-          fontSize: '28px', 
-          color: 'var(--primary-color)',
-          margin: 0,
-          marginBottom: '8px'
-        }}>Stock History</h2>
-        {/* Breadcrumb Navigation */}
+    <div style={{ padding: "20px" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <h2
+          style={{
+            fontFamily: "Poppins",
+            fontWeight: 700,
+            fontSize: "28px",
+            color: "var(--primary-color)",
+            margin: 0,
+            marginBottom: "8px",
+          }}
+        >
+          Stock History
+        </h2>
         <p className="path">
           <span onClick={() => navigate("/store/inventory")}>Inventory</span>{" "}
           <i className="bi bi-chevron-right"></i>{" "}
-          <span onClick={() => navigate("/store/inventory/manage-stock")}>Manage Stock</span>{" "}
+          <span onClick={() => navigate("/store/inventory/manage-stock")}>
+            Manage Stock
+          </span>{" "}
           <i className="bi bi-chevron-right"></i> History
         </p>
       </div>
 
-      <div className={styles.orderStatusCard}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "12px",
+          marginBottom: "18px",
+        }}
+      >
+        {[
+          { label: "Visible Rows", value: history.length, tone: "#1d4ed8" },
+          { label: "Imported Rows", value: summary.importRows, tone: "#7c3aed" },
+          { label: "Added Bags", value: summary.added.toFixed(2), tone: "#166534" },
+          { label: "Removed Bags", value: summary.removed.toFixed(2), tone: "#b91c1c" },
+          { label: "Reset Entries", value: summary.resets, tone: "#b45309" },
+        ].map((card) => (
+          <div
+            key={card.label}
+            style={{
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              boxShadow: "0 8px 20px rgba(15, 23, 42, 0.05)",
+            }}
+          >
+            <div style={{ fontSize: "12px", color: "#64748b", fontFamily: "Poppins" }}>
+              {card.label}
+            </div>
+            <div
+              style={{
+                marginTop: "6px",
+                fontFamily: "Poppins",
+                fontSize: "24px",
+                fontWeight: 700,
+                color: card.tone,
+              }}
+            >
+              {card.value}
+            </div>
+          </div>
+        ))}
+      </div>
 
+      <div className={styles.orderStatusCard}>
         {error && (
-          <div className="alert alert-danger" style={{ fontFamily: 'Poppins' }}>
+          <div className="alert alert-danger" style={{ fontFamily: "Poppins" }}>
             {error}
           </div>
         )}
 
         <div className="table-responsive">
-          <table className="table table-bordered borderedtable" style={{ fontFamily: 'Poppins' }}>
+          <table
+            className="table table-bordered borderedtable"
+            style={{ fontFamily: "Poppins" }}
+          >
             <thead>
               <tr>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Date</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Product</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Type</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Quantity</th>
-                <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Reason</th>
-                {/* <th style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px' }}>Performed By</th> */}
+                <th>Date & Time</th>
+                <th>Product</th>
+                <th>Source</th>
+                <th>Action</th>
+                <th>Qty</th>
+                <th>Reference</th>
+                <th>Updated By</th>
+                <th>Remarks</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="text-center" style={{ padding: '20px' }}>
+                  <td colSpan="8" className="text-center" style={{ padding: "20px" }}>
                     <Spinner size="md" color="var(--primary-color)" /> Loading...
                   </td>
                 </tr>
-              ) : paginatedHistory.length > 0 ? (
-                paginatedHistory.map((item, index) => (
-                  <tr key={index}>
-                    <td style={{ fontSize: '13px' }}>
-                      {item.date ? new Date(item.date).toLocaleDateString() + ' ' + new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
-                    </td>
-                    <td style={{ fontSize: '13px', fontWeight: 600 }}>
-                      {item.product?.name || item.productName || 'N/A'}
-                    </td>
-                    <td style={{ fontSize: '13px' }}>
-                      <span className={`badge ${
-                        item.transactionType === 'stockin' || item.transactionType === 'inward' ? 'bg-success' : 
-                        item.transactionType === 'stockout' || item.transactionType === 'outward' ? 'bg-danger' : 'bg-secondary'
-                      }`}>
-                        {item.transactionType === 'stockin' ? 'Stock In' :
-                         item.transactionType === 'stockout' ? 'Stock Out' :
-                         item.transactionType === 'inward' ? 'Inward' :
-                         item.transactionType === 'outward' ? 'Outward' : item.transactionType}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '13px' }}>
-                      {item.quantity} {item.unit || item.product?.unit}
-                    </td>
-                    <td style={{ fontSize: '13px' }}>
-                      {item.reason || '-'}
-                    </td>
-                    {/* <td style={{ fontSize: '13px' }}>
-                      {item.performedBy?.name || item.performedBy || '-'}
-                    </td> */}
-                  </tr>
-                ))
+              ) : history.length > 0 ? (
+                history.map((item) => {
+                  const action = actionTone[String(item.transactionType || "").toLowerCase()] || {
+                    bg: "#e5e7eb",
+                    color: "#374151",
+                    label: item.transactionType || "-",
+                  };
+                  const source = sourceTone[item.sourceLabel] || {
+                    bg: "#e0f2fe",
+                    color: "#075985",
+                  };
+
+                  return (
+                    <tr key={item.id}>
+                      <td style={{ fontSize: "13px", minWidth: "150px" }}>
+                        {item.date ? new Date(item.date).toLocaleString() : "-"}
+                      </td>
+                      <td style={{ fontSize: "13px" }}>
+                        <div style={{ fontWeight: 600 }}>{item.productName || "-"}</div>
+                        <div style={{ color: "#64748b", fontSize: "12px" }}>
+                          SKU: {item.productSKU || "-"}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: "13px" }}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "5px 10px",
+                            borderRadius: "999px",
+                            background: source.bg,
+                            color: source.color,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {item.sourceLabel || "Manual Entry"}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: "13px" }}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "5px 10px",
+                            borderRadius: "999px",
+                            background: action.bg,
+                            color: action.color,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {action.label}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: "13px", fontWeight: 700 }}>
+                        {Number(item.quantity || 0).toFixed(2)} {item.unit || "bag"}
+                      </td>
+                      <td style={{ fontSize: "13px" }}>
+                        <div style={{ fontWeight: 600 }}>{item.referenceId || "-"}</div>
+                        <div style={{ color: "#64748b", fontSize: "12px" }}>
+                          {item.referenceType || "Direct"}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: "13px" }}>{item.performedBy || "-"}</td>
+                      <td style={{ fontSize: "13px", color: "#475569" }}>
+                        {item.reason || "-"}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan="5" className="text-center" style={{ padding: '20px', color: '#666' }}>
+                  <td colSpan="8" className="text-center" style={{ padding: "20px", color: "#666" }}>
                     No history found
                   </td>
                 </tr>
@@ -166,24 +289,30 @@ const StoreManageStockHistory = () => {
           </table>
         </div>
 
-        {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-            <div style={{ fontFamily: 'Poppins', color: '#666', fontSize: '14px' }}>
-              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, history.length)} of {history.length} entries
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "16px",
+            }}
+          >
+            <div style={{ fontFamily: "Poppins", color: "#666", fontSize: "14px" }}>
+              Showing {visibleStart} to {visibleEnd} of {total} entries
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 className="btn btn-sm btn-outline-primary"
-                onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                disabled={page === 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page === 1 || loading}
               >
                 <FaArrowLeftLong />
               </button>
               <button
                 className="btn btn-sm btn-outline-primary"
-                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={page === totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page === totalPages || loading}
               >
                 <FaArrowRightLong />
               </button>

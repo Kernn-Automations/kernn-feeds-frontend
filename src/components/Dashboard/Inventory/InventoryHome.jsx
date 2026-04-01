@@ -4,6 +4,8 @@ import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
+import StoreImportPanel from "@/components/Store/inventory/StoreImportPanel";
+import { isAdmin, isDivisionHead, isSuperAdmin } from "@/utils/roleUtils";
 
 // ========================================
 // STYLES - Modify these to change the design
@@ -221,6 +223,18 @@ function InventoryHome({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [inventoryData, setInventoryData] = useState(null);
   const [error, setError] = useState(null);
+  const userData = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const actualUser = userData?.user || userData || {};
+  const canUseGlobalStoreImport =
+    isAdmin(actualUser) ||
+    isSuperAdmin(actualUser) ||
+    isDivisionHead(actualUser);
 
   useEffect(() => {
     async function fetchInventoryDashboard() {
@@ -398,6 +412,30 @@ function InventoryHome({ navigate }) {
           Manage Stock
         </button>
       </div>
+
+      {canUseGlobalStoreImport && (
+        <div style={{ marginBottom: "32px" }}>
+          <StoreImportPanel
+            allowMultiStore={true}
+            title="Admin Multi-Store Import"
+            description="Upload one Excel or CSV file for many stores at once from Inventory Home. Put the correct storeCode on every row and the backend will post each row into the matching store automatically."
+            onImportSuccess={async () => {
+              try {
+                setLoading(true);
+                const res = await axiosAPI.get("/dashboard/inventory");
+                setInventoryData(res.data);
+              } catch (err) {
+                console.error(
+                  "Inventory dashboard refresh after import failed:",
+                  err,
+                );
+              } finally {
+                setLoading(false);
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div style={styles.cardsContainer}>
