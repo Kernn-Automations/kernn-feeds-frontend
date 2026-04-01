@@ -47,6 +47,12 @@ function ReportsHome({ navigate }) {
           >
             Store Reports
           </button>
+          <button
+            className="homebtn"
+            onClick={() => navigate("/reports/erp-reports")}
+          >
+            ERP Reports
+          </button>
         </div>
       </div>
     </>

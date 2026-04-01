@@ -90,6 +90,17 @@ function StoreNavBg({ hover, setTab, tab, user, closeMobileMenu }) {
           </Link>
         </div>
 
+        <div className={`${location.pathname.includes("targets") ? styles.active : ""} `} onClick={() => { setTab("targets"); handleMenuItemClick(); }}>
+          <Link to="/store/targets">
+            <svg width="34" height="35" viewBox="0 0 34 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="17" cy="17.5" r="14" stroke="black" strokeWidth="3.33333"/>
+              <circle cx="17" cy="17.5" r="7" stroke="black" strokeWidth="3.33333"/>
+              <circle cx="17" cy="17.5" r="2" fill="black"/>
+            </svg>
+            {(hover || isMobile) && <p>Targets</p>}
+          </Link>
+        </div>
+
         {!isEmployee && (
           <div className={`${location.pathname.includes("inventory") ? styles.active : ""} `} onClick={() => { setTab("inventory"); handleMenuItemClick(); }}>
             <Link to="/store/inventory">

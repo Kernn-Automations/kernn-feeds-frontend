@@ -12,6 +12,7 @@ const EmployeeReports = lazy(() => import("./EmployeeReports"));
 const ReportsHome = lazy(() => import("./ReportsHome"));
 const SalesReports = lazy(() => import("./SalesReports"));
 const StockReports = lazy(() => import("./StockReports"));
+const ErpReports = lazy(() => import("./ErpReports"));
 
 const LedgerReports = lazy(() => import("./LedgerReports"));
 const StoreReports = lazy(() => import("./StoreReports"));
@@ -79,6 +80,14 @@ function ReportsRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <StoreReports navigate={navigate} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/erp-reports"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <ErpReports navigate={navigate} />
           </Suspense>
         }
       />
