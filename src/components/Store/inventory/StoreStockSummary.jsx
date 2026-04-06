@@ -101,6 +101,124 @@ function StoreStockSummary() {
     });
   };
 
+  const formatDateTime = (isoDate) => {
+    if (!isoDate) return "-";
+    return new Date(isoDate).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const formatCurrency = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN")}`;
+
+  const getActivityTypeMeta = (type) => {
+    const normalized = String(type || "").toLowerCase();
+
+    if (normalized === "sale") {
+      return { label: "Sale", background: "#fef2f2", color: "#b91c1c" };
+    }
+    if (normalized === "stock_transfer") {
+      return {
+        label: "Stock Transfer",
+        background: "#eff6ff",
+        color: "#1d4ed8",
+      };
+    }
+    if (normalized === "damaged_goods") {
+      return {
+        label: "Damaged Goods",
+        background: "#fff7ed",
+        color: "#c2410c",
+      };
+    }
+    if (normalized === "manual_stock_out") {
+      return {
+        label: "Manual Stock Out",
+        background: "#fff7ed",
+        color: "#c2410c",
+      };
+    }
+    if (normalized === "manual_stock_in") {
+      return {
+        label: "Manual Stock In",
+        background: "#ecfdf5",
+        color: "#047857",
+      };
+    }
+
+    return {
+      label: String(type || "Activity")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase()),
+      background: "#f3f4f6",
+      color: "#374151",
+    };
+  };
+
+  const getPopupMeta = (invoice) => {
+    if (!invoice) {
+      return {
+        title: "Transaction Details",
+        accent: "#1d4ed8",
+        background: "#eff6ff",
+      };
+    }
+    if (invoice.type === "sale") {
+      return {
+        title: "Sale Invoice",
+        accent: "#b91c1c",
+        background: "#fef2f2",
+      };
+    }
+    if (invoice.type === "damaged_goods") {
+      return {
+        title: "Damaged Goods Report",
+        accent: "#c2410c",
+        background: "#fff7ed",
+      };
+    }
+    return {
+      title: "Transfer Note",
+      accent: "#1d4ed8",
+      background: "#eff6ff",
+    };
+  };
+
+  const getTransferStatusMeta = (status) => {
+    const normalized = String(status || "").toLowerCase().trim();
+    if (normalized === "completed") {
+      return {
+        label: "Stocked In",
+        background: "#ecfdf5",
+        color: "#047857",
+      };
+    }
+    if (normalized === "pending") {
+      return {
+        label: "Pending Stock In",
+        background: "#fff7ed",
+        color: "#c2410c",
+      };
+    }
+    if (normalized === "rejected") {
+      return {
+        label: "Rejected",
+        background: "#fef2f2",
+        color: "#b91c1c",
+      };
+    }
+    return {
+      label: status || "-",
+      background: "#f3f4f6",
+      color: "#374151",
+    };
+  };
+
   const renderBase64Image = (base64) => {
     if (!base64) return null;
 
@@ -172,6 +290,13 @@ function StoreStockSummary() {
     borderRadius: 10,
     textAlign: "right",
     fontWeight: 700,
+  };
+
+  const metricCard = {
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    background: "#f9fafb",
   };
 
   const closeBtn = {
@@ -529,10 +654,12 @@ function StoreStockSummary() {
         fromDate: from,
         toDate: to,
       };
-      
+
       const res = await storeService.getStoreStockProductSales(params);
-      
+
       if (res.success && res.data) {
+        console.log("🔄 Refreshed Product Sales API:", res);
+        console.log(``);
         setProductSalesDetails((prev) => ({
           ...prev,
           [rowId]: {
@@ -641,7 +768,7 @@ function StoreStockSummary() {
 
     setLoading(true);
     setError(null);
-    
+
     // Clear previously cached details and collapse any expanded row
     setProductSalesDetails({});
     setExpandedRowId(null);
@@ -1499,14 +1626,14 @@ function StoreStockSummary() {
                             borderBottom: "1px solid #e5e7eb",
                           }}
                         >
-                          <div 
-                            style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center', 
-                              marginBottom: '12px',
-                              paddingBottom: '8px',
-                              borderBottom: '1px solid #eee'
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: "12px",
+                              paddingBottom: "8px",
+                              borderBottom: "1px solid #eee",
                             }}
                           >
                             <h6
@@ -1515,19 +1642,28 @@ function StoreStockSummary() {
                                 fontWeight: 600,
                                 fontSize: "14px",
                                 color: "#374151",
-                                margin: 0
+                                margin: 0,
                               }}
                             >
-                              Sales Details for {item.productName} ({from} to {to})
+                              Activity Details for {item.productName} ({from} to{" "}
+                              {to})
                             </h6>
-                            <button 
+                            <button
                               className="btn btn-sm btn-light border"
-                              onClick={() => refreshRowDetails(item.id || index, item.productId)}
+                              onClick={() =>
+                                refreshRowDetails(
+                                  item.id || index,
+                                  item.productId,
+                                )
+                              }
                               disabled={loadingDetails[item.id || index]}
-                              title="Refresh Sales Data"
-                              style={{ fontSize: '12px' }}
+                              title="Refresh Activity Data"
+                              style={{ fontSize: "12px" }}
                             >
-                              <i className={`bi bi-arrow-clockwise ${loadingDetails[item.id || index] ? inventoryStyles.spin : ''}`}></i> Refresh
+                              <i
+                                className={`bi bi-arrow-clockwise ${loadingDetails[item.id || index] ? inventoryStyles.spin : ""}`}
+                              ></i>{" "}
+                              Refresh
                             </button>
                           </div>
 
@@ -1560,9 +1696,12 @@ function StoreStockSummary() {
                                       <tr>
                                         <th style={thStyle}>Date</th>
                                         <th style={thStyle}>Type</th>
-                                        <th style={thStyle}>Transfer Number</th>
-                                        <th style={thStyle}>Invoice ID</th>
-                                        <th style={thStyle}>Customer</th>
+                                        <th style={thStyle}>
+                                          Document / Reference
+                                        </th>
+                                        <th style={thStyle}>
+                                          Counterparty / Notes
+                                        </th>
                                         <th style={thStyle}>Quantity</th>
                                         <th style={thStyle}>
                                           Received Quantity
@@ -1581,23 +1720,90 @@ function StoreStockSummary() {
                                         salesRows.map((sale, i) => (
                                           <tr key={i}>
                                             <td style={tdStyle}>{sale.date}</td>
-                                            <td style={tdStyle}>{sale.type}</td>
                                             <td style={tdStyle}>
-                                              {sale.reportCode
-                                                ? `${sale.reportCode} (report code)`
-                                                : sale.transferNumber || "-"}
+                                              <span
+                                                style={{
+                                                  display: "inline-flex",
+                                                  alignItems: "center",
+                                                  justifyContent: "center",
+                                                  padding: "4px 10px",
+                                                  borderRadius: "999px",
+                                                  fontSize: "11px",
+                                                  fontWeight: 600,
+                                                  background:
+                                                    getActivityTypeMeta(
+                                                      sale.type,
+                                                    ).background,
+                                                  color: getActivityTypeMeta(
+                                                    sale.type,
+                                                  ).color,
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                              >
+                                                {
+                                                  getActivityTypeMeta(sale.type)
+                                                    .label
+                                                }
+                                              </span>
                                             </td>
                                             <td style={tdStyle}>
-                                              {rowData?.invoices?.find(
-                                                (inv) =>
-                                                  inv.saleId === sale.saleId,
-                                              )?.invoice?.invoiceNumber || "-"}
+                                              {sale.referenceDisplay ||
+                                                sale.reportCode ||
+                                                sale.transferNumber ||
+                                                rowData?.invoices?.find(
+                                                  (inv) =>
+                                                    inv.saleId === sale.saleId,
+                                                )?.invoice?.invoiceNumber ||
+                                                "-"}
                                             </td>
                                             <td style={tdStyle}>
-                                              {sale.customer}
+                                              <div
+                                                style={{
+                                                  fontWeight: 500,
+                                                  lineHeight: 1.35,
+                                                }}
+                                              >
+                                                {sale.customer || "-"}
+                                              </div>
+                                              {sale.type === "stock_transfer" &&
+                                                sale.transferStatus && (
+                                                  <div
+                                                    style={{
+                                                      marginTop: "6px",
+                                                    }}
+                                                  >
+                                                    <span
+                                                      style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        padding: "3px 8px",
+                                                        borderRadius: "999px",
+                                                        fontSize: "10px",
+                                                        fontWeight: 600,
+                                                        background:
+                                                          getTransferStatusMeta(
+                                                            sale.transferStatus,
+                                                          ).background,
+                                                        color:
+                                                          getTransferStatusMeta(
+                                                            sale.transferStatus,
+                                                          ).color,
+                                                      }}
+                                                    >
+                                                      {
+                                                        getTransferStatusMeta(
+                                                          sale.transferStatus,
+                                                        ).label
+                                                      }
+                                                    </span>
+                                                  </div>
+                                                )}
                                             </td>
                                             <td style={tdStyle}>
-                                              {sale.quantity}{" "}
+                                              <span style={{ fontWeight: 600 }}>
+                                                {sale.quantity}
+                                              </span>{" "}
                                               <span
                                                 style={{
                                                   color: "#6b7280",
@@ -1608,7 +1814,9 @@ function StoreStockSummary() {
                                               </span>
                                             </td>
                                             <td style={tdStyle}>
-                                              {sale.receivedQuantity || "-"}{" "}
+                                              <span style={{ fontWeight: 600 }}>
+                                                {sale.receivedQuantity || "-"}
+                                              </span>{" "}
                                               {sale.unit || item.unit}
                                             </td>
                                             {!shouldHideDetailsPrice && (
@@ -1631,30 +1839,43 @@ function StoreStockSummary() {
                                               </td>
                                             )}
                                             <td style={tdStyle}>
-                                              <button
-                                                className="homebtn"
-                                                style={{ fontSize: "11px" }}
-                                                onClick={() =>
-                                                  openInvoicePopup(
-                                                    sale.type === "sale"
-                                                      ? sale.orderId
-                                                      : sale.type ===
-                                                          "damaged_goods"
-                                                        ? sale.reportCode
-                                                        : sale.transferNumber,
-                                                    rowData?.invoices,
-                                                  )
-                                                }
-                                              >
-                                                View
-                                              </button>
+                                              {sale.canView === false ? (
+                                                <span
+                                                  style={{
+                                                    color: "#6b7280",
+                                                    fontSize: "12px",
+                                                  }}
+                                                >
+                                                  -
+                                                </span>
+                                              ) : (
+                                                <button
+                                                  className="homebtn"
+                                                  style={{ fontSize: "11px" }}
+                                                  onClick={() =>
+                                                    openInvoicePopup(
+                                                      sale.saleId ||
+                                                        sale.transferId ||
+                                                        sale.damageId ||
+                                                        sale.reportCode ||
+                                                        sale.orderId ||
+                                                        sale.transferNumber,
+                                                      rowData?.invoices,
+                                                    )
+                                                  }
+                                                >
+                                                  View
+                                                </button>
+                                              )}
                                             </td>
                                           </tr>
                                         ))
                                       ) : (
                                         <tr>
                                           <td
-                                            colSpan={9}
+                                            colSpan={
+                                              shouldHideDetailsPrice ? 7 : 9
+                                            }
                                             className="text-center p-3"
                                           >
                                             No sales found for this period
@@ -2615,7 +2836,9 @@ function StoreStockSummary() {
                 label: "Reset Rows",
                 value:
                   auditSummary?.adjustments ??
-                  filteredAuditTrail.filter((item) => item.movementDirection === "reset").length,
+                  filteredAuditTrail.filter(
+                    (item) => item.movementDirection === "reset",
+                  ).length,
                 tone: "#b45309",
               },
             ].map((card) => (
@@ -2628,10 +2851,22 @@ function StoreStockSummary() {
                   padding: "14px 16px",
                 }}
               >
-                <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#64748b",
+                    fontWeight: 600,
+                  }}
+                >
                   {card.label}
                 </div>
-                <div style={{ fontSize: "26px", fontWeight: 700, color: card.tone }}>
+                <div
+                  style={{
+                    fontSize: "26px",
+                    fontWeight: 700,
+                    color: card.tone,
+                  }}
+                >
                   {card.value}
                 </div>
               </div>
@@ -2796,14 +3031,23 @@ function StoreStockSummary() {
                                     : "#92400e",
                             }}
                           >
-                            {item.movementLabel || item.transactionType?.toUpperCase() || "-"}
+                            {item.movementLabel ||
+                              item.transactionType?.toUpperCase() ||
+                              "-"}
                           </span>
                         </td>
-                        <td style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                        <td
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#334155",
+                          }}
+                        >
                           {item.sourceLabel || "-"}
                         </td>
                         <td style={{ fontWeight: 700 }}>
-                          {item.movementSign || ""}{Number(item.quantity || 0).toFixed(2)}
+                          {item.movementSign || ""}
+                          {Number(item.quantity || 0).toFixed(2)}
                         </td>
                         <td>{item.unit}</td>
                         <td>
@@ -2867,9 +3111,11 @@ function StoreStockSummary() {
                       </div>
                       <div style={{ color: "#92400e" }}>
                         Resets:{" "}
-                        {filteredAuditTrail.filter(
-                          (i) => i.movementDirection === "reset",
-                        ).length}
+                        {
+                          filteredAuditTrail.filter(
+                            (i) => i.movementDirection === "reset",
+                          ).length
+                        }
                       </div>
                     </td>
                     <td colSpan={4}></td>
@@ -2953,7 +3199,9 @@ function StoreStockSummary() {
             {[
               {
                 label: "Opening Bags",
-                value: Number(openingClosing?.totals?.openingStock || 0).toFixed(2),
+                value: Number(
+                  openingClosing?.totals?.openingStock || 0,
+                ).toFixed(2),
                 tone: "#1d4ed8",
               },
               {
@@ -2974,7 +3222,9 @@ function StoreStockSummary() {
               },
               {
                 label: "Closing Bags",
-                value: Number(openingClosing?.totals?.closingStock || 0).toFixed(2),
+                value: Number(
+                  openingClosing?.totals?.closingStock || 0,
+                ).toFixed(2),
                 tone: "#7c3aed",
               },
             ].map((card) => (
@@ -2987,10 +3237,22 @@ function StoreStockSummary() {
                   padding: "14px 16px",
                 }}
               >
-                <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#64748b",
+                    fontWeight: 600,
+                  }}
+                >
                   {card.label}
                 </div>
-                <div style={{ fontSize: "26px", fontWeight: 700, color: card.tone }}>
+                <div
+                  style={{
+                    fontSize: "26px",
+                    fontWeight: 700,
+                    color: card.tone,
+                  }}
+                >
                   {card.value}
                 </div>
               </div>
@@ -3550,12 +3812,13 @@ function StoreStockSummary() {
                   marginBottom: "15px",
                 }}
               >
-                <h4 style={{ margin: 0 }}>
-                  {selectedInvoice.type === "sale"
-                    ? "Sale Invoice"
-                    : selectedInvoice.type === "damaged_goods"
-                      ? "Damaged Goods Report"
-                      : "Transfer Note"}
+                <h4
+                  style={{
+                    margin: 0,
+                    color: getPopupMeta(selectedInvoice).accent,
+                  }}
+                >
+                  {getPopupMeta(selectedInvoice).title}
                 </h4>
                 <button
                   onClick={() => setShowInvoicePopup(false)}
@@ -3572,6 +3835,69 @@ function StoreStockSummary() {
               <div style={bodyStyle}>
                 {/* LEFT COLUMN: Details and Items */}
                 <div style={columnScroll}>
+                  <div
+                    style={{
+                      border: `1px solid ${getPopupMeta(selectedInvoice).accent}22`,
+                      background: getPopupMeta(selectedInvoice).background,
+                      borderRadius: "14px",
+                      padding: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gap: "10px",
+                      }}
+                    >
+                      <div style={metricCard}>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          Document Number
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: "15px" }}>
+                          {selectedInvoice.type === "sale"
+                            ? selectedInvoice.invoice?.invoiceNumber
+                            : selectedInvoice.type === "damaged_goods"
+                              ? selectedInvoice.reportCode
+                              : selectedInvoice.transferNumber}
+                        </div>
+                      </div>
+                      <div style={metricCard}>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          Transaction Date
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: "15px" }}>
+                          {formatDateTime(
+                            selectedInvoice.saleDate ||
+                              selectedInvoice.transferDate ||
+                              selectedInvoice.damageDate,
+                          )}
+                        </div>
+                      </div>
+                      <div style={metricCard}>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          Transaction Type
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: "15px" }}>
+                          {getActivityTypeMeta(selectedInvoice.type).label}
+                        </div>
+                      </div>
+                      <div style={metricCard}>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          Total Value
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: "15px" }}>
+                          {formatCurrency(
+                            selectedInvoice.totals?.invoiceTotal ||
+                              selectedInvoice.totals?.totalAmount ||
+                              0,
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <strong>
                       {selectedInvoice.type === "sale"
@@ -3595,22 +3921,43 @@ function StoreStockSummary() {
                     )}
                   </div>
                   {selectedInvoice.customer && (
-                    <div>
-                      <strong>Customer:</strong> {selectedInvoice.customer.name}
+                    <div style={metricCard}>
+                      <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                        Customer
+                      </div>
+                      <div style={{ fontWeight: 600 }}>
+                        {selectedInvoice.customer.name}
+                      </div>
+                      {selectedInvoice.customer.mobile && (
+                        <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                          {selectedInvoice.customer.mobile}
+                        </div>
+                      )}
                     </div>
                   )}
                   {selectedInvoice.toStore && (
-                    <div>
-                      <strong>To Store:</strong> {selectedInvoice.toStore.name}{" "}
-                      ({selectedInvoice.toStore.storeCode})
+                    <div style={{ ...metricCard, marginTop: "8px" }}>
+                      <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                        Destination Store
+                      </div>
+                      <div style={{ fontWeight: 600 }}>
+                        {selectedInvoice.toStore.name}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                        {selectedInvoice.toStore.storeCode}
+                      </div>
                     </div>
                   )}
                   {selectedInvoice.type === "damaged_goods" &&
                     selectedInvoice.reportedBy && (
-                      <div>
-                        <strong>Reported By:</strong>{" "}
-                        {selectedInvoice.reportedBy.name ||
-                          selectedInvoice.reportedBy}
+                      <div style={{ ...metricCard, marginTop: "8px" }}>
+                        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                          Reported By
+                        </div>
+                        <div style={{ fontWeight: 600 }}>
+                          {selectedInvoice.reportedBy.name ||
+                            selectedInvoice.reportedBy}
+                        </div>
                       </div>
                     )}
 
@@ -3669,7 +4016,23 @@ function StoreStockSummary() {
 
                 {/* RIGHT COLUMN: Payments (Only show if it's a sale) */}
                 <div style={columnScroll}>
-                  <div style={sectionTitle}>Payment Details</div>
+                  <div style={sectionTitle}>
+                    {selectedInvoice.type === "sale"
+                      ? "Payment Details"
+                      : "Transaction Notes"}
+                  </div>
+                  <div style={{ ...metricCard, marginBottom: "12px" }}>
+                    <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                      Summary
+                    </div>
+                    <div style={{ fontWeight: 600, lineHeight: 1.6 }}>
+                      {selectedInvoice.type === "sale"
+                        ? "Customer sale deducted from store stock."
+                        : selectedInvoice.type === "damaged_goods"
+                          ? "Damaged inventory removed from available stock."
+                          : "Inter-store stock movement recorded in ledger."}
+                    </div>
+                  </div>
                   {selectedInvoice.payments &&
                   selectedInvoice.payments.length > 0 ? (
                     selectedInvoice.payments.map((p, i) => (
@@ -3697,14 +4060,17 @@ function StoreStockSummary() {
                     <div
                       style={{
                         fontSize: "12px",
-                        color: "#999",
-                        padding: "10px",
+                        color: "#6b7280",
+                        padding: "14px",
                         textAlign: "center",
-                        border: "1px dashed #ccc",
-                        borderRadius: "8px",
+                        border: "1px dashed #d1d5db",
+                        borderRadius: "10px",
+                        background: "#f9fafb",
                       }}
                     >
-                      No payment records (Stock Transfer)
+                      {selectedInvoice.type === "sale"
+                        ? "No payment records found for this sale."
+                        : "This transaction does not carry payment records."}
                     </div>
                   )}
                 </div>
