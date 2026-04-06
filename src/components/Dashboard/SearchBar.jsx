@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import styles from "./SearchBar.module.css";
 import { IoSearch } from "react-icons/io5";
 
-const SearchBar = ({ options = [] }) => {
+const SearchBar = ({ options = [], isExpanded = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredOptions, setFilteredOptions] = useState([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const navigate = useNavigate();
 
   const handleChange = (event) => {
-    const value = event.target.value;
+    const value = event.target.value.replace(/\s\s+/g, ' ');
     setSearchTerm(value);
 
     if (value.trim() === "") {
@@ -40,7 +40,7 @@ const SearchBar = ({ options = [] }) => {
   };
 
   return (
-    <div className={styles.searchbar}>
+    <div className={`${styles.searchbar} ${isExpanded ? styles.expanded : ''}`}>
       <input
         type="text"
         placeholder="Search..."

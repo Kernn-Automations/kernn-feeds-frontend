@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   PopoverArrow,
   PopoverBody,
@@ -9,7 +9,12 @@ import {
 } from "@/components/ui/popover";
 import { GrAnnounce } from "react-icons/gr";
 
-const Notification = ({ notifications }) => {
+const Notification = ({
+  notifications = [],
+  onItemClick,
+  onMarkAllRead,
+  emptyLabel = "No Notifications found",
+}) => {
   function getTime(createdTime) {
     const currentTime = new Date();
     const notificationTime = new Date(createdTime); // Convert createdTime to Date object
@@ -73,14 +78,45 @@ const Notification = ({ notifications }) => {
               </h5>
               <ul className="notdropdown-list">
                 {notifications.map((n) => (
-                  <li key={n.id} className="notdropdown-item">
-                    <h6>{n.title}</h6>
+                  <li
+                    key={n.id}
+                    className="notdropdown-item"
+                    onClick={() => onItemClick?.(n)}
+                    style={{
+                      cursor: onItemClick ? "pointer" : "default",
+                      opacity: n.isRead ? 0.72 : 1,
+                    }}
+                  >
+                    <h6 style={{ marginBottom: 4 }}>{n.title}</h6>
+                    {n.message && (
+                      <p style={{ margin: "0 0 6px 0", fontSize: 12 }}>
+                        {n.message}
+                      </p>
+                    )}
                     <p>{getTime(n.createdAt)}</p>
                   </li>
                 ))}
               </ul>
+              {notifications.length > 0 && onMarkAllRead && (
+                <button
+                  type="button"
+                  onClick={onMarkAllRead}
+                  style={{
+                    marginTop: 10,
+                    border: "none",
+                    background: "#0f3d8a",
+                    color: "#fff",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  Mark All Read
+                </button>
+              )}
               {notifications.length === 0 && (
-                <h6 className="emptynot">No Notifications found</h6>
+                <h6 className="emptynot">{emptyLabel}</h6>
               )}
            </PopoverBody>
           )}

@@ -97,6 +97,14 @@ export default function StoreSales() {
     navigate("/store/cashdeposit");
   };
 
+  const handleOpenCashBook = () => {
+    navigate("/store/cash-book");
+  };
+
+  const handleOpenBankBook = () => {
+    navigate("/store/bank-book");
+  };
+
   if (mode === "orders") {
     return <StoreSalesOrders onBack={handleBackToOverview} />;
   }
@@ -224,6 +232,35 @@ export default function StoreSales() {
             </button>
             <button 
               className="homebtn" 
+              onClick={handleOpenCashBook}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Cash Book
+            </button>
+            <button 
+              className="homebtn" 
               onClick={handleOpenCashDeposit}
               style={{
                 display: 'inline-flex',
@@ -250,6 +287,35 @@ export default function StoreSales() {
               }}
             >
               Cash Deposit
+            </button>
+            <button 
+              className="homebtn" 
+              onClick={handleOpenBankBook}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Bank Book
             </button>
             <button 
               className="homebtn" 
@@ -420,6 +486,35 @@ export default function StoreSales() {
             </button>
             <button 
               className="homebtn" 
+              onClick={handleOpenCashBook}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Cash Book
+            </button>
+            <button 
+              className="homebtn" 
               onClick={handleOpenCashDeposit}
               style={{
                 display: 'inline-flex',
@@ -446,6 +541,35 @@ export default function StoreSales() {
               }}
             >
               Cash Deposit
+            </button>
+            <button 
+              className="homebtn" 
+              onClick={handleOpenBankBook}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: '1',
+                ...(isMobile ? {
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  flex: '0 0 calc(25% - 4px)',
+                  maxWidth: 'calc(25% - 4px)',
+                  width: 'calc(25% - 4px)',
+                  minHeight: '32px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'normal',
+                  margin: 0
+                } : {
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap'
+                })
+              }}
+            >
+              Bank Book
             </button>
             <button 
               className="homebtn" 

@@ -11,47 +11,68 @@ const SalesHome = lazy(() => import("./SalesHome"));
 const Orders = lazy(() => import("./Orders"));
 const Dispaches = lazy(() => import("./Dispaches"));
 const Deliveries = lazy(() => import("./Deliveries"));
-const CancelledOrders = lazy(() => import("./CancelledOrders")); 
+const CancelledOrders = lazy(() => import("./CancelledOrders"));
 const NewSalesOrder = lazy(() => import("./NewSalesOrder"));
 const PartialDispatchRequests = lazy(() => import("./PartialDispatchRequests"));
-const CreatePartialDispatchRequest = lazy(() => import("./CreatePartialDispatchRequest"));
-const PartialDispatchRequestDetail = lazy(() => import("./PartialDispatchRequestDetail"));
+const CreatePartialDispatchRequest = lazy(
+  () => import("./CreatePartialDispatchRequest"),
+);
+const PartialDispatchRequestDetail = lazy(
+  () => import("./PartialDispatchRequestDetail"),
+);
+const StoreIndentRequests = lazy(() => import("./StoreIndentRequests"));
+const CashBook = lazy(() => import("./CashBook"));
+const BankBook = lazy(() => import("./BankBook"));
 
 function SalesRoutes() {
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState();
   const [warehouses, setWarehouses] = useState();
+  const [stores, setStores] = useState();
   const [orderId, setOrderId] = useState(null);
-    const [managers, setManagers] = useState();
+  const [managers, setManagers] = useState();
 
   const { axiosAPI } = useAuth();
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const roles = user?.roles;
   const isAdmin = Array.isArray(roles)
     ? roles.includes("Admin")
-    : (typeof roles === "string" ? roles.includes("Admin") : false);
+    : typeof roles === "string"
+      ? roles.includes("Admin")
+      : false;
+  // Add this near the top of SalesRoutes(), alongside the existing isAdmin logic:
+  const isSuperAdmin = Array.isArray(roles)
+    ? roles.includes("Super Admin")
+    : typeof roles === "string"
+      ? roles.includes("Super Admin")
+      : false;
 
+  const canApprove = Array.isArray(roles)
+    ? roles.some((r) => r.name === "Admin" || r.name === "Super Admin")
+    : false;
   const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-     .toISOString()
-     .slice(0, 10);
- 
-   const today = new Date(Date.now()).toISOString().slice(0, 10);
- 
-   const [from, setFrom] = useState(date);
-   const [to, setTo] = useState(today);
+    .toISOString()
+    .slice(0, 10);
+
+  const today = new Date(Date.now()).toISOString().slice(0, 10);
+
+  const [from, setFrom] = useState(date);
+  const [to, setTo] = useState(today);
 
   useEffect(() => {
     async function fetch() {
       try {
         const res1 = await axiosAPI.get("/warehouses");
         const res2 = await axiosAPI.get("/customers");
+        const res3 = await axiosAPI.get("/stores?limit=500");
 
         // console.log(res1);
         // console.log(res2);
 
         setWarehouses(res1.data.warehouses);
         setCustomers(res2.data.customers);
+        setStores(res3.data.stores || []);
         // setManagers(res.data.employees);
       } catch (e) {
         // console.log(e);
@@ -62,14 +83,18 @@ function SalesRoutes() {
 
   return (
     <Routes>
-      <Route index element={<Suspense fallback={<PageSkeleton />}>
+      <Route
+        index
+        element={
+          <Suspense fallback={<PageSkeleton />}>
             <SalesHome
               navigate={navigate}
               warehouses={warehouses}
               customers={customers}
             />
-            </Suspense>}
-            />
+          </Suspense>
+        }
+      />
       <Route
         path="/orders"
         element={
@@ -82,6 +107,7 @@ function SalesRoutes() {
             <Orders
               navigate={navigate}
               warehouses={warehouses}
+              stores={stores}
               customers={customers}
               setOrderId={setOrderId}
               from={from}
@@ -92,9 +118,17 @@ function SalesRoutes() {
           </Suspense>
         }
       />
-     <Route
+      <Route
         path="/orders/new"
-        element={<Suspense fallback={<PageSkeleton />}><NewSalesOrder navigate={navigate} warehouses={warehouses} customers={customers} /></Suspense>}
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <NewSalesOrder
+              navigate={navigate}
+              warehouses={warehouses}
+              customers={customers}
+            />
+          </Suspense>
+        }
       />
       <Route
         path="/tracking"
@@ -109,14 +143,14 @@ function SalesRoutes() {
         }
       />
       <Route
-          path="/order-transfer"
-          element={
-            <Suspense fallback={<PageSkeleton />}>
-              <OrderTransferPage navigate={navigate} managers={managers} />
-            </Suspense>
-          }
-        />
-        <Route
+        path="/order-transfer"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <OrderTransferPage navigate={navigate} managers={managers} />
+          </Suspense>
+        }
+      />
+      <Route
         path="/cancelled-order"
         element={
           <Suspense fallback={<PageSkeleton />}>
@@ -137,6 +171,30 @@ function SalesRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <PartialDispatchRequests />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/cash-book"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <CashBook stores={stores} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/bank-book"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <BankBook stores={stores} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/store-indent-requests"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <StoreIndentRequests canApprove={canApprove} />
           </Suspense>
         }
       />

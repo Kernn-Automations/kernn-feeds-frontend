@@ -20,6 +20,7 @@ import { useDivision } from "../../context/DivisionContext";
 function Orders({
   navigate,
   warehouses,
+  stores,
   customers,
   setOrderId,
   from,
@@ -31,6 +32,7 @@ function Orders({
   const [onsubmit, setonsubmit] = useState(false);
 
   const [warehouse, setWarehouse] = useState();
+  const [store, setStore] = useState();
   const [customer, setCustomer] = useState();
   const [trigger, setTrigger] = useState(false);
   const getInitialStatus = () => {
@@ -56,6 +58,28 @@ function Orders({
     }
   }, [selectedDivision]);
 
+  useEffect(() => {
+    try {
+      const selectedStoreRaw = localStorage.getItem("selectedStore");
+      const currentStoreId = localStorage.getItem("currentStoreId");
+      let resolvedStoreId = null;
+
+      if (selectedStoreRaw) {
+        const parsedStore = JSON.parse(selectedStoreRaw);
+        resolvedStoreId = parsedStore?.id || null;
+      }
+
+      if (!resolvedStoreId && currentStoreId) {
+        resolvedStoreId = Number(currentStoreId);
+      }
+
+      setSelectedStoreId(resolvedStoreId ? Number(resolvedStoreId) : null);
+    } catch (error) {
+      console.error("Failed to resolve selected store for admin sales:", error);
+      setSelectedStoreId(null);
+    }
+  }, []);
+
   // Serial number base will be computed per page for continuous numbering
 
   // backend -----------------
@@ -74,6 +98,7 @@ function Orders({
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [pageTotalsByPage, setPageTotalsByPage] = useState({});
+  const [selectedStoreId, setSelectedStoreId] = useState(null);
 
   // Add search state variables for searchable fields
   const [dateSearchTerm, setDateSearchTerm] = useState("");
@@ -105,7 +130,7 @@ function Orders({
   useEffect(() => {
     async function fetch() {
       try {
-        setOrders(null);
+        setOrders([]);
         setLoading(true);
 
         // ✅ Get division ID from localStorage for division filtering
@@ -113,9 +138,11 @@ function Orders({
         const currentDivisionName = localStorage.getItem("currentDivisionName");
 
         // ✅ Handle "All Warehouses" option - don't send warehouseId parameter
-        let warehouseParam = "";
+        let locationParam = "";
         if (warehouse && warehouse !== "all") {
-          warehouseParam = `&warehouseId=${warehouse}`;
+          locationParam = `&warehouseId=${warehouse}&sourceType=warehouse`;
+        } else if (store && store !== "all") {
+          locationParam = `&storeId=${store}&sourceType=store`;
         }
 
         // ✅ Consolidate division parameters - prioritize filter state, then global context
@@ -134,7 +161,8 @@ function Orders({
           "Orders - Fetching orders with warehouse filter:",
           warehouse
         );
-        console.log("Orders - Warehouse parameter:", warehouseParam);
+        console.log("Orders - Location parameter:", locationParam);
+        console.log("Orders - Store filter:", store);
         console.log("Orders - Division ID:", currentDivisionId);
         console.log("Orders - Division Name:", currentDivisionName);
         console.log("Orders - Division parameters added:", divisionParam);
@@ -164,7 +192,7 @@ function Orders({
             ? `&status=${backendStatus}` 
             : '';
 
-        const query = `/sales-orders?fromDate=${from}&toDate=${to}${warehouseParam}${divisionParam}${
+        const query = `/sales-orders/unified?fromDate=${from}&toDate=${to}${locationParam}${divisionParam}${
           customer ? `&customerId=${customer}` : ""
         }${statusParamForQuery}&page=${pageNo}&limit=${limit}${zoneId ? `&zoneId=${zoneId}` : ""}${subZoneId ? `&subZoneId=${subZoneId}` : ""}${teamsId ? `&teamId=${teamsId}` : ""}${employeeId ? `&employeeId=${employeeId}` : ""}`;
 
@@ -174,21 +202,28 @@ function Orders({
         console.log("Orders - Status filter (backend):", backendStatus);
         console.log("Orders - Status param:", statusParamForQuery);
 
-        const res = await axiosAPI.get(query);
-        console.log(res, limit);
-        const ordersData = res.data.salesOrders || res.data.orders || res.data;
-        setOrders(Array.isArray(ordersData) ? ordersData : []);
-        setTotalPages(res.data.totalPages);
+        const response = await axiosAPI.get(query);
+        const ordersData = response?.data?.data || [];
+        const pagination = response?.data?.pagination || {};
+
+        setOrders(ordersData);
+        setTotalPages(
+          pagination.totalPages ||
+            (pagination.total ? Math.ceil(pagination.total / limit) : 1),
+        );
       } catch (e) {
-        // console.log(e);
-        setError(e.response.data.message);
+        setError(
+          e?.response?.data?.message ||
+            e?.message ||
+            "Failed to fetch store sales.",
+        );
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
     fetch();
-  }, [trigger, pageNo, limit, status, from, to, warehouse, customer, divisionId, zoneId, subZoneId, teamsId, employeeId, axiosAPI]);
+  }, [trigger, pageNo, limit, status, from, to, warehouse, store, customer, divisionId, zoneId, subZoneId, teamsId, employeeId, selectedStoreId]);
 
   // Add ESC key functionality to exit search mode
   useEffect(() => {
@@ -373,6 +408,49 @@ function Orders({
     return kgs / 1000;
   };
 
+  const getDocumentNumber = (order) =>
+    order?.documentNumber ||
+    order?.invoiceNumber ||
+    order?.invoice?.invoiceNumber ||
+    order?.orderNumber ||
+    order?.saleCode ||
+    order?.id ||
+    "-";
+
+  const getLocationName = (order) =>
+    order?.locationName ||
+    order?.store?.name || order?.warehouse?.name || "-";
+
+  const handleOpenTracking = (order) => {
+    const sourceType =
+      order?.sourceType || (order?.store ? "store" : "warehouse");
+    const trackingId = order?.sourceEntityId || order?.id;
+
+    if (!trackingId) {
+      return;
+    }
+
+    setOrderId(trackingId);
+    navigate(
+      `/sales/tracking?sourceType=${encodeURIComponent(sourceType)}&id=${encodeURIComponent(trackingId)}`,
+    );
+  };
+
+  const getCustomerDisplayName = (order) =>
+    order?.customer?.farmerName ||
+    order?.customer?.displayName ||
+    order?.customer?.name ||
+    "-";
+
+  const getPaymentMode = (order) =>
+    order?.modeOfPayment ||
+    order?.paymentMethod ||
+    order?.paymentRequest?.paymentMode ||
+    "N/A";
+
+  const getStatusLabel = (order) =>
+    order?.saleStatus || order?.orderStatus || order?.paymentStatus || "Pending";
+
   // Apply table header search filters to a given orders array
   const matchesStatusSelection = (orderStatus) => {
     const selectedStatus = status || '';
@@ -387,12 +465,40 @@ function Orders({
     const normalizedSelectedStatus = selectedStatus.toLowerCase();
     const normalizedOrderStatus = orderStatusValue.toLowerCase();
 
-    // Handle payment pending status mapping
-    if (normalizedSelectedStatus === 'pendingpaymentapprovals') {
-      return (
-        normalizedOrderStatus === 'pendingpaymentapprovals' ||
-        normalizedOrderStatus === 'awaitingpaymentconfirmation'
-      );
+    const normalizeStoreSaleStatus = (value) => {
+      if (
+        value === "confirmed" ||
+        value === "dispatched" ||
+        value === "delivered" ||
+        value === "completed"
+      ) {
+        return "completed";
+      }
+
+      if (
+        value === "pending" ||
+        value === "pendingpaymentapprovals" ||
+        value === "awaitingpaymentconfirmation"
+      ) {
+        return "pending";
+      }
+
+      if (value === "cancelled") {
+        return "cancelled";
+      }
+
+      return value;
+    };
+
+    const normalizedSelectedMapped = normalizeStoreSaleStatus(
+      normalizedSelectedStatus,
+    );
+    const normalizedOrderMapped = normalizeStoreSaleStatus(
+      normalizedOrderStatus,
+    );
+
+    if (normalizedOrderMapped === normalizedSelectedMapped) {
+      return true;
     }
 
     // Exact match (case-insensitive)
@@ -435,13 +541,13 @@ function Orders({
         }
 
         if (orderIdSearchTerm) {
-          const orderId = order.orderNumber || "";
+          const orderId = getDocumentNumber(order) || "";
           if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
             pass = false;
         }
 
         if (warehouseSearchTerm) {
-          const warehouseName = order.warehouse?.name || "";
+          const warehouseName = getLocationName(order) || "";
           if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
             pass = false;
         }
@@ -453,13 +559,13 @@ function Orders({
         }
 
         if (customerNameSearchTerm) {
-          const customerName = order.customer?.name || "";
+          const customerName = getCustomerDisplayName(order) || "";
           if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
             pass = false;
         }
 
         if (paymentModeSearchTerm) {
-          const paymentMode = "UPI";
+          const paymentMode = getPaymentMode(order) || "";
           if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
             pass = false;
         }
@@ -562,13 +668,11 @@ function Orders({
     const columns = [
       "S.No",
       "Date",
-      "Order ID",
-      "Warehouse Name",
-      "Customer ID",
-      "Customer Name",
-      "Firm Name",
+      "Invoice / Order No",
+      "Store / Warehouse",
+      "Customer / Farmer",
       "Qty",
-      "TNX Amount",
+      "Amount",
       "Payment Mode",
       "Status",
     ];
@@ -584,16 +688,13 @@ function Orders({
         arr.push({
           "S.No": x++,
           Date: order.createdAt.slice(0, 10),
-          "Order ID": order.orderNumber,
-          "Warehouse Name": order.warehouse?.name,
-          "Customer ID": order.customer?.customer_id,
-          "Customer Name": order.customer?.name,
-          "Firm Name":
-            order.customer?.firmName || order.customer?.firm_name || "N/A",
-          Qty: `${Qty(order.items)} Tons`,
-          "TNX Amount": order.totalAmount,
-          "Payment Mode": "UPI",
-          Status: order.orderStatus,
+          "Invoice / Order No": getDocumentNumber(order),
+          "Store / Warehouse": getLocationName(order),
+          "Customer / Farmer": getCustomerDisplayName(order),
+          Qty: `${order.quantity || 0} Bags`,
+          Amount: order.totalAmount || order.grandTotal || 0,
+          "Payment Mode": getPaymentMode(order),
+          Status: getStatusLabel(order),
         })
       );
       setTableData(arr);
@@ -642,8 +743,24 @@ function Orders({
         </div>
         <CustomSearchDropdown
           label="Warehouse"
-          onSelect={setWarehouse}
+          onSelect={(value) => {
+            setWarehouse(value);
+            if (value) {
+              setStore(undefined);
+            }
+          }}
           options={warehouses?.map((w) => ({ value: w.id, label: w.name }))}
+        />
+
+        <CustomSearchDropdown
+          label="Store"
+          onSelect={(value) => {
+            setStore(value);
+            if (value) {
+              setWarehouse(undefined);
+            }
+          }}
+          options={stores?.map((s) => ({ value: s.id, label: s.name }))}
         />
 
         {/* <div className={`col-3 formcontent`}>
@@ -1049,7 +1166,7 @@ function Orders({
                         </button>
                       </div>
                     ) : (
-                      "Order ID"
+                      "Invoice / Order No"
                     )}
                   </th>
 
@@ -1102,15 +1219,9 @@ function Orders({
                         </button>
                       </div>
                     ) : (
-                      "Warehouse Name"
+                      "Store / Warehouse"
                     )}
                   </th>
-
-                  <th>Division</th>
-                  <th>Zone</th>
-                  <th>Sub Zone</th>
-                  <th>Team</th>
-                  <th>Employees</th>
 
                   <th
                     data-customername-header
@@ -1163,12 +1274,13 @@ function Orders({
                         </button>
                       </div>
                     ) : (
-                      "Customer Name"
+                      "Customer / Farmer"
                     )}
                   </th>
 
                   <th>Qunatity</th>
-                  <th>TNX Amount</th>
+                  <th>Amount</th>
+                  <th>Payment Mode</th>
 
                   <th>Status</th>
                 </tr>
@@ -1181,7 +1293,7 @@ function Orders({
                   paymentModeSearchTerm) && (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={9}
                       style={{
                         textAlign: "center",
                         fontStyle: "italic",
@@ -1209,12 +1321,12 @@ function Orders({
                               if (!orderDate.includes(dateSearchTerm)) pass = false;
                             }
                             if (orderIdSearchTerm) {
-                              const orderId = order.orderNumber || "";
+                              const orderId = getDocumentNumber(order) || "";
                               if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
                                 pass = false;
                             }
                             if (warehouseSearchTerm) {
-                              const warehouseName = order.warehouse?.name || "";
+                              const warehouseName = getLocationName(order) || "";
                               if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
                                 pass = false;
                             }
@@ -1224,12 +1336,12 @@ function Orders({
                                 pass = false;
                             }
                             if (customerNameSearchTerm) {
-                              const customerName = order.customer?.name || "";
+                              const customerName = getCustomerDisplayName(order) || "";
                               if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
                                 pass = false;
                             }
                             if (paymentModeSearchTerm) {
-                              const paymentMode = "UPI";
+                              const paymentMode = getPaymentMode(order) || "";
                               if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
                                 pass = false;
                             }
@@ -1270,13 +1382,13 @@ function Orders({
                         }
 
                         if (orderIdSearchTerm) {
-                          const orderId = order.orderNumber || "";
+                          const orderId = getDocumentNumber(order) || "";
                           if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
                             pass = false;
                         }
 
                         if (warehouseSearchTerm) {
-                          const warehouseName = order.warehouse?.name || "";
+                          const warehouseName = getLocationName(order) || "";
                           if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
                             pass = false;
                         }
@@ -1288,13 +1400,13 @@ function Orders({
                         }
 
                         if (customerNameSearchTerm) {
-                          const customerName = order.customer?.name || "";
+                          const customerName = getCustomerDisplayName(order) || "";
                           if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
                             pass = false;
                         }
 
                         if (paymentModeSearchTerm) {
-                          const paymentMode = "UPI";
+                          const paymentMode = getPaymentMode(order) || "";
                           if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
                             pass = false;
                         }
@@ -1307,7 +1419,7 @@ function Orders({
                   if (filteredOrders.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={10}>NO DATA FOUND</td>
+                        <td colSpan={9}>NO DATA FOUND</td>
                       </tr>
                     );
                   }
@@ -1324,99 +1436,55 @@ function Orders({
                       <td>
                         {order.createdAt ? order.createdAt.slice(0, 10) : ""}
                       </td>
-                      <td>{order.orderNumber}</td>
-                      <td>{order.warehouse?.name}</td>
-                      <td>{order.hierarchy?.division}</td>
-                      <td>{order.hierarchy?.zone}</td>
-                      <td>{order.hierarchy?.subZone}</td>
-                      <td>{order.hierarchy?.team}</td>
-                      <td>{order.hierarchy?.employee}</td>
-
-                      <td>{order.customer?.name}</td>
-
-                      <td>{Qty(order.items)} Tons</td>
-                      <td>{order.totalAmount}</td>
-
-                      <td
-                        className={styles.imageCol}
-                        onClick={() => {
-                          setOrderId(order.id);
-                          navigate("/sales/tracking");
-                        }}
-                      >
-                        {order.orderStatus === "awaitingPaymentConfirmation" ? (
-                          <p>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              height="40px"
-                              viewBox="0 -960 960 960"
-                              width="40px"
-                              fill="#F3C623"
-                            >
-                              <path d="m619.05-287.55 53.21-52.73-153.98-154.68v-192.67h-72.56v221.97l173.33 178.11ZM480.02-73.3q-83.95 0-158.12-32.01-74.18-32-129.38-87.2-55.2-55.19-87.21-129.36Q73.3-396.04 73.3-479.98q0-83.95 32.04-158.14 32.04-74.19 87.19-129.35 55.16-55.15 129.33-87.27 74.18-32.12 158.14-32.12 83.96 0 158.14 32.12 74.17 32.12 129.33 87.27 55.15 55.16 87.27 129.33 32.12 74.18 32.12 158.14 0 83.96-32.12 158.14-32.12 74.17-87.27 129.33-55.16 55.15-129.33 87.19Q563.97-73.3 480.02-73.3Z" />
-                            </svg>
-                          </p>
-                        ) : order.orderStatus === "Confirmed" ? (
-                          <p>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              height="40px"
-                              viewBox="0 -960 960 960"
-                              width="40px"
-                              fill="#0065F8"
-                            >
-                              <path d="M189.06-73.3q-31.5 0-53.63-22.13-22.13-22.13-22.13-53.63v-470.98q-17.57-8.91-28.78-26.25-11.22-17.34-11.22-39.29v-125.36q0-31.56 22.13-53.74 22.13-22.18 53.63-22.18h661.88q31.56 0 53.74 22.18 22.18 22.18 22.18 53.74v125.36q0 21.95-11.3 39.27-11.29 17.33-28.7 26.27v470.98q0 31.5-22.18 53.63Q802.5-73.3 770.94-73.3H189.06Zm-40-612.28h662.12v-125.36H149.06v125.36Zm207.51 277.03h247.1v-71.93h-247.1v71.93Z" />
-                            </svg>
-                          </p>
-                        ) : order.orderStatus === "Dispatched" ? (
-                          <p>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              height="40px"
-                              viewBox="0 -960 960 960"
-                              width="40px"
-                              fill="#F3C623"
-                            >
-                              <path d="M231.01-154.53q-49.89 0-85.36-34.37-35.46-34.37-36.1-84.3H33.86v-457.18q0-31 22.38-53.38 22.38-22.38 53.38-22.38h572.66v161.56h108.09l135.77 181.02v190.36h-77.27q-.8 49.93-36.18 84.3-35.39 34.37-85.28 34.37t-85.35-34.37q-35.47-34.37-36.1-84.3H352.22q-.79 49.58-36.06 84.12-35.26 34.55-85.15 34.55Zm-.08-69.85q21.66 0 36.83-15.17 15.17-15.17 15.17-36.83 0-21.67-15.17-36.84-15.17-15.16-36.83-15.16-21.67 0-36.84 15.16-15.16 15.17-15.16 36.84 0 21.66 15.16 36.83 15.17 15.17 36.84 15.17Zm496.4 0q21.67 0 36.84-15.17 15.16-15.17 15.16-36.83 0-21.67-15.16-36.84-15.17-15.16-36.84-15.16-21.66 0-36.83 15.16-15.17 15.17-15.17 36.84 0 21.66 15.17 36.83 15.17 15.17 36.83 15.17ZM682.28-430h174.21l-104-138.67h-70.21V-430Z" />
-                            </svg>
-                          </p>
-                        ) : order.orderStatus === "Delivered" ? (
-                          <p>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              height="40px"
-                              viewBox="0 -960 960 960"
-                              width="40px"
-                              fill="#5CB338"
-                            >
-                              <path d="m342.62-51.47-77.51-132.04-151.86-32.06 16.48-150.28L31.23-480l98.5-113.49-16.48-150.44 151.86-31.89 77.51-132.71L480-846.75l137.54-61.78 78.02 132.71 151.19 31.89-16.48 150.44L928.77-480l-98.5 114.15 16.48 150.28-151.19 32.06-78.02 132.04L480-113.25 342.62-51.47Zm94.71-290.38 228.82-227.48-51.06-48.74-177.76 176.58-91.76-94.23-51.72 51.05 143.48 142.82Z" />
-                            </svg>
-                          </p>
-                        ) : order.orderStatus === "Cancelled" ? (
-                          <p>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              height="40px"
-                              viewBox="0 -960 960 960"
-                              width="40px"
-                              fill="#EA3323"
-                            >
-                              <path d="M586.96-484.33 666.63-564l-58.87-60.39-80.43 80.43 59.63 59.63Zm256.37 256.37L742.89-328.39l-5.76-68.81 72.8-82.8-72.8-84.8 9.52-111.05-108.56-23.52-57.29-95.04L480-750.65l-102.8-43.76-36.29 63.04-66.89-66.89 66.63-112.02L480-850.85l139.35-59.43 77.67 131.35 147.83 32.71-14.48 151.59L930.52-480 830.37-365.37l12.96 137.41ZM379.2-165.59 480-209.35l102.8 43.76 34.9-58.98-145.13-145.36L438-335.37 293.37-480l58.87-58.87L438-454.63l-25.3 25.06-194.87-194.86 5.04 59.63-72.8 84.8 72.8 82.8-9.52 113.05 108.56 23.52 57.29 95.04ZM340.65-49.72l-77.67-131.35-147.83-32.71 14.48-151.59L29.48-480l100.15-114.63-12.24-130.24-68.32-68.33 58.63-58.39L853.98-105.3l-58.63 58.39-111.76-111.76-64.24 108.95L480-109.15 340.65-49.72Zm186.68-494.24ZM383.76-458.5Z" />
-                            </svg>
-                          </p>
-                        ) : (
-                          <p>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              height="40px"
-                              viewBox="0 -960 960 960"
-                              width="40px"
-                              fill="#EA7300"
-                            >
-                              <path d="M314.39-149.06h331.22v-122.27q0-69.05-48.28-117-48.29-47.95-117.33-47.95-69.04 0-117.33 47.95-48.28 47.95-48.28 117v122.27ZM153.3-73.3v-75.76h85.34v-122.22q0-66.92 35.01-123.18 35.01-56.26 94.34-85.54-59.33-29.94-94.34-86.2-35.01-56.26-35.01-123.19v-121.55H153.3v-75.92h653.56v75.92h-85.34v121.55q0 66.93-34.97 123.19-34.97 56.26-94.38 86.2 59.41 29.28 94.38 85.54 34.97 56.26 34.97 123.18v122.22h85.34v75.76H153.3Z" />
-                            </svg>
-                          </p>
-                        )}
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTracking(order)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#0b4ea2",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            padding: 0,
+                          }}
+                        >
+                          {getDocumentNumber(order)}
+                        </button>
+                      </td>
+                      <td>{getLocationName(order)}</td>
+                      <td>{getCustomerDisplayName(order)}</td>
+                      <td>{order.quantity || 0} Bags</td>
+                      <td>{order.totalAmount || order.grandTotal || 0}</td>
+                      <td>{getPaymentMode(order)}</td>
+                      <td>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: "110px",
+                            padding: "6px 12px",
+                            borderRadius: "999px",
+                            background:
+                              getStatusLabel(order).toLowerCase() === "completed"
+                                ? "#dcfce7"
+                                : getStatusLabel(order).toLowerCase() === "cancelled"
+                                  ? "#fee2e2"
+                                  : "#fef3c7",
+                            color:
+                              getStatusLabel(order).toLowerCase() === "completed"
+                                ? "#166534"
+                                : getStatusLabel(order).toLowerCase() === "cancelled"
+                                  ? "#b91c1c"
+                                  : "#92400e",
+                            fontWeight: 600,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {getStatusLabel(order)}
+                        </span>
                       </td>
                     </tr>
                   ));
@@ -1447,13 +1515,13 @@ function Orders({
                   }
 
                   if (orderIdSearchTerm) {
-                    const orderId = order.orderNumber || "";
+                          const orderId = getDocumentNumber(order) || "";
                     if (!orderId.toLowerCase().includes(orderIdSearchTerm.toLowerCase()))
                       pass = false;
                   }
 
                   if (warehouseSearchTerm) {
-                    const warehouseName = order.warehouse?.name || "";
+                          const warehouseName = getLocationName(order) || "";
                     if (!warehouseName.toLowerCase().includes(warehouseSearchTerm.toLowerCase()))
                       pass = false;
                   }
@@ -1465,13 +1533,13 @@ function Orders({
                   }
 
                   if (customerNameSearchTerm) {
-                    const customerName = order.customer?.name || "";
+                          const customerName = getCustomerDisplayName(order) || "";
                     if (!customerName.toLowerCase().includes(customerNameSearchTerm.toLowerCase()))
                       pass = false;
                   }
 
                   if (paymentModeSearchTerm) {
-                    const paymentMode = "UPI";
+                          const paymentMode = getPaymentMode(order) || "";
                     if (!paymentMode.toLowerCase().includes(paymentModeSearchTerm.toLowerCase()))
                       pass = false;
                   }

@@ -40,6 +40,7 @@ function StoreStockSummary() {
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState("summary"); // "summary", "stats", "audit", "opening-closing"
   const [auditTrail, setAuditTrail] = useState([]);
+  const [auditSummary, setAuditSummary] = useState(null);
   const [openingClosing, setOpeningClosing] = useState(null);
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [productSalesDetails, setProductSalesDetails] = useState({});
@@ -441,8 +442,8 @@ function StoreStockSummary() {
     }
     if (searchTerms.auditType) {
       filtered = filtered.filter((item) =>
-        item.transactionType
-          ?.toLowerCase()
+        `${item.movementLabel || ""} ${item.transactionType || ""}`
+          .toLowerCase()
           .includes(searchTerms.auditType.toLowerCase()),
       );
     }
@@ -516,6 +517,34 @@ function StoreStockSummary() {
       } finally {
         setLoadingDetails((prev) => ({ ...prev, [rowId]: false }));
       }
+    }
+  };
+
+  const refreshRowDetails = async (rowId, productId) => {
+    setLoadingDetails((prev) => ({ ...prev, [rowId]: true }));
+    try {
+      const params = {
+        storeId,
+        productId,
+        fromDate: from,
+        toDate: to,
+      };
+      
+      const res = await storeService.getStoreStockProductSales(params);
+      
+      if (res.success && res.data) {
+        setProductSalesDetails((prev) => ({
+          ...prev,
+          [rowId]: {
+            salesDetails: res.data.salesDetails || [],
+            invoices: res.data.invoices || [],
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Error refreshing product sales details:", err);
+    } finally {
+      setLoadingDetails((prev) => ({ ...prev, [rowId]: false }));
     }
   };
 
@@ -612,6 +641,11 @@ function StoreStockSummary() {
 
     setLoading(true);
     setError(null);
+    
+    // Clear previously cached details and collapse any expanded row
+    setProductSalesDetails({});
+    setExpandedRowId(null);
+
     try {
       const params = {
         fromDate,
@@ -743,6 +777,7 @@ function StoreStockSummary() {
       const res = await storeService.getStoreStockAuditTrail(params);
       const auditData = res.data || res.auditTrail || res || [];
       const paginationData = res.pagination || {};
+      setAuditSummary(res.summary || null);
 
       const mappedAudit = Array.isArray(auditData)
         ? auditData.map((item) => ({
@@ -751,6 +786,12 @@ function StoreStockSummary() {
             productName: item.product?.name || "-",
             productSKU: item.product?.SKU || item.product?.sku || "-",
             transactionType: item.transactionType,
+            movementDirection: item.movementDirection || "reset",
+            movementLabel: item.movementLabel || item.transactionType,
+            movementSign: item.movementSign || "=",
+            movementColor: item.movementColor || "amber",
+            spokenAction: item.spokenAction || item.transactionType,
+            sourceLabel: item.sourceLabel || "Ledger Entry",
             quantity: item.quantity || 0,
             unit: item.unit || "kg",
             productType: item.productType || "packed",
@@ -843,6 +884,7 @@ function StoreStockSummary() {
       const res = await storeService.getStoreStockOpeningClosing(params);
       const data = res.data || res;
       setOpeningClosing(data);
+      setFilteredOpeningClosing(data?.summaries || []);
     } catch (err) {
       console.error("Error fetching opening/closing stock:", err);
       setError(
@@ -1457,18 +1499,37 @@ function StoreStockSummary() {
                             borderBottom: "1px solid #e5e7eb",
                           }}
                         >
-                          <h6
-                            style={{
-                              fontFamily: "Poppins",
-                              fontWeight: 600,
-                              fontSize: "14px",
-                              color: "#374151",
-                              marginBottom: "12px",
+                          <div 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              marginBottom: '12px',
+                              paddingBottom: '8px',
+                              borderBottom: '1px solid #eee'
                             }}
                           >
-                            Sales Details for {item.productName} ({from} to {to}
-                            )
-                          </h6>
+                            <h6
+                              style={{
+                                fontFamily: "Poppins",
+                                fontWeight: 600,
+                                fontSize: "14px",
+                                color: "#374151",
+                                margin: 0
+                              }}
+                            >
+                              Sales Details for {item.productName} ({from} to {to})
+                            </h6>
+                            <button 
+                              className="btn btn-sm btn-light border"
+                              onClick={() => refreshRowDetails(item.id || index, item.productId)}
+                              disabled={loadingDetails[item.id || index]}
+                              title="Refresh Sales Data"
+                              style={{ fontSize: '12px' }}
+                            >
+                              <i className={`bi bi-arrow-clockwise ${loadingDetails[item.id || index] ? inventoryStyles.spin : ''}`}></i> Refresh
+                            </button>
+                          </div>
 
                           <div
                             style={{
@@ -2528,6 +2589,56 @@ function StoreStockSummary() {
         <div className={styles.orderStatusCard}>
           <div
             style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "12px",
+              marginBottom: "20px",
+            }}
+          >
+            {[
+              {
+                label: "Entries",
+                value: auditSummary?.totalEntries ?? filteredAuditTrail.length,
+                tone: "#1d4ed8",
+              },
+              {
+                label: "Added Bags",
+                value: Number(auditSummary?.totalAdded || 0).toFixed(2),
+                tone: "#166534",
+              },
+              {
+                label: "Removed Bags",
+                value: Number(auditSummary?.totalRemoved || 0).toFixed(2),
+                tone: "#b91c1c",
+              },
+              {
+                label: "Reset Rows",
+                value:
+                  auditSummary?.adjustments ??
+                  filteredAuditTrail.filter((item) => item.movementDirection === "reset").length,
+                tone: "#b45309",
+              },
+            ].map((card) => (
+              <div
+                key={card.label}
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "14px 16px",
+                }}
+              >
+                <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
+                  {card.label}
+                </div>
+                <div style={{ fontSize: "26px", fontWeight: 700, color: card.tone }}>
+                  {card.value}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div
+            style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
@@ -2605,10 +2716,10 @@ function StoreStockSummary() {
                     "data-audit-product",
                   )}
                   {renderSearchHeader("SKU", "auditSku", "data-audit-sku")}
-                  {renderSearchHeader("Type", "auditType", "data-audit-type")}
+                  {renderSearchHeader("Action", "auditType", "data-audit-type")}
+                  <th>Source</th>
                   <th>Quantity</th>
                   <th>Unit</th>
-                  <th>Total Price</th>
                   <th>Recorded At</th>
                   {renderSearchHeader(
                     "Reference",
@@ -2668,29 +2779,33 @@ function StoreStockSummary() {
                           <span
                             style={{
                               padding: "4px 8px",
-                              borderRadius: "4px",
+                              borderRadius: "999px",
                               fontSize: "12px",
                               fontWeight: 600,
                               backgroundColor:
-                                item.transactionType === "inward"
+                                item.movementDirection === "in"
                                   ? "#dcfce7"
-                                  : "#fee2e2",
+                                  : item.movementDirection === "out"
+                                    ? "#fee2e2"
+                                    : "#fef3c7",
                               color:
-                                item.transactionType === "inward"
+                                item.movementDirection === "in"
                                   ? "#166534"
-                                  : "#991b1b",
+                                  : item.movementDirection === "out"
+                                    ? "#991b1b"
+                                    : "#92400e",
                             }}
                           >
-                            {item.transactionType?.toUpperCase() || "-"}
+                            {item.movementLabel || item.transactionType?.toUpperCase() || "-"}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600 }}>
-                          {Number(item.quantity || 0).toFixed(2)}
+                        <td style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                          {item.sourceLabel || "-"}
+                        </td>
+                        <td style={{ fontWeight: 700 }}>
+                          {item.movementSign || ""}{Number(item.quantity || 0).toFixed(2)}
                         </td>
                         <td>{item.unit}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          ₹{Number(item.totalPrice || 0).toLocaleString()}
-                        </td>
                         <td>
                           {item.recordedAt
                             ? new Date(item.recordedAt).toLocaleString()
@@ -2698,7 +2813,7 @@ function StoreStockSummary() {
                         </td>
                         <td>
                           {item.referenceType
-                            ? `${item.referenceType}: ${item.referenceId}`
+                            ? `${item.sourceLabel || item.referenceType}: ${item.referenceId}`
                             : "-"}
                         </td>
                         <td style={{ fontSize: "12px", color: "#666" }}>
@@ -2720,7 +2835,7 @@ function StoreStockSummary() {
                 >
                   <tr>
                     <td
-                      colSpan={3}
+                      colSpan={4}
                       style={{
                         textAlign: "right",
                         fontWeight: 600,
@@ -2731,9 +2846,9 @@ function StoreStockSummary() {
                     </td>
                     <td style={{ fontWeight: 600, padding: "12px" }}>
                       <div style={{ color: "#166534" }}>
-                        In:{" "}
+                        Added:{" "}
                         {filteredAuditTrail
-                          .filter((i) => i.transactionType === "inward")
+                          .filter((i) => i.movementDirection === "in")
                           .reduce(
                             (sum, i) => sum + (Number(i.quantity) || 0),
                             0,
@@ -2741,17 +2856,23 @@ function StoreStockSummary() {
                           .toFixed(2)}
                       </div>
                       <div style={{ color: "#991b1b" }}>
-                        Out:{" "}
+                        Removed:{" "}
                         {filteredAuditTrail
-                          .filter((i) => i.transactionType !== "inward")
+                          .filter((i) => i.movementDirection === "out")
                           .reduce(
                             (sum, i) => sum + (Number(i.quantity) || 0),
                             0,
                           )
                           .toFixed(2)}
                       </div>
+                      <div style={{ color: "#92400e" }}>
+                        Resets:{" "}
+                        {filteredAuditTrail.filter(
+                          (i) => i.movementDirection === "reset",
+                        ).length}
+                      </div>
                     </td>
-                    <td colSpan={5}></td>
+                    <td colSpan={4}></td>
                   </tr>
                 </tfoot>
               )}
@@ -2821,6 +2942,60 @@ function StoreStockSummary() {
       {/* Opening/Closing Tab */}
       {!loading && activeTab === "opening-closing" && openingClosing && (
         <div className={styles.orderStatusCard}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "12px",
+              marginBottom: "20px",
+            }}
+          >
+            {[
+              {
+                label: "Opening Bags",
+                value: Number(openingClosing?.totals?.openingStock || 0).toFixed(2),
+                tone: "#1d4ed8",
+              },
+              {
+                label: "Added In Range",
+                value: Number(
+                  (openingClosing?.totals?.inwardStock || 0) +
+                    (openingClosing?.totals?.stockIn || 0),
+                ).toFixed(2),
+                tone: "#166534",
+              },
+              {
+                label: "Removed In Range",
+                value: Number(
+                  (openingClosing?.totals?.outwardStock || 0) +
+                    (openingClosing?.totals?.stockOut || 0),
+                ).toFixed(2),
+                tone: "#b91c1c",
+              },
+              {
+                label: "Closing Bags",
+                value: Number(openingClosing?.totals?.closingStock || 0).toFixed(2),
+                tone: "#7c3aed",
+              },
+            ].map((card) => (
+              <div
+                key={card.label}
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "14px 16px",
+                }}
+              >
+                <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
+                  {card.label}
+                </div>
+                <div style={{ fontSize: "26px", fontWeight: 700, color: card.tone }}>
+                  {card.value}
+                </div>
+              </div>
+            ))}
+          </div>
           <div
             style={{
               display: "flex",

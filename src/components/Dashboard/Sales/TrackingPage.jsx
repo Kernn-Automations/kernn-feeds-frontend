@@ -10,10 +10,14 @@ import axios from "axios";
 import SignUploadModal from "./SignUploadModal";
 import VerifyOTP from "./VerifyOTP";
 import DispatchForm from "./DispatchForm";
+import { useSearchParams } from "react-router-dom";
 
 const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   const [order, setOrder] = useState();
   const { axiosAPI } = useAuth();
+  const [searchParams] = useSearchParams();
+  const sourceType = searchParams.get("sourceType") || "warehouse";
+  const trackingId = searchParams.get("id") || orderId;
 
   const [showDispatchModal, setShowDispatchModal] = useState(false);
 
@@ -50,10 +54,19 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
 
   useEffect(() => {
     async function fetch() {
+      if (!trackingId) {
+        setError("No sales record selected.");
+        setIsModalOpen(true);
+        return;
+      }
+
       try {
         setLoading(true);
-        const res = await axiosAPI.get(`/sales-orders/order/${orderId}`);
-        setOrder(res.data);
+        const res =
+          sourceType === "store"
+            ? await axiosAPI.get(`/sales-orders/unified/store/${trackingId}`)
+            : await axiosAPI.get(`/sales-orders/order/${trackingId}`);
+        setOrder(sourceType === "store" ? res.data?.data : res.data);
       } catch (e) {
         setError(e.response?.data?.message || "Something went wrong");
         setIsModalOpen(true);
@@ -63,7 +76,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     }
     fetch();
     // eslint-disable-next-line
-  }, []);
+  }, [trackingId, sourceType]);
 
   // ESC key and click outside functionality for return modal
   useEffect(() => {
@@ -91,7 +104,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   }, [showReturnModal]);
 
   const handleDownload = async () => {
-    if (!orderId) return;
+    if (!trackingId) return;
 
     try {
       setDownloadLoading(true);
@@ -99,8 +112,19 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       const token = localStorage.getItem("accessToken");
       const VITE_API = import.meta.env.VITE_API_URL;
 
+      const downloadUrl =
+        sourceType === "store"
+          ? order?.store?.id && order?.invoices?.[0]?.id
+            ? `${VITE_API}/stores/admin/${order.store.id}/invoices/${order.invoices[0].id}/download`
+            : null
+          : `${VITE_API}/sales-orders/${trackingId}/pdf`;
+
+      if (!downloadUrl) {
+        throw new Error("Invoice PDF is not available for this sale.");
+      }
+
       const response = await axios.get(
-        `${VITE_API}/sales-orders/${orderId}/pdf`,
+        downloadUrl,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -112,7 +136,10 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `SalesOrder_${orderId}.pdf`);
+      link.setAttribute(
+        "download",
+        `${order?.invoiceNumber || order?.documentNumber || `SalesOrder_${trackingId}`}.pdf`,
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -131,7 +158,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
 
       // ✅ Step 1: Check eligibility
       const eligibility = await axiosAPI.get(
-        `/sales-orders/${orderId}/dispatch/eligibility`
+        `/sales-orders/${trackingId}/dispatch/eligibility`
       );
       if (!eligibility.data.eligible) {
         setError(eligibility.data.reason || "Not eligible for dispatch");
@@ -151,7 +178,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
       }
 
       // ✅ Step 3: Call dispatch API
-      const res = await axiosAPI.put(`/sales-orders/${orderId}/dispatch`, {
+      const res = await axiosAPI.put(`/sales-orders/${trackingId}/dispatch`, {
         truckNumber,
         driverName,
         driverMobile,
@@ -171,8 +198,8 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     try {
       setActionLoading(true);
 
-      await axiosAPI.get(`/sales-orders/${orderId}/deliver/otp`, {
-        salesOrderId: orderId,
+      await axiosAPI.get(`/sales-orders/${trackingId}/deliver/otp`, {
+        salesOrderId: trackingId,
       });
       openDialog();
     } catch (err) {
@@ -203,7 +230,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
   try {
     // Use POST and send reason in body
     const res = await axiosAPI.post(
-      `/sales-orders/cancel/${orderId}`,
+      `/sales-orders/cancel/${trackingId}`,
       { reason: cancelReason }
     );
     setOrder({
@@ -268,7 +295,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
     
     setCancelLoading(true);
     try {
-      const res = await axiosAPI.post(`/sales-orders/cancel/${orderId}`, {
+      const res = await axiosAPI.post(`/sales-orders/cancel/${trackingId}`, {
         productId: returnFormData.productId,
         reason: returnFormData.returnReason,
         returnType: returnFormData.returnType,
@@ -346,6 +373,246 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
 
   // Derive payment info from either singular Request or array Requests
   const paymentInfo = order?.paymentRequest || (order?.paymentRequests?.[0]);
+  const isStoreSale = sourceType === "store";
+  const storePaymentSummary =
+    Array.isArray(order?.payments) && order.payments.length > 0
+      ? order.payments
+          .map((payment) => `${payment.paymentMethod || "payment"}: ₹${payment.amount || 0}`)
+          .join(", ")
+      : order?.paymentMethod || "N/A";
+  const storeStatusTone =
+    (order?.saleStatus || "").toLowerCase() === "completed"
+      ? { background: "#dcfce7", color: "#166534" }
+      : (order?.saleStatus || "").toLowerCase() === "cancelled"
+        ? { background: "#fee2e2", color: "#b91c1c" }
+        : { background: "#fef3c7", color: "#92400e" };
+
+  if (order && isStoreSale) {
+    return (
+      <>
+        <p className="path">
+          <span onClick={() => navigate("/sales")}>Sales</span>{" "}
+          <i className="bi bi-chevron-right"></i>
+          <span onClick={() => navigate("/sales/orders")}> Orders</span>{" "}
+          <i className="bi bi-chevron-right"></i> Store Sale Tracking
+        </p>
+
+        <div className={styles.trackingContainer}>
+          <h2 className={styles.trackingTitle}>Store Sale Details</h2>
+
+          <div className={styles.infoCard}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <h6 style={{ marginBottom: "8px" }}>
+                  {order.invoiceNumber || order.documentNumber || order.saleCode}
+                </h6>
+                <p style={{ marginBottom: "4px" }}>
+                  <strong>Sale Code:</strong> {order.saleCode || "-"}
+                </p>
+                <p style={{ marginBottom: "4px" }}>
+                  <strong>Created:</strong> {formatToIST(order.createdAt)}
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  <strong>Store:</strong> {order.store?.name || "-"}{" "}
+                  {order.store?.storeCode ? `(${order.store.storeCode})` : ""}
+                </p>
+              </div>
+
+              <div style={{ textAlign: "right" }}>
+                <button
+                  className={styles.downloadBtn}
+                  onClick={handleDownload}
+                  disabled={downloadLoading}
+                >
+                  <i className="bi bi-download"></i>{" "}
+                  {downloadLoading ? "Downloading..." : "Download Invoice"}
+                </button>
+                <div style={{ marginTop: "12px" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: "120px",
+                      padding: "6px 12px",
+                      borderRadius: "999px",
+                      fontWeight: 600,
+                      textTransform: "capitalize",
+                      ...storeStatusTone,
+                    }}
+                  >
+                    {order.saleStatus || "completed"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: "16px",
+              marginBottom: "20px",
+            }}
+          >
+            <div className={styles.infoCard}>
+              <h6 className={styles.title}>Customer</h6>
+              <p><strong>Name:</strong> {order.customer?.farmerName || order.customer?.name || "-"}</p>
+              <p><strong>Mobile:</strong> {order.customer?.mobile || order.customer?.phoneNo || "-"}</p>
+              <p><strong>Village:</strong> {order.customer?.village || "-"}</p>
+              <p style={{ marginBottom: 0 }}>
+                <strong>Customer Code:</strong> {order.customer?.customerCode || "-"}
+              </p>
+            </div>
+
+            <div className={styles.infoCard}>
+              <h6 className={styles.title}>Store</h6>
+              <p><strong>Name:</strong> {order.store?.name || "-"}</p>
+              <p><strong>Code:</strong> {order.store?.storeCode || "-"}</p>
+              <p style={{ marginBottom: 0 }}>
+                <strong>Address:</strong> {order.store?.fullAddress || "-"}
+              </p>
+            </div>
+
+            <div className={styles.infoCard}>
+              <h6 className={styles.title}>Payment & Totals</h6>
+              <p><strong>Mode:</strong> {storePaymentSummary}</p>
+              <p><strong>Total:</strong> ₹{Number(order.grandTotal || 0).toLocaleString("en-IN")}</p>
+              <p><strong>Tax:</strong> ₹{Number(order.taxAmount || 0).toLocaleString("en-IN")}</p>
+              <p style={{ marginBottom: 0 }}>
+                <strong>Payment Status:</strong> {order.paymentStatus || "completed"}
+              </p>
+            </div>
+
+            <div className={styles.infoCard}>
+              <h6 className={styles.title}>Customer Credit & Dues</h6>
+              <p><strong>Current Credit:</strong> ₹{Number(order.customerOutstandingCredit || 0).toLocaleString("en-IN")}</p>
+              <p style={{ marginBottom: 0 }}>
+                <strong>Pending Collection:</strong> ₹{Number(order.pendingAdditionalCollection || 0).toLocaleString("en-IN")}
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.infoCard}>
+            <h6 className={styles.title}>Items</h6>
+            <div style={{ overflowX: "auto" }}>
+              <table className="table table-bordered align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Qty</th>
+                    <th>Unit</th>
+                    <th>Unit Price</th>
+                    <th>Final Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items?.length ? (
+                    order.items.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.productName}</td>
+                        <td>{item.sku || "-"}</td>
+                        <td>{item.quantity}</td>
+                        <td>{item.unit}</td>
+                        <td>₹{Number(item.unitPrice || 0).toLocaleString("en-IN")}</td>
+                        <td>₹{Number(item.finalAmount || item.totalPrice || 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: "center" }}>No items found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {Array.isArray(order.editHistory) && order.editHistory.length > 0 && (
+            <div className={styles.infoCard}>
+              <h6 className={styles.title}>Invoice Edit History</h6>
+              <div style={{ display: "grid", gap: "10px" }}>
+                {order.editHistory.map((entry) => (
+                  <div
+                    key={entry.id}
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "12px",
+                      padding: "12px 14px",
+                      background: "#f8fbff",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: "6px" }}>
+                      Edited on {formatToIST(entry.editedAt)}
+                    </div>
+                    <div style={{ fontSize: "14px", color: "#374151" }}>
+                      By {entry.editor?.name || "Unknown"} | Original ₹
+                      {Number(entry.originalGrandTotal || 0).toLocaleString("en-IN")} | Revised ₹
+                      {Number(entry.revisedGrandTotal || 0).toLocaleString("en-IN")} | Delta ₹
+                      {Number(entry.deltaAmount || 0).toLocaleString("en-IN")}
+                    </div>
+                    {entry.settlementMode && (
+                      <div style={{ fontSize: "13px", marginTop: "6px", color: "#4b5563" }}>
+                        Settlement: {entry.settlementMode}
+                        {entry.settlementNote ? ` | ${entry.settlementNote}` : ""}
+                      </div>
+                    )}
+                    {Array.isArray(entry.adjustments) && entry.adjustments.length > 0 && (
+                      <div style={{ marginTop: "8px", display: "grid", gap: "8px" }}>
+                        {entry.adjustments.map((adjustment) => (
+                          <div
+                            key={adjustment.id}
+                            style={{
+                              borderRadius: "12px",
+                              padding: "10px 12px",
+                              background: "#ffffff",
+                              border: "1px solid #dbeafe",
+                              fontSize: "12px",
+                              color: "#334155",
+                            }}
+                          >
+                            <strong style={{ textTransform: "capitalize" }}>
+                              {(adjustment.adjustmentKind || adjustment.settlementMode || "adjustment").replace(/_/g, " ")}
+                            </strong>
+                            {" "} | Amount ₹{Number(adjustment.amount || 0).toLocaleString("en-IN")}
+                            {" "} | Balance ₹{Number(adjustment.balanceAmount || 0).toLocaleString("en-IN")}
+                            {" "} | Status {(adjustment.status || "pending").replace(/_/g, " ")}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {entry.diff?.items?.changed?.length > 0 && (
+                      <div style={{ marginTop: "8px", fontSize: "12px", color: "#334155" }}>
+                        {entry.diff.items.changed.map((item) => (
+                          <div key={item.key}>
+                            {item.productName || item.productSku || item.key}: Qty {Number(item.before?.quantity || 0)} → {Number(item.after?.quantity || 0)}, Price ₹{Number(item.before?.unitPrice || 0).toLocaleString("en-IN")} → ₹{Number(item.after?.unitPrice || 0).toLocaleString("en-IN")}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {isModalOpen && (
+          <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
+        )}
+        {loading && <Loading />}
+      </>
+    );
+  }
 
   return (
     <>
@@ -457,7 +724,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
               {order?.orderStatus === "Confirmed" && (
                 <DispatchForm
                   actionLoading={actionLoading}
-                  orderId={orderId}
+                  orderId={trackingId}
                   setActionLoading={setActionLoading}
                   setShowDispatchModal={setShowDispatchModal}
                   showDispatchModal={showDispatchModal}
@@ -490,7 +757,7 @@ const TrackingPage = ({ orderId, setOrderId, navigate }) => {
                     enteredOtp={enteredOtp}
                     handleSendOtp={handleSendOtp}
                     order={order}
-                    orderId={orderId}
+                    orderId={trackingId}
                     setActionLoading={setActionLoading}
                     setEnteredOtp={setEnteredOtp}
                     isDialogOpen={isDialogOpen}

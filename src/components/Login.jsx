@@ -38,6 +38,7 @@ function Login() {
             const storeData = {
               id: stores[0].id,
               name: stores[0].name,
+              storeCode: stores[0].storeCode || stores[0].code || "",
               address: stores[0].address,
               isActive: stores[0].isActive,
             };

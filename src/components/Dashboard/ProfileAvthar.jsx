@@ -43,7 +43,7 @@ function ProfileAvthar({ user, setTab }) {
 
       <PopoverRoot>
         <PopoverTrigger asChild>
-          <button>
+          <button style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
             <Avatar
               className={styles.avatar}
               name={userName}

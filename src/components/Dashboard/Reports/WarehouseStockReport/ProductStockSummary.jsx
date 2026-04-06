@@ -75,11 +75,14 @@ function ProductStockSummary({ navigate }) {
         // Division context is automatic; no explicit toggle
 
         const res = await axiosAPI.get(query);
+        console.log(res);
         const list = res.data?.data || [];
         setReports(list);
       } catch (e) {
         setReports([]);
-        setError(e.response?.data?.message || "Failed to load product stock summary");
+        setError(
+          e.response?.data?.message || "Failed to load product stock summary",
+        );
         setIsModalOpen(true);
       } finally {
         setLoading(false);
@@ -131,7 +134,7 @@ function ProductStockSummary({ navigate }) {
         "Alt Stock Out": r.stockOutAlt,
         Closing: r.closing,
         "Alt Closing": r.closingAlt,
-      })
+      }),
     );
     if (rows.length === 0) {
       setError("Table is Empty");
@@ -139,7 +142,8 @@ function ProductStockSummary({ navigate }) {
       return;
     }
     if (type === "PDF") handleExportPDF(columns, rows, "Product-Stock-Summary");
-    else if (type === "XLS") handleExportExcel(columns, rows, "Product-Stock-Summary");
+    else if (type === "XLS")
+      handleExportExcel(columns, rows, "Product-Stock-Summary");
   };
 
   return (
@@ -297,5 +301,3 @@ function ProductStockSummary({ navigate }) {
 }
 
 export default ProductStockSummary;
-
-

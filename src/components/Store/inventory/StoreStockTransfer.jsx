@@ -3,19 +3,33 @@ import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import ErrorModal from "@/components/ErrorModal";
-import LoadingAnimation from "@/components/LoadingAnimation";
-import inventoryAni from "../../../images/animations/fetchingAnimation.gif";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
 import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import storeService from "../../../services/storeService";
+import { formatDateTimeIN, getCurrentDateTimeLocal } from "@/utils/dateFormat";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
 
 function StoreStockTransfer() {
+  const TRANSFER_DISPLAY_UNIT = "bag";
+
+  const toDateTimeLocalValue = (value) => {
+    if (!value) return getCurrentDateTimeLocal();
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return getCurrentDateTimeLocal();
+    const pad = (input) => String(input).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate(),
+    )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [pageInitializing, setPageInitializing] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [storesLoading, setStoresLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
@@ -28,7 +42,8 @@ function StoreStockTransfer() {
   const [currentStock, setCurrentStock] = useState([]);
   const [stockTableTitle, setStockTableTitle] = useState("Available Stock");
   const [inventoryType, setInventoryType] = useState("good");
-
+  const [recordedAt, setRecordedAt] = useState(getCurrentDateTimeLocal());
+  const [stockAsOfLabel, setStockAsOfLabel] = useState("");
 
   // Destination store search
   const [storeSearch, setStoreSearch] = useState("");
@@ -43,7 +58,12 @@ function StoreStockTransfer() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  
+  const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
+  const [historyTransfer, setHistoryTransfer] = useState(null);
+  const [editingTransferId, setEditingTransferId] = useState(null);
+  const [editingTransferCode, setEditingTransferCode] = useState("");
+  const [editChangeNote, setEditChangeNote] = useState("");
+
   // Rejection State
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectLoading, setRejectLoading] = useState(false);
@@ -76,6 +96,29 @@ function StoreStockTransfer() {
   // Filtered Stock
   const [filteredStock, setFilteredStock] = useState([]);
   const [filteredHistory, setFilteredHistory] = useState([]);
+
+  const buildOtherStoreLabel = (transfer) => {
+    if (!transfer) return "-";
+    const isOutgoing = Boolean(transfer.isOutgoing);
+    const otherStore = isOutgoing
+      ? transfer.toStore?.name || transfer.toStoreName
+      : transfer.fromStore?.name || transfer.fromStoreName;
+    return otherStore || "-";
+  };
+
+  const getDraftQuantityForProduct = (productId) =>
+    Number(
+      transferItems[productId]?.quantity ||
+        transferItems[String(productId)]?.quantity ||
+        0,
+    );
+
+  const getEffectiveAvailableStock = (product) => {
+    const productId = product?.productId || product?.id;
+    const baseAvailable = Number(product?.available || product?.currentStock || 0);
+    if (!editingTransferId) return baseAvailable;
+    return baseAvailable + getDraftQuantityForProduct(productId);
+  };
 
   const toggleSearch = (key) => {
     setShowSearch((prev) => {
@@ -225,6 +268,15 @@ function StoreStockTransfer() {
   }, [currentStore]);
 
   useEffect(() => {
+    if (!currentStore?.id || viewMode !== "create") return;
+    if (inventoryType === "damaged") {
+      fetchDamagedStock();
+      return;
+    }
+    fetchCurrentStock();
+  }, [recordedAt]);
+
+  useEffect(() => {
     if (viewMode === "history" && currentStore?.id) {
       fetchHistory();
     }
@@ -232,7 +284,7 @@ function StoreStockTransfer() {
 
   const fetchCurrentStore = async () => {
     try {
-      setLoading(true);
+      setPageInitializing(true);
       let storeId = null;
 
       // Try from selectedStore in localStorage
@@ -281,14 +333,14 @@ function StoreStockTransfer() {
           "Error fetching store information",
       );
     } finally {
-      setLoading(false);
+      setPageInitializing(false);
     }
   };
 
   const fetchStores = async () => {
     if (!currentStore?.id) return;
 
-    setLoading(true);
+    setStoresLoading(true);
     try {
       const response = await storeService.getDestinationStores(currentStore.id);
       const storesData = response.data || response.stores || response || [];
@@ -318,17 +370,18 @@ function StoreStockTransfer() {
       );
       setStores([]);
     } finally {
-      setLoading(false);
+      setStoresLoading(false);
     }
   };
 
   const fetchCurrentStock = async () => {
     if (!currentStore?.id) return;
 
-    setLoading(true);
+    setStockLoading(true);
     try {
       const response = await storeService.getAvailableStockForTransfer(
         currentStore.id,
+        recordedAt,
       );
       const stockData = response.data || response.stock || response || [];
 
@@ -341,7 +394,7 @@ function StoreStockTransfer() {
             productCode: item.sku || item.SKU || item.productCode,
             currentStock: item.available || item.quantity || 0,
             available: item.available || item.quantity || 0,
-            unit: item.unit || "kg",
+            unit: TRANSFER_DISPLAY_UNIT,
             unitPrice: item.customPrice || item.basePrice || 0,
             basePrice: item.basePrice || 0,
             customPrice: item.customPrice || null,
@@ -351,6 +404,7 @@ function StoreStockTransfer() {
 
       setCurrentStock(mappedStock);
       setStockTableTitle("Available Stock");
+      setStockAsOfLabel(response.stockAsOf || recordedAt || "");
     } catch (err) {
       console.error("Error fetching available stock:", err);
       setError(
@@ -359,15 +413,16 @@ function StoreStockTransfer() {
           "Error fetching available stock",
       );
       setCurrentStock([]);
+      setStockAsOfLabel("");
     } finally {
-      setLoading(false);
+      setStockLoading(false);
     }
   };
 
   const fetchDamagedStock = async () => {
     if (!currentStore?.id) return;
 
-    setLoading(true);
+    setStockLoading(true);
     try {
       const response = await storeService.getAvailableDamagedStockForTransfer(
         currentStore.id,
@@ -385,7 +440,7 @@ function StoreStockTransfer() {
               item.damagedQuantity || item.available || item.quantity || 0,
             available:
               item.damagedQuantity || item.available || item.quantity || 0,
-            unit: item.unit || "kg",
+            unit: TRANSFER_DISPLAY_UNIT,
             unitPrice: item.customPrice || item.basePrice || 0,
             basePrice: item.basePrice || 0,
             customPrice: item.customPrice || null,
@@ -395,6 +450,7 @@ function StoreStockTransfer() {
 
       setCurrentStock(mappedStock);
       setStockTableTitle("Damaged Inventory Available Stock");
+      setStockAsOfLabel(recordedAt || "");
     } catch (err) {
       console.error("Error fetching damaged stock:", err);
       setError(
@@ -403,8 +459,9 @@ function StoreStockTransfer() {
           "Error fetching damaged stock",
       );
       setCurrentStock([]);
+      setStockAsOfLabel("");
     } finally {
-      setLoading(false);
+      setStockLoading(false);
     }
   };
 
@@ -434,7 +491,7 @@ function StoreStockTransfer() {
       // If regular store, verify if we need to reload default stock (only if it was cleared)
       // Check if we are switching FROM company store
       // But fetchCurrentStock handles normal loading
-       fetchCurrentStock();
+      fetchCurrentStock();
     }
   }, [selectedDestinationStore, currentStore]);
 
@@ -476,7 +533,40 @@ function StoreStockTransfer() {
 
   // Filtering Logic for Available Stock
   useEffect(() => {
-    let filtered = currentStock;
+    const mergedStockMap = new Map();
+
+    (currentStock || []).forEach((product) => {
+      const productId = Number(product.productId || product.id);
+      if (!productId) return;
+      mergedStockMap.set(productId, product);
+    });
+
+    if (editingTransferId) {
+      Object.values(transferItems || {}).forEach((entry) => {
+        const draftProduct = entry?.product;
+        const productId = Number(draftProduct?.productId || draftProduct?.id);
+        if (!productId) return;
+
+        if (!mergedStockMap.has(productId)) {
+          mergedStockMap.set(productId, {
+            id: productId,
+            productId,
+            productName: draftProduct.productName || "Product",
+            productCode:
+              draftProduct.productCode || draftProduct.sku || draftProduct.SKU || "",
+            currentStock: Number(draftProduct.currentStock || draftProduct.available || 0),
+            available: Number(draftProduct.available || draftProduct.currentStock || 0),
+            unit: TRANSFER_DISPLAY_UNIT,
+            unitPrice: Number(draftProduct.unitPrice || draftProduct.basePrice || 0),
+            basePrice: Number(draftProduct.basePrice || draftProduct.unitPrice || 0),
+            customPrice: draftProduct.customPrice || null,
+            productType: draftProduct.productType || "packed",
+          });
+        }
+      });
+    }
+
+    let filtered = Array.from(mergedStockMap.values());
     if (searchTerms.product) {
       filtered = filtered.filter(
         (item) =>
@@ -489,7 +579,7 @@ function StoreStockTransfer() {
       );
     }
     setFilteredStock(filtered);
-  }, [currentStock, searchTerms.product]);
+  }, [currentStock, transferItems, editingTransferId, searchTerms.product]);
 
   // Filtering Logic for History
   useEffect(() => {
@@ -503,7 +593,7 @@ function StoreStockTransfer() {
     }
     if (searchTerms.historyToStore) {
       filtered = filtered.filter((item) =>
-        (item.toStore?.name || item.toStoreName || "")
+        buildOtherStoreLabel(item)
           .toLowerCase()
           .includes(searchTerms.historyToStore.toLowerCase()),
       );
@@ -516,14 +606,28 @@ function StoreStockTransfer() {
   ]);
 
   const handleQuantityChange = (productId, quantity) => {
-    const product = currentStock.find(
-      (p) => p.id === productId || p.productId === productId,
-    );
-    if (!product) return;
-
     const qty = parseFloat(quantity) || 0;
     if (qty < 0) return;
-    const availableStock = product.available || product.currentStock || 0;
+
+    if (qty === 0) {
+      setTransferItems((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        delete next[String(productId)];
+        return next;
+      });
+      return;
+    }
+
+    const product =
+      currentStock.find(
+        (p) => p.id === productId || p.productId === productId,
+      ) ||
+      transferItems[productId]?.product ||
+      transferItems[String(productId)]?.product;
+    if (!product) return;
+
+    const availableStock = getEffectiveAvailableStock(product);
     if (qty > availableStock) {
       setError(
         `Quantity cannot exceed available stock (${availableStock} ${product.unit})`,
@@ -531,21 +635,13 @@ function StoreStockTransfer() {
       return;
     }
 
-    if (qty === 0) {
-      setTransferItems((prev) => {
-        const next = { ...prev };
-        delete next[productId];
-        return next;
-      });
-    } else {
-      setTransferItems((prev) => ({
-        ...prev,
-        [productId]: {
-          quantity: qty,
-          product: product,
-        },
-      }));
-    }
+    setTransferItems((prev) => ({
+      ...prev,
+      [productId]: {
+        quantity: qty,
+        product: product,
+      },
+    }));
   };
 
   const getDestinationStore = () => {
@@ -579,6 +675,10 @@ function StoreStockTransfer() {
   };
 
   const handleSubmit = async () => {
+    if (!recordedAt) {
+      setError("Please select a recorded date and time");
+      return;
+    }
     if (!selectedDestinationStore) {
       setError("Please select a destination store");
       return;
@@ -596,9 +696,17 @@ function StoreStockTransfer() {
         setError(`Invalid quantity for ${item.product.productName}`);
         return;
       }
-      const availableStock =
-        item.product.available || item.product.currentStock || 0;
-      if (item.quantity > availableStock) {
+      const liveProduct = currentStock.find(
+        (product) =>
+          Number(product.productId || product.id) ===
+          Number(item.product.productId || item.product.id),
+      );
+      const availableStock = Number(
+        liveProduct
+          ? getEffectiveAvailableStock(liveProduct)
+          : item.product.available || item.product.currentStock || 0,
+      );
+      if (availableStock > 0 && item.quantity > availableStock) {
         setError(
           `Quantity exceeds available stock for ${item.product.productName}`,
         );
@@ -625,6 +733,7 @@ function StoreStockTransfer() {
         payload = {
           fromStoreId: currentStore.id,
           destinationType: "company",
+          recordedAt,
           inventoryType: inventoryType,
           items: items.map((item) => ({
             productId: item.product.productId || item.product.id,
@@ -639,6 +748,7 @@ function StoreStockTransfer() {
           toStoreId: destinationStore
             ? destinationStore.id
             : selectedDestinationStore,
+          recordedAt,
           items: items.map((item) => ({
             productId: item.product.productId || item.product.id,
             quantity: item.quantity,
@@ -647,25 +757,54 @@ function StoreStockTransfer() {
         };
       }
 
-      const res = await storeService.createStockTransfer(payload);
-      const transferData = res.data || res;
-      const transferCode =
-        transferData?.transfer?.transferCode ||
-        transferData?.transferCode ||
-        res.transferCode ||
-        "N/A";
-
-      setSuccessMessage(
-        `Stock transfer completed successfully! Transfer Code: ${transferCode}`,
-      );
+      let res;
+      let transferCode = "N/A";
+      if (editingTransferId) {
+        res = await storeService.updateStockTransfer(
+          currentStore.id,
+          editingTransferId,
+          {
+            ...payload,
+            changeNote: editChangeNote,
+          },
+        );
+        const transferData = res.data || res;
+        transferCode =
+          transferData?.transferCode ||
+          transferData?.transfer?.transferCode ||
+          editingTransferCode ||
+          "N/A";
+        setSuccessMessage(
+          `Stock transfer updated successfully! Transfer Code: ${transferCode}`,
+        );
+      } else {
+        res = await storeService.createStockTransfer(payload);
+        const transferData = res.data || res;
+        transferCode =
+          transferData?.transfer?.transferCode ||
+          transferData?.transferCode ||
+          res.transferCode ||
+          "N/A";
+        setSuccessMessage(
+          `Stock transfer completed successfully! Transfer Code: ${transferCode}`,
+        );
+      }
 
       // Clear form
       setTransferItems({});
       setSelectedDestinationStore("");
+      setRecordedAt(getCurrentDateTimeLocal());
+      setEditingTransferId(null);
+      setEditingTransferCode("");
+      setEditChangeNote("");
+      setViewMode("history");
+      setShowDetailModal(false);
+      setSelectedTransfer(null);
 
-      // Refresh stock
+      // Refresh stock and history immediately so edited rows/history are visible
+      await Promise.all([fetchCurrentStock(), fetchHistory()]);
+
       setTimeout(() => {
-        fetchCurrentStock();
         setSuccessMessage("");
       }, 3000);
     } catch (err) {
@@ -699,7 +838,7 @@ function StoreStockTransfer() {
 
   const handleViewDetails = async (transferId) => {
     if (!currentStore?.id) return;
-    setLoading(true);
+    setDetailLoading(true);
     try {
       const res = await storeService.getStockTransferById(
         currentStore.id,
@@ -712,7 +851,7 @@ function StoreStockTransfer() {
       console.error("Error fetching transfer details:", err);
       setError("Failed to fetch transfer details");
     } finally {
-      setLoading(false);
+      setDetailLoading(false);
     }
   };
 
@@ -721,9 +860,94 @@ function StoreStockTransfer() {
     setSelectedTransfer(null);
   };
 
+  const handleEditTransfer = (transfer) => {
+    const draft = transfer || selectedTransfer;
+    if (!draft) return;
+    if (Number(draft.fromStoreId) !== Number(currentStore?.id)) {
+      setError("Only outgoing transfers from the current store can be edited here");
+      return;
+    }
+    if (Number(draft.toStoreId) === Number(currentStore?.id)) {
+      setError(
+        "This transfer points back to the current store and cannot be edited from this screen",
+      );
+      return;
+    }
+
+    const nextTransferItems = {};
+    (draft.items || []).forEach((item) => {
+      const productId = item.productId || item.product?.id;
+      if (!productId) return;
+      nextTransferItems[productId] = {
+        quantity: Number(item.quantity || 0),
+        product: {
+          id: productId,
+          productId,
+          productName: item.product?.name || item.productName || "Product",
+          productCode:
+            item.product?.SKU || item.product?.sku || item.productCode || "",
+          available: Number(item.availableStock || item.available || 0),
+          currentStock: Number(item.availableStock || item.available || 0),
+          unit: TRANSFER_DISPLAY_UNIT,
+          unitPrice: Number(item.unitPrice || 0),
+          basePrice: Number(item.unitPrice || 0),
+          productType:
+            item.productType || item.product?.productType || "packed",
+        },
+      };
+    });
+
+    setEditingTransferId(draft.id);
+    setEditingTransferCode(draft.transferCode || draft.transferNumber || "");
+    setSelectedDestinationStore(draft.toStoreId || "");
+    setRecordedAt(toDateTimeLocalValue(draft.transferDate || draft.createdAt));
+    setTransferItems(nextTransferItems);
+    setEditChangeNote("Transfer quantities or destination updated");
+    setViewMode("create");
+    setShowDetailModal(false);
+    setSelectedTransfer(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleOpenTransferHistory = async (transfer) => {
+    const targetTransfer = transfer || selectedTransfer;
+    if (!targetTransfer || !currentStore?.id) return;
+
+    if (Array.isArray(targetTransfer.editHistory)) {
+      setHistoryTransfer(targetTransfer);
+      setShowEditHistoryModal(true);
+      return;
+    }
+
+    try {
+      setDetailLoading(true);
+      const res = await storeService.getStockTransferById(
+        currentStore.id,
+        targetTransfer.id,
+      );
+      const data = res.data || res.transfer || res;
+      setHistoryTransfer(data);
+      setShowEditHistoryModal(true);
+    } catch (err) {
+      console.error("Error fetching transfer edit history:", err);
+      setError("Failed to fetch transfer edit history");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const resetDraft = () => {
+    setEditingTransferId(null);
+    setEditingTransferCode("");
+    setEditChangeNote("");
+    setTransferItems({});
+    setSelectedDestinationStore("");
+    setRecordedAt(getCurrentDateTimeLocal());
+  };
+
   const handleDownloadInvoice = async (transferId) => {
     if (!transferId) return;
-    setLoading(true);
+    setDetailLoading(true);
     try {
       const response =
         await storeService.downloadStockTransferInvoice(transferId);
@@ -739,7 +963,7 @@ function StoreStockTransfer() {
       console.error("Error downloading invoice:", err);
       setError("Failed to download invoice");
     } finally {
-      setLoading(false);
+      setDetailLoading(false);
     }
   };
 
@@ -749,31 +973,34 @@ function StoreStockTransfer() {
 
   const handleConfirmRejectTransfer = async () => {
     if (!selectedTransfer) return;
-    
+
     setRejectLoading(true);
     try {
       await storeService.rejectStockTransfer(selectedTransfer.id);
-      
+
       setSuccessMessage("Stock transfer rejected successfully");
-      
+
       // Close all modals
       setShowRejectModal(false);
       setShowDetailModal(false);
       setSelectedTransfer(null);
-      
+
       // Refresh history
       fetchHistory();
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccessMessage("");
       }, 3000);
-      
     } catch (err) {
       console.error("Error rejecting transfer:", err);
-      // Show error in the rejection modal or main component? 
+      // Show error in the rejection modal or main component?
       // Main component error state is safer
-      setError(err.response?.data?.message || err.message || "Failed to reject stock transfer");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to reject stock transfer",
+      );
       setShowRejectModal(false); // Close rejection modal on error to show error modal
     } finally {
       setRejectLoading(false);
@@ -808,7 +1035,7 @@ function StoreStockTransfer() {
           "Available Stock": Number(
             item.available || item.currentStock || 0,
           ).toFixed(2),
-          Unit: item.unit || "kg",
+          Unit: item.unit || "bag",
         });
       });
 
@@ -880,9 +1107,51 @@ function StoreStockTransfer() {
         </button>
       </div>
 
-      {/* Loading Animation */}
-      {loading && (
-        <LoadingAnimation gif={inventoryAni} msg="Loading stock data..." />
+      {/* Loading State */}
+      {(pageInitializing || detailLoading) && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(255,255,255,0.55)",
+            backdropFilter: "blur(2px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1050,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "18px",
+              padding: "22px 26px",
+              boxShadow: "0 18px 40px rgba(15, 23, 42, 0.14)",
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+              fontFamily: "Poppins",
+              fontWeight: 600,
+              color: "#0f172a",
+            }}
+          >
+            <div
+              style={{
+                width: "26px",
+                height: "26px",
+                borderRadius: "999px",
+                border: "3px solid #dbeafe",
+                borderTopColor: "#2563eb",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            <span>
+              {pageInitializing
+                ? "Loading stock transfer workspace..."
+                : "Loading transfer details..."}
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Error Modal */}
@@ -924,8 +1193,64 @@ function StoreStockTransfer() {
         </div>
       )}
 
-      {!loading && currentStore && viewMode === "create" && (
+      {currentStore && viewMode === "create" && (
         <>
+          {editingTransferId && (
+            <div
+              style={{
+                marginBottom: "16px",
+                padding: "16px 18px",
+                borderRadius: "14px",
+                border: "1px solid #bfdbfe",
+                background:
+                  "linear-gradient(135deg, rgba(239,246,255,0.98), rgba(224,242,254,0.9))",
+                fontFamily: "Poppins",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    }}
+                  >
+                    Editing Transfer{" "}
+                    {editingTransferCode || `#${editingTransferId}`}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      color: "#475569",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Review the destination, recorded time, and items below.
+                    Saving will update this same transfer and store the change
+                    in transfer history.
+                  </div>
+                </div>
+                <button
+                  className="btn btn-light"
+                  onClick={resetDraft}
+                  disabled={submitting}
+                  style={{ fontFamily: "Poppins" }}
+                >
+                  Cancel Edit
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Store Information */}
           <div
             className={styles.orderStatusCard}
@@ -1017,6 +1342,7 @@ function StoreStockTransfer() {
                   styles={customSelectStyles}
                   isClearable
                   isSearchable
+                  isLoading={storesLoading}
                 />
               </div>
               {destinationStore && (
@@ -1056,6 +1382,76 @@ function StoreStockTransfer() {
                   </div>
                 </div>
               )}
+              <div>
+                <label
+                  style={{
+                    fontFamily: "Poppins",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#666",
+                    display: "block",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Recorded At
+                </label>
+                <input
+                  type="datetime-local"
+                  value={recordedAt}
+                  onChange={(e) => setRecordedAt(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #d1d5db",
+                    fontFamily: "Poppins",
+                    fontSize: "14px",
+                    color: "#111827",
+                  }}
+                />
+                <div
+                  style={{
+                    fontFamily: "Poppins",
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    marginTop: "6px",
+                  }}
+                >
+                  Date format: DD/MM/YYYY HH:mm
+                </div>
+              </div>
+              {editingTransferId && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label
+                    style={{
+                      fontFamily: "Poppins",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#666",
+                      display: "block",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Change Note
+                  </label>
+                  <textarea
+                    value={editChangeNote}
+                    onChange={(e) => setEditChangeNote(e.target.value)}
+                    rows={3}
+                    placeholder="Describe what changed in this transfer for audit history"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #d1d5db",
+                      fontFamily: "Poppins",
+                      fontSize: "14px",
+                      color: "#111827",
+                      resize: "vertical",
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -1085,9 +1481,8 @@ function StoreStockTransfer() {
 
           {/* Company Store Inventory Buttons */}
           {destinationStore &&
-            ((destinationStore.storeType || "")
-              .toString()
-              .toLowerCase() === "company" ||
+            ((destinationStore.storeType || "").toString().toLowerCase() ===
+              "company" ||
               (destinationStore.type || "").toString().toLowerCase() ===
                 "company") && (
               <div className="row m-0 p-3 justify-content-around">
@@ -1114,7 +1509,7 @@ function StoreStockTransfer() {
             )}
 
           {/* Available Stock */}
-          {currentStock.length > 0 && (
+          {(stockLoading || currentStock.length > 0) && (
             <div
               className={styles.orderStatusCard}
               style={{ marginBottom: "24px" }}
@@ -1131,189 +1526,225 @@ function StoreStockTransfer() {
               >
                 {stockTableTitle}
               </h4>
-            {currentStock.length === 0 ? (
-              <div
-                style={{ textAlign: "center", padding: "40px", color: "#666" }}
-              >
-                <p style={{ fontFamily: "Poppins" }}>
-                  No stock available for transfer
-                </p>
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  className="table table-bordered borderedtable table-sm"
-                  style={{ fontFamily: "Poppins" }}
+              {stockAsOfLabel ? (
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    fontFamily: "Poppins",
+                    fontSize: "13px",
+                    color: "#64748b",
+                  }}
                 >
-                  <thead className="table-light">
-                    <tr>
-                      {renderSearchHeader(
-                        "Product",
-                        "product",
-                        "data-product-header",
-                      )}
-                      <th
-                        style={{
-                          fontFamily: "Poppins",
-                          fontWeight: 600,
-                          fontSize: "13px",
-                        }}
-                      >
-                        Available
-                      </th>
-                      <th
-                        style={{
-                          fontFamily: "Poppins",
-                          fontWeight: 600,
-                          fontSize: "13px",
-                        }}
-                      >
-                        Unit
-                      </th>
-                      <th
-                        style={{
-                          fontFamily: "Poppins",
-                          fontWeight: 600,
-                          fontSize: "13px",
-                        }}
-                      >
-                        Transfer Qty
-                      </th>
-                      <th
-                        style={{
-                          fontFamily: "Poppins",
-                          fontWeight: 600,
-                          fontSize: "13px",
-                        }}
-                      >
-                        Action
-                      </th>
-                    </tr>
-                    {searchTerms.product && (
+                  Stock shown as of {formatDateTimeIN(stockAsOfLabel)}
+                </div>
+              ) : null}
+              {stockLoading ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "28px 12px",
+                    color: "#475569",
+                    fontFamily: "Poppins",
+                    fontWeight: 500,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "999px",
+                      border: "3px solid #dbeafe",
+                      borderTopColor: "#2563eb",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                  <span>Refreshing stock in the background...</span>
+                </div>
+              ) : currentStock.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#666",
+                  }}
+                >
+                  <p style={{ fontFamily: "Poppins" }}>
+                    No stock available for transfer
+                  </p>
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table
+                    className="table table-bordered borderedtable table-sm"
+                    style={{ fontFamily: "Poppins" }}
+                  >
+                    <thead className="table-light">
                       <tr>
-                        <td
-                          colSpan={5}
+                        {renderSearchHeader(
+                          "Product",
+                          "product",
+                          "data-product-header",
+                        )}
+                        <th
                           style={{
-                            padding: "4px 12px",
-                            fontSize: "12px",
-                            borderRadius: "0",
-                            backgroundColor: "#f8f9fa",
-                            color: "#666",
+                            fontFamily: "Poppins",
+                            fontWeight: 600,
+                            fontSize: "13px",
                           }}
                         >
-                          {
-                            filteredStock.filter(
-                              (p) => (p.available || p.currentStock || 0) > 0,
-                            ).length
-                          }{" "}
-                          products found
-                        </td>
+                          Available
+                        </th>
+                        <th
+                          style={{
+                            fontFamily: "Poppins",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                          }}
+                        >
+                          Unit
+                        </th>
+                        <th
+                          style={{
+                            fontFamily: "Poppins",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                          }}
+                        >
+                          Transfer Qty
+                        </th>
+                        <th
+                          style={{
+                            fontFamily: "Poppins",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                          }}
+                        >
+                          Action
+                        </th>
                       </tr>
-                    )}
-                  </thead>
-                  <tbody>
-                    {filteredStock
-                      .filter(
-                        (product) =>
-                          (product.available || product.currentStock || 0) > 0,
-                      )
-                      .map((product, index) => {
-                        const productId = product.id || product.productId;
-                        const availableStock =
-                          product.available || product.currentStock || 0;
-                        const transferItem = transferItems[productId];
-                        const transferQty = transferItem?.quantity || 0;
-                        return (
-                          <tr
-                            key={productId}
+                      {searchTerms.product && (
+                        <tr>
+                          <td
+                            colSpan={5}
                             style={{
-                              background:
-                                index % 2 === 0
-                                  ? "rgba(59, 130, 246, 0.03)"
-                                  : "transparent",
+                              padding: "4px 12px",
+                              fontSize: "12px",
+                              borderRadius: "0",
+                              backgroundColor: "#f8f9fa",
+                              color: "#666",
                             }}
                           >
-                            <td
+                            {filteredStock.filter((p) => getEffectiveAvailableStock(p) > 0).length}{" "}
+                            products found
+                          </td>
+                        </tr>
+                      )}
+                    </thead>
+                    <tbody>
+                      {filteredStock
+                        .filter((product) => getEffectiveAvailableStock(product) > 0)
+                        .map((product, index) => {
+                          const productId = product.id || product.productId;
+                          const availableStock = getEffectiveAvailableStock(product);
+                          const transferItem =
+                            transferItems[productId] ||
+                            transferItems[String(productId)];
+                          const transferQty = transferItem?.quantity || 0;
+                          return (
+                            <tr
+                              key={productId}
                               style={{
-                                fontFamily: "Poppins",
-                                fontSize: "13px",
+                                background:
+                                  index % 2 === 0
+                                    ? "rgba(59, 130, 246, 0.03)"
+                                    : "transparent",
                               }}
                             >
-                              <div style={{ fontWeight: 600 }}>
-                                {product.productName}
-                              </div>
-                              <div style={{ fontSize: "12px", color: "#666" }}>
-                                {product.productCode || product.sku}
-                              </div>
-                            </td>
-                            <td
-                              style={{
-                                fontFamily: "Poppins",
-                                fontSize: "13px",
-                              }}
-                            >
-                              {Number(availableStock || 0).toFixed(2)}
-                            </td>
-                            <td
-                              style={{
-                                fontFamily: "Poppins",
-                                fontSize: "13px",
-                              }}
-                            >
-                              {product.unit}
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min="1"
-                                max={availableStock}
-                                step="1"
-                                inputMode="numeric"
-                                onWheel={(e) => e.target.blur()}
-                                value={transferQty}
-                                onChange={(e) =>
-                                  handleQuantityChange(
-                                    productId,
-                                    e.target.value.replace(/\D/g, "")
-                                  )
-                                }
+                              <td
                                 style={{
-                                  width: "100px",
-                                  padding: "6px 8px",
-                                  borderRadius: "6px",
-                                  border: "1px solid #000",
                                   fontFamily: "Poppins",
                                   fontSize: "13px",
-                                  backgroundColor: "#fff",
-                                  color: "#000",
                                 }}
-                                placeholder="0"
-                              />
-                            </td>
-                            <td>
-                              {transferQty > 0 && (
-                                <button
-                                  className="btn btn-outline-danger btn-sm"
-                                  onClick={() =>
-                                    handleQuantityChange(productId, 0)
+                              >
+                                <div style={{ fontWeight: 600 }}>
+                                  {product.productName}
+                                </div>
+                                <div
+                                  style={{ fontSize: "12px", color: "#666" }}
+                                >
+                                  {product.productCode || product.sku}
+                                </div>
+                              </td>
+                              <td
+                                style={{
+                                  fontFamily: "Poppins",
+                                  fontSize: "13px",
+                                }}
+                              >
+                                {Number(availableStock || 0).toFixed(2)}
+                              </td>
+                              <td
+                                style={{
+                                  fontFamily: "Poppins",
+                                  fontSize: "13px",
+                                }}
+                              >
+                                {product.unit}
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={availableStock}
+                                  step="1"
+                                  inputMode="numeric"
+                                  onWheel={(e) => e.target.blur()}
+                                  value={transferQty}
+                                  onChange={(e) =>
+                                    handleQuantityChange(
+                                      productId,
+                                      e.target.value.replace(/\D/g, ""),
+                                    )
                                   }
                                   style={{
+                                    width: "100px",
+                                    padding: "6px 8px",
+                                    borderRadius: "6px",
+                                    border: "1px solid #000",
                                     fontFamily: "Poppins",
-                                    fontSize: "12px",
+                                    fontSize: "13px",
+                                    backgroundColor: "#fff",
+                                    color: "#000",
                                   }}
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                                  placeholder="0"
+                                />
+                              </td>
+                              <td>
+                                {transferQty > 0 && (
+                                  <button
+                                    className="btn btn-outline-danger btn-sm"
+                                    onClick={() =>
+                                      handleQuantityChange(productId, 0)
+                                    }
+                                    style={{
+                                      fontFamily: "Poppins",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Transfer Summary */}
@@ -1408,7 +1839,7 @@ function StoreStockTransfer() {
                           {Number(item.quantity || 0).toFixed(2)}
                         </td>
                         <td style={{ fontFamily: "Poppins", fontSize: "13px" }}>
-                          {item.product.unit}
+                          {TRANSFER_DISPLAY_UNIT}
                         </td>
                         <td>
                           <button
@@ -1489,11 +1920,15 @@ function StoreStockTransfer() {
           >
             <button
               className="btn btn-light"
-              onClick={() => navigate("/store/inventory")}
+              onClick={
+                editingTransferId
+                  ? resetDraft
+                  : () => navigate("/store/inventory")
+              }
               disabled={submitting}
               style={{ fontFamily: "Poppins" }}
             >
-              Cancel
+              {editingTransferId ? "Discard Edit" : "Cancel"}
             </button>
             <button
               className="btn btn-primary"
@@ -1501,22 +1936,27 @@ function StoreStockTransfer() {
               disabled={
                 submitting ||
                 transferItemsList.length === 0 ||
-                !selectedDestinationStore
+                !selectedDestinationStore ||
+                !recordedAt
               }
               style={{ fontFamily: "Poppins" }}
             >
               {submitting
-                ? "Submitting..."
-                : transferType === "sale"
-                  ? "Record Sale"
-                  : "Transfer Stock"}
+                ? editingTransferId
+                  ? "Saving Changes..."
+                  : "Submitting..."
+                : editingTransferId
+                  ? "Save Transfer Changes"
+                  : transferType === "sale"
+                    ? "Record Sale"
+                    : "Transfer Stock"}
             </button>
           </div>
         </>
       )}
 
       {/* History View */}
-      {!loading && currentStore && viewMode === "history" && (
+      {currentStore && viewMode === "history" && (
         <div className={styles.orderStatusCard}>
           <h4
             style={{
@@ -1563,10 +2003,19 @@ function StoreStockTransfer() {
                       "data-history-transfer-code",
                     )}
                     {renderSearchHeader(
-                      "To Store",
+                      "Other Store",
                       "historyToStore",
                       "data-history-to-store",
                     )}
+                    <th
+                      style={{
+                        fontFamily: "Poppins",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                      }}
+                    >
+                      Direction
+                    </th>
                     <th
                       style={{
                         fontFamily: "Poppins",
@@ -1599,7 +2048,7 @@ function StoreStockTransfer() {
                     searchTerms.historyToStore) && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         style={{
                           padding: "4px 12px",
                           fontSize: "12px",
@@ -1617,11 +2066,48 @@ function StoreStockTransfer() {
                   {filteredHistory.map((transfer) => (
                     <tr key={transfer.id}>
                       <td>
-                        {new Date(transfer.createdAt).toLocaleDateString()}
+                        {formatDateTimeIN(
+                          transfer.transferDate || transfer.createdAt,
+                        )}
                       </td>
                       <td>{transfer.transferCode || "-"}</td>
                       <td>
-                        {transfer.toStore?.name || transfer.toStoreName || "-"}
+                        {buildOtherStoreLabel(transfer)}
+                        {transfer.editHistoryCount > 0 && (
+                          <div
+                            style={{
+                              marginTop: "4px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              background: "#eff6ff",
+                              color: "#1d4ed8",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {transfer.editHistoryCount} edit
+                            {transfer.editHistoryCount > 1 ? "s" : ""}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            backgroundColor: transfer.isOutgoing
+                              ? "#dcfce7"
+                              : "#dbeafe",
+                            color: transfer.isOutgoing ? "#166534" : "#1d4ed8",
+                          }}
+                        >
+                          {transfer.isOutgoing ? "OUTGOING" : "INCOMING"}
+                        </span>
                       </td>
                       <td>
                         {transfer.items?.length || transfer.itemCount || 0}
@@ -1657,6 +2143,30 @@ function StoreStockTransfer() {
                           style={{ fontSize: "12px" }}
                         >
                           View
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-success"
+                          onClick={() => handleEditTransfer(transfer)}
+                          disabled={!transfer.canEdit}
+                          title={
+                            transfer.canEdit
+                              ? "Edit transfer"
+                              : transfer.isLockedByMonthlyClose
+                                ? "This transfer is locked after month close"
+                                : transfer.isBeyondEditableWindow
+                                  ? "This transfer is beyond your edit window"
+                                  : "Only outgoing store-to-store transfers from this store can be edited here"
+                          }
+                          style={{ fontSize: "12px", marginLeft: "6px" }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-info"
+                          onClick={() => handleOpenTransferHistory(transfer)}
+                          style={{ fontSize: "12px", marginLeft: "6px" }}
+                        >
+                          History
                         </button>
                       </td>
                     </tr>
@@ -1738,7 +2248,9 @@ function StoreStockTransfer() {
               <div>
                 <small style={{ color: "#666" }}>Date</small>
                 <div style={{ fontWeight: 600 }}>
-                  {new Date(selectedTransfer.createdAt).toLocaleString()}
+                  {formatDateTimeIN(
+                    selectedTransfer.transferDate || selectedTransfer.createdAt,
+                  )}
                 </div>
               </div>
               <div>
@@ -1763,10 +2275,44 @@ function StoreStockTransfer() {
                 <small style={{ color: "#666" }}>Type</small>
                 <div>{selectedTransfer.transferType || "-"}</div>
               </div>
-              {selectedTransfer.notes && (
+              {(selectedTransfer.remarks || selectedTransfer.notes) && (
                 <div style={{ gridColumn: "1 / -1" }}>
                   <small style={{ color: "#666" }}>Notes</small>
-                  <div>{selectedTransfer.notes}</div>
+                  <div>
+                    {selectedTransfer.remarks || selectedTransfer.notes}
+                  </div>
+                </div>
+              )}
+              {selectedTransfer.editHistoryCount > 0 && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <small style={{ color: "#666" }}>Change History</small>
+                  <div style={{ fontWeight: 600, color: "#1d4ed8" }}>
+                    {selectedTransfer.editHistoryCount} previous edit
+                    {selectedTransfer.editHistoryCount > 1 ? "s" : ""} recorded
+                  </div>
+                </div>
+              )}
+              {(selectedTransfer.isBeyondEditableWindow ||
+                selectedTransfer.isLockedByMonthlyClose) && (
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    borderRadius: "10px",
+                    border: "1px solid #fed7aa",
+                    background: selectedTransfer.isLockedByMonthlyClose
+                      ? "#fef2f2"
+                      : "#fff7ed",
+                    color: selectedTransfer.isLockedByMonthlyClose
+                      ? "#b91c1c"
+                      : "#9a3412",
+                    padding: "10px 12px",
+                    fontSize: "13px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {selectedTransfer.isLockedByMonthlyClose
+                    ? "This transfer belongs to a locked month and can no longer be modified."
+                    : "This transfer is beyond the normal modification window for your role."}
                 </div>
               )}
             </div>
@@ -1808,16 +2354,62 @@ function StoreStockTransfer() {
                 gap: "10px",
               }}
             >
-              {['pending', 'Pending'].includes(selectedTransfer.status) && (
-                 <button
-                   className="btn btn-danger btn-sm"
-                   onClick={handleRejectTransferClick}
-                   style={{ fontFamily: "Poppins" }}
-                 >
-                   Transfer Rejection
-                 </button>
+              {["pending", "completed"].includes(
+                String(selectedTransfer.status || "").toLowerCase(),
+              ) && (
+                <button
+                  className="btn btn-success btn-sm"
+                  onClick={() => handleEditTransfer(selectedTransfer)}
+                  disabled={!selectedTransfer.canEdit}
+                  title={
+                    selectedTransfer.canEdit
+                      ? "Edit transfer"
+                      : selectedTransfer.isLockedByMonthlyClose
+                        ? "This transfer is locked after month close"
+                        : selectedTransfer.isBeyondEditableWindow
+                          ? "This transfer is beyond your edit window"
+                          : "Only store-to-store transfers can be edited here"
+                  }
+                  style={{ fontFamily: "Poppins" }}
+                >
+                  Edit Transfer
+                </button>
               )}
-              
+              {selectedTransfer.editHistoryCount > 0 && (
+                <button
+                  className="btn btn-light btn-sm"
+                  onClick={() => handleOpenTransferHistory(selectedTransfer)}
+                  style={{
+                    fontFamily: "Poppins",
+                    border: "1px solid #bfdbfe",
+                    color: "#1d4ed8",
+                    background: "#eff6ff",
+                  }}
+                >
+                  History
+                </button>
+              )}
+              {["pending", "Pending"].includes(selectedTransfer.status) && (
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={handleRejectTransferClick}
+                  disabled={
+                    selectedTransfer.isBeyondEditableWindow ||
+                    selectedTransfer.isLockedByMonthlyClose
+                  }
+                  title={
+                    selectedTransfer.isLockedByMonthlyClose
+                      ? "This transfer is locked after month close"
+                      : selectedTransfer.isBeyondEditableWindow
+                        ? "This transfer is beyond your modification window"
+                        : "Transfer Rejection"
+                  }
+                  style={{ fontFamily: "Poppins" }}
+                >
+                  Transfer Rejection
+                </button>
+              )}
+
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handleDownloadInvoice(selectedTransfer.id)}
@@ -1826,6 +2418,246 @@ function StoreStockTransfer() {
                 <i className="bi bi-download"></i> Download Invoice
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showEditHistoryModal && historyTransfer && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1070,
+          }}
+          onClick={() => {
+            setShowEditHistoryModal(false);
+            setHistoryTransfer(null);
+          }}
+        >
+          <div
+            style={{
+              width: "min(760px, 94vw)",
+              maxHeight: "82vh",
+              overflowY: "auto",
+              background: "#fff",
+              borderRadius: "18px",
+              padding: "20px",
+              boxShadow: "0 24px 60px rgba(15, 23, 42, 0.24)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <h4 style={{ margin: 0 }}>Transfer Edit History</h4>
+                <div style={{ color: "#64748b", fontSize: "13px" }}>
+                  {historyTransfer.transferCode ||
+                    historyTransfer.transferNumber ||
+                    `#${historyTransfer.id}`}
+                </div>
+              </div>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowEditHistoryModal(false);
+                  setHistoryTransfer(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {(historyTransfer.editHistory || []).length === 0 ? (
+              <div style={{ color: "#64748b", fontFamily: "Poppins" }}>
+                No previous transfer edits recorded.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "12px" }}>
+                {(historyTransfer.editHistory || []).map((entry) => (
+                  <div
+                    key={entry.id}
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "14px",
+                      padding: "14px",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: "#0f172a" }}>
+                        Edited on {formatDateTimeIN(entry.editedAt)}
+                      </div>
+                      <div style={{ fontSize: "13px", color: "#475569" }}>
+                        By {entry.editor?.name || "Unknown"}
+                      </div>
+                    </div>
+
+                    {entry.changeNote && (
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          fontSize: "13px",
+                          color: "#334155",
+                        }}
+                      >
+                        Note: {entry.changeNote}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "10px",
+                        marginTop: "12px",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          Old Destination
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          {entry.beforeSnapshot?.transfer?.toStoreName || "-"}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          New Destination
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          {entry.afterSnapshot?.transfer?.toStoreName || "-"}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          Old Recorded At
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          {formatDateTimeIN(
+                            entry.beforeSnapshot?.transfer?.transferDate,
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          New Recorded At
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          {formatDateTimeIN(
+                            entry.afterSnapshot?.transfer?.transferDate,
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {entry.diff?.items && (
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          display: "grid",
+                          gap: "10px",
+                        }}
+                      >
+                        {entry.diff.items.added?.length > 0 && (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#166534",
+                                fontWeight: 700,
+                                marginBottom: 4,
+                              }}
+                            >
+                              Added Items
+                            </div>
+                            {entry.diff.items.added.map((item, idx) => (
+                              <div
+                                key={`added-${idx}`}
+                                style={{ fontSize: "12px", color: "#334155" }}
+                              >
+                                {item.productName ||
+                                  item.productSku ||
+                                  item.productId}
+                                : Qty {Number(item.quantity || 0)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {entry.diff.items.removed?.length > 0 && (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#b91c1c",
+                                fontWeight: 700,
+                                marginBottom: 4,
+                              }}
+                            >
+                              Removed Items
+                            </div>
+                            {entry.diff.items.removed.map((item, idx) => (
+                              <div
+                                key={`removed-${idx}`}
+                                style={{ fontSize: "12px", color: "#334155" }}
+                              >
+                                {item.productName ||
+                                  item.productSku ||
+                                  item.productId}
+                                : Qty {Number(item.quantity || 0)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {entry.diff.items.changed?.length > 0 && (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#1d4ed8",
+                                fontWeight: 700,
+                                marginBottom: 4,
+                              }}
+                            >
+                              Changed Items
+                            </div>
+                            {entry.diff.items.changed.map((item, idx) => (
+                              <div
+                                key={`changed-${idx}`}
+                                style={{ fontSize: "12px", color: "#334155" }}
+                              >
+                                {item.productName ||
+                                  item.productSku ||
+                                  item.key}
+                                : Qty {Number(item.before?.quantity || 0)} to{" "}
+                                {Number(item.after?.quantity || 0)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1857,13 +2689,25 @@ function StoreStockTransfer() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h5 style={{ fontFamily: "Poppins", marginBottom: "16px", color: "#dc2626" }}>
+            <h5
+              style={{
+                fontFamily: "Poppins",
+                marginBottom: "16px",
+                color: "#dc2626",
+              }}
+            >
               Confirm Rejection
             </h5>
             <p style={{ fontFamily: "Poppins", marginBottom: "24px" }}>
               Do you really want to reject stock transfer?
             </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+              }}
+            >
               <button
                 className="btn btn-light"
                 onClick={() => setShowRejectModal(false)}
@@ -1884,6 +2728,9 @@ function StoreStockTransfer() {
           </div>
         </div>
       )}
+      <style>
+        {`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}
+      </style>
     </div>
   );
 }

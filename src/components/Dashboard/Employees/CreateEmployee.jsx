@@ -81,7 +81,19 @@ function CreateEmployee({ navigate }) {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    
+    if (name === "mobile") {
+      // Allow only numbers and restrict to 10 digits
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue.length <= 10) {
+        setForm((prev) => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+
+    // Enforce uppercase for employee name
+    const processedValue = name === "name" ? value.toUpperCase().replace(/\s\s+/g, ' ') : value;
+    setForm((prev) => ({ ...prev, [name]: processedValue }));
   };
 
   const addRole = (roleId) => {

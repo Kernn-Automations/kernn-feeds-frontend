@@ -6,9 +6,11 @@ import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import storeService from "../../../services/storeService";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
+import SuccessModal from "@/components/SuccessModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { Modal, Button } from "react-bootstrap";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
 
@@ -22,6 +24,28 @@ export default function CustomersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [editingCustomerId, setEditingCustomerId] = useState(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [pincodeHint, setPincodeHint] = useState("");
+  const [editForm, setEditForm] = useState({
+    name: "",
+    farmerName: "",
+    mobile: "",
+    phoneNo: "",
+    email: "",
+    village: "",
+    area: "",
+    city: "",
+    state: "",
+    pincode: "",
+    address: "",
+    noOfCows: "",
+    noOfBuffaloes: "",
+  });
 
   // Header Search States
   const [showSearch, setShowSearch] = useState({
@@ -154,6 +178,30 @@ export default function CustomersList() {
     }
   };
 
+  const toUpperText = (value) =>
+    String(value || "").replace(/\s\s+/g, " ").toUpperCase();
+
+  const setEditField = (field, value) => {
+    const nextValue =
+      field === "mobile" || field === "phoneNo"
+        ? String(value || "").replace(/\D/g, "").slice(0, 10)
+        : field === "pincode"
+          ? String(value || "").replace(/\D/g, "").slice(0, 6)
+          : field === "noOfCows" || field === "noOfBuffaloes"
+            ? String(value || "").replace(/\D/g, "")
+            : toUpperText(value);
+
+    setEditForm((prev) => ({
+      ...prev,
+      [field]: nextValue,
+    }));
+  };
+
+  const openError = (message) => {
+    setError(message);
+    setIsModalOpen(true);
+  };
+
   // Fetch customers from API
   const fetchCustomers = async () => {
     const storeId = getStoreId();
@@ -193,6 +241,117 @@ export default function CustomersList() {
       setCustomers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCustomerForEdit = async (customerId) => {
+    const storeId = getStoreId();
+    if (!storeId) {
+      openError("Store not selected. Please select a store first.");
+      return;
+    }
+
+    try {
+      setEditingCustomerId(customerId);
+      setLookupLoading(false);
+      setPincodeHint("");
+      const response = await storeService.getStoreCustomerById(storeId, customerId);
+      const customer = response.data || response.customer || response;
+
+      setEditForm({
+        name: customer.name || "",
+        farmerName: customer.farmerName || "",
+        mobile: customer.mobile || "",
+        phoneNo: customer.phoneNo || "",
+        email: customer.email || "",
+        village: customer.village || customer.villageName || "",
+        area: customer.area || "",
+        city: customer.city || "",
+        state: customer.state || "",
+        pincode: customer.pincode || "",
+        address: customer.address || "",
+        noOfCows: customer.noOfCows != null ? String(customer.noOfCows) : "",
+        noOfBuffaloes:
+          customer.noOfBuffaloes != null ? String(customer.noOfBuffaloes) : "",
+      });
+      setIsEditOpen(true);
+    } catch (err) {
+      console.error("Error loading customer for edit:", err);
+      openError(err.message || "Failed to load customer details");
+    }
+  };
+
+  const applyPincodeAutofill = async (pincodeValue) => {
+    const storeId = getStoreId();
+    if (!storeId || !pincodeValue || pincodeValue.length !== 6) {
+      setPincodeHint("");
+      return;
+    }
+
+    try {
+      setLookupLoading(true);
+      const response = await storeService.lookupStoreCustomerPincode(
+        storeId,
+        pincodeValue,
+      );
+      const autofill = response?.data?.autofill;
+
+      if (autofill) {
+        setEditForm((prev) => ({
+          ...prev,
+          area: autofill.area || "",
+          city: autofill.city || "",
+          state: autofill.state || "",
+        }));
+        setPincodeHint(
+          [autofill.area, autofill.city, autofill.state].filter(Boolean).join(", "),
+        );
+      } else {
+        setPincodeHint("No local autofill match found for this pincode.");
+      }
+    } catch (err) {
+      console.error("Error looking up pincode:", err);
+      setPincodeHint("Pincode lookup is not available right now.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const handleSaveCustomer = async () => {
+    const storeId = getStoreId();
+    if (!storeId || !editingCustomerId) {
+      openError("Store or customer is missing");
+      return;
+    }
+
+    try {
+      setSavingCustomer(true);
+      const payload = {
+        name: editForm.name,
+        farmerName: editForm.farmerName,
+        mobile: editForm.mobile,
+        phoneNo: editForm.phoneNo,
+        email: editForm.email,
+        village: editForm.village,
+        area: editForm.area,
+        city: editForm.city,
+        state: editForm.state,
+        pincode: editForm.pincode,
+        address: editForm.address,
+        noOfCows: editForm.noOfCows,
+        noOfBuffaloes: editForm.noOfBuffaloes,
+      };
+
+      await storeService.updateStoreCustomer(storeId, editingCustomerId, payload);
+      setIsEditOpen(false);
+      setSuccessMessage("CUSTOMER UPDATED SUCCESSFULLY");
+      setIsSuccessOpen(true);
+      await fetchCustomers();
+    } catch (err) {
+      console.error("Error updating customer:", err);
+      openError(err.message || "Failed to update customer");
+    } finally {
+      setSavingCustomer(false);
     }
   };
 
@@ -239,6 +398,13 @@ export default function CustomersList() {
   const closeModal = () => {
     setIsModalOpen(false);
     setError("");
+  };
+
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setEditingCustomerId(null);
+    setLookupLoading(false);
+    setPincodeHint("");
   };
 
   const exportToPDF = () => {
@@ -389,12 +555,20 @@ export default function CustomersList() {
                       <td>₹{customer.totalPurchases?.toLocaleString('en-IN') || '0'}</td>
                       <td>{customer.createdByEmployee?.name || 'N/A'}</td>
                       <td>
-                        <button 
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => navigate(`/store/customers/${customer.id}`)}
-                        >
-                          View
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => navigate(`/store/customers/${customer.id}`)}
+                          >
+                            View
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={() => loadCustomerForEdit(customer.id)}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -431,6 +605,134 @@ export default function CustomersList() {
           </div>
         </div>
       </div>
+
+      <Modal show={isEditOpen} onHide={closeEditModal} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Customer</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="row g-3">
+            {[
+              ["name", "NAME"],
+              ["farmerName", "FARMER NAME"],
+              ["mobile", "MOBILE"],
+              ["phoneNo", "PHONE NO"],
+              ["email", "EMAIL"],
+              ["village", "VILLAGE"],
+              ["area", "AREA"],
+              ["city", "CITY"],
+              ["state", "STATE"],
+              ["pincode", "PINCODE"],
+            ].map(([field, label]) => (
+              <div className="col-md-6" key={field}>
+                <label
+                  style={{
+                    display: "block",
+                    fontFamily: "Poppins",
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    fontSize: "13px",
+                  }}
+                >
+                  {label}
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={editForm[field]}
+                  onChange={(e) => setEditField(field, e.target.value)}
+                  onBlur={
+                    field === "pincode"
+                      ? () => applyPincodeAutofill(editForm.pincode)
+                      : undefined
+                  }
+                  placeholder={`ENTER ${label}`}
+                />
+              </div>
+            ))}
+
+            <div className="col-md-6">
+              <label style={{ display: "block", fontFamily: "Poppins", fontWeight: 600, marginBottom: "6px", fontSize: "13px" }}>
+                NUMBER OF COWS
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={editForm.noOfCows}
+                onChange={(e) => setEditField("noOfCows", e.target.value)}
+                placeholder="ENTER NUMBER OF COWS"
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label style={{ display: "block", fontFamily: "Poppins", fontWeight: 600, marginBottom: "6px", fontSize: "13px" }}>
+                NUMBER OF BUFFALOES
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={editForm.noOfBuffaloes}
+                onChange={(e) => setEditField("noOfBuffaloes", e.target.value)}
+                placeholder="ENTER NUMBER OF BUFFALOES"
+              />
+            </div>
+
+            <div className="col-12">
+              <label style={{ display: "block", fontFamily: "Poppins", fontWeight: 600, marginBottom: "6px", fontSize: "13px" }}>
+                ADDRESS
+              </label>
+              <textarea
+                className="form-control"
+                rows={3}
+                value={editForm.address}
+                onChange={(e) => setEditField("address", e.target.value)}
+                placeholder="ENTER ADDRESS"
+              />
+            </div>
+
+            <div className="col-12">
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  fontFamily: "Poppins",
+                  fontSize: "13px",
+                  color: "#475569",
+                }}
+              >
+                <strong style={{ color: "#0f172a" }}>PINCODE AUTOFILL</strong>
+                <div style={{ marginTop: "4px" }}>
+                  Enter a 6-digit pincode to try local autofill for AREA, CITY, and STATE. Autofilled values remain editable.
+                </div>
+                {lookupLoading ? (
+                  <div style={{ marginTop: "8px", color: "#2563eb" }}>Looking up pincode...</div>
+                ) : pincodeHint ? (
+                  <div style={{ marginTop: "8px", color: "#047857" }}>{pincodeHint}</div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeEditModal} disabled={savingCustomer}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveCustomer} disabled={savingCustomer}>
+            {savingCustomer ? "Saving..." : "Save Customer"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <SuccessModal
+        isOpen={isSuccessOpen}
+        message={successMessage}
+        onClose={() => {
+          setIsSuccessOpen(false);
+          setSuccessMessage("");
+        }}
+      />
 
       {isModalOpen && (
         <ErrorModal

@@ -7,6 +7,7 @@ import CustomerTargets from "./CustomerTargets";
 import TargetList from "./TargetList";
 import CreateTargetPage from "./CreateTargetPage";
 import TargetDetails from "./TargetDetails";
+import StoreTargets from "./StoreTargets";
 
 function TargetRoutes() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ function TargetRoutes() {
       <Route path="/all-targets" element={<TargetList />} />
       <Route path="/sales-target" element={<SalesTargets navigate={navigate} isAdmin={isAdmin} />} />
       <Route path="/customer-target" element={<CustomerTargets navigate={navigate} isAdmin={isAdmin} />} />
+      <Route path="/store-target" element={<StoreTargets navigate={navigate} isAdmin={isAdmin} />} />
     </Routes>
   );
 }

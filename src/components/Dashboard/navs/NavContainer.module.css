@@ -19,12 +19,14 @@
 .navicons {
   background-color: #d9d9d9;
   margin-top: 10px;
-   height: calc(100% - 80px);
+  height: calc(100% - 80px);
   overflow: auto;
   overflow-x: hidden;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none;
   padding: 5px;
+  position: relative; /* ADD THIS */
+  z-index: 99999; /* ADD THIS */
 }
 
 /* Mobile: Remove logo gap and start navbar from top */
@@ -184,6 +186,12 @@
   transition: 0.2s ease;
   transform: scale(1.04);
   box-shadow: 0 6px 8px 0 rgba(57, 57, 57, 0.641);
+
+  z-index: 1000; /* ADD THIS */
+}
+
+.navicons > div {
+  position: relative; /* ADD THIS */
 }
 
 .navicons > div:hover p,
@@ -194,7 +202,6 @@
   stroke: white;
 }
 .navicons > div:hover svg {
-  
   display: inline-block;
   animation: rotate-shake 0.5s ease-in-out;
 }

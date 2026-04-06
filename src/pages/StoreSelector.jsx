@@ -286,6 +286,7 @@ const StoreSelector = () => {
         const storeData = {
           id: store.id,
           name: store.name,
+          storeCode: store.storeCode || store.code || "",
           address: store.address,
           isActive: store.isActive,
           createdAt: store.createdAt,

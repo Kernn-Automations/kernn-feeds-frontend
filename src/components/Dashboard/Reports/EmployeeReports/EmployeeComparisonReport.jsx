@@ -83,6 +83,7 @@ function EmployeeComparisonReport({ navigate }) {
       const query = `/reports/comparison?ids=${ids}&level=${filter}&fromDate=${from}&toDate=${to}`;
       const res = await axiosAPI.get(query);
       const data = res.data;
+      console.log(res);
       setReportData(data);
       setSelectedNames(data.ids?.map((x) => x.name) || []);
     } catch (e) {

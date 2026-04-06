@@ -250,9 +250,110 @@
   }
 }
 
-@media (max-width: 480px) {
-  .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+
+/* PERFORMANCE TABLE STYLES (MATCHING STORES ABSTRACT) */
+.tableContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 400px; /* Fixed height for scrolling */
+  width: 100%;
+  position: relative;
+}
+
+.abstractTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 0 !important;
+}
+
+.abstractTable thead {
+  background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.abstractTable th {
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #dee2e6;
+  vertical-align: middle;
+  font-size: 13px;
+  background-color: #f8f9fa; /* Required for sticky header opacity */
+}
+
+.abstractTable td {
+  padding: 10px 8px;
+  text-align: center;
+  border: 1px solid #dee2e6;
+  vertical-align: middle;
+  font-size: 13px;
+}
+
+/* Header Columns */
+.storeColumn,
+.salesColumn,
+.ordersColumn,
+.performanceColumn {
+  background-color: #e9ecef !important;
+  font-weight: 700;
+  min-width: 140px;
+}
+
+/* Row Hover */
+.abstractTable tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.abstractTable tbody tr:nth-child(even) {
+  background-color: #ffffff;
+}
+
+.abstractTable tbody tr:nth-child(odd) {
+  background-color: #f8f9fa;
+}
+
+/* Search Input Styles */
+.searchContainer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: black;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+.clearSearchBtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: red;
+  font-weight: bold;
+  padding: 0 4px;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  cursor: pointer;
 }
 

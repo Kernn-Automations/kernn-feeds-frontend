@@ -204,6 +204,12 @@ function OTP({ email, resendOtp, setLogin, setUser }) {
                   JSON.stringify({
                     id: finalStoreId,
                     name: resolvedStore?.name || userPayload.store?.name || "",
+                    storeCode:
+                      resolvedStore?.storeCode ||
+                      resolvedStore?.code ||
+                      userPayload.store?.storeCode ||
+                      userPayload.store?.code ||
+                      "",
                   }),
                 );
               }

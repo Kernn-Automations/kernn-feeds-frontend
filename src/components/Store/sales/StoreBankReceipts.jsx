@@ -12,6 +12,7 @@ import orderStyles from "./StoreSalesOrders.module.css";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
+import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 
 export default function StoreBankReceipts() {
   const navigate = useNavigate();
@@ -39,6 +40,10 @@ export default function StoreBankReceipts() {
   const [sales, setSales] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Header Search States
   const [showSearch, setShowSearch] = useState({
@@ -201,7 +206,7 @@ export default function StoreBankReceipts() {
     if (!storeId) return;
     setReceiptsLoading(true);
     try {
-      const res = await axiosAPI.get(`/stores/${storeId}/bank-receipts`);
+      const res = await axiosAPI.get(`/stores/${storeId}/bank-receipts?limit=1000`);
       const receiptsData = res.data?.data || res.data || res;
       const receiptsList = Array.isArray(receiptsData)
         ? receiptsData
@@ -220,7 +225,7 @@ export default function StoreBankReceipts() {
     if (!storeId) return;
     try {
       // Fetching 100 most recent sales
-      const res = await storeService.getStoreSales(storeId, { limit: 100 });
+      const res = await storeService.getStoreSales(storeId, { limit: 1000 });
       if (res && res.success) {
         const allSales = res.data?.sales || res.data || [];
         // Filter for bank related payments
@@ -401,6 +406,28 @@ export default function StoreBankReceipts() {
 
   const transactions = getUnifiedTransactions();
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerms, appliedFilters]);
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedTransactions = transactions.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(transactions.length / itemsPerPage);
+
+  const handlePageChange = (direction) => {
+    if (direction === "prev" && currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    } else if (direction === "next" && currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
   const handleFilterSubmit = () => {
     setAppliedFilters({ from: fromDate, to: toDate });
   };
@@ -580,6 +607,23 @@ export default function StoreBankReceipts() {
                   <img src={pdf} alt="Export to PDF" />
                 </button>
               </div>
+
+              <div className={orderStyles.entity} style={{ top: 0 }}>
+                <label>Entity :</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={30}>30</option>
+                  <option value={40}>40</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
             </div>
 
             {/* Unified Transactions Table */}
@@ -677,9 +721,9 @@ export default function StoreBankReceipts() {
                     )}
                   </thead>
                   <tbody>
-                    {transactions.map((tx, index) => (
+                    {paginatedTransactions.map((tx, index) => (
                       <tr key={tx.id}>
-                        <td>{index + 1}</td>
+                        <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                         <td>{formatDate(tx.date, true)}</td>
                         <td>
                           {tx.status ? (
@@ -800,6 +844,32 @@ export default function StoreBankReceipts() {
                 </table>
               )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="row m-0 p-0 pt-3 justify-content-between">
+                <div className={`col-2 m-0 p-0 ${orderStyles.buttonbox}`}>
+                  {currentPage > 1 && (
+                    <button onClick={() => handlePageChange("prev")}>
+                      <span>
+                        <FaArrowLeftLong />
+                      </span>{" "}
+                      Previous
+                    </button>
+                  )}
+                </div>
+                <div className={`col-2 m-0 p-0 ${orderStyles.buttonbox}`}>
+                  {currentPage < totalPages && (
+                    <button onClick={() => handlePageChange("next")}>
+                      Next{" "}
+                      <span>
+                        <FaArrowRightLong />
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

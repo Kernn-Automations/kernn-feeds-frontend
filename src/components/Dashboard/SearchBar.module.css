@@ -28,6 +28,11 @@
     margin-top: 0 !important;
   }
 
+  .expanded {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
   .searchbar input {
     width: 100% !important;
     max-width: 100%;
@@ -48,6 +53,11 @@
 @media (max-width: 480px) {
   .searchbar {
     max-width: 100px !important;
+  }
+
+  .expanded {
+    max-width: 100% !important;
+    width: 100% !important;
   }
 
   .searchbar input {

@@ -111,6 +111,12 @@ const storeService = {
 
     return res.json();
   },
+  async editSale(editSaleId, body) {
+    return this.createSale({
+      ...body,
+      editSaleId,
+    });
+  },
   async calculateSaleTotal(body) {
     // Preview/calculate sale total with tax without creating the sale
     // POST /stores/sales/calculate - Calculate sale totals (preview)
@@ -208,9 +214,12 @@ const storeService = {
     });
     return res.json();
   },
-  async getAvailableStockForTransfer(storeId) {
+  async getAvailableStockForTransfer(storeId, recordedAt = "") {
+    const query = recordedAt
+      ? `?recordedAt=${encodeURIComponent(recordedAt)}`
+      : "";
     const res = await api.request(
-      `/store-indents/stock-transfer/available-stock/${storeId}`,
+      `/store-indents/stock-transfer/available-stock/${storeId}${query}`,
       { method: "GET" },
     );
     return res.json();
@@ -232,6 +241,16 @@ const storeService = {
     const res = await api.request(
       `/stores/${storeId}/stock-transfer/${transferId}`,
       { method: "GET" },
+    );
+    return res.json();
+  },
+  async updateStockTransfer(storeId, transferId, body) {
+    const res = await api.request(
+      `/stores/${storeId}/stock-transfer/${transferId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
     );
     return res.json();
   },
@@ -501,6 +520,113 @@ const storeService = {
     const res = await api.request(
       `/stores/${storeId}/sales/${saleCode}/cancel`,
       { method: "POST" },
+    );
+    return res.json();
+  },
+  async manageStoreStock(storeId, body) {
+    const res = await api.request(`/stores/${storeId}/manage-stock`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const error = new Error(
+        data.message || data.error || `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data, status: res.status };
+      throw error;
+    }
+    return { ...data, status: res.status };
+  },
+  async importStoreLedgerRows(body) {
+    const res = await api.request(`/stores/ledger/import`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async validateStoreImportRows(body) {
+    const res = await api.request(`/stores/ledger/import/validate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async getStoreNotifications(params = {}) {
+    const query = new URLSearchParams();
+    if (params.storeId) query.append("storeId", params.storeId);
+    if (params.page) query.append("page", params.page);
+    if (params.limit) query.append("limit", params.limit);
+    if (params.unreadOnly) query.append("unreadOnly", params.unreadOnly);
+    const res = await api.request(
+      `/stores/notifications${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "GET" },
+    );
+    return res.json();
+  },
+  async getStoreActivityTimeline(params = {}) {
+    const query = new URLSearchParams();
+    if (params.storeId) query.append("storeId", params.storeId);
+    if (params.limit) query.append("limit", params.limit);
+    const res = await api.request(
+      `/stores/activity-timeline${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "GET" },
+    );
+    return res.json();
+  },
+  async markStoreNotificationRead(notificationId, storeId = null) {
+    const query = new URLSearchParams();
+    if (storeId) query.append("storeId", storeId);
+    const res = await api.request(
+      `/stores/notifications/${notificationId}/read${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "PATCH" },
+    );
+    return res.json();
+  },
+  async markAllStoreNotificationsRead(storeId = null) {
+    const query = new URLSearchParams();
+    if (storeId) query.append("storeId", storeId);
+    const res = await api.request(
+      `/stores/notifications/read-all${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "PATCH" },
+    );
+    return res.json();
+  },
+  async getStoreImportHistory(params = {}) {
+    const query = new URLSearchParams();
+    if (params.storeId) query.append("storeId", params.storeId);
+    if (params.limit) query.append("limit", params.limit);
+    const res = await api.request(
+      `/stores/ledger/import/history${query.toString() ? `?${query.toString()}` : ""}`,
+      { method: "GET" },
     );
     return res.json();
   },
@@ -781,10 +907,76 @@ const storeService = {
 
     return res.json();
   },
-  async searchStoreCustomers(storeId, searchTerm) {
+  async updateStoreCustomer(storeId, customerId, payload) {
+    const res = await api.request(`/stores/${storeId}/customers/${customerId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async lookupStoreCustomerPincode(storeId, pincode) {
+    const res = await api.request(
+      `/stores/${storeId}/customers/pincode/${pincode}/lookup`,
+      { method: "GET" },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async updateStoreCustomerCreditConfig(storeId, customerId, payload) {
+    const res = await api.request(
+      `/stores/${storeId}/customers/${customerId}/credit-config`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async searchStoreCustomers(storeId, searchTerm, limit = 20) {
     // GET /stores/:storeId/customers/search?search=term - Search customers (dropdown/autocomplete)
     const res = await api.request(
-      `/stores/${storeId}/customers/search?search=${encodeURIComponent(searchTerm)}`,
+      `/stores/${storeId}/customers/search?search=${encodeURIComponent(searchTerm)}&limit=${encodeURIComponent(limit)}`,
       { method: "GET" },
     );
 
@@ -804,11 +996,9 @@ const storeService = {
 
     return res.json();
   },
-  async searchStoreVillages(storeId, searchTerm = "") {
+  async searchStoreVillages(storeId, searchTerm = "", limit = 50) {
     // GET /stores/:storeId/villages/search?search=term - Search villages (dropdown/autocomplete)
-    const queryParam = searchTerm
-      ? `?search=${encodeURIComponent(searchTerm)}`
-      : "";
+    const queryParam = `?search=${encodeURIComponent(searchTerm)}&limit=${encodeURIComponent(limit)}`;
     const res = await api.request(
       `/stores/${storeId}/villages/search${queryParam}`,
       { method: "GET" },
@@ -894,8 +1084,15 @@ const storeService = {
     return res.json();
   },
 
-  getManageStockHistory: async (storeId) => {
-    const res = await api.request(`/stores/${storeId}/manage-stock/history`, {
+  getManageStockHistory: async (storeId, params = {}) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        queryParams.append(key, value);
+      }
+    });
+    const queryString = queryParams.toString();
+    const res = await api.request(`/stores/${storeId}/manage-stock/history${queryString ? `?${queryString}` : ""}`, {
       method: "GET",
     });
     return res.json();
@@ -940,13 +1137,20 @@ const storeService = {
     });
     return res.json();
   },
-  async getStoreProductsForSale(storeId, searchTerm = "", productType = "") {
+  async getStoreProductsForSale(
+    storeId,
+    searchTerm = "",
+    productType = "",
+    recordedAt = "",
+  ) {
     // GET /stores/:storeId/products/for-sale - Get products available for sale
     let queryParams = [];
     if (searchTerm)
       queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
     if (productType)
       queryParams.push(`productType=${encodeURIComponent(productType)}`);
+    if (recordedAt)
+      queryParams.push(`recordedAt=${encodeURIComponent(recordedAt)}`);
     const queryString =
       queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
     const res = await api.request(
@@ -1253,6 +1457,94 @@ const storeService = {
     }
 
     return res;
+  },
+  async getStoreCashBook(storeId, params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(
+      `/stores/${storeId}/cash-book${queryParams ? `?${queryParams}` : ""}`,
+      { method: "GET" },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async getGroupCashBook(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(
+      `/stores/cash-book/group${queryParams ? `?${queryParams}` : ""}`,
+      { method: "GET" },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async getStoreBankBook(storeId, params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(
+      `/stores/${storeId}/bank-book${queryParams ? `?${queryParams}` : ""}`,
+      { method: "GET" },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
+  async getGroupBankBook(params = {}) {
+    const queryParams = new URLSearchParams(params).toString();
+    const res = await api.request(
+      `/stores/bank-book/group${queryParams ? `?${queryParams}` : ""}`,
+      { method: "GET" },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
   },
 };
 

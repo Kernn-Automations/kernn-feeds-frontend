@@ -166,7 +166,10 @@ function TargetsHome() {
   return (
     <div className={styles.targetsContainer}>
       {/* Simple Header with Create Button */}
-      <div className={styles.simpleHeader}>
+      <div className={styles.simpleHeader} style={{ gap: '15px' }}>
+        <button className="homebtn" onClick={() => navigate('/targets/store-target')}>
+          Store targets
+        </button>
         <button className="homebtn" onClick={() => navigate('/targets/create-target')}>
           + Create Target
         </button>
