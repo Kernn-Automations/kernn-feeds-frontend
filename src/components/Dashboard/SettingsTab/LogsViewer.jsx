@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import logService from "../../../services/logService";
 import { getUserFromStorage, isSuperAdmin } from "../../../utils/roleUtils";
+
+const FEEDS_LOGO_URL = "https://storage.googleapis.com/kernn-public-bucket/kernn_banner.png";
 
 const formatDateInput = (date) => date.toISOString().slice(0, 10);
 
@@ -58,6 +59,9 @@ const buildPreviewText = (log) => {
   return chunks.length ? chunks.join("\n\n") : "-";
 };
 
+const displayLogUser = (log) =>
+  log.employee_name || log.employee_id || "PUBLIC_USER";
+
 const buildVerificationUrl = (filters) => {
   if (typeof window === "undefined") return "";
   const params = new URLSearchParams();
@@ -66,6 +70,17 @@ const buildVerificationUrl = (filters) => {
     params.set(key, value);
   });
   return `${window.location.origin}/settings/logs${params.toString() ? `?${params.toString()}` : ""}`;
+};
+
+const loadImageAsDataUrl = async (src) => {
+  const response = await fetch(src);
+  const blob = await response.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 };
 
 function LogsViewer() {
@@ -88,15 +103,28 @@ function LogsViewer() {
     search: "",
   });
   const [logs, setLogs] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 25,
+    total: 0,
+    totalPages: 1,
+  });
   const [stats, setStats] = useState({ info: 0, warn: 0, error: 0 });
-  const [filterOptions, setFilterOptions] = useState({ users: [], methods: [], logTypes: [] });
+  const [filterOptions, setFilterOptions] = useState({
+    users: [],
+    methods: [],
+    logTypes: [],
+  });
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
   const [error, setError] = useState("");
 
-  const loadLogs = async (page = 1, activeFilters = filters, limit = pagination.limit) => {
+  const loadLogs = async (
+    page = 1,
+    activeFilters = filters,
+    limit = pagination.limit,
+  ) => {
     try {
       setLoading(true);
       setError("");
@@ -111,7 +139,9 @@ function LogsViewer() {
       }
 
       setLogs(response.data || []);
-      setPagination(response.pagination || { page: 1, limit, total: 0, totalPages: 1 });
+      setPagination(
+        response.pagination || { page: 1, limit, total: 0, totalPages: 1 },
+      );
       setStats(response.stats || { info: 0, warn: 0, error: 0 });
     } catch (err) {
       console.error("Failed to load logs:", err);
@@ -125,7 +155,9 @@ function LogsViewer() {
     try {
       const response = await logService.getLogFilters();
       if (!response?.success) return;
-      setFilterOptions(response.data || { users: [], methods: [], logTypes: [] });
+      setFilterOptions(
+        response.data || { users: [], methods: [], logTypes: [] },
+      );
     } catch (err) {
       console.error("Failed to load log filter options:", err);
     }
@@ -192,138 +224,239 @@ function LogsViewer() {
 
       const rows = response.data || [];
       const verificationUrl = buildVerificationUrl(filters);
-      const qrBase64 = verificationUrl ? await QRCode.toDataURL(verificationUrl) : null;
-      const downloadedBy = user?.name || user?.employeeId || user?.email || "Super Admin";
+      const qrBase64 = verificationUrl
+        ? await QRCode.toDataURL(verificationUrl)
+        : null;
+      const logoBase64 = await loadImageAsDataUrl(FEEDS_LOGO_URL);
+      const downloadedBy =
+        user?.name || user?.employeeId || user?.email || "Super Admin";
       const exportedAt = formatDateTime(new Date().toISOString());
       const doc = new jsPDF("l", "pt", "a4");
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 40;
+      const brandRed = [169, 36, 39];
+      const brandLight = [250, 243, 243];
+      const lineGray = [226, 232, 240];
+      const textDark = [24, 24, 27];
 
-      doc.setFillColor(17, 70, 148);
-      doc.rect(0, 0, pageWidth, 120, "F");
+      doc.setFillColor(...brandRed);
+      doc.rect(0, 0, pageWidth, 92, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(28);
-      doc.text("System Logs Report", margin, 48);
-      doc.setFontSize(12);
+      doc.setFontSize(30);
+      doc.text("System Logs Report", margin, 52);
       doc.setFont("helvetica", "normal");
-      doc.text("Incident traceability and API activity export", margin, 72);
-      doc.text(`Downloaded by: ${downloadedBy}`, margin, 92);
-      doc.text(`Downloaded at: ${exportedAt}`, margin, 110);
+      doc.setFontSize(12);
+      doc.text(
+        "Incident traceability and operational audit export",
+        margin,
+        75,
+      );
+      if (logoBase64) {
+        doc.addImage(logoBase64, "PNG", pageWidth - 180, 18, 130, 48);
+      }
 
-      doc.setTextColor(24, 24, 27);
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(margin, 150, 350, 180, 12, 12, "F");
+      doc.setTextColor(...textDark);
+      doc.setFillColor(...brandLight);
+      doc.roundedRect(margin, 122, pageWidth - margin * 2, 150, 14, 14, "F");
+      doc.setDrawColor(...brandRed);
+      doc.setLineWidth(1);
+      doc.roundedRect(margin, 122, pageWidth - margin * 2, 150, 14, 14, "S");
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(18);
-      doc.text("Report Summary", margin + 20, 180);
+      doc.text("Download Summary", margin + 24, 152);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
-      doc.text(`Date Range: ${filters.fromDate || "-"} to ${filters.toDate || "-"}`, margin + 20, 210);
-      doc.text(`Total Requests: ${rows.length}`, margin + 20, 230);
-      doc.text(`Info Logs: ${response.stats?.info || 0}`, margin + 20, 250);
-      doc.text(`Warnings: ${response.stats?.warn || 0}`, margin + 20, 270);
-      doc.text(`Errors: ${response.stats?.error || 0}`, margin + 20, 290);
-      doc.text(`Filters Applied:`, margin + 20, 315);
+      doc.text(`Downloaded by: ${downloadedBy}`, margin + 24, 182);
+      doc.text(`Downloaded at: ${exportedAt}`, margin + 24, 202);
+      doc.text(
+        `Date range: ${filters.fromDate || "-"} to ${filters.toDate || "-"}`,
+        margin + 24,
+        222,
+      );
+      doc.text(`Total requests: ${rows.length}`, margin + 24, 242);
+      doc.text(
+        `Info: ${response.stats?.info || 0}   Warnings: ${response.stats?.warn || 0}   Errors: ${response.stats?.error || 0}`,
+        margin + 220,
+        242,
+      );
+
       const filterSummary = [
         filters.employeeId ? `User ${filters.employeeId}` : "All users",
         filters.method || "All methods",
         filters.logType || "All types",
         filters.statusCode ? `Status ${filters.statusCode}` : "All statuses",
-      ].join(" | ");
-      const wrappedFilterSummary = doc.splitTextToSize(filterSummary, 300);
-      doc.text(wrappedFilterSummary, margin + 20, 333);
+        filters.search ? `Search ${filters.search}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+      const wrappedFilterSummary = doc.splitTextToSize(
+        `Applied filters: ${filterSummary || "None"}`,
+        pageWidth - 300,
+      );
+      doc.text(wrappedFilterSummary, margin + 24, 262);
 
       doc.setFillColor(255, 255, 255);
-      doc.roundedRect(pageWidth - 280, 150, 240, 180, 12, 12, "F");
-      doc.setDrawColor(229, 231, 235);
-      doc.roundedRect(pageWidth - 280, 150, 240, 180, 12, 12, "S");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text("Verification QR", pageWidth - 260, 180);
+      doc.roundedRect(pageWidth - 205, 144, 135, 110, 10, 10, "F");
+      doc.setDrawColor(...brandRed);
+      doc.roundedRect(pageWidth - 205, 144, 135, 110, 10, 10, "S");
       if (qrBase64) {
-        doc.addImage(qrBase64, "PNG", pageWidth - 245, 195, 110, 110);
+        doc.addImage(qrBase64, "PNG", pageWidth - 184, 159, 92, 92);
       }
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      const qrText = verificationUrl || "Verification URL unavailable";
-      const qrWrapped = doc.splitTextToSize(qrText, 210);
-      doc.text(qrWrapped, pageWidth - 260, 320);
-      doc.setFontSize(8);
-      doc.text("Scan to reopen the exact filtered log report.", pageWidth - 260, 350);
-
-      doc.setFont("helvetica", "italic");
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.text("Generated for fault analysis, audit review, and incident reconstruction.", margin, pageHeight - 30);
+      doc.text("Verification QR", pageWidth - 188, 153);
 
-      autoTable(doc, {
-        startY: 360,
-        theme: "grid",
-        body: rows.flatMap((row, index) => {
-          const logUser = row.employee_name || row.employee_id || "PUBLIC_USER";
-          const previewText = buildPreviewText(row);
-          return [
-            [
-              {
-                content: `#${index + 1}  ${row.api_method || "-"}  ${row.api_url || "-"}`,
-                colSpan: 2,
-                styles: {
-                  fillColor: [17, 70, 148],
-                  textColor: [255, 255, 255],
-                  fontStyle: "bold",
-                  fontSize: 10,
-                  cellPadding: 7,
-                },
-              },
-            ],
-            [
-              { content: "Time", styles: { fontStyle: "bold", cellWidth: 100 } },
-              { content: formatDateTime(row.timestamp) },
-            ],
-            [
-              { content: "User", styles: { fontStyle: "bold" } },
-              { content: `${logUser}${row.employee_email ? ` | ${row.employee_email}` : ""}` },
-            ],
-            [
-              { content: "Status / Type", styles: { fontStyle: "bold" } },
-              { content: `${row.status_code ?? "-"} / ${row.log_type || "-"}` },
-            ],
-            [
-              { content: "URL", styles: { fontStyle: "bold" } },
-              { content: row.api_url || "-" },
-            ],
-            [
-              { content: "Preview", styles: { fontStyle: "bold" } },
-              { content: previewText },
-            ],
-          ];
-        }),
-        styles: {
-          fontSize: 9,
-          cellPadding: 6,
-          overflow: "linebreak",
-          valign: "top",
-          lineColor: [226, 232, 240],
-        },
-        columnStyles: {
-          0: { cellWidth: 110, fillColor: [248, 250, 252] },
-          1: { cellWidth: pageWidth - (margin * 2) - 110 },
-        },
-        margin: { top: 360, left: margin, right: margin, bottom: 40 },
-        rowPageBreak: "avoid",
-        didDrawPage: ({ pageNumber }) => {
-          if (pageNumber === 1) return;
-          doc.setFillColor(17, 70, 148);
-          doc.rect(0, 0, pageWidth, 32, "F");
-          doc.setTextColor(255, 255, 255);
-          doc.setFontSize(11);
-          doc.text("System Logs Report", margin, 21);
-          doc.setTextColor(24, 24, 27);
-        },
+      doc.setFillColor(...brandRed);
+      doc.rect(0, pageHeight - 30, pageWidth, 30, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(
+        "Feed Bazaar Pvt Ltd | Secure internal log export",
+        margin,
+        pageHeight - 11,
+      );
+
+      const drawContinuationHeader = () => {
+        doc.setFillColor(...brandRed);
+        doc.rect(0, 0, pageWidth, 34, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("System Logs Report", margin, 22);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(exportedAt, pageWidth - 140, 22);
+        doc.setTextColor(...textDark);
+      };
+
+      const ensureSpace = (requiredHeight, currentY) => {
+        if (currentY + requiredHeight <= pageHeight - 40) return currentY;
+        doc.addPage("a4", "landscape");
+        drawContinuationHeader();
+        return 55;
+      };
+
+      const drawLabelValueRow = (y, label, value) => {
+        const labelWidth = 110;
+        const boxX = margin;
+        const boxWidth = pageWidth - margin * 2;
+        const valueLines = doc.splitTextToSize(
+          value || "-",
+          boxWidth - labelWidth - 30,
+        );
+        const rowHeight = Math.max(24, valueLines.length * 12 + 10);
+
+        doc.setFillColor(248, 250, 252);
+        doc.rect(boxX, y, labelWidth, rowHeight, "F");
+        doc.setDrawColor(...lineGray);
+        doc.rect(boxX, y, boxWidth, rowHeight, "S");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text(label, boxX + 10, y + 16);
+        doc.setFont("helvetica", "normal");
+        doc.text(valueLines, boxX + labelWidth + 10, y + 16);
+        return rowHeight;
+      };
+
+      doc.addPage("a4", "landscape");
+      drawContinuationHeader();
+      let y = 55;
+
+      rows.forEach((row, index) => {
+        const logUser = displayLogUser(row);
+        const requestPreview = row.requestBodyPreview
+          ? `Request: ${row.requestBodyPreview}`
+          : "Request: -";
+        const responsePreview = row.responseBodyPreview
+          ? `Response: ${row.responseBodyPreview}`
+          : "Response: -";
+        const errorPreview = row.error_message
+          ? `Error: ${row.error_message}`
+          : null;
+        const metaPreview = [errorPreview, requestPreview, responsePreview]
+          .filter(Boolean)
+          .join("\n\n");
+
+        const urlLines = doc.splitTextToSize(
+          row.api_url || "-",
+          pageWidth - 200,
+        );
+        const previewLines = doc.splitTextToSize(metaPreview, pageWidth - 200);
+        const blockHeight =
+          38 +
+          28 +
+          28 +
+          28 +
+          28 +
+          12 +
+          Math.max(28, urlLines.length * 12 + 10) +
+          Math.max(56, previewLines.length * 12 + 12) +
+          24;
+
+        y = ensureSpace(blockHeight, y);
+
+        doc.setFillColor(...brandRed);
+        doc.rect(margin, y, pageWidth - margin * 2, 30, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(
+          `#${index + 1}  ${row.api_method || "-"}  ${row.api_url || "-"}`,
+          margin + 12,
+          y + 20,
+        );
+        y += 30;
+
+        doc.setDrawColor(...lineGray);
+        doc.setFillColor(255, 255, 255);
+        doc.rect(margin, y, pageWidth - margin * 2, blockHeight - 30, "S");
+        doc.setTextColor(...textDark);
+
+        const topInfoY = y + 10;
+        const cardWidth = (pageWidth - margin * 2 - 36) / 4;
+        [
+          ["Time", formatDateTime(row.timestamp)],
+          [
+            "User",
+            `${logUser}${row.employee_email ? ` | ${row.employee_email}` : ""}`,
+          ],
+          [
+            "Status / Type",
+            `${row.status_code ?? "-"} / ${row.log_type || "-"}`,
+          ],
+          [
+            "IP / Location",
+            `${row.ip_address || "-"} / ${row.geoLocation || "-"}`,
+          ],
+        ].forEach(([label, value], infoIndex) => {
+          const cardX = margin + 12 + infoIndex * (cardWidth + 8);
+          doc.setFillColor(...brandLight);
+          doc.roundedRect(cardX, topInfoY, cardWidth, 42, 8, 8, "F");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(108, 117, 125);
+          doc.text(label, cardX + 10, topInfoY + 12);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(...textDark);
+          const infoLines = doc.splitTextToSize(value || "-", cardWidth - 18);
+          doc.text(infoLines, cardX + 10, topInfoY + 28);
+        });
+
+        let rowY = topInfoY + 56;
+        rowY += drawLabelValueRow(rowY, "URL", row.api_url || "-");
+        rowY += drawLabelValueRow(rowY, "Preview", metaPreview);
+
+        y += blockHeight + 16;
       });
 
-      doc.save(`system-logs-${filters.fromDate || "from"}-to-${filters.toDate || "to"}.pdf`);
+      doc.save(
+        `system-logs-${filters.fromDate || "from"}-to-${filters.toDate || "to"}.pdf`,
+      );
     } catch (err) {
       console.error("Failed to export logs PDF:", err);
       setError(err.message || "Failed to export logs PDF");
@@ -348,15 +481,24 @@ function LogsViewer() {
     <div className="container-fluid p-3">
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div className="d-flex align-items-center gap-3">
-          <button className="btn btn-secondary" onClick={() => navigate("/settings")}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate("/settings")}
+          >
             <i className="bi bi-arrow-left"></i> Back
           </button>
           <div>
             <h2 className="mb-1">System Logs</h2>
-            <div className="text-muted">Super Admin activity and API trace viewer</div>
+            <div className="text-muted">
+              Super Admin activity and API trace viewer
+            </div>
           </div>
         </div>
-        <button className="btn btn-danger" onClick={exportToPdf} disabled={loading}>
+        <button
+          className="btn btn-danger"
+          onClick={exportToPdf}
+          disabled={loading}
+        >
           {loading ? "Preparing PDF..." : "Download PDF"}
         </button>
       </div>
@@ -376,7 +518,9 @@ function LogsViewer() {
           <div className="card shadow-sm h-100">
             <div className="card-body">
               <div className="text-muted small">Warnings</div>
-              <div className="fs-2 fw-bold" style={{ color: "#d46b08" }}>{stats.warn || 0}</div>
+              <div className="fs-2 fw-bold" style={{ color: "#d46b08" }}>
+                {stats.warn || 0}
+              </div>
             </div>
           </div>
         </div>
@@ -418,11 +562,16 @@ function LogsViewer() {
               <select
                 className="form-select"
                 value={filters.employeeId}
-                onChange={(e) => handleFilterChange("employeeId", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("employeeId", e.target.value)
+                }
               >
                 <option value="">All Users</option>
                 {users.map((option) => (
-                  <option key={`${option.employee_id}-${option.employee_name}`} value={option.employee_id || ""}>
+                  <option
+                    key={`${option.employee_id}-${option.employee_name}`}
+                    value={option.employee_id || ""}
+                  >
                     {option.employee_name || option.employee_id}
                   </option>
                 ))}
@@ -437,7 +586,9 @@ function LogsViewer() {
               >
                 <option value="">All Methods</option>
                 {(filterOptions.methods || []).map((method) => (
-                  <option key={method} value={method}>{method}</option>
+                  <option key={method} value={method}>
+                    {method}
+                  </option>
                 ))}
               </select>
             </div>
@@ -450,7 +601,9 @@ function LogsViewer() {
               >
                 <option value="">All Types</option>
                 {(filterOptions.logTypes || []).map((type) => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
                 ))}
               </select>
             </div>
@@ -460,7 +613,9 @@ function LogsViewer() {
                 type="number"
                 className="form-control"
                 value={filters.statusCode}
-                onChange={(e) => handleFilterChange("statusCode", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("statusCode", e.target.value)
+                }
                 placeholder="200 / 500"
               />
             </div>
@@ -475,10 +630,19 @@ function LogsViewer() {
               />
             </div>
             <div className="col-md-4 d-flex align-items-end gap-2">
-              <button className="btn btn-success" type="submit" disabled={loading}>
+              <button
+                className="btn btn-success"
+                type="submit"
+                disabled={loading}
+              >
                 {loading ? "Loading..." : "Apply Filters"}
               </button>
-              <button className="btn btn-outline-secondary" type="button" onClick={handleReset} disabled={loading}>
+              <button
+                className="btn btn-outline-secondary"
+                type="button"
+                onClick={handleReset}
+                disabled={loading}
+              >
                 Reset
               </button>
             </div>
@@ -514,36 +678,82 @@ function LogsViewer() {
                   logs.map((log, index) => (
                     <tr key={log.id}>
                       <td className="fw-semibold text-muted">
-                        {((pagination.page - 1) * pagination.limit) + index + 1}
+                        {(pagination.page - 1) * pagination.limit + index + 1}
                       </td>
                       <td>{formatDateTime(log.timestamp)}</td>
                       <td>
                         <span
                           className="px-2 py-1 rounded-pill fw-semibold small"
-                          style={methodStyles[log.api_method] || { background: "#f3f4f6", color: "#374151" }}
+                          style={
+                            methodStyles[log.api_method] || {
+                              background: "#f3f4f6",
+                              color: "#374151",
+                            }
+                          }
                         >
                           {log.api_method}
                         </span>
                       </td>
-                      <td style={{ minWidth: 320, maxWidth: 420, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        <div className="fw-semibold text-dark">{log.api_url || "-"}</div>
+                      <td
+                        style={{
+                          minWidth: 320,
+                          maxWidth: 420,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        <div className="fw-semibold text-dark">
+                          {log.api_url || "-"}
+                        </div>
                       </td>
                       <td>{log.status_code}</td>
                       <td>
                         <span
                           className="px-2 py-1 rounded-pill fw-semibold small"
-                          style={badgeStyles[log.log_type] || { background: "#f3f4f6", color: "#374151" }}
+                          style={
+                            badgeStyles[log.log_type] || {
+                              background: "#f3f4f6",
+                              color: "#374151",
+                            }
+                          }
                         >
                           {log.log_type}
                         </span>
                       </td>
-                      <td style={{ minWidth: 220 }}>
-                        <div className="fw-semibold">{log.employee_name || log.employee_id || "PUBLIC_USER"}</div>
-                        {log.employee_id && <div className="text-muted small">ID: {log.employee_id}</div>}
-                        {log.employee_email && <div className="text-muted small">{log.employee_email}</div>}
+                      <td style={{ minWidth: 240 }}>
+                        <div className="fw-semibold">{displayLogUser(log)}</div>
+                        {log.employee_id && (
+                          <div className="text-muted small">
+                            ID: {log.employee_id}
+                          </div>
+                        )}
+                        {log.employee_email && (
+                          <div className="text-muted small">
+                            {log.employee_email}
+                          </div>
+                        )}
+                        {log.ip_address && (
+                          <div className="text-muted small">
+                            IP: {log.ip_address}
+                          </div>
+                        )}
+                        {log.geoLocation && (
+                          <div className="text-muted small">
+                            Geo: {log.geoLocation}
+                          </div>
+                        )}
                       </td>
-                      <td style={{ minWidth: 420, maxWidth: 560, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        <div className="small text-dark">{buildPreviewText(log)}</div>
+                      <td
+                        style={{
+                          minWidth: 420,
+                          maxWidth: 560,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        <div className="small text-dark">
+                          {buildPreviewText(log)}
+                        </div>
                       </td>
                       <td>
                         <button
@@ -562,7 +772,8 @@ function LogsViewer() {
 
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div className="text-muted small">
-              Showing page {pagination.page} of {pagination.totalPages} | Total {pagination.total} log(s)
+              Showing page {pagination.page} of {pagination.totalPages} | Total{" "}
+              {pagination.total} log(s)
             </div>
             <div className="d-flex gap-2">
               <button
@@ -589,27 +800,77 @@ function LogsViewer() {
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(15, 23, 42, 0.55)", zIndex: 2000 }}
         >
-          <div className="bg-white rounded-4 shadow-lg p-4" style={{ width: "min(1100px, 92vw)", maxHeight: "88vh", overflowY: "auto" }}>
+          <div
+            className="bg-white rounded-4 shadow-lg p-4"
+            style={{
+              width: "min(1100px, 92vw)",
+              maxHeight: "88vh",
+              overflowY: "auto",
+            }}
+          >
             <div className="d-flex justify-content-between align-items-start mb-3">
               <div>
                 <h4 className="mb-1">Log Detail</h4>
                 <div className="text-muted small">{selectedLog.api_url}</div>
               </div>
-              <button className="btn btn-outline-secondary btn-sm" onClick={() => setSelectedLog(null)}>
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => setSelectedLog(null)}
+              >
                 Close
               </button>
             </div>
 
             <div className="row g-3 mb-4">
-              <div className="col-md-3"><strong>Time:</strong><br />{formatDateTime(selectedLog.timestamp)}</div>
-              <div className="col-md-2"><strong>Method:</strong><br />{selectedLog.api_method}</div>
-              <div className="col-md-2"><strong>Status:</strong><br />{selectedLog.status_code}</div>
-              <div className="col-md-2"><strong>Type:</strong><br />{selectedLog.log_type}</div>
-              <div className="col-md-3"><strong>User:</strong><br />{selectedLog.employee_name || selectedLog.employee_id || "PUBLIC_USER"}</div>
+              <div className="col-md-3">
+                <strong>Time:</strong>
+                <br />
+                {formatDateTime(selectedLog.timestamp)}
+              </div>
+              <div className="col-md-2">
+                <strong>Method:</strong>
+                <br />
+                {selectedLog.api_method}
+              </div>
+              <div className="col-md-2">
+                <strong>Status:</strong>
+                <br />
+                {selectedLog.status_code}
+              </div>
+              <div className="col-md-2">
+                <strong>Type:</strong>
+                <br />
+                {selectedLog.log_type}
+              </div>
+              <div className="col-md-3">
+                <strong>User:</strong>
+                <br />
+                {displayLogUser(selectedLog)}
+              </div>
+            </div>
+
+            <div className="row g-3 mb-4">
+              <div className="col-md-4">
+                <strong>Employee ID:</strong>
+                <br />
+                {selectedLog.employee_id || "-"}
+              </div>
+              <div className="col-md-4">
+                <strong>IP Address:</strong>
+                <br />
+                {selectedLog.ip_address || "-"}
+              </div>
+              <div className="col-md-4">
+                <strong>Geolocation:</strong>
+                <br />
+                {selectedLog.geoLocation || "-"}
+              </div>
             </div>
 
             {selectedLog.error_message && (
-              <div className="alert alert-danger">{selectedLog.error_message}</div>
+              <div className="alert alert-danger">
+                {selectedLog.error_message}
+              </div>
             )}
 
             <div className="row g-4">
@@ -617,7 +878,12 @@ function LogsViewer() {
                 <h5>Request Body</h5>
                 <pre
                   className="border rounded-3 p-3 bg-light"
-                  style={{ maxHeight: 420, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                  style={{
+                    maxHeight: 420,
+                    overflow: "auto",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
                 >
                   {prettyJson(selectedLog.request_body)}
                 </pre>
@@ -626,7 +892,12 @@ function LogsViewer() {
                 <h5>Response Body</h5>
                 <pre
                   className="border rounded-3 p-3 bg-light"
-                  style={{ maxHeight: 420, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                  style={{
+                    maxHeight: 420,
+                    overflow: "auto",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
                 >
                   {prettyJson(selectedLog.response_body)}
                 </pre>
@@ -641,7 +912,9 @@ function LogsViewer() {
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ background: "rgba(15, 23, 42, 0.35)", zIndex: 2100 }}
         >
-          <div className="bg-white rounded-4 shadow p-4">Loading log details...</div>
+          <div className="bg-white rounded-4 shadow p-4">
+            Loading log details...
+          </div>
         </div>
       )}
     </div>
