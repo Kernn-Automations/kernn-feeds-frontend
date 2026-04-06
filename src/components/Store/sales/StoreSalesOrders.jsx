@@ -52,7 +52,7 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const [historyOrder, setHistoryOrder] = useState(null);
-  
+
   // Cancellation Modal States
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [saleToCancel, setSaleToCancel] = useState(null);
@@ -220,7 +220,7 @@ function StoreSalesOrders({ onBack }) {
       try {
         const response = await storeService.searchStoreCustomers(
           storeId,
-          searchTerm.trim()
+          searchTerm.trim(),
         );
         const customers = response.data || response.customers || response || [];
         setCustomerSearchResults(Array.isArray(customers) ? customers : []);
@@ -233,7 +233,7 @@ function StoreSalesOrders({ onBack }) {
         setCustomerSearchLoading(false);
       }
     },
-    [storeId]
+    [storeId],
   );
 
   // Handle customer search input with debounce
@@ -264,7 +264,7 @@ function StoreSalesOrders({ onBack }) {
     setCustomerSearchTerm(customer.name || customer.customerCode || "");
     handleFilterChange(
       "customer",
-      customer.name || customer.customerCode || ""
+      customer.name || customer.customerCode || "",
     );
     setShowCustomerDropdown(false);
     setCustomerSearchResults([]);
@@ -349,7 +349,7 @@ function StoreSalesOrders({ onBack }) {
         console.log("StoreSalesOrders - First sale sample:", salesData[0]);
         console.log(
           "StoreSalesOrders - First sale customer:",
-          salesData[0].customer
+          salesData[0].customer,
         );
       }
 
@@ -360,11 +360,11 @@ function StoreSalesOrders({ onBack }) {
             console.log(`Sale ${index} - customer object:`, sale.customer);
             console.log(
               `Sale ${index} - farmerName:`,
-              sale.customer?.farmerName
+              sale.customer?.farmerName,
             );
             console.log(
               `Sale ${index} - displayName:`,
-              sale.customer?.displayName
+              sale.customer?.displayName,
             );
             console.log(`Sale ${index} - name:`, sale.customer?.name);
 
@@ -401,9 +401,10 @@ function StoreSalesOrders({ onBack }) {
               id: sale.saleCode || sale.id,
               saleCode: sale.saleCode || `SALE-${sale.id}`,
               date:
+                sale.invoice?.invoiceDate ||
                 sale.createdAt ||
                 sale.saleDate ||
-                new Date().toISOString().split("T")[0],
+                new Date().toISOString(),
               storeName: sale.store?.name || "Store",
               storeEmployee:
                 sale.employee?.name ||
@@ -414,7 +415,7 @@ function StoreSalesOrders({ onBack }) {
               quantity:
                 sale.items?.reduce(
                   (sum, item) => sum + (item.quantity || 0),
-                  0
+                  0,
                 ) || 0,
               status: sale.saleStatus || sale.paymentStatus || "pending",
               paymentStatus: sale.paymentStatus || "pending",
@@ -433,7 +434,8 @@ function StoreSalesOrders({ onBack }) {
               editHistory: sale.editHistory || [],
               adjustments: sale.adjustments || [],
               customerOutstandingCredit: sale.customerOutstandingCredit || 0,
-              pendingAdditionalCollection: sale.pendingAdditionalCollection || 0,
+              pendingAdditionalCollection:
+                sale.pendingAdditionalCollection || 0,
               customerCreditLimit: sale.customerCreditLimit || 0,
               originalData: sale,
             };
@@ -447,16 +449,16 @@ function StoreSalesOrders({ onBack }) {
       setTotalPages(
         paginationData.totalPages ||
           Math.ceil(
-            (paginationData.total || mappedOrders.length) / entityCount
+            (paginationData.total || mappedOrders.length) / entityCount,
           ) ||
-          1
+          1,
       );
     } catch (err) {
       console.error("Error fetching sales:", err);
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to fetch sales data."
+          "Failed to fetch sales data.",
       );
       setIsModalOpen(true);
       setOrders([]);
@@ -467,14 +469,14 @@ function StoreSalesOrders({ onBack }) {
 
   const customerOptions = useMemo(() => {
     const uniques = new Set(
-      orders.map((order) => order.customerName).filter(Boolean)
+      orders.map((order) => order.customerName).filter(Boolean),
     );
     return Array.from(uniques);
   }, [orders]);
 
   const employeeOptions = useMemo(() => {
     const uniques = new Set(
-      orders.map((order) => order.storeEmployee).filter(Boolean)
+      orders.map((order) => order.storeEmployee).filter(Boolean),
     );
     return Array.from(uniques);
   }, [orders]);
@@ -490,13 +492,13 @@ function StoreSalesOrders({ onBack }) {
           order.customerName === appliedFilters.customer ||
           order.customerName
             ?.toLowerCase()
-            .includes(appliedFilters.customer.toLowerCase())
+            .includes(appliedFilters.customer.toLowerCase()),
       );
     }
 
     if (appliedFilters.employee) {
       filtered = filtered.filter(
-        (order) => order.storeEmployee === appliedFilters.employee
+        (order) => order.storeEmployee === appliedFilters.employee,
       );
     }
 
@@ -505,7 +507,7 @@ function StoreSalesOrders({ onBack }) {
       filtered = filtered.filter((order) =>
         order.invoiceNumber
           ?.toLowerCase()
-          .includes(searchTerms.invoiceNumber.toLowerCase())
+          .includes(searchTerms.invoiceNumber.toLowerCase()),
       );
     }
 
@@ -513,7 +515,7 @@ function StoreSalesOrders({ onBack }) {
       filtered = filtered.filter((order) =>
         order.customerName
           ?.toLowerCase()
-          .includes(searchTerms.customerName.toLowerCase())
+          .includes(searchTerms.customerName.toLowerCase()),
       );
     }
 
@@ -632,8 +634,6 @@ function StoreSalesOrders({ onBack }) {
     }
   };
 
-
-
   const handleCancelClick = (order) => {
     setSaleToCancel(order);
     setShowCancelModal(true);
@@ -645,18 +645,20 @@ function StoreSalesOrders({ onBack }) {
       "storeSaleEditDraft",
       JSON.stringify(order.originalData || order),
     );
-    navigate(`/store/sales?mode=create&editSaleId=${order.originalData?.id || order.id}`);
+    navigate(
+      `/store/sales?mode=create&editSaleId=${order.originalData?.id || order.id}`,
+    );
   };
 
   const confirmCancellation = async () => {
     if (!saleToCancel) return;
-    
+
     setCancelling(true);
     try {
-      // Assuming storeId is available in scope or from order if needed. 
+      // Assuming storeId is available in scope or from order if needed.
       // The current component has 'storeId' state.
       await storeService.cancelSale(storeId, saleToCancel.saleCode);
-      
+
       // Refresh list
       fetchSales();
       setShowCancelModal(false);
@@ -664,7 +666,9 @@ function StoreSalesOrders({ onBack }) {
     } catch (err) {
       console.error("Error cancelling sale:", err);
       setError(
-        err.response?.data?.message || err.message || "Failed to cancel invoice"
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to cancel invoice",
       );
       setShowCancelModal(false); // Close cancel modal
       setIsModalOpen(true); // Show error modal
@@ -1009,12 +1013,12 @@ function StoreSalesOrders({ onBack }) {
                 {renderSearchHeader(
                   "Invoice Number",
                   "invoiceNumber",
-                  "data-invoice-header"
+                  "data-invoice-header",
                 )}
                 {renderSearchHeader(
                   "Farmer Name",
                   "customerName",
-                  "data-customer-name-header"
+                  "data-customer-name-header",
                 )}
                 <th
                   style={{
@@ -1124,7 +1128,8 @@ function StoreSalesOrders({ onBack }) {
                               fontWeight: 600,
                             }}
                           >
-                            {order.editHistoryCount} edit{order.editHistoryCount > 1 ? "s" : ""}
+                            {order.editHistoryCount} edit
+                            {order.editHistoryCount > 1 ? "s" : ""}
                           </div>
                         )}
                         {order.isLockedByMonthlyClose && (
@@ -1156,7 +1161,7 @@ function StoreSalesOrders({ onBack }) {
                           {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
-                          }
+                          },
                         )}
                       </td>
                       <td style={{ textTransform: "capitalize" }}>
@@ -1167,10 +1172,12 @@ function StoreSalesOrders({ onBack }) {
                           className={`${styles.statusBadge} ${
                             (order.status || "").toLowerCase() === "cancelled"
                               ? styles.cancelled
-                              : (order.status || "").toLowerCase() === "completed" ||
-                                (order.paymentStatus || "").toLowerCase() === "completed"
-                              ? styles.completed
-                              : styles.pending
+                              : (order.status || "").toLowerCase() ===
+                                    "completed" ||
+                                  (order.paymentStatus || "").toLowerCase() ===
+                                    "completed"
+                                ? styles.completed
+                                : styles.pending
                           }`}
                         >
                           {order.status || order.paymentStatus || "pending"}
@@ -1197,7 +1204,7 @@ function StoreSalesOrders({ onBack }) {
                             N/A
                           </span>
                         )}
-                        
+
                         {/* Cancellation Button */}
                         <button
                           className="submitbtn"
@@ -1307,7 +1314,10 @@ function StoreSalesOrders({ onBack }) {
                     {historyOrder.invoiceNumber || historyOrder.saleCode}
                   </div>
                 </div>
-                <button className="btn btn-secondary" onClick={() => setHistoryOrder(null)}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setHistoryOrder(null)}
+                >
                   Close
                 </button>
               </div>
@@ -1323,93 +1333,257 @@ function StoreSalesOrders({ onBack }) {
                       background: "#f8fafc",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <div style={{ fontWeight: 700, color: "#0f172a" }}>
-                        Edited on {new Date(entry.editedAt).toLocaleString("en-IN")}
+                        Edited on{" "}
+                        {new Date(entry.editedAt).toLocaleString("en-IN")}
                       </div>
                       <div style={{ fontSize: "13px", color: "#475569" }}>
                         By {entry.editor?.name || "Unknown"}
                       </div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginTop: "12px" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "10px",
+                        marginTop: "12px",
+                      }}
+                    >
                       <div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>Old Total</div>
-                        <div style={{ fontWeight: 700 }}>₹{Number(entry.originalGrandTotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>New Total</div>
-                        <div style={{ fontWeight: 700 }}>₹{Number(entry.revisedGrandTotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>Difference</div>
-                        <div style={{ fontWeight: 700, color: Number(entry.deltaAmount || 0) >= 0 ? "#166534" : "#b91c1c" }}>
-                          ₹{Number(entry.deltaAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          Old Total
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          ₹
+                          {Number(entry.originalGrandTotal || 0).toLocaleString(
+                            "en-IN",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>Settlement</div>
-                        <div style={{ fontWeight: 600, textTransform: "capitalize" }}>
-                          {(entry.settlementMode || "not specified").replace(/_/g, " ")}
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          New Total
+                        </div>
+                        <div style={{ fontWeight: 700 }}>
+                          ₹
+                          {Number(entry.revisedGrandTotal || 0).toLocaleString(
+                            "en-IN",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          Difference
+                        </div>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            color:
+                              Number(entry.deltaAmount || 0) >= 0
+                                ? "#166534"
+                                : "#b91c1c",
+                          }}
+                        >
+                          ₹
+                          {Number(entry.deltaAmount || 0).toLocaleString(
+                            "en-IN",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>
+                          Settlement
+                        </div>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {(entry.settlementMode || "not specified").replace(
+                            /_/g,
+                            " ",
+                          )}
                         </div>
                       </div>
                     </div>
                     {entry.settlementNote && (
-                      <div style={{ marginTop: "10px", fontSize: "13px", color: "#334155" }}>
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          fontSize: "13px",
+                          color: "#334155",
+                        }}
+                      >
                         Note: {entry.settlementNote}
                       </div>
                     )}
-                    {Array.isArray(entry.adjustments) && entry.adjustments.length > 0 && (
-                      <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
-                        {entry.adjustments.map((adjustment) => (
-                          <div
-                            key={adjustment.id}
-                            style={{
-                              borderRadius: "12px",
-                              padding: "10px 12px",
-                              background: "#ffffff",
-                              border: "1px solid #dbeafe",
-                              fontSize: "12px",
-                              color: "#334155",
-                            }}
-                          >
-                            <strong style={{ textTransform: "capitalize" }}>
-                              {(adjustment.adjustmentKind || adjustment.settlementMode || "adjustment").replace(/_/g, " ")}
-                            </strong>
-                            {" "} | Amount ₹{Number(adjustment.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            {" "} | Balance ₹{Number(adjustment.balanceAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            {" "} | Status {(adjustment.status || "pending").replace(/_/g, " ")}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {Array.isArray(entry.adjustments) &&
+                      entry.adjustments.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: "10px",
+                            display: "grid",
+                            gap: "8px",
+                          }}
+                        >
+                          {entry.adjustments.map((adjustment) => (
+                            <div
+                              key={adjustment.id}
+                              style={{
+                                borderRadius: "12px",
+                                padding: "10px 12px",
+                                background: "#ffffff",
+                                border: "1px solid #dbeafe",
+                                fontSize: "12px",
+                                color: "#334155",
+                              }}
+                            >
+                              <strong style={{ textTransform: "capitalize" }}>
+                                {(
+                                  adjustment.adjustmentKind ||
+                                  adjustment.settlementMode ||
+                                  "adjustment"
+                                ).replace(/_/g, " ")}
+                              </strong>{" "}
+                              | Amount ₹
+                              {Number(adjustment.amount || 0).toLocaleString(
+                                "en-IN",
+                                {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                },
+                              )}{" "}
+                              | Balance ₹
+                              {Number(
+                                adjustment.balanceAmount || 0,
+                              ).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}{" "}
+                              | Status{" "}
+                              {(adjustment.status || "pending").replace(
+                                /_/g,
+                                " ",
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     {entry.diff?.items && (
-                      <div style={{ marginTop: "12px", display: "grid", gap: "10px" }}>
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          display: "grid",
+                          gap: "10px",
+                        }}
+                      >
                         {entry.diff.items.added?.length > 0 && (
                           <div>
-                            <div style={{ fontSize: "12px", color: "#166534", fontWeight: 700, marginBottom: 4 }}>Added Items</div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#166534",
+                                fontWeight: 700,
+                                marginBottom: 4,
+                              }}
+                            >
+                              Added Items
+                            </div>
                             {entry.diff.items.added.map((item, idx) => (
-                              <div key={`added-${idx}`} style={{ fontSize: "12px", color: "#334155" }}>
-                                {item.productName || item.productSku || item.productId}: Qty {Number(item.quantity || 0)} at ₹{Number(item.unitPrice || 0).toLocaleString("en-IN")}
+                              <div
+                                key={`added-${idx}`}
+                                style={{ fontSize: "12px", color: "#334155" }}
+                              >
+                                {item.productName ||
+                                  item.productSku ||
+                                  item.productId}
+                                : Qty {Number(item.quantity || 0)} at ₹
+                                {Number(item.unitPrice || 0).toLocaleString(
+                                  "en-IN",
+                                )}
                               </div>
                             ))}
                           </div>
                         )}
                         {entry.diff.items.removed?.length > 0 && (
                           <div>
-                            <div style={{ fontSize: "12px", color: "#b91c1c", fontWeight: 700, marginBottom: 4 }}>Removed Items</div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#b91c1c",
+                                fontWeight: 700,
+                                marginBottom: 4,
+                              }}
+                            >
+                              Removed Items
+                            </div>
                             {entry.diff.items.removed.map((item, idx) => (
-                              <div key={`removed-${idx}`} style={{ fontSize: "12px", color: "#334155" }}>
-                                {item.productName || item.productSku || item.productId}: Qty {Number(item.quantity || 0)} at ₹{Number(item.unitPrice || 0).toLocaleString("en-IN")}
+                              <div
+                                key={`removed-${idx}`}
+                                style={{ fontSize: "12px", color: "#334155" }}
+                              >
+                                {item.productName ||
+                                  item.productSku ||
+                                  item.productId}
+                                : Qty {Number(item.quantity || 0)} at ₹
+                                {Number(item.unitPrice || 0).toLocaleString(
+                                  "en-IN",
+                                )}
                               </div>
                             ))}
                           </div>
                         )}
                         {entry.diff.items.changed?.length > 0 && (
                           <div>
-                            <div style={{ fontSize: "12px", color: "#0f172a", fontWeight: 700, marginBottom: 4 }}>Changed Items</div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "#0f172a",
+                                fontWeight: 700,
+                                marginBottom: 4,
+                              }}
+                            >
+                              Changed Items
+                            </div>
                             {entry.diff.items.changed.map((item) => (
-                              <div key={item.key} style={{ fontSize: "12px", color: "#334155" }}>
-                                {item.productName || item.productSku || item.key}: Qty {Number(item.before?.quantity || 0)} → {Number(item.after?.quantity || 0)}, Price ₹{Number(item.before?.unitPrice || 0).toLocaleString("en-IN")} → ₹{Number(item.after?.unitPrice || 0).toLocaleString("en-IN")}
+                              <div
+                                key={item.key}
+                                style={{ fontSize: "12px", color: "#334155" }}
+                              >
+                                {item.productName ||
+                                  item.productSku ||
+                                  item.key}
+                                : Qty {Number(item.before?.quantity || 0)} →{" "}
+                                {Number(item.after?.quantity || 0)}, Price ₹
+                                {Number(
+                                  item.before?.unitPrice || 0,
+                                ).toLocaleString("en-IN")}{" "}
+                                → ₹
+                                {Number(
+                                  item.after?.unitPrice || 0,
+                                ).toLocaleString("en-IN")}
                               </div>
                             ))}
                           </div>
@@ -1448,13 +1622,28 @@ function StoreSalesOrders({ onBack }) {
                 boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
               }}
             >
-              <h4 style={{ margin: "0 0 15px", color: "#EF4444" }}>Confirm Cancellation</h4>
-              <p style={{ marginBottom: "20px", fontSize: "14px", color: "#666" }}>
-                Are you sure you want to cancel Invoice <strong>{saleToCancel?.invoiceNumber}</strong>?
-                This action cannot be undone.
+              <h4 style={{ margin: "0 0 15px", color: "#EF4444" }}>
+                Confirm Cancellation
+              </h4>
+              <p
+                style={{
+                  marginBottom: "20px",
+                  fontSize: "14px",
+                  color: "#666",
+                }}
+              >
+                Are you sure you want to cancel Invoice{" "}
+                <strong>{saleToCancel?.invoiceNumber}</strong>? This action
+                cannot be undone.
               </p>
-              
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                }}
+              >
                 <button
                   onClick={() => {
                     setShowCancelModal(false);
@@ -1491,30 +1680,30 @@ function StoreSalesOrders({ onBack }) {
         )}
 
         {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="row m-0 p-0 pt-3 justify-content-between">
-              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
-                {page > 1 && (
-                  <button onClick={() => handlePageChange("prev")}>
-                    <span>
-                      <FaArrowLeftLong />
-                    </span>{" "}
-                    Previous
-                  </button>
-                )}
-              </div>
-              <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
-                {page < totalPages && (
-                  <button onClick={() => handlePageChange("next")}>
-                    Next{" "}
-                    <span>
-                      <FaArrowRightLong />
-                    </span>
-                  </button>
-                )}
-              </div>
+        {totalPages > 1 && (
+          <div className="row m-0 p-0 pt-3 justify-content-between">
+            <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+              {page > 1 && (
+                <button onClick={() => handlePageChange("prev")}>
+                  <span>
+                    <FaArrowLeftLong />
+                  </span>{" "}
+                  Previous
+                </button>
+              )}
             </div>
-          )}
+            <div className={`col-2 m-0 p-0 ${styles.buttonbox}`}>
+              {page < totalPages && (
+                <button onClick={() => handlePageChange("next")}>
+                  Next{" "}
+                  <span>
+                    <FaArrowRightLong />
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {isModalOpen && (
