@@ -7,6 +7,7 @@ import {
   FaClock,
   FaCheckCircle,
   FaTimesCircle,
+  FaUndo,
 } from "react-icons/fa";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import Loading from "@/components/Loading";
@@ -204,6 +205,7 @@ export default function ViewAllIndents() {
   // Indent Revert states
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [revertLoading, setRevertLoading] = useState(false);
+  const [revertPreviewLoading, setRevertPreviewLoading] = useState(false);
   
   // Reject Incoming Stock State
   const [showRejectIncomingModal, setShowRejectIncomingModal] = useState(false);
@@ -400,12 +402,81 @@ export default function ViewAllIndents() {
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      "Awaiting Approval": { class: "bg-warning", icon: <FaClock /> },
-      "Waiting for Stock": { class: "bg-info", icon: <FaClock /> },
-      Approved: { class: "bg-success", icon: <FaCheckCircle /> },
-      Rejected: { class: "bg-danger", icon: <FaTimesCircle /> },
+      "Awaiting Approval": {
+        class: "",
+        icon: <FaClock />,
+        style: {
+          backgroundColor: "#fff7ed",
+          color: "#c2410c",
+          border: "1px solid #fdba74",
+        },
+      },
+      "Waiting for Stock": {
+        class: "",
+        icon: <FaClock />,
+        style: {
+          backgroundColor: "#eff6ff",
+          color: "#1d4ed8",
+          border: "1px solid #93c5fd",
+        },
+      },
+      Approved: {
+        class: "",
+        icon: <FaCheckCircle />,
+        style: {
+          backgroundColor: "#ecfdf5",
+          color: "#047857",
+          border: "1px solid #86efac",
+        },
+      },
+      "Stocked In": {
+        class: "",
+        icon: <FaCheckCircle />,
+        style: {
+          backgroundColor: "#ecfdf5",
+          color: "#166534",
+          border: "1px solid #86efac",
+        },
+      },
+      Rejected: {
+        class: "",
+        icon: <FaTimesCircle />,
+        style: {
+          backgroundColor: "#fef2f2",
+          color: "#b91c1c",
+          border: "1px solid #fca5a5",
+        },
+      },
+      reverted: {
+        class: "",
+        icon: <FaUndo />,
+        style: {
+          backgroundColor: "#f5f3ff",
+          color: "#6d28d9",
+          border: "1px solid #c4b5fd",
+        },
+      },
+      Reverted: {
+        class: "",
+        icon: <FaUndo />,
+        style: {
+          backgroundColor: "#f5f3ff",
+          color: "#6d28d9",
+          border: "1px solid #c4b5fd",
+        },
+      },
     };
-    return statusMap[status] || { class: "bg-secondary", icon: <FaFileAlt /> };
+    return (
+      statusMap[status] || {
+        class: "",
+        icon: <FaFileAlt />,
+        style: {
+          backgroundColor: "#f1f5f9",
+          color: "#475569",
+          border: "1px solid #cbd5e1",
+        },
+      }
+    );
   };
 
   const handleViewClick = (indent) => {
@@ -1054,68 +1125,35 @@ export default function ViewAllIndents() {
     if (!selectedIndent) return;
 
     try {
-      // Use global loading or a local loading state if available, but for now we'll just await
-      // Fetch current stock from damaged-products endpoint as requested
-      const stockData = await storeService.getDamagedProducts(storeId);
-      
-      // Robustly extract products array
-      const currentProducts = stockData.data?.products || stockData.data || stockData.products || stockData || [];
+      setRevertPreviewLoading(true);
+      setRevertItems([]);
+      setShowRevertModal(false);
+      const previewRes = await storeService.getIndentRevertPreview(
+        selectedIndent.id,
+      );
 
-      // Calculate stock impact
-      const items = selectedIndent.items || selectedIndent.products || [];
-      const calculatedItems = items.map((item) => {
-        const productId = item.productId || item.id;
-        
-        let product = null;
-        if (Array.isArray(currentProducts)) {
-           product = currentProducts.find(
-            (p) => (p.id || p.productId)?.toString() === productId.toString(),
-          );
-        }
-        
-        // Use currentStock from the fetched data as per API response
-        const currentStock = product ? (product.currentStock || 0) : 0;
-        // Use receivedQuantity as requested
-        const revertQty = item.receivedQuantity || 0;
-        
-        // Remaining = Current - Revert
-        return {
-          productId,
-          productName: item.product?.name || item.productName || `Product ${productId}`,
-          currentStock,
-          revertQty,
-          remainingStock: currentStock - revertQty
-        };
-      });
+      if (!previewRes?.success) {
+        throw new Error(
+          previewRes?.message || "Failed to calculate indent revert preview",
+        );
+      }
 
-      setRevertItems(calculatedItems);
+      const previewItems = Array.isArray(previewRes?.data?.items)
+        ? previewRes.data.items
+        : [];
+
+      setRevertItems(previewItems);
       setShowRevertModal(true);
     } catch (err) {
-      console.error("Error fetching stock for revert:", err);
-      // Fallback to local products state if API fails? 
-      // User explicitly asked for this endpoint, so maybe better to show error or fallback?
-      // For safety, let's fallback to existing products state if API fails, but warn user.
-      console.warn("Falling back to local products state");
-      
-      const items = selectedIndent.items || selectedIndent.products || [];
-      const calculatedItems = items.map((item) => {
-        const productId = item.productId || item.id;
-        const product = products.find(
-          (p) => (p.id || p.productId)?.toString() === productId.toString(),
-        );
-        const currentStock = product ? (product.stockQuantity || product.quantity || 0) : 0;
-        const revertQty = item.receivedQuantity || 0;
-        
-        return {
-          productId,
-          productName: item.product?.name || item.productName || `Product ${productId}`,
-          currentStock,
-          revertQty,
-          remainingStock: currentStock - revertQty
-        };
-      });
-      setRevertItems(calculatedItems);
-      setShowRevertModal(true);
+      console.error("Error fetching revert preview:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to calculate indent revert preview";
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setRevertPreviewLoading(false);
     }
   };
 
@@ -1125,6 +1163,12 @@ export default function ViewAllIndents() {
     try {
       setRevertLoading(true);
       const res = await storeService.revertIndent(selectedIndent.id);
+
+      if (!res?.success) {
+        throw new Error(
+          res?.message || res?.error || "Failed to revert indent",
+        );
+      }
       
       const successMessage = res.message || "Indent reverted successfully";
       showToast({
@@ -1144,11 +1188,18 @@ export default function ViewAllIndents() {
 
     } catch (err) {
       console.error("Error reverting indent:", err);
-      const errorMessage = err.response?.data?.message || err.message || "Failed to revert indent";
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to revert indent";
       setError(errorMessage);
-      // Close revert modal but keep details modal or show error on revert modal?
-      // Show error on revert modal is better UX usually, but sticking to ErrorModal pattern
-      setShowRevertModal(false); 
+      showToast({
+        title: errorMessage,
+        status: "error",
+        duration: 5000,
+      });
+      setShowRevertModal(false);
       setIsModalOpen(true);
     } finally {
       setRevertLoading(false);
@@ -1367,6 +1418,10 @@ export default function ViewAllIndents() {
                             alignItems: "center",
                             gap: "4px",
                             whiteSpace: "nowrap",
+                            borderRadius: "999px",
+                            fontWeight: 600,
+                            fontFamily: "Poppins",
+                            ...statusInfo.style,
                           }}
                         >
                           {statusInfo.icon}
@@ -1672,14 +1727,33 @@ export default function ViewAllIndents() {
                       </div>
 
                     {/* Revert Button - Only show if status is Stocked In */}
-    {selectedIndent.status === "Stocked In" && (
+                    {selectedIndent.status === "Stocked In" && (
                       <div className="d-flex justify-content-end mt-4">
                         <button
                           className="btn btn-danger"
                           onClick={handleRevertClick}
+                          disabled={revertPreviewLoading}
                           style={{ fontFamily: "Poppins" }}
                         >
-                          Indent Revert Option
+                          {revertPreviewLoading ? (
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "8px",
+                              }}
+                            >
+                              <span
+                                className="spinner-border spinner-border-sm"
+                                role="status"
+                                aria-hidden="true"
+                                style={{ zIndex: 2 }}
+                              ></span>
+                              Calculating Preview...
+                            </span>
+                          ) : (
+                            "Indent Revert Option"
+                          )}
                         </button>
                       </div>
                     )}
@@ -2547,7 +2621,13 @@ export default function ViewAllIndents() {
             minWidth: "250px",
             fontSize: "14px",
             backgroundColor:
-              toast.severity === "success" ? "#28a745" : "#dc3545",
+              toast.severity === "success"
+                ? "#28a745"
+                : toast.severity === "warning"
+                  ? "#f59e0b"
+                  : toast.severity === "info"
+                    ? "#2563eb"
+                    : "#dc3545",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
             fontFamily: "Poppins",
             animation: "fadeIn 0.3s ease-in-out",
@@ -2567,6 +2647,12 @@ export default function ViewAllIndents() {
       </style>
       {/* Revert Confirmation Modal */}
       {showRevertModal && (
+        (() => {
+          const blockingRevertItems = revertItems.filter(
+            (item) => Number(item.remainingStock || 0) < 0,
+          );
+
+          return (
         <div
           className="modal fade show"
           style={{
@@ -2606,6 +2692,30 @@ export default function ViewAllIndents() {
                   Are you sure you want to revert this indent? This will reduce the stock as calculated below:
                 </p>
 
+                {blockingRevertItems.length > 0 && (
+                  <div
+                    style={{
+                      background: "#fff7ed",
+                      border: "1px solid #fdba74",
+                      color: "#9a3412",
+                      borderRadius: "10px",
+                      padding: "12px 14px",
+                      marginBottom: "16px",
+                      fontFamily: "Poppins",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: "6px" }}>
+                      Revert cannot proceed due to insufficient stock
+                    </div>
+                    {blockingRevertItems.map((item, idx) => (
+                      <div key={idx}>
+                        {item.productName}: requires {item.revertQty} bag, but only{" "}
+                        {item.currentStock} bag available.
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="table-responsive">
                   <table
                     className="table table-bordered table-striped"
@@ -2620,14 +2730,30 @@ export default function ViewAllIndents() {
                       </tr>
                     </thead>
                     <tbody>
-                      {revertItems.map((item, idx) => (
-                        <tr key={idx}>
-                          <td>{item.productName}</td>
-                          <td>{item.currentStock}</td>
-                          <td className="text-danger">-{item.revertQty}</td>
-                          <td className="fw-bold">{item.remainingStock}</td>
+                      {revertItems.length > 0 ? (
+                        revertItems.map((item, idx) => (
+                          <tr key={idx}>
+                            <td>{item.productName}</td>
+                            <td>{item.currentStock}</td>
+                            <td className="text-danger">
+                              {Number(item.revertQty || 0) > 0
+                                ? `-${item.revertQty}`
+                                : "0"}
+                            </td>
+                            <td className="fw-bold">{item.remainingStock}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="text-center text-muted"
+                            style={{ fontFamily: "Poppins" }}
+                          >
+                            No revert preview available.
+                          </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2645,14 +2771,20 @@ export default function ViewAllIndents() {
                   type="button"
                   className="btn btn-danger"
                   onClick={handleConfirmRevert}
-                  disabled={revertLoading}
+                  disabled={revertLoading || blockingRevertItems.length > 0}
                 >
-                  {revertLoading ? "Reverting..." : "Confirm Revert"}
+                  {revertLoading
+                    ? "Reverting..."
+                    : blockingRevertItems.length > 0
+                      ? "Insufficient Stock"
+                      : "Confirm Revert"}
                 </button>
               </div>
             </div>
           </div>
         </div>
+          );
+        })()
       )}
       {/* Reject Incoming Confirmation Modal */}
       {showRejectIncomingModal && (
