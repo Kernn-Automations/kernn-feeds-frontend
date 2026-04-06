@@ -2513,9 +2513,22 @@ export default function StoreCreateSale() {
             onChange={(e) => setRecordedAt(e.target.value)}
             max={getCurrentDateTimeLocal()}
           />
+          <div
+            style={{
+              marginTop: 8,
+              padding: "8px 10px",
+              borderRadius: 10,
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              color: "#0f172a",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Displayed as: {recordedAt ? formatDateTimeIN(recordedAt) : "DD/MM/YYYY HH:mm"}
+          </div>
           <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
-            Date format: DD/MM/YYYY HH:mm
-            {recordedAt ? ` | ${formatDateTimeIN(recordedAt)}` : ""}
+            Browser picker format may vary by device, but the sale is recorded and shown in Indian format `DD/MM/YYYY HH:mm`.
           </div>
         </div>
       </div>

@@ -10,7 +10,6 @@ import {
   FaUndo,
 } from "react-icons/fa";
 import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
-import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
 import storeService from "../../../services/storeService";
 import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
@@ -206,6 +205,8 @@ export default function ViewAllIndents() {
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [revertLoading, setRevertLoading] = useState(false);
   const [revertPreviewLoading, setRevertPreviewLoading] = useState(false);
+  const [revertWarnings, setRevertWarnings] = useState([]);
+  const [canRevertIndent, setCanRevertIndent] = useState(true);
   
   // Reject Incoming Stock State
   const [showRejectIncomingModal, setShowRejectIncomingModal] = useState(false);
@@ -491,6 +492,10 @@ export default function ViewAllIndents() {
     setReceivedQuantities({});
     setHasDamagedGoods(false);
     setDamagedGoodsRows([]);
+    setShowRevertModal(false);
+    setRevertItems([]);
+    setRevertWarnings([]);
+    setCanRevertIndent(true);
   };
 
   const handleCloseManualStockIn = () => {
@@ -1127,6 +1132,8 @@ export default function ViewAllIndents() {
     try {
       setRevertPreviewLoading(true);
       setRevertItems([]);
+      setRevertWarnings([]);
+      setCanRevertIndent(true);
       setShowRevertModal(false);
       const previewRes = await storeService.getIndentRevertPreview(
         selectedIndent.id,
@@ -1140,9 +1147,16 @@ export default function ViewAllIndents() {
 
       const previewItems = Array.isArray(previewRes?.data?.items)
         ? previewRes.data.items
+        : Array.isArray(previewRes?.items)
+          ? previewRes.items
+          : [];
+      const previewWarnings = Array.isArray(previewRes?.data?.warnings)
+        ? previewRes.data.warnings
         : [];
 
       setRevertItems(previewItems);
+      setRevertWarnings(previewWarnings);
+      setCanRevertIndent(previewRes?.data?.canRevert !== false);
       setShowRevertModal(true);
     } catch (err) {
       console.error("Error fetching revert preview:", err);
@@ -2598,7 +2612,6 @@ export default function ViewAllIndents() {
         </div>
       )}
 
-      {loading && <Loading />}
       {isModalOpen && (
         <ErrorModal
           isOpen={isModalOpen}
@@ -2651,6 +2664,13 @@ export default function ViewAllIndents() {
           const blockingRevertItems = revertItems.filter(
             (item) => Number(item.remainingStock || 0) < 0,
           );
+          const previewWarningsToShow =
+            revertWarnings.length > 0
+              ? revertWarnings
+              : blockingRevertItems.map(
+                  (item) =>
+                    `${item.productName}: requires ${item.revertQty} ${item.unit || "bag"}, but only ${item.currentStock} ${item.unit || "bag"} available.`,
+                );
 
           return (
         <div
@@ -2692,7 +2712,7 @@ export default function ViewAllIndents() {
                   Are you sure you want to revert this indent? This will reduce the stock as calculated below:
                 </p>
 
-                {blockingRevertItems.length > 0 && (
+                {previewWarningsToShow.length > 0 && (
                   <div
                     style={{
                       background: "#fff7ed",
@@ -2707,11 +2727,8 @@ export default function ViewAllIndents() {
                     <div style={{ fontWeight: 600, marginBottom: "6px" }}>
                       Revert cannot proceed due to insufficient stock
                     </div>
-                    {blockingRevertItems.map((item, idx) => (
-                      <div key={idx}>
-                        {item.productName}: requires {item.revertQty} bag, but only{" "}
-                        {item.currentStock} bag available.
-                      </div>
+                    {previewWarningsToShow.map((warning, idx) => (
+                      <div key={idx}>{warning}</div>
                     ))}
                   </div>
                 )}
@@ -2771,11 +2788,15 @@ export default function ViewAllIndents() {
                   type="button"
                   className="btn btn-danger"
                   onClick={handleConfirmRevert}
-                  disabled={revertLoading || blockingRevertItems.length > 0}
+                  disabled={
+                    revertLoading ||
+                    blockingRevertItems.length > 0 ||
+                    !canRevertIndent
+                  }
                 >
                   {revertLoading
                     ? "Reverting..."
-                    : blockingRevertItems.length > 0
+                    : blockingRevertItems.length > 0 || !canRevertIndent
                       ? "Insufficient Stock"
                       : "Confirm Revert"}
                 </button>

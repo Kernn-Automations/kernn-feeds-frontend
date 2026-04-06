@@ -27,6 +27,7 @@ const DEFAULT_FILTERS = {
   from: "",
   to: "",
   customer: "",
+  product: "",
   employee: "",
   status: "all",
 };
@@ -423,6 +424,10 @@ function StoreSalesOrders({ onBack }) {
               totalAmount: sale.totalAmount || 0,
               paymentMethod: sale.modeOfPayment || "N/A",
               items: sale.items || [],
+              productNames:
+                sale.items?.map(
+                  (item) => item.product?.name || item.productName || item.name,
+                )?.filter(Boolean) || [],
               invoices: sale.invoices || [], // Include invoices array
               invoiceNumber: sale.invoice?.invoiceNumber || "N/A", // Get first invoice number
               invoiceId: sale.invoice?.id || null, // Get first invoice ID
@@ -481,6 +486,13 @@ function StoreSalesOrders({ onBack }) {
     return Array.from(uniques);
   }, [orders]);
 
+  const productOptions = useMemo(() => {
+    const uniques = new Set(
+      orders.flatMap((order) => order.productNames || []).filter(Boolean),
+    );
+    return Array.from(uniques).sort((a, b) => a.localeCompare(b));
+  }, [orders]);
+
   // Apply client-side filtering for customer and employee (since we're using names)
   // Also apply header search filters
   const displayOrders = useMemo(() => {
@@ -499,6 +511,15 @@ function StoreSalesOrders({ onBack }) {
     if (appliedFilters.employee) {
       filtered = filtered.filter(
         (order) => order.storeEmployee === appliedFilters.employee,
+      );
+    }
+
+    if (appliedFilters.product) {
+      const productFilter = appliedFilters.product.toLowerCase();
+      filtered = filtered.filter((order) =>
+        (order.productNames || []).some((name) =>
+          name?.toLowerCase().includes(productFilter),
+        ),
       );
     }
 
@@ -523,6 +544,7 @@ function StoreSalesOrders({ onBack }) {
   }, [
     orders,
     appliedFilters.customer,
+    appliedFilters.product,
     appliedFilters.employee,
     searchTerms.invoiceNumber,
     searchTerms.customerName,
@@ -914,6 +936,20 @@ function StoreSalesOrders({ onBack }) {
                   </div>
                 )}
             </div>
+          </div>
+          <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
+            <label>Product :</label>
+            <select
+              value={filters.product}
+              onChange={(e) => handleFilterChange("product", e.target.value)}
+            >
+              <option value="">Select</option>
+              {productOptions.map((product) => (
+                <option key={product} value={product}>
+                  {product}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="col-xl-3 col-lg-4 col-md-6 col-sm-6 formcontent">
             <label>Store Employee :</label>
