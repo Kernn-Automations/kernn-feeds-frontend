@@ -4,12 +4,21 @@ import styles from "./Settings.module.css";
 import settingsService from "../../../services/settingsService";
 import Loading from "../../Loading";
 import ErrorModal from "../../ErrorModal";
+import { isSuperAdmin, getUserFromStorage } from "../../../utils/roleUtils";
 
 const IndentRevertingSettings = ({ navigate }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [whatsappWebhook, setWhatsappWebhook] = useState({
+    verifyToken: "",
+    callbackUrl: "",
+    lastGeneratedAt: "",
+  });
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const user = getUserFromStorage();
+  const showWhatsappWebhookTools = isSuperAdmin(user);
   
   const [settings, setSettings] = useState({
     audit_lock_day: 0,
@@ -38,6 +47,9 @@ const IndentRevertingSettings = ({ navigate }) => {
 
   useEffect(() => {
     fetchSettings();
+    if (showWhatsappWebhookTools) {
+      fetchWhatsappWebhookSettings();
+    }
   }, []);
 
   const fetchSettings = async () => {
@@ -71,6 +83,27 @@ const IndentRevertingSettings = ({ navigate }) => {
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWhatsappWebhookSettings = async () => {
+    try {
+      setWhatsappLoading(true);
+      const response = await settingsService.getWhatsappWebhookSettings();
+      const webhookData = response?.data || {};
+      setWhatsappWebhook({
+        verifyToken: webhookData.verifyToken || "",
+        callbackUrl: webhookData.callbackUrl || "",
+        lastGeneratedAt: webhookData.lastGeneratedAt || "",
+      });
+    } catch (err) {
+      console.error("Error fetching WhatsApp webhook settings:", err);
+      setError(
+        err.message || "Failed to fetch WhatsApp webhook configuration",
+      );
+      setIsErrorModalOpen(true);
+    } finally {
+      setWhatsappLoading(false);
     }
   };
 
@@ -112,6 +145,42 @@ const IndentRevertingSettings = ({ navigate }) => {
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateWhatsappToken = async () => {
+    try {
+      setWhatsappLoading(true);
+      setError(null);
+      setSuccessMessage("");
+      const response = await settingsService.generateWhatsappVerifyToken();
+      const webhookData = response?.data || {};
+      setWhatsappWebhook({
+        verifyToken: webhookData.verifyToken || "",
+        callbackUrl: webhookData.callbackUrl || "",
+        lastGeneratedAt: webhookData.lastGeneratedAt || "",
+      });
+      setSuccessMessage(
+        response?.message || "WhatsApp verify token generated successfully!",
+      );
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error generating WhatsApp verify token:", err);
+      setError(err.message || "Failed to generate WhatsApp verify token");
+      setIsErrorModalOpen(true);
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
+  const handleCopyValue = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setSuccessMessage(`${label} copied successfully!`);
+      setTimeout(() => setSuccessMessage(""), 2500);
+    } catch (error) {
+      setError(`Failed to copy ${label.toLowerCase()}`);
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -422,6 +491,89 @@ const IndentRevertingSettings = ({ navigate }) => {
               </div>
             </div>
           </div>
+
+          {showWhatsappWebhookTools && (
+            <div className="card shadow-sm mt-4">
+              <div className="card-header bg-white">
+                <h5 className="mb-0">WhatsApp Webhook Tools</h5>
+              </div>
+              <div className="card-body">
+                <p className="text-muted mb-3">
+                  Use this callback URL and verify token in Meta Webhooks for
+                  WhatsApp message status updates. This section is visible only
+                  to Super Admin.
+                </p>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Callback URL</label>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={whatsappWebhook.callbackUrl}
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() =>
+                        handleCopyValue(
+                          whatsappWebhook.callbackUrl,
+                          "Callback URL",
+                        )
+                      }
+                      disabled={!whatsappWebhook.callbackUrl}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Verify Token</label>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={whatsappWebhook.verifyToken}
+                      readOnly
+                      placeholder="Generate token to use in Meta webhook verification"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() =>
+                        handleCopyValue(
+                          whatsappWebhook.verifyToken,
+                          "Verify Token",
+                        )
+                      }
+                      disabled={!whatsappWebhook.verifyToken}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <small className="text-muted">
+                    {whatsappWebhook.lastGeneratedAt
+                      ? `Last generated at ${new Date(
+                          whatsappWebhook.lastGeneratedAt,
+                        ).toLocaleString("en-IN")}`
+                      : "No verify token generated yet."}
+                  </small>
+                </div>
+                <div className="d-flex justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-dark"
+                    onClick={handleGenerateWhatsappToken}
+                    disabled={whatsappLoading}
+                  >
+                    {whatsappLoading
+                      ? "Generating..."
+                      : "Generate Verify Token"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="d-flex justify-content-end mt-4 mb-5">
             <button 

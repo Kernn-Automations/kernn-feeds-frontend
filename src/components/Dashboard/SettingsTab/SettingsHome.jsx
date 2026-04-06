@@ -1,7 +1,12 @@
 import React from "react";
 import styles from "./Settings.module.css";
+import { getUserFromStorage, isSuperAdmin } from "../../../utils/roleUtils";
 
 function SettingsHome({ navigate }) {
+  const storedUser = getUserFromStorage();
+  const user = storedUser?.user || storedUser;
+  const showLogsButton = isSuperAdmin(user);
+
   return (
     <>
       <div className="row m-0 p-3">
@@ -24,6 +29,14 @@ function SettingsHome({ navigate }) {
           >
             Audit, Editing & Credit Policies
           </button>
+          {showLogsButton && (
+            <button
+              className="homebtn"
+              onClick={() => navigate("/settings/logs")}
+            >
+              System Logs
+            </button>
+          )}
           {/* <button
             className="homebtn"
             onClick={() => navigate("/settings/minimum-order-rules")}

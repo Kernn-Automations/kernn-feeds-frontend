@@ -12,6 +12,7 @@ const DropoffRules = lazy(() => import("./DropoffRules"));
 const MinimumOrderRules = lazy(() => import("./MinimumOrderRules"));
 const WarehouseRules = lazy(() => import("./WarehouseRules"));
 const IndentRevertingSettings = lazy(() => import("./IndentRevertingSettings"));
+const LogsViewer = lazy(() => import("./LogsViewer"));
 
 
 
@@ -57,6 +58,14 @@ function SettingRoutes() {
         element={
           <Suspense fallback={<PageSkeleton />}>
             <IndentRevertingSettings navigate={navigate} />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <Suspense fallback={<PageSkeleton />}>
+            <LogsViewer />
           </Suspense>
         }
       />

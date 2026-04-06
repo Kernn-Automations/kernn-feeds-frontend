@@ -38,6 +38,7 @@ function StoreSalesOrders({ onBack }) {
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [entityCount, setEntityCount] = useState(10);
   const [orders, setOrders] = useState([]);
+  const [storeProducts, setStoreProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -207,6 +208,37 @@ function StoreSalesOrders({ onBack }) {
       fetchSales();
     }
   }, [storeId, appliedFilters, page, entityCount]);
+
+  useEffect(() => {
+    if (storeId) {
+      fetchStoreProducts();
+    }
+  }, [storeId]);
+
+  const fetchStoreProducts = async () => {
+    if (!storeId) return;
+
+    try {
+      const response = await storeService.getStoreProducts(storeId);
+      const productsData =
+        response?.data?.products ||
+        response?.data ||
+        response?.products ||
+        response ||
+        [];
+
+      const mappedProducts = Array.isArray(productsData)
+        ? productsData
+            .map((product) => product?.name || product?.productName)
+            .filter(Boolean)
+        : [];
+
+      setStoreProducts(mappedProducts);
+    } catch (err) {
+      console.error("Error fetching store products for filter:", err);
+      setStoreProducts([]);
+    }
+  };
 
   // Debounced customer search
   const searchCustomers = useCallback(
@@ -488,10 +520,11 @@ function StoreSalesOrders({ onBack }) {
 
   const productOptions = useMemo(() => {
     const uniques = new Set(
-      orders.flatMap((order) => order.productNames || []).filter(Boolean),
+      [...storeProducts, ...orders.flatMap((order) => order.productNames || [])]
+        .filter(Boolean),
     );
     return Array.from(uniques).sort((a, b) => a.localeCompare(b));
-  }, [orders]);
+  }, [orders, storeProducts]);
 
   // Apply client-side filtering for customer and employee (since we're using names)
   // Also apply header search filters

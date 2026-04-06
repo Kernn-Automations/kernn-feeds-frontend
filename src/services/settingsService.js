@@ -12,6 +12,18 @@ const settingsService = {
     });
     return res.json();
   },
+  async getWhatsappWebhookSettings() {
+    const res = await api.request("/settings/whatsapp-webhook", {
+      method: "GET",
+    });
+    return res.json();
+  },
+  async generateWhatsappVerifyToken() {
+    const res = await api.request("/settings/whatsapp-webhook/generate-token", {
+      method: "POST",
+    });
+    return res.json();
+  },
 };
 
 export default settingsService;
