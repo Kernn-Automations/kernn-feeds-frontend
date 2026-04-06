@@ -91,19 +91,7 @@ class StoreTargetService {
      */
     async cancelStoreTarget(storeId, targetId) {
         try {
-            // Check if axiosInstance has patch method (apiService only shows get, post, put, delete)
-            // apiService.js does NOT have patch method!
-            // We must use request directly or check if it exists.
-            // apiService.js exports 'new ApiService()'. It has 'request'.
-            // Let's use request directly for PATCH if patch is missing.
-            
-            let response;
-            if (axiosInstance.patch) {
-                 response = await axiosInstance.patch(`/stores/${storeId}/targets/${targetId}/cancel`);
-            } else {
-                 response = await axiosInstance.request(`/stores/${storeId}/targets/${targetId}/cancel`, { method: 'PATCH' });
-            }
-
+            const response = await axiosInstance.patch(`/stores/${storeId}/targets/${targetId}/cancel`);
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw { response: { data: errorData, status: response.status } };

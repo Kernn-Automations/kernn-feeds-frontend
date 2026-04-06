@@ -365,6 +365,8 @@ function StoreManageStock() {
       </p>
 
       <div className="row m-0 p-3">
+        <h5 className={styles.head}>Manage Stock</h5>
+        
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className={styles.head} style={{ margin: 0 }}>
             Manage Stock

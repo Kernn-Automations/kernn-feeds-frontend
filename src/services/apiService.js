@@ -159,6 +159,13 @@ class ApiService {
     });
   }
 
+  async patch(url, data) {
+    return this.request(url, { 
+      method: 'PATCH', 
+      body: JSON.stringify(data) 
+    });
+  }
+
   async delete(url) {
     return this.request(url, { method: 'DELETE' });
   }
