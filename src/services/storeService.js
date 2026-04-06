@@ -182,6 +182,15 @@ const storeService = {
     });
     return res.json();
   },
+  async getIndentRevertPreview(indentId) {
+    const res = await api.request(
+      `/store-indents/indents/${indentId}/revert-preview`,
+      {
+        method: "POST",
+      },
+    );
+    return res.json();
+  },
   // Get store indents for admin dashboard (supports filtering by storeId and status)
   async getStoreIndentsForAdmin(params = {}) {
     const queryParams = new URLSearchParams();
