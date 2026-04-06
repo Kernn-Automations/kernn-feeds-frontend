@@ -27,7 +27,6 @@ function TaxAddModal({ trigger, setTrigger }) {
   const validateFields = () => {
     const newErrors = {};
     if (!name) newErrors.name = true;
-    if (!hsnCode) newErrors.hsnCode = true;
     if (taxNature !== "Exempt" && percentage === "") newErrors.percentage = true;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -110,7 +109,7 @@ function TaxAddModal({ trigger, setTrigger }) {
     {/* HSN CODE */}
     <div className="row justify-content-center">
       <div className="col-4 inputcolumn-mdl">
-        <label>HSN Code:</label>
+        <label>HSN Code (Optional):</label>
         <input
           type="text"
           value={hsnCode}

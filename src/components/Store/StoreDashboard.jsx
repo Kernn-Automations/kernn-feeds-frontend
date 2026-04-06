@@ -47,6 +47,7 @@ export default function StoreDashboard() {
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
   const notificationSocketRef = useRef(null);
+  const notificationPollerRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -144,7 +145,25 @@ export default function StoreDashboard() {
           limit: 12,
         });
         if (mounted && response?.success) {
-          setNotifications(Array.isArray(response.data) ? response.data : []);
+          setNotifications((current) => {
+            const incoming = Array.isArray(response.data) ? response.data : [];
+            if (!current.length) return incoming;
+
+            const merged = [...incoming];
+            current.forEach((item) => {
+              if (!merged.some((existing) => existing.id === item.id)) {
+                merged.push(item);
+              }
+            });
+
+            return merged
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt || b.updatedAt || 0).getTime() -
+                  new Date(a.createdAt || a.updatedAt || 0).getTime(),
+              )
+              .slice(0, 20);
+          });
         }
       } catch (error) {
         console.warn(
@@ -155,6 +174,10 @@ export default function StoreDashboard() {
     };
 
     loadNotifications();
+
+    notificationPollerRef.current = window.setInterval(() => {
+      loadNotifications();
+    }, 30000);
 
     notificationSocketRef.current?.disconnect();
     notificationSocketRef.current = connectStoreNotificationSocket({
@@ -170,6 +193,10 @@ export default function StoreDashboard() {
 
     return () => {
       mounted = false;
+      if (notificationPollerRef.current) {
+        window.clearInterval(notificationPollerRef.current);
+        notificationPollerRef.current = null;
+      }
       notificationSocketRef.current?.disconnect();
       notificationSocketRef.current = null;
     };

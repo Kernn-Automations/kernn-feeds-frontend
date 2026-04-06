@@ -67,6 +67,7 @@ function AddProduct({ navigate }) {
 
   const [name, setName] = useState();
   const [sku, setSku] = useState();
+  const [hsnCode, setHsnCode] = useState("");
   const [category, setCategory] = useState("");
   const [units, setUnits] = useState();
   const [description, setDescription] = useState();
@@ -223,6 +224,7 @@ function AddProduct({ navigate }) {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("SKU", sku);
+    formData.append("hsnCode", hsnCode || "");
     formData.append("description", description);
     formData.append("categoryId", category);
     formData.append("unit", units);
@@ -360,6 +362,15 @@ function AddProduct({ navigate }) {
             onChange={(e) => onError(e, sku, setSku)}
             required
             className={errors.sku ? styles.errorField : ""}
+          />
+        </div>
+        <div className={`col-3 ${styles.longform}`}>
+          <label htmlFor="">HSN Code :</label>
+          <input
+            type="text"
+            value={hsnCode}
+            onChange={(e) => setHsnCode(e.target.value)}
+            placeholder="Optional"
           />
         </div>
         <div className={`col-3 ${styles.longform}`}>

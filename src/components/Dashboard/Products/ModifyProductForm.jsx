@@ -37,6 +37,7 @@ function ModifyProductForm({ onViewClick, productId, isAdmin }) {
         setFields({
           name: p.name || "",
           SKU: p.SKU || "",
+          hsnCode: p.hsnCode || "",
           categoryId: p.category?.id || "",
           unit: p.unit || "",
           description: p.description || "",
@@ -206,6 +207,7 @@ function ModifyProductForm({ onViewClick, productId, isAdmin }) {
         <h5 className={styles.head}>Modify Product</h5>
         {renderInput("Product Name", "name")}
         {renderInput("SKU", "SKU")}
+        {renderInput("HSN Code", "hsnCode")}
         {renderInput("Category", "categoryId", "select", categories)}
         {renderInput("Unit", "unit", "select", 
           fields.productType === "packed" 

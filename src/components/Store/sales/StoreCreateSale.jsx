@@ -16,6 +16,7 @@ import compressImageToUnder100KB from "@/services/compressImageUnder100kb";
 import {
   formatDateTimeIN,
   getCurrentDateTimeLocal,
+  isFutureDateTimeLocal,
 } from "@/utils/dateFormat";
 
 const styles = {
@@ -1943,6 +1944,13 @@ export default function StoreCreateSale() {
         return;
       }
 
+      if (isFutureDateTimeLocal(recordedAt)) {
+        setError("Recorded At cannot be a future date/time");
+        setIsErrorModalOpen(true);
+        setSubmitting(false);
+        return;
+      }
+
       // Step 4: Prepare sale request body according to backend API
       const saleData = {
         storeId: storeId,
@@ -2503,6 +2511,7 @@ export default function StoreCreateSale() {
             className="form-control"
             value={recordedAt}
             onChange={(e) => setRecordedAt(e.target.value)}
+            max={getCurrentDateTimeLocal()}
           />
           <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
             Date format: DD/MM/YYYY HH:mm

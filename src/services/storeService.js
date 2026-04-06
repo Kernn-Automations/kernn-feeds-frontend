@@ -1137,6 +1137,30 @@ const storeService = {
     });
     return res.json();
   },
+  async getStoreProductStock(storeId, productId, recordedAt = "") {
+    const query = recordedAt
+      ? `?recordedAt=${encodeURIComponent(recordedAt)}`
+      : "";
+    const res = await api.request(
+      `/stores/${storeId}/products/${productId}/stock${query}`,
+      { method: "GET" },
+    );
+
+    if (!res.ok) {
+      const errorData = await res
+        .json()
+        .catch(() => ({ message: `HTTP ${res.status}: ${res.statusText}` }));
+      const error = new Error(
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data: errorData, status: res.status };
+      throw error;
+    }
+
+    return res.json();
+  },
   async getStoreProductsForSale(
     storeId,
     searchTerm = "",

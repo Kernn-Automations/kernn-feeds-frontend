@@ -15,6 +15,9 @@ const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
 const Divs = lazy(() => import("./pages/Divs"));
 const StoreSelector = lazy(() => import("./pages/StoreSelector"));
 const StoreDashboard = lazy(() => import("./components/Store/StoreDashboard"));
+const DocumentAuthenticityPage = lazy(() =>
+  import("./components/Public/DocumentAuthenticityPage"),
+);
 
 const getNormalizedUser = () => {
   try {
@@ -106,6 +109,15 @@ export default function App() {
         element={
           <Suspense fallback={<LoginSkeleton />}>
             <ReportsPage />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/verify/:docType/:docNumber"
+        element={
+          <Suspense fallback={<DashboardSkeleton />}>
+            <DocumentAuthenticityPage />
           </Suspense>
         }
       />

@@ -6,7 +6,11 @@ import ErrorModal from "@/components/ErrorModal";
 import styles from "../../Dashboard/HomePage/HomePage.module.css";
 import inventoryStyles from "../../Dashboard/Inventory/Inventory.module.css";
 import storeService from "../../../services/storeService";
-import { formatDateTimeIN, getCurrentDateTimeLocal } from "@/utils/dateFormat";
+import {
+  formatDateTimeIN,
+  getCurrentDateTimeLocal,
+  isFutureDateTimeLocal,
+} from "@/utils/dateFormat";
 import { handleExportPDF, handleExportExcel } from "@/utils/PDFndXLSGenerator";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
@@ -677,6 +681,10 @@ function StoreStockTransfer() {
   const handleSubmit = async () => {
     if (!recordedAt) {
       setError("Please select a recorded date and time");
+      return;
+    }
+    if (isFutureDateTimeLocal(recordedAt)) {
+      setError("Recorded At cannot be a future date/time");
       return;
     }
     if (!selectedDestinationStore) {
@@ -1399,6 +1407,7 @@ function StoreStockTransfer() {
                   type="datetime-local"
                   value={recordedAt}
                   onChange={(e) => setRecordedAt(e.target.value)}
+                  max={getCurrentDateTimeLocal()}
                   style={{
                     width: "100%",
                     padding: "10px 12px",

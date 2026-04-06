@@ -32,3 +32,16 @@ export const getCurrentDateTimeLocal = () => {
     now.getDate(),
   )}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 };
+
+export const getCurrentDateLocal = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
+
+export const isFutureDateTimeLocal = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getTime() > Date.now();
+};

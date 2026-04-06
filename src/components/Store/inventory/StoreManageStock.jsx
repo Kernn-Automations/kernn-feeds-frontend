@@ -8,6 +8,7 @@ import storeService from "@/services/storeService";
 import {
   formatDateTimeIN,
   getCurrentDateTimeLocal,
+  isFutureDateTimeLocal,
 } from "@/utils/dateFormat";
 import { isAdmin, isDivisionHead, isSuperAdmin } from "@/utils/roleUtils";
 import styles from "../../Dashboard/Customers/Customer.module.css";
@@ -23,6 +24,7 @@ function StoreManageStock() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastLedgerResult, setLastLedgerResult] = useState(null);
+  const [stockLoading, setStockLoading] = useState(false);
 
   // Store ID
   const [storeId, setStoreId] = useState(null);
@@ -47,6 +49,13 @@ function StoreManageStock() {
     isAdmin(actualUser) ||
     isSuperAdmin(actualUser) ||
     isDivisionHead(actualUser);
+
+  const selectedProduct = products.find(
+    (product) =>
+      String(product.id || product.productId) === String(formData.productId),
+  );
+  const selectedActualProductId =
+    selectedProduct?.productId || selectedProduct?.product?.id || selectedProduct?.id || "";
 
   // Get store ID from multiple sources
   const getStoreContext = () => {
@@ -117,27 +126,56 @@ function StoreManageStock() {
       window.removeEventListener("storeChanged", hydrateStoreContext);
   }, []);
 
-  // Load current stock when product changes
+  // Load current stock as of the selected recorded time
   useEffect(() => {
-    if (formData.productId && storeInventory.length > 0) {
-      const product = storeInventory.find(
-        (item) =>
-          item.productId === parseInt(formData.productId) ||
-          item.product?.id === parseInt(formData.productId) ||
-          item.id === parseInt(formData.productId),
-      );
-      if (product) {
-        setCurrentStock({
-          quantity: product.stockQuantity || product.quantity || 0,
-          unit: product.unit || product.product?.unit || "",
-        });
-      } else {
-        setCurrentStock({ quantity: 0, unit: "" });
+    let cancelled = false;
+
+    const fetchProductStock = async () => {
+      if (!storeId || !formData.productId) {
+        setCurrentStock(null);
+        setStockLoading(false);
+        return;
       }
-    } else {
+
+      try {
+        setStockLoading(true);
+        const response = await storeService.getStoreProductStock(
+          storeId,
+          selectedActualProductId || formData.productId,
+          formData.recordedAt,
+        );
+
+        if (cancelled) return;
+
+        const stockData = response?.data || {};
+        setCurrentStock({
+          quantity: Number(stockData.stockQuantity || 0),
+          unit: stockData.unit || "bag",
+          recordedAt: stockData.recordedAt || formData.recordedAt,
+        });
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Error fetching product stock as of recorded time:", err);
+        setCurrentStock({ quantity: 0, unit: "bag", recordedAt: formData.recordedAt });
+      } finally {
+        if (!cancelled) {
+          setStockLoading(false);
+        }
+      }
+    };
+
+    if (!formData.productId) {
       setCurrentStock(null);
+      setStockLoading(false);
+      return undefined;
     }
-  }, [formData.productId, storeInventory]);
+
+    fetchProductStock();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.productId, formData.recordedAt, selectedActualProductId, storeId]);
 
   const loadProducts = async (storeId) => {
     try {
@@ -226,6 +264,12 @@ function StoreManageStock() {
 
     if (parseFloat(formData.quantity) <= 0) {
       setError("Quantity must be greater than 0");
+      setShowErrorModal(true);
+      return;
+    }
+
+    if (isFutureDateTimeLocal(formData.recordedAt)) {
+      setError("Recorded At cannot be a future date/time");
       setShowErrorModal(true);
       return;
     }
@@ -375,8 +419,24 @@ function StoreManageStock() {
                 color: currentStock.quantity > 0 ? "#28a745" : "#dc3545",
               }}
             >
-              {currentStock.quantity} {currentStock.unit}
+              {stockLoading ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Spinner size="sm" color="#003176" thickness="2px" />
+                  Refreshing...
+                </span>
+              ) : (
+                `${currentStock.quantity} ${currentStock.unit}`
+              )}
             </span>
+            <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
+              Showing stock as of {formatDateTimeIN(formData.recordedAt)}
+            </div>
           </div>
         )}
 
@@ -424,6 +484,7 @@ function StoreManageStock() {
             name="recordedAt"
             value={formData.recordedAt}
             onChange={handleInputChange}
+            max={getCurrentDateTimeLocal()}
             required
           />
           <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
