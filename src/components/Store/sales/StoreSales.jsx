@@ -61,23 +61,9 @@ export default function StoreSales() {
     }
   };
 
-  // Debug logging
-  useEffect(() => {
-    console.log("StoreSales - Role detection:", {
-      actualUser,
-      roles: actualUser?.roles,
-      isEmployee,
-      isManager,
-      isAdminUser,
-      canUseCreateFlow,
-      mode
-    });
-  }, [actualUser, isEmployee, isManager, isAdminUser, canUseCreateFlow, mode]);
-
   const handleOpenCreate = () => {
     // Always navigate to create sale page
     // The actual sale creation happens in StoreCreateSale component
-    console.log("StoreSales - handleOpenCreate called, setting mode to create");
     setSearchParams({ mode: "create" });
   };
 

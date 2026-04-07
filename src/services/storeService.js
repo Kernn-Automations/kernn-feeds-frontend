@@ -530,7 +530,15 @@ const storeService = {
       `/stores/${storeId}/sales/${saleCode}/cancel`,
       { method: "POST" },
     );
-    return res.json();
+    const data = await res.json();
+    if (!res.ok || data?.success === false) {
+      const error = new Error(
+        data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data, status: res.status };
+      throw error;
+    }
+    return data;
   },
   async manageStoreStock(storeId, body) {
     const res = await api.request(`/stores/${storeId}/manage-stock`, {
@@ -1267,7 +1275,6 @@ const storeService = {
       method: "PUT",
       body: JSON.stringify({ updates }), // [{ productId, customPrice, purchasePrice }]
     });
-    console.log(res);
     return res.json();
   },
 

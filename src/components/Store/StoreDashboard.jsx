@@ -4,7 +4,6 @@ import styles from "../Dashboard/Dashboard.module.css";
 import StoreDashHeader from "./StoreDashHeader";
 import StoreNavContainer from "./StoreNavContainer";
 import FootLink from "../Dashboard/FootLink";
-import { useAuth } from "../../Auth";
 import storeService from "../../services/storeService";
 import { connectStoreNotificationSocket } from "../../services/storeNotificationSocket";
 import { isStoreManager, isAdmin, isDivisionHead,  isZBM,
@@ -44,7 +43,6 @@ export default function StoreDashboard() {
   const [checkingStore, setCheckingStore] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
-  const { axiosAPI } = useAuth();
   const notificationSocketRef = useRef(null);
   const notificationPollerRef = useRef(null);
 
@@ -70,7 +68,6 @@ export default function StoreDashboard() {
 
         // If store is already selected, proceed
         if (selectedStore && currentStoreId) {
-          console.log("StoreDashboard - Store already selected:", JSON.parse(selectedStore));
           setCheckingStore(false);
           return;
         }
@@ -115,7 +112,6 @@ export default function StoreDashboard() {
 
         // Check if store selection is required
         if (requiresStoreSelection && (isStoreManagerUser || isAdminUser || isDivisionHeadUser || isZBMUser || isRBMUser || isABMUser)) {
-          console.log("StoreDashboard - Store selection required, redirecting to selector");
           navigate("/store-selector", { replace: true });
           return;
         }
@@ -174,9 +170,20 @@ export default function StoreDashboard() {
 
     loadNotifications();
 
-    notificationPollerRef.current = window.setInterval(() => {
-      loadNotifications();
-    }, 30000);
+    const pollNotifications = () => {
+      if (document.visibilityState === "visible") {
+        loadNotifications();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadNotifications();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    notificationPollerRef.current = window.setInterval(pollNotifications, 60000);
 
     notificationSocketRef.current?.disconnect();
     notificationSocketRef.current = connectStoreNotificationSocket({
@@ -196,6 +203,7 @@ export default function StoreDashboard() {
         window.clearInterval(notificationPollerRef.current);
         notificationPollerRef.current = null;
       }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       notificationSocketRef.current?.disconnect();
       notificationSocketRef.current = null;
     };

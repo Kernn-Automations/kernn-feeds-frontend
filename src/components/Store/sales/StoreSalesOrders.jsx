@@ -219,7 +219,9 @@ function StoreSalesOrders({ onBack }) {
     if (!storeId) return;
 
     try {
-      const response = await storeService.getStoreProducts(storeId);
+      const response = await storeService.getStoreProducts(storeId, {
+        compact: true,
+      });
       const productsData =
         response?.data?.products ||
         response?.data ||
@@ -354,6 +356,7 @@ function StoreSalesOrders({ onBack }) {
       const params = {
         page,
         limit: entityCount,
+        compact: "true",
       };
 
       // Add filters (only send backend-supported filters)
@@ -371,36 +374,13 @@ function StoreSalesOrders({ onBack }) {
       const response = isAdminUser
         ? await storeService.getStoreSalesAdmin(storeId, params)
         : await storeService.getStoreSales(storeId, params);
-      console.log(response);
       // Handle backend response format
       const salesData = response.data || response.sales || response || [];
       const paginationData = response.pagination || {};
 
-      console.log("StoreSalesOrders - API Response:", response);
-      console.log("StoreSalesOrders - Sales Data:", salesData);
-      if (salesData.length > 0) {
-        console.log("StoreSalesOrders - First sale sample:", salesData[0]);
-        console.log(
-          "StoreSalesOrders - First sale customer:",
-          salesData[0].customer,
-        );
-      }
-
       // Map API response to match component structure
       const mappedOrders = Array.isArray(salesData)
         ? salesData.map((sale, index) => {
-            // Debug customer data
-            console.log(`Sale ${index} - customer object:`, sale.customer);
-            console.log(
-              `Sale ${index} - farmerName:`,
-              sale.customer?.farmerName,
-            );
-            console.log(
-              `Sale ${index} - displayName:`,
-              sale.customer?.displayName,
-            );
-            console.log(`Sale ${index} - name:`, sale.customer?.name);
-
             // Get customer name with proper fallback
             // Check if customer exists and has the fields
             let customerName = "Customer";
@@ -428,8 +408,6 @@ function StoreSalesOrders({ onBack }) {
               }
             }
 
-            console.log(`Sale ${index} - Final customerName:`, customerName);
-
             return {
               id: sale.saleCode || sale.id,
               saleCode: sale.saleCode || `SALE-${sale.id}`,
@@ -454,7 +432,11 @@ function StoreSalesOrders({ onBack }) {
               paymentStatus: sale.paymentStatus || "pending",
               grandTotal: sale.grandTotal || sale.totalAmount || 0,
               totalAmount: sale.totalAmount || 0,
-              paymentMethod: sale.modeOfPayment || "N/A",
+              paymentMethod:
+                sale.paymentMethod ||
+                sale.modeOfPayment ||
+                sale.payments?.[0]?.paymentMethod ||
+                "N/A",
               items: sale.items || [],
               productNames:
                 sale.items?.map(
@@ -478,8 +460,6 @@ function StoreSalesOrders({ onBack }) {
             };
           })
         : [];
-
-      console.log("StoreSalesOrders - Mapped orders:", mappedOrders);
 
       setOrders(mappedOrders);
       setTotal(paginationData.total || mappedOrders.length);
@@ -710,11 +690,25 @@ function StoreSalesOrders({ onBack }) {
 
     setCancelling(true);
     try {
-      // Assuming storeId is available in scope or from order if needed.
-      // The current component has 'storeId' state.
       await storeService.cancelSale(storeId, saleToCancel.saleCode);
 
-      // Refresh list
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.saleCode === saleToCancel.saleCode
+            ? {
+                ...order,
+                status: "cancelled",
+                paymentStatus: "cancelled",
+                originalData: {
+                  ...order.originalData,
+                  saleStatus: "cancelled",
+                  paymentStatus: "cancelled",
+                },
+              }
+            : order,
+        ),
+      );
+
       fetchSales();
       setShowCancelModal(false);
       setSaleToCancel(null);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Spinner } from "@chakra-ui/react";
 import ErrorModal from "@/components/ErrorModal";
@@ -26,6 +26,8 @@ function StoreManageStock() {
   const [lastLedgerResult, setLastLedgerResult] = useState(null);
   const [stockLoading, setStockLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
+  const productCacheRef = useRef(new Map());
+  const stockCacheRef = useRef(new Map());
 
   // Store ID
   const [storeId, setStoreId] = useState(null);
@@ -139,30 +141,42 @@ function StoreManageStock() {
         return;
       }
 
+      const resolvedProductId = selectedActualProductId || formData.productId;
+      const cacheKey = `${storeId}:${resolvedProductId}:${formData.recordedAt || ""}`;
+      const cachedStock = stockCacheRef.current.get(cacheKey);
+      if (cachedStock) {
+        setCurrentStock(cachedStock);
+        setStockLoading(false);
+        return;
+      }
+
       try {
-        setStockLoading(true);
         const response = await storeService.getStoreProductStock(
           storeId,
-          selectedActualProductId || formData.productId,
+          resolvedProductId,
           formData.recordedAt,
         );
 
         if (cancelled) return;
 
         const stockData = response?.data || {};
-        setCurrentStock({
+        const normalizedStock = {
           quantity: Number(stockData.stockQuantity || 0),
           unit: stockData.unit || "bag",
           recordedAt: stockData.recordedAt || formData.recordedAt,
-        });
+        };
+        stockCacheRef.current.set(cacheKey, normalizedStock);
+        setCurrentStock(normalizedStock);
       } catch (err) {
         if (cancelled) return;
         console.error("Error fetching product stock as of recorded time:", err);
-        setCurrentStock({
+        const fallbackStock = {
           quantity: 0,
           unit: "bag",
           recordedAt: formData.recordedAt,
-        });
+        };
+        stockCacheRef.current.set(cacheKey, fallbackStock);
+        setCurrentStock(fallbackStock);
       } finally {
         if (!cancelled) {
           setStockLoading(false);
@@ -176,7 +190,8 @@ function StoreManageStock() {
       return undefined;
     }
 
-    const timeoutId = setTimeout(fetchProductStock, 250);
+    setStockLoading(true);
+    const timeoutId = setTimeout(fetchProductStock, 120);
 
     return () => {
       cancelled = true;
@@ -191,16 +206,27 @@ function StoreManageStock() {
 
   const loadProducts = async (storeId) => {
     try {
+      if (productCacheRef.current.has(storeId)) {
+        setProducts(productCacheRef.current.get(storeId));
+        setPageLoading(false);
+        return;
+      }
+
       setPageLoading(true);
       const response = await storeService.getStoreProducts(storeId, {
         compact: true,
       });
 
       if (response.success) {
-        setProducts(response.data || response.products || []);
+        const productList = response.data || response.products || [];
+        productCacheRef.current.set(storeId, productList);
+        setProducts(productList);
       } else if (response.data) {
-        setProducts(Array.isArray(response.data) ? response.data : []);
+        const productList = Array.isArray(response.data) ? response.data : [];
+        productCacheRef.current.set(storeId, productList);
+        setProducts(productList);
       } else if (Array.isArray(response)) {
+        productCacheRef.current.set(storeId, response);
         setProducts(response);
       } else {
         setError(response.message || "Failed to load products");
@@ -402,7 +428,7 @@ function StoreManageStock() {
         </div>
 
         {/* Current Stock Display */}
-        {formData.productId && currentStock && (
+        {formData.productId && (
           <div className={`col-4 ${styles.longform}`}>
             <label>Current Stock :</label>
             <span
@@ -410,10 +436,15 @@ function StoreManageStock() {
               style={{
                 fontSize: "14px",
                 fontWeight: "600",
-                color: currentStock.quantity > 0 ? "#28a745" : "#dc3545",
+                color:
+                  Number(currentStock?.quantity || 0) > 0 ? "#28a745" : "#dc3545",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                minHeight: "24px",
               }}
             >
-              {stockLoading ? (
+              {stockLoading && !currentStock ? (
                 <span
                   style={{
                     display: "inline-flex",
@@ -422,10 +453,27 @@ function StoreManageStock() {
                   }}
                 >
                   <Spinner size="sm" color="#003176" thickness="2px" />
-                  Refreshing...
+                  Loading current stock...
                 </span>
               ) : (
-                `${currentStock.quantity} ${currentStock.unit}`
+                <>
+                  <span>{`${Number(currentStock?.quantity || 0)} ${currentStock?.unit || "bag"}`}</span>
+                  {stockLoading ? (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        color: "#64748b",
+                        fontWeight: 500,
+                        fontSize: "12px",
+                      }}
+                    >
+                      <Spinner size="xs" color="#003176" thickness="2px" />
+                      Refreshing...
+                    </span>
+                  ) : null}
+                </>
               )}
             </span>
             <div
