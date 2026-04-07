@@ -596,28 +596,6 @@ function StoreManageStock() {
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    borderRadius: "14px",
-                    background: "#ffffff",
-                    border: "1px solid #dbeafe",
-                    padding: "14px 16px",
-                  }}
-                >
-                  <div style={{ fontSize: "12px", color: "#475569" }}>
-                    Current Balance After Later Entries
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "24px",
-                      fontWeight: 800,
-                      color: "#1d4ed8",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {Number(lastLedgerResult.currentBalance || 0)}{" "}
-                    {currentStock?.unit || "bag"}
-                  </div>
                   <div style={{ fontSize: "12px", color: "#64748b" }}>
                     Present stock after later transfers, sales, or resets.
                   </div>
