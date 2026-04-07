@@ -25,6 +25,7 @@ function StoreManageStock() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastLedgerResult, setLastLedgerResult] = useState(null);
   const [stockLoading, setStockLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(false);
 
   // Store ID
   const [storeId, setStoreId] = useState(null);
@@ -41,7 +42,6 @@ function StoreManageStock() {
 
   // Data arrays
   const [products, setProducts] = useState([]);
-  const [storeInventory, setStoreInventory] = useState([]);
   const [currentStock, setCurrentStock] = useState(null);
   const userData = JSON.parse(localStorage.getItem("user") || "{}");
   const actualUser = userData.user || userData || {};
@@ -55,7 +55,10 @@ function StoreManageStock() {
       String(product.id || product.productId) === String(formData.productId),
   );
   const selectedActualProductId =
-    selectedProduct?.productId || selectedProduct?.product?.id || selectedProduct?.id || "";
+    selectedProduct?.productId ||
+    selectedProduct?.product?.id ||
+    selectedProduct?.id ||
+    "";
 
   // Get store ID from multiple sources
   const getStoreContext = () => {
@@ -116,7 +119,6 @@ function StoreManageStock() {
         setStoreId(id);
         setStoreCode(currentStoreCode || "");
         loadProducts(id);
-        loadStoreInventory(id);
       }
     };
 
@@ -156,7 +158,11 @@ function StoreManageStock() {
       } catch (err) {
         if (cancelled) return;
         console.error("Error fetching product stock as of recorded time:", err);
-        setCurrentStock({ quantity: 0, unit: "bag", recordedAt: formData.recordedAt });
+        setCurrentStock({
+          quantity: 0,
+          unit: "bag",
+          recordedAt: formData.recordedAt,
+        });
       } finally {
         if (!cancelled) {
           setStockLoading(false);
@@ -170,17 +176,25 @@ function StoreManageStock() {
       return undefined;
     }
 
-    fetchProductStock();
+    const timeoutId = setTimeout(fetchProductStock, 250);
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [formData.productId, formData.recordedAt, selectedActualProductId, storeId]);
+  }, [
+    formData.productId,
+    formData.recordedAt,
+    selectedActualProductId,
+    storeId,
+  ]);
 
   const loadProducts = async (storeId) => {
     try {
-      setLoading(true);
-      const response = await storeService.getStoreProducts(storeId);
+      setPageLoading(true);
+      const response = await storeService.getStoreProducts(storeId, {
+        compact: true,
+      });
 
       if (response.success) {
         setProducts(response.data || response.products || []);
@@ -197,44 +211,7 @@ function StoreManageStock() {
       setError("Failed to load products");
       setShowErrorModal(true);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStoreInventory = async (storeId) => {
-    try {
-      setLoading(true);
-      const response = await storeService.getStoreInventory(storeId);
-
-      if (response.success) {
-        const inventoryData = response.data || response;
-        if (inventoryData.inventory) {
-          setStoreInventory(inventoryData.inventory || []);
-        } else if (Array.isArray(inventoryData)) {
-          setStoreInventory(inventoryData);
-        } else {
-          setStoreInventory([]);
-        }
-      } else if (response.data) {
-        const inventoryData = response.data;
-        if (Array.isArray(inventoryData)) {
-          setStoreInventory(inventoryData);
-        } else if (inventoryData.inventory) {
-          setStoreInventory(inventoryData.inventory || []);
-        } else {
-          setStoreInventory([]);
-        }
-      } else if (Array.isArray(response)) {
-        setStoreInventory(response);
-      } else {
-        setStoreInventory([]);
-      }
-    } catch (err) {
-      console.error("Error loading store inventory:", err);
-      setError("Failed to load store inventory");
-      setShowErrorModal(true);
-    } finally {
-      setLoading(false);
+      setPageLoading(false);
     }
   };
 
@@ -303,9 +280,11 @@ function StoreManageStock() {
         setError(null);
         setShowErrorModal(false);
         setSuccess(
-          `${formData.transactionType === "openingstock"
-            ? "Opening stock saved successfully!"
-            : "Stock updated successfully!"}${
+          `${
+            formData.transactionType === "openingstock"
+              ? "Opening stock saved successfully!"
+              : "Stock updated successfully!"
+          }${
             ledgerDetails
               ? `\n\nBalance at recorded time: ${Number(
                   ledgerDetails.balanceAtRecordedAt || 0,
@@ -328,8 +307,6 @@ function StoreManageStock() {
         });
         setCurrentStock(null);
 
-        // Reload inventory
-        await loadStoreInventory(storeId);
       } else {
         setError(responseData.message || "Failed to update stock");
         setShowErrorModal(true);
@@ -365,8 +342,7 @@ function StoreManageStock() {
       </p>
 
       <div className="row m-0 p-3">
-        <h5 className={styles.head}>Manage Stock</h5>
-        
+
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className={styles.head} style={{ margin: 0 }}>
             Manage Stock
@@ -391,11 +367,27 @@ function StoreManageStock() {
         {/* Product Selection */}
         <div className={`col-4 ${styles.longform}`}>
           <label>Product :</label>
+          {pageLoading && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "12px",
+                color: "#64748b",
+                marginLeft: "10px",
+              }}
+            >
+              <Spinner size="xs" color="#003176" thickness="2px" />
+              Loading products...
+            </div>
+          )}
           <select
             name="productId"
             value={formData.productId}
             onChange={handleInputChange}
             required
+            disabled={pageLoading || loading}
           >
             <option value="">--Select Product--</option>
             {products.map((product) => (
@@ -436,7 +428,9 @@ function StoreManageStock() {
                 `${currentStock.quantity} ${currentStock.unit}`
               )}
             </span>
-            <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
+            <div
+              style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}
+            >
               Showing stock as of {formatDateTimeIN(formData.recordedAt)}
             </div>
           </div>
@@ -558,7 +552,10 @@ function StoreManageStock() {
                   </div>
                 </div>
                 <div style={{ fontSize: "12px", color: "#475569" }}>
-                  Recorded at {formatDateTimeIN(lastLedgerResult.recordedAt || formData.recordedAt)}
+                  Recorded at{" "}
+                  {formatDateTimeIN(
+                    lastLedgerResult.recordedAt || formData.recordedAt,
+                  )}
                 </div>
               </div>
 
@@ -592,9 +589,9 @@ function StoreManageStock() {
                     {currentStock?.unit || "bag"}
                   </div>
                   <div style={{ fontSize: "12px", color: "#64748b" }}>
-                    Immediate balance after posting at the selected date and time.
+                    Immediate balance after posting at the selected date and
+                    time.
                   </div>
-                </div>
 
                   <div style={{ fontSize: "12px", color: "#64748b" }}>
                     Present stock after later transfers, sales, or resets.
@@ -691,51 +688,8 @@ function StoreManageStock() {
             <StoreImportPanel
               storeCode={storeCode}
               allowMultiStore={false}
-              onImportSuccess={() => loadStoreInventory(storeId)}
+              onImportSuccess={() => loadProducts(storeId)}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Round Loading Spinner Overlay */}
-      {loading && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0, 0, 0, 0.3)",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "16px",
-              backgroundColor: "white",
-              padding: "24px",
-              borderRadius: "12px",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <Spinner size="xl" color="#003176" thickness="4px" speed="0.65s" />
-            <p
-              style={{
-                margin: 0,
-                fontSize: "16px",
-                fontWeight: 500,
-                color: "#333",
-              }}
-            >
-              Updating Stock...
-            </p>
           </div>
         </div>
       )}

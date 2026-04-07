@@ -1140,10 +1140,21 @@ const storeService = {
   },
 
   // Store Products operations
-  async getStoreProducts(storeId) {
-    const res = await api.request(`/stores/${storeId}/products`, {
-      method: "GET",
-    });
+  async getStoreProducts(storeId, params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append("search", params.search);
+    if (params.page) queryParams.append("page", params.page);
+    if (params.limit) queryParams.append("limit", params.limit);
+    if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+    if (params.compact) queryParams.append("compact", "true");
+
+    const res = await api.request(
+      `/stores/${storeId}/products${queryParams.toString() ? `?${queryParams.toString()}` : ""}`,
+      {
+        method: "GET",
+      },
+    );
     return res.json();
   },
   async getStoreProductStock(storeId, productId, recordedAt = "") {

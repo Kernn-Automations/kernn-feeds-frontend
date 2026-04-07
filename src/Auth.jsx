@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import axios from "axios";
 
 const AuthContext = createContext();
@@ -7,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [islogin, setIslogin] = useState(
     localStorage.getItem("accessToken") ? true : false,
   );
+  const refreshIntervalRef = useRef(null);
 
   let token = localStorage.getItem("accessToken") || null;
   let reftoken = localStorage.getItem("refreshToken") || null;
@@ -15,248 +23,138 @@ export const AuthProvider = ({ children }) => {
   const BASE_URL = VITE_API || "http://localhost:8080";
 
   // API Initialization
-  const api = axios.create({
-    baseURL: VITE_API,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  const api = useMemo(
+    () =>
+      axios.create({
+        baseURL: VITE_API,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    [VITE_API],
+  );
 
-  const formApi = axios.create({
-    baseURL: VITE_API,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  const formApi = useMemo(
+    () =>
+      axios.create({
+        baseURL: VITE_API,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }),
+    [VITE_API],
+  );
 
-  const getPdf = axios.create({
-    baseURL: VITE_API,
-    headers: {
-      "Content-Type": "Application/pdf",
-    },
-    responseType: "blob",
-  });
+  const getPdf = useMemo(
+    () =>
+      axios.create({
+        baseURL: VITE_API,
+        headers: {
+          "Content-Type": "Application/pdf",
+        },
+        responseType: "blob",
+      }),
+    [VITE_API],
+  );
 
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  useEffect(() => {
+    const applyCommonRequestState = (config, options = {}) => {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
 
-    // Automatically add division parameters to all requests
-    // Skip division params for auth endpoints, public endpoints, and supervisors endpoint
-    const skipDivisionParams =
-      config.url?.includes("/auth/") ||
-      config.url?.includes("/stores/dropdowns/electricity-distributors") ||
-      config.url?.includes("/public/") ||
-      config.url?.includes("/employees/supervisors/");
+      const skipDivisionParams =
+        options.skipDivisionCheck ||
+        config.url?.includes("/auth/") ||
+        config.url?.includes("/stores/dropdowns/electricity-distributors") ||
+        config.url?.includes("/public/") ||
+        config.url?.includes("/employees/supervisors/");
 
-    if (!skipDivisionParams) {
+      if (skipDivisionParams) {
+        return config;
+      }
+
       try {
         const selectedDivision = JSON.parse(
           localStorage.getItem("selectedDivision"),
         );
         const user = JSON.parse(localStorage.getItem("user"));
 
-        if (selectedDivision) {
-          const divisionId = selectedDivision.id;
-          const isAllDivisions =
-            selectedDivision.isAllDivisions === true || divisionId === "all";
+        if (!selectedDivision) {
+          return config;
+        }
 
-          // Check if user has restricted roles (Business Officer, Warehouse Manager, etc.)
-          let hasRestrictedRole = false;
-          if (user && user.roles && Array.isArray(user.roles)) {
-            hasRestrictedRole = user.roles.some((role) => {
-              const roleName =
-                typeof role === "string"
-                  ? role.toLowerCase()
-                  : (role.name || role.role || String(role)).toLowerCase();
-              return (
-                roleName.includes("business officer") ||
-                roleName.includes("business office") ||
-                roleName.includes("warehouse manager") ||
-                roleName.includes("area business manager")
-              );
-            });
+        const divisionId = selectedDivision.id;
+        const isAllDivisions =
+          selectedDivision.isAllDivisions === true || divisionId === "all";
+
+        let hasRestrictedRole = false;
+        if (user && user.roles && Array.isArray(user.roles)) {
+          hasRestrictedRole = user.roles.some((role) => {
+            const roleName =
+              typeof role === "string"
+                ? role.toLowerCase()
+                : (role.name || role.role || String(role)).toLowerCase();
+            return (
+              roleName.includes("business officer") ||
+              roleName.includes("business office") ||
+              roleName.includes("warehouse manager") ||
+              roleName.includes("area business manager")
+            );
+          });
+        }
+
+        if (!config.params) config.params = {};
+
+        if (hasRestrictedRole) {
+          if (divisionId && divisionId !== "all" && !config.params.divisionId) {
+            config.params.divisionId = divisionId;
           }
+          return config;
+        }
 
-          // For restricted roles, always use divisionId, never showAllDivisions
-          if (hasRestrictedRole) {
-            if (divisionId && divisionId !== "all") {
-              // Add divisionId to params if not already present
-              if (!config.params) config.params = {};
-              if (!config.params.divisionId) {
-                config.params.divisionId = divisionId;
-              }
-            }
-          } else {
-            // For non-restricted roles
-            if (isAllDivisions) {
-              // Add divisionId=all or showAllDivisions=true
-              if (!config.params) config.params = {};
-              if (
-                !config.params.divisionId &&
-                !config.params.showAllDivisions
-              ) {
-                config.params.divisionId = "all";
-                // Alternative: config.params.showAllDivisions = 'true';
-              }
-            } else if (divisionId && divisionId !== "all") {
-              // Add divisionId to params if not already present
-              if (!config.params) config.params = {};
-              if (!config.params.divisionId) {
-                config.params.divisionId = divisionId;
-              }
+        if (isAllDivisions) {
+          if (!config.params.divisionId && !config.params.showAllDivisions) {
+            if (options.useShowAllDivisionsParam) {
+              config.params.showAllDivisions = "true";
+            } else {
+              config.params.divisionId = "all";
             }
           }
+        } else if (divisionId && divisionId !== "all" && !config.params.divisionId) {
+          config.params.divisionId = divisionId;
         }
       } catch (error) {
         console.error("Error adding division parameters to request:", error);
-        // Continue with request even if division parsing fails
       }
-    }
 
-    return config;
-  });
+      return config;
+    };
 
-  getPdf.interceptors.request.use((config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    const apiReqId = api.interceptors.request.use((config) =>
+      applyCommonRequestState(config),
+    );
+    const formReqId = formApi.interceptors.request.use((config) =>
+      applyCommonRequestState(config),
+    );
+    const pdfReqId = getPdf.interceptors.request.use((config) =>
+      applyCommonRequestState(config, { useShowAllDivisionsParam: true }),
+    );
 
-    // Automatically add division parameters to all requests
-    try {
-      const selectedDivision = JSON.parse(
-        localStorage.getItem("selectedDivision"),
-      );
-      const user = JSON.parse(localStorage.getItem("user"));
-
-      if (selectedDivision) {
-        const divisionId = selectedDivision.id;
-        const isAllDivisions =
-          selectedDivision.isAllDivisions === true || divisionId === "all";
-
-        // Check if user has restricted roles
-        let hasRestrictedRole = false;
-        if (user && user.roles && Array.isArray(user.roles)) {
-          hasRestrictedRole = user.roles.some((role) => {
-            const roleName =
-              typeof role === "string"
-                ? role.toLowerCase()
-                : (role.name || role.role || String(role)).toLowerCase();
-            return (
-              roleName.includes("business officer") ||
-              roleName.includes("business office") ||
-              roleName.includes("warehouse manager") ||
-              roleName.includes("area business manager")
-            );
-          });
-        }
-
-        // For restricted roles, always use divisionId
-        if (hasRestrictedRole) {
-          if (divisionId && divisionId !== "all") {
-            if (!config.params) config.params = {};
-            if (!config.params.divisionId) {
-              config.params.divisionId = divisionId;
-            }
-          }
-        } else {
-          // For non-restricted roles
-          if (isAllDivisions) {
-            if (!config.params) config.params = {};
-            if (!config.params.showAllDivisions && !config.params.divisionId) {
-              config.params.showAllDivisions = "true";
-            }
-          } else if (divisionId && divisionId !== "all") {
-            if (!config.params) config.params = {};
-            if (!config.params.divisionId) {
-              config.params.divisionId = divisionId;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(
-        "Error adding division parameters to getPdf request:",
-        error,
-      );
-    }
-
-    return config;
-  });
-
-  formApi.interceptors.request.use((config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Automatically add division parameters to all requests
-    try {
-      const selectedDivision = JSON.parse(
-        localStorage.getItem("selectedDivision"),
-      );
-      const user = JSON.parse(localStorage.getItem("user"));
-
-      if (selectedDivision) {
-        const divisionId = selectedDivision.id;
-        const isAllDivisions =
-          selectedDivision.isAllDivisions === true || divisionId === "all";
-
-        // Check if user has restricted roles
-        let hasRestrictedRole = false;
-        if (user && user.roles && Array.isArray(user.roles)) {
-          hasRestrictedRole = user.roles.some((role) => {
-            const roleName =
-              typeof role === "string"
-                ? role.toLowerCase()
-                : (role.name || role.role || String(role)).toLowerCase();
-            return (
-              roleName.includes("business officer") ||
-              roleName.includes("business office") ||
-              roleName.includes("warehouse manager") ||
-              roleName.includes("area business manager")
-            );
-          });
-        }
-
-        // For restricted roles, always use divisionId
-        if (hasRestrictedRole) {
-          if (divisionId && divisionId !== "all") {
-            if (!config.params) config.params = {};
-            if (!config.params.divisionId) {
-              config.params.divisionId = divisionId;
-            }
-          }
-        } else {
-          // For non-restricted roles
-          if (isAllDivisions) {
-            if (!config.params) config.params = {};
-            if (!config.params.showAllDivisions && !config.params.divisionId) {
-              config.params.showAllDivisions = "true";
-            }
-          } else if (divisionId && divisionId !== "all") {
-            if (!config.params) config.params = {};
-            if (!config.params.divisionId) {
-              config.params.divisionId = divisionId;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(
-        "Error adding division parameters to formApi request:",
-        error,
-      );
-    }
-
-    return config;
-  });
+    return () => {
+      api.interceptors.request.eject(apiReqId);
+      formApi.interceptors.request.eject(formReqId);
+      getPdf.interceptors.request.eject(pdfReqId);
+    };
+  }, [api, formApi, getPdf]);
 
   // Define removeLogin before interceptors so it can be used in them
   const removeLogin = () => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
@@ -297,72 +195,52 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Response interceptor for api instance - handles token errors globally
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (isTokenError(error)) {
-        console.log(
-          "Token-related error detected in API response, automatically logging out...",
-        );
-        removeLogin();
-        // Optionally redirect to login page
-        if (window.location.pathname !== "/login") {
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 1000);
-        }
-      }
-      return Promise.reject(error);
-    },
-  );
+  useEffect(() => {
+    const attachTokenInterceptor = (client, label) => {
+      const interceptorId = client.interceptors.response.use(
+        (response) => response,
+        (error) => {
+          if (isTokenError(error)) {
+            console.log(
+              `Token-related error detected in ${label} response, automatically logging out...`,
+            );
+            removeLogin();
+            if (window.location.pathname !== "/login") {
+              setTimeout(() => {
+                window.location.href = "/login";
+              }, 1000);
+            }
+          }
+          return Promise.reject(error);
+        },
+      );
 
-  // Response interceptor for formApi instance
-  formApi.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (isTokenError(error)) {
-        console.log(
-          "Token-related error detected in FormAPI response, automatically logging out...",
-        );
-        removeLogin();
-        if (window.location.pathname !== "/login") {
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 1000);
-        }
-      }
-      return Promise.reject(error);
-    },
-  );
+      return () => client.interceptors.response.eject(interceptorId);
+    };
 
-  // Response interceptor for getPdf instance
-  getPdf.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (isTokenError(error)) {
-        console.log(
-          "Token-related error detected in PDF API response, automatically logging out...",
-        );
-        removeLogin();
-        if (window.location.pathname !== "/login") {
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 1000);
-        }
-      }
-      return Promise.reject(error);
-    },
-  );
+    const detachApi = attachTokenInterceptor(api, "API");
+    const detachFormApi = attachTokenInterceptor(formApi, "FormAPI");
+    const detachPdfApi = attachTokenInterceptor(getPdf, "PDF API");
 
-  const axiosAPI = {
-    get: (url, params = {}) => api.get(url, { params }),
-    post: (url, data) => api.post(url, data),
-    put: (url, data) => api.put(url, data),
-    patch: (url, data) => api.patch(url, data),
-    delete: (url) => api.delete(url),
-    formData: (url, formdata) => formApi.post(url, formdata),
-    getpdf: (url, params = {}) => getPdf.get(url, { params }),
-  };
+    return () => {
+      detachApi();
+      detachFormApi();
+      detachPdfApi();
+    };
+  }, [api, formApi, getPdf]);
+
+  const axiosAPI = useMemo(
+    () => ({
+      get: (url, params = {}) => api.get(url, { params }),
+      post: (url, data) => api.post(url, data),
+      put: (url, data) => api.put(url, data),
+      patch: (url, data) => api.patch(url, data),
+      delete: (url) => api.delete(url),
+      formData: (url, formdata) => formApi.post(url, formdata),
+      getpdf: (url, params = {}) => getPdf.get(url, { params }),
+    }),
+    [api, formApi, getPdf],
+  );
 
   // Remove the old useEffect - we now use startRefreshCycle() when tokens are saved
 
@@ -398,16 +276,21 @@ export const AuthProvider = ({ children }) => {
     const refreshToken = localStorage.getItem("refreshToken");
 
     if (accessToken && refreshToken) {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
       console.log("Starting token refresh cycle");
 
       // Set up periodic refresh
-      const interval = setInterval(
+      refreshIntervalRef.current = setInterval(
         async () => {
           try {
             const refreshToken = localStorage.getItem("refreshToken");
             if (!refreshToken) {
               console.log("No refresh token found, stopping refresh cycle");
-              clearInterval(interval);
+              clearInterval(refreshIntervalRef.current);
+              refreshIntervalRef.current = null;
               return;
             }
 
@@ -422,7 +305,10 @@ export const AuthProvider = ({ children }) => {
             reftoken = response.data.refreshToken;
           } catch (error) {
             console.error("Token refresh failed:", error);
-            clearInterval(interval);
+            if (refreshIntervalRef.current) {
+              clearInterval(refreshIntervalRef.current);
+              refreshIntervalRef.current = null;
+            }
             removeLogin();
           }
         },
@@ -434,6 +320,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.post(`${VITE_API}/api/v1/logout`, config);
 
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
@@ -444,6 +334,15 @@ export const AuthProvider = ({ children }) => {
       // console.log(e);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <AuthContext.Provider

@@ -22,25 +22,13 @@ export function DivisionProvider({ children }) {
   const { axiosAPI, islogin } = useAuth();
   const [divisions, setDivisions] = useState([]);
   const hasLoadedRef = useRef(false); // Track if divisions have been loaded
+  const selectedDivisionRef = useRef(null);
   
   // Initialize selectedDivision from localStorage if available
   const [selectedDivision, setSelectedDivision] = useState(() => {
     try {
       const stored = localStorage.getItem("selectedDivision");
       const parsed = stored ? JSON.parse(stored) : null;
-      console.log('DivisionContext - Initializing selectedDivision from localStorage:', parsed);
-      if (parsed) {
-        console.log('DivisionContext - Parsed division details:', {
-          id: parsed.id,
-          idType: typeof parsed.id,
-          name: parsed.name,
-          isAllDivisions: parsed.isAllDivisions,
-          isAllDivisionsType: typeof parsed.isAllDivisions,
-          isIdAll: parsed.id === "all",
-          isIdAllStrict: parsed.id === "all",
-          isIdAllLoose: parsed.id == "all"
-        });
-      }
       return parsed;
     } catch (error) {
       console.error("Error parsing selectedDivision from localStorage:", error);
@@ -56,14 +44,6 @@ export function DivisionProvider({ children }) {
         const parsed = JSON.parse(stored);
         // Only set to true if explicitly "All Divisions" is selected
         const result = parsed?.isAllDivisions === true || parsed?.id === "all" || false;
-        console.log('DivisionContext - Initializing showAllDivisions from localStorage:', {
-          parsed,
-          isAllDivisions: parsed?.isAllDivisions,
-          id: parsed?.id,
-          calculatedResult: result,
-          isExplicitlyAllDivisions: parsed?.isAllDivisions === true,
-          isIdAll: parsed?.id === "all"
-        });
         return result;
       }
       return false;
@@ -106,7 +86,6 @@ export function DivisionProvider({ children }) {
           
           // Always include All Divisions for admins (without restricted roles), even if only one division is present
           if (isAdminOrSuperAdmin && !hasRestrictedRole) {
-            console.log('DivisionContext - Adding All Divisions option for admin user (no restricted roles)');
             divisionsWithAll = [
               { 
                 id: "all", 
@@ -121,7 +100,6 @@ export function DivisionProvider({ children }) {
             ];
           } else {
             // Ensure non-admin users and restricted roles never see an All Divisions option
-            console.log('DivisionContext - Filtering out All Divisions option (isAdmin:', isAdminOrSuperAdmin, ', hasRestrictedRole:', hasRestrictedRole, ')');
             divisionsWithAll = divisionsWithAll.filter(d => d?.id !== "all" && !d?.isAllDivisions);
           }
         }
@@ -139,7 +117,6 @@ export function DivisionProvider({ children }) {
           // If no stored division, set to the first REAL division (not "All Divisions")
           const firstRealDivision = divisionsWithAll.find(div => div.id !== "all");
           if (firstRealDivision) {
-            console.log('DivisionContext - Setting default division to first real division:', firstRealDivision);
             setSelectedDivision(firstRealDivision);
           }
         }
@@ -152,7 +129,7 @@ export function DivisionProvider({ children }) {
       setLoading(false);
       setIsLoading(false);
     }
-  }, [islogin, axiosAPI, selectedDivision]); // Add selectedDivision to dependencies
+  }, [islogin, isLoading, axiosAPI]);
 
   // Reset function for when user logs out
   const reset = useCallback(() => {
@@ -172,16 +149,7 @@ export function DivisionProvider({ children }) {
               // Update localStorage when selectedDivision changes
       useEffect(() => {
         if (selectedDivision) {
-          console.log('DivisionContext - selectedDivision changed:', selectedDivision);
-          console.log('DivisionContext - selectedDivision type check:', {
-            id: selectedDivision?.id,
-            idType: typeof selectedDivision?.id,
-            isAllDivisions: selectedDivision?.isAllDivisions,
-            isAllDivisionsType: typeof selectedDivision?.isAllDivisions,
-            isIdAll: selectedDivision?.id === "all",
-            isIdAllStrict: selectedDivision?.id === "all",
-            isIdAllLoose: selectedDivision?.id == "all"
-          });
+      selectedDivisionRef.current = selectedDivision;
       
       localStorage.setItem("selectedDivision", JSON.stringify(selectedDivision));
       
@@ -204,7 +172,6 @@ export function DivisionProvider({ children }) {
           
           // If user has restricted role, NEVER set showAllDivisions to true
           if (hasRestrictedRole && isAllDivs) {
-            console.warn('DivisionContext - Restricted role user tried to select All Divisions, forcing showAllDivisions=false');
             isAllDivs = false;
           }
         }
@@ -212,16 +179,6 @@ export function DivisionProvider({ children }) {
         console.error("Error checking user roles in DivisionContext:", error);
       }
       
-          console.log('DivisionContext - Updating showAllDivisions:', {
-            selectedDivisionId: selectedDivision?.id,
-            isAllDivisions: selectedDivision?.isAllDivisions,
-            calculatedShowAll: isAllDivs,
-            isExplicitlyAllDivisions: selectedDivision?.isAllDivisions === true,
-            isIdAll: selectedDivision?.id === "all",
-            isIdAllStrict: selectedDivision?.id === "all",
-            isIdAllLoose: selectedDivision?.id == "all",
-            finalShowAllValue: isAllDivs
-          });
           setShowAllDivisions(isAllDivs);
       
       // Trigger a custom event to notify components that division has changed
@@ -238,18 +195,11 @@ export function DivisionProvider({ children }) {
 
   useEffect(() => {
     load();
-  }, [islogin]);
-  
-  // Add logging for context initialization
+  }, [load]);
+
   useEffect(() => {
-    console.log('DivisionContext - Component mounted/updated:', {
-      islogin,
-      hasLoaded: hasLoadedRef.current,
-      selectedDivision,
-      showAllDivisions,
-      divisionsCount: divisions.length
-    });
-  }, [islogin, hasLoadedRef.current, selectedDivision, showAllDivisions, divisions.length]);
+    selectedDivisionRef.current = selectedDivision;
+  }, [selectedDivision]);
   
   // Sync with localStorage changes
   useEffect(() => {
@@ -258,23 +208,12 @@ export function DivisionProvider({ children }) {
         const stored = localStorage.getItem("selectedDivision");
         if (stored) {
           const parsed = JSON.parse(stored);
-          console.log('DivisionContext - localStorage changed, syncing:', parsed);
-          console.log('DivisionContext - Current selectedDivision:', selectedDivision);
-          console.log('DivisionContext - Comparison:', {
-            stored: JSON.stringify(parsed),
-            current: JSON.stringify(selectedDivision),
-            areEqual: JSON.stringify(parsed) === JSON.stringify(selectedDivision)
-          });
+          const currentSelectedDivision = selectedDivisionRef.current;
           
           // Only update if it's different from current state
-          if (JSON.stringify(parsed) !== JSON.stringify(selectedDivision)) {
-            console.log('DivisionContext - Updating selectedDivision from localStorage sync');
+          if (JSON.stringify(parsed) !== JSON.stringify(currentSelectedDivision)) {
             setSelectedDivision(parsed);
-          } else {
-            console.log('DivisionContext - No update needed, division data is the same');
           }
-        } else {
-          console.log('DivisionContext - No selectedDivision found in localStorage');
         }
       } catch (error) {
         console.error("Error syncing with localStorage:", error);
@@ -284,14 +223,10 @@ export function DivisionProvider({ children }) {
     // Listen for storage events
     window.addEventListener('storage', handleStorageChange);
     
-    // Also check localStorage on mount
-    console.log('DivisionContext - Checking localStorage on mount');
-    handleStorageChange();
-    
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [selectedDivision]);
+  }, []);
 
   // Function to refresh data when division changes
   const refreshData = () => {
