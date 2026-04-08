@@ -92,7 +92,10 @@ const storeService = {
   async createSale(body) {
     const res = await api.request(`/stores/sales`, {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        compactResponse: true,
+        ...body,
+      }),
     });
 
     // Check if response is ok before parsing
@@ -1194,6 +1197,7 @@ const storeService = {
     searchTerm = "",
     productType = "",
     recordedAt = "",
+    options = {},
   ) {
     // GET /stores/:storeId/products/for-sale - Get products available for sale
     let queryParams = [];
@@ -1203,6 +1207,7 @@ const storeService = {
       queryParams.push(`productType=${encodeURIComponent(productType)}`);
     if (recordedAt)
       queryParams.push(`recordedAt=${encodeURIComponent(recordedAt)}`);
+    if (options.compact) queryParams.push("compact=true");
     const queryString =
       queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
     const res = await api.request(

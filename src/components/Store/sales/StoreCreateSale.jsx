@@ -265,6 +265,7 @@ export default function StoreCreateSale() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const farmerSearchRef = useRef(null);
   const farmerSearchTimeoutRef = useRef(null);
+  const productListCacheRef = useRef(new Map());
   const recentCustomersCacheRef = useRef([]);
   const customerSearchCacheRef = useRef(new Map());
   const mobileLookupCacheRef = useRef(new Map());
@@ -394,7 +395,10 @@ export default function StoreCreateSale() {
   const [searchParams] = useSearchParams();
   const editSaleId = searchParams.get("editSaleId");
   const [recordedAt, setRecordedAt] = useState(getCurrentDateTimeLocal());
+  const [hasManuallyChangedRecordedAt, setHasManuallyChangedRecordedAt] =
+    useState(Boolean(editSaleId));
   const [creditUsageEnabled, setCreditUsageEnabled] = useState(false);
+  const deferredRecordedAt = useDeferredValue(recordedAt);
 
   // Get current store ID from localStorage
   const getStoreId = () => {
@@ -897,6 +901,8 @@ export default function StoreCreateSale() {
 
   // Fetch real products from store products API
   useEffect(() => {
+    let active = true;
+
     const fetchProducts = async () => {
       const storeId = getStoreId();
       if (!storeId) {
@@ -910,19 +916,34 @@ export default function StoreCreateSale() {
         return;
       }
 
-      try {
-        setProductsLoading(true);
-        console.log("Fetching products for store:", storeId);
+      const cacheKey = hasManuallyChangedRecordedAt
+        ? `${storeId}::${deferredRecordedAt || "current"}`
+        : null;
+      const cached = cacheKey
+        ? productListCacheRef.current.get(cacheKey)
+        : null;
 
-        // Use the for-sale endpoint specifically for sale creation
+      if (cached) {
+        if (!active) return;
+        setProducts(cached.products || []);
+        if (Array.isArray(cached.villages) && cached.villages.length > 0) {
+          setStoreVillages(cached.villages);
+        }
+        return;
+      }
+
+      try {
+        if (active) {
+          setProductsLoading(true);
+        }
+
         const response = await storeService.getStoreProductsForSale(
           storeId,
           "",
           "",
-          recordedAt,
+          hasManuallyChangedRecordedAt ? deferredRecordedAt : "",
+          { compact: true },
         );
-
-        console.log("Store products for-sale response:", response);
 
         if (response.success && Array.isArray(response.data)) {
           // Map API response - /stores/:storeId/products/for-sale returns simplified structure
@@ -939,34 +960,54 @@ export default function StoreCreateSale() {
             price: item.customPrice || item.price || item.basePrice || 0, // Prioritize custom price
             isOutOfStock: item.isOutOfStock || false,
           }));
-          console.log("Mapped products for sale:", mappedProducts);
-          setProducts(mappedProducts);
-          if (Array.isArray(response.villages)) {
-            setStoreVillages(
-              response.villages.map((villageName, index) => ({
+          const mappedVillages = Array.isArray(response.villages)
+            ? response.villages.map((villageName, index) => ({
                 id: `prefetched-${index}`,
                 villageName,
-              })),
-            );
-          } else if (Array.isArray(response.data?.villages)) {
-            setStoreVillages(response.data.villages || []);
+              }))
+            : Array.isArray(response.data?.villages)
+              ? response.data.villages || []
+              : [];
+
+          if (cacheKey) {
+            productListCacheRef.current.set(cacheKey, {
+              products: mappedProducts,
+              villages: mappedVillages,
+            });
+          }
+
+          if (!active) return;
+          setProducts(mappedProducts);
+          if (Array.isArray(response.villages)) {
+            setStoreVillages(mappedVillages);
+          } else if (mappedVillages.length > 0) {
+            setStoreVillages(mappedVillages);
           }
         } else {
           const errorMsg = response.message || "Failed to load products";
           console.error("Failed to fetch products:", errorMsg, response);
-          setProducts([]);
+          if (active && products.length === 0) {
+            setProducts([]);
+          }
         }
       } catch (err) {
         console.error("Error fetching products:", err);
         console.error("Error details:", err.response?.data || err.message);
-        setProducts([]);
+        if (active && products.length === 0) {
+          setProducts([]);
+        }
       } finally {
-        setProductsLoading(false);
+        if (active) {
+          setProductsLoading(false);
+        }
       }
     };
 
     fetchProducts();
-  }, [recordedAt]);
+    return () => {
+      active = false;
+    };
+  }, [deferredRecordedAt, hasManuallyChangedRecordedAt]);
 
   useEffect(() => {
     const storeId = getStoreId();
@@ -2115,13 +2156,22 @@ export default function StoreCreateSale() {
 
         if (editSaleId) {
           localStorage.removeItem("storeSaleEditDraft");
+          navigate("/store/sales", {
+            replace: true,
+            state: {
+              successMessage:
+                "Sale updated successfully. The same invoice number has been updated with the corrected details.",
+            },
+          });
+        } else {
+          navigate("/store/sales", {
+            replace: true,
+            state: {
+              successMessage: "Sale created successfully!",
+            },
+          });
         }
-        setSuccessMessage(
-          editSaleId
-            ? "Sale updated successfully. The same invoice number has been updated with the corrected details."
-            : "Sale created successfully!",
-        );
-        setIsSuccessModalOpen(true);
+        return;
       } else {
         // Check if error is about payment amount mismatch
         const errorMessage = saleResponse.message || "";
@@ -2510,7 +2560,10 @@ export default function StoreCreateSale() {
             type="datetime-local"
             className="form-control"
             value={recordedAt}
-            onChange={(e) => setRecordedAt(e.target.value)}
+            onChange={(e) => {
+              setHasManuallyChangedRecordedAt(true);
+              setRecordedAt(e.target.value);
+            }}
             max={getCurrentDateTimeLocal()}
           />
           <div
@@ -2769,11 +2822,28 @@ export default function StoreCreateSale() {
             </div>
           )}
 
-          {productsLoading ? (
+          {productsLoading && products.length === 0 ? (
             <div style={{ padding: 24, textAlign: "center", color: "#475569" }}>
               Loading products...
             </div>
           ) : (
+            <>
+              {productsLoading && products.length > 0 && (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    backgroundColor: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    color: "#1d4ed8",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  Refreshing product stock...
+                </div>
+              )}
             <div
               style={
                 isMobile
@@ -2946,6 +3016,7 @@ export default function StoreCreateSale() {
                 );
               })}
             </div>
+            </>
           )}
 
           {!singleStepCheckout && (

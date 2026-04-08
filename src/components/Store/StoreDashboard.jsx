@@ -1,11 +1,9 @@
-import React, { lazy, Suspense, useState, useEffect, useRef } from "react";
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import styles from "../Dashboard/Dashboard.module.css";
 import StoreDashHeader from "./StoreDashHeader";
 import StoreNavContainer from "./StoreNavContainer";
 import FootLink from "../Dashboard/FootLink";
-import storeService from "../../services/storeService";
-import { connectStoreNotificationSocket } from "../../services/storeNotificationSocket";
 import { isStoreManager, isAdmin, isDivisionHead,  isZBM,
   isRBM,
   isAreaBusinessManager,
@@ -41,10 +39,7 @@ export default function StoreDashboard() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [checkingStore, setCheckingStore] = useState(true);
-  const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
-  const notificationSocketRef = useRef(null);
-  const notificationPollerRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -126,127 +121,6 @@ export default function StoreDashboard() {
 
     checkStoreSelection();
   }, [navigate]);
-
-  useEffect(() => {
-    const selectedStoreId = Number(localStorage.getItem("currentStoreId") || 0);
-    if (!selectedStoreId) return undefined;
-
-    let mounted = true;
-
-    const loadNotifications = async () => {
-      try {
-        const response = await storeService.getStoreNotifications({
-          storeId: selectedStoreId,
-          limit: 12,
-        });
-        if (mounted && response?.success) {
-          setNotifications((current) => {
-            const incoming = Array.isArray(response.data) ? response.data : [];
-            if (!current.length) return incoming;
-
-            const merged = [...incoming];
-            current.forEach((item) => {
-              if (!merged.some((existing) => existing.id === item.id)) {
-                merged.push(item);
-              }
-            });
-
-            return merged
-              .sort(
-                (a, b) =>
-                  new Date(b.createdAt || b.updatedAt || 0).getTime() -
-                  new Date(a.createdAt || a.updatedAt || 0).getTime(),
-              )
-              .slice(0, 20);
-          });
-        }
-      } catch (error) {
-        console.warn(
-          "StoreDashboard - Failed to load notifications:",
-          error.message,
-        );
-      }
-    };
-
-    loadNotifications();
-
-    const pollNotifications = () => {
-      if (document.visibilityState === "visible") {
-        loadNotifications();
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        loadNotifications();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    notificationPollerRef.current = window.setInterval(pollNotifications, 60000);
-
-    notificationSocketRef.current?.disconnect();
-    notificationSocketRef.current = connectStoreNotificationSocket({
-      storeIds: [selectedStoreId],
-      onNotification: (notification) => {
-        if (!mounted) return;
-        setNotifications((current) => {
-          const deduped = current.filter((item) => item.id !== notification.id);
-          return [notification, ...deduped].slice(0, 20);
-        });
-      },
-    });
-
-    return () => {
-      mounted = false;
-      if (notificationPollerRef.current) {
-        window.clearInterval(notificationPollerRef.current);
-        notificationPollerRef.current = null;
-      }
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      notificationSocketRef.current?.disconnect();
-      notificationSocketRef.current = null;
-    };
-  }, [checkingStore]);
-
-  const handleNotificationClick = async (notification) => {
-    try {
-      if (!notification?.id || notification.isRead) return;
-      const storeId = Number(localStorage.getItem("currentStoreId") || 0) || null;
-      await storeService.markStoreNotificationRead(notification.id, storeId);
-      setNotifications((current) =>
-        current.map((item) =>
-          item.id === notification.id
-            ? { ...item, isRead: true, readAt: new Date().toISOString() }
-            : item,
-        ),
-      );
-    } catch (error) {
-      console.warn(
-        "StoreDashboard - Failed to mark notification as read:",
-        error.message,
-      );
-    }
-  };
-
-  const handleMarkAllNotificationsRead = async () => {
-    try {
-      const storeId = Number(localStorage.getItem("currentStoreId") || 0) || null;
-      await storeService.markAllStoreNotificationsRead(storeId);
-      setNotifications((current) =>
-        current.map((item) => ({
-          ...item,
-          isRead: true,
-          readAt: item.readAt || new Date().toISOString(),
-        })),
-      );
-    } catch (error) {
-      console.warn(
-        "StoreDashboard - Failed to mark all notifications as read:",
-        error.message,
-      );
-    }
-  };
 
   const onmouseover = () => {
     if (!isMobile) {
@@ -331,9 +205,9 @@ export default function StoreDashboard() {
         <div className="col p-0">
           <div className={`row p-0 ${styles.headline}`}>
             <StoreDashHeader
-              notifications={notifications}
-              onNotificationClick={handleNotificationClick}
-              onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+              notifications={[]}
+              onNotificationClick={() => {}}
+              onMarkAllNotificationsRead={() => {}}
               user={storedUser}
               setTab={setTab}
               admin={false}

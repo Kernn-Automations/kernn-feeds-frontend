@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { normalizeRoleName } from "@/utils/roleUtils";
 import { useAuth } from "../../Auth";
+import { useLocation } from "react-router-dom";
 
 const DivisionContext = createContext();
 
@@ -20,6 +21,7 @@ export const useDivision = () => {
 
 export function DivisionProvider({ children }) {
   const { axiosAPI, islogin } = useAuth();
+  const location = useLocation();
   const [divisions, setDivisions] = useState([]);
   const hasLoadedRef = useRef(false); // Track if divisions have been loaded
   const selectedDivisionRef = useRef(null);
@@ -54,9 +56,10 @@ export function DivisionProvider({ children }) {
   });
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false); // Prevent multiple simultaneous calls
+  const isStoreRoute = location.pathname.startsWith("/store");
 
   const load = useCallback(async () => {
-    if (!islogin || isLoading || hasLoadedRef.current) return; // Prevent loading if already loaded
+    if (!islogin || isStoreRoute || isLoading || hasLoadedRef.current) return; // Prevent loading if already loaded
     setIsLoading(true);
     setLoading(true);
     try {
@@ -129,7 +132,7 @@ export function DivisionProvider({ children }) {
       setLoading(false);
       setIsLoading(false);
     }
-  }, [islogin, isLoading, axiosAPI]);
+  }, [axiosAPI, isLoading, isStoreRoute, islogin]);
 
   // Reset function for when user logs out
   const reset = useCallback(() => {
@@ -182,16 +185,18 @@ export function DivisionProvider({ children }) {
           setShowAllDivisions(isAllDivs);
       
       // Trigger a custom event to notify components that division has changed
-      window.dispatchEvent(new CustomEvent('divisionChanged', { 
-        detail: { divisionId: selectedDivision.id, division: selectedDivision } 
-      }));
-      
-      // Also trigger a refresh event for all components
-      window.dispatchEvent(new CustomEvent('refreshData', { 
-        detail: { divisionId: selectedDivision.id, division: selectedDivision } 
-      }));
+      if (!isStoreRoute) {
+        window.dispatchEvent(new CustomEvent('divisionChanged', { 
+          detail: { divisionId: selectedDivision.id, division: selectedDivision } 
+        }));
+        
+        // Also trigger a refresh event for all components
+        window.dispatchEvent(new CustomEvent('refreshData', { 
+          detail: { divisionId: selectedDivision.id, division: selectedDivision } 
+        }));
+      }
     }
-  }, [selectedDivision]);
+  }, [isStoreRoute, selectedDivision]);
 
   useEffect(() => {
     load();

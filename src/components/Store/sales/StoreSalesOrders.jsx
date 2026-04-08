@@ -10,7 +10,7 @@ import homeStyles from "../../Dashboard/HomePage/HomePage.module.css";
 import salesStyles from "../../Dashboard/Sales/Sales.module.css";
 import xls from "../../../images/xls-png.png";
 import pdf from "../../../images/pdf-png.png";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
@@ -54,6 +54,7 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const [historyOrder, setHistoryOrder] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Cancellation Modal States
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -62,6 +63,7 @@ function StoreSalesOrders({ onBack }) {
   const [cancelling, setCancelling] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
 
@@ -214,6 +216,16 @@ function StoreSalesOrders({ onBack }) {
       fetchStoreProducts();
     }
   }, [storeId]);
+
+  useEffect(() => {
+    if (!location.state?.successMessage) return;
+
+    setSuccessMessage(location.state.successMessage);
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: {},
+    });
+  }, [location.pathname, location.search, location.state, navigate]);
 
   const fetchStoreProducts = async () => {
     if (!storeId) return;
@@ -807,6 +819,40 @@ function StoreSalesOrders({ onBack }) {
           </p>
         </div>
       </div>
+
+      {successMessage && (
+        <div
+          style={{
+            marginBottom: "16px",
+            padding: "12px 16px",
+            borderRadius: "12px",
+            border: "1px solid #b7ebc6",
+            background: "#edf9f0",
+            color: "#146c2e",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
+        >
+          <span>{successMessage}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage("")}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "#146c2e",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "14px",
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {loading && <Loading />}
 
