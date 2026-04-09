@@ -246,8 +246,15 @@ function StoreManageStock() {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === "transactionType" && value === "openingstock"
-        ? { reason: prev.reason || "Opening stock for new store" }
+      ...(name === "transactionType" &&
+      (value === "openingstock" || value === "closingstock")
+        ? {
+            reason:
+              prev.reason ||
+              (value === "openingstock"
+                ? "Opening stock for new store"
+                : "Closing stock for selected date"),
+          }
         : {}),
     }));
   };
@@ -265,8 +272,18 @@ function StoreManageStock() {
       return;
     }
 
-    if (parseFloat(formData.quantity) <= 0) {
-      setError("Quantity must be greater than 0");
+    const parsedQuantity = parseFloat(formData.quantity);
+    if (
+      Number.isNaN(parsedQuantity) ||
+      (formData.transactionType === "closingstock"
+        ? parsedQuantity < 0
+        : parsedQuantity <= 0)
+    ) {
+      setError(
+        formData.transactionType === "closingstock"
+          ? "Closing stock must be zero or greater"
+          : "Quantity must be greater than 0",
+      );
       setShowErrorModal(true);
       return;
     }
@@ -309,6 +326,8 @@ function StoreManageStock() {
           `${
             formData.transactionType === "openingstock"
               ? "Opening stock saved successfully!"
+              : formData.transactionType === "closingstock"
+                ? "Closing stock saved successfully!"
               : "Stock updated successfully!"
           }${
             ledgerDetails
@@ -490,15 +509,27 @@ function StoreManageStock() {
           <input
             type="number"
             step="0.01"
-            min="0.01"
+            min={formData.transactionType === "closingstock" ? "0" : "0.01"}
             inputMode="decimal"
             onWheel={disableWheel}
             name="quantity"
             value={formData.quantity}
             onChange={handleInputChange}
-            placeholder="Enter quantity"
+            placeholder={
+              formData.transactionType === "closingstock"
+                ? "Enter closing stock"
+                : "Enter quantity"
+            }
             required
           />
+          {formData.transactionType === "closingstock" && (
+            <div
+              style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}
+            >
+              This sets the exact closing balance for the selected date and
+              time.
+            </div>
+          )}
         </div>
 
         {/* Transaction Type */}
@@ -514,10 +545,11 @@ function StoreManageStock() {
             <option value="stockout">Stock Out</option>
             <option value="adjustment">Adjustment Reset</option>
             <option value="openingstock">Opening Stock</option>
+            <option value="closingstock">Closing Stock</option>
           </select>
           <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px" }}>
             Manual stock only supports stock in, stock out, adjustment reset,
-            and opening stock.
+            opening stock, and closing stock.
           </div>
         </div>
 
@@ -547,7 +579,9 @@ function StoreManageStock() {
             placeholder={
               formData.transactionType === "openingstock"
                 ? "Enter opening stock note for this store"
-                : "Enter reason for this stock movement"
+                : formData.transactionType === "closingstock"
+                  ? "Enter closing stock note for this date"
+                  : "Enter reason for this stock movement"
             }
             required
           />
@@ -702,6 +736,8 @@ function StoreManageStock() {
               </span>
             ) : formData.transactionType === "openingstock" ? (
               "Save Opening Stock"
+            ) : formData.transactionType === "closingstock" ? (
+              "Save Closing Stock"
             ) : (
               "Update Stock"
             )}
