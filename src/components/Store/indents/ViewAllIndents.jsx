@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import styles from "../../Dashboard/Purchases/Purchases.module.css";
@@ -207,6 +207,7 @@ export default function ViewAllIndents() {
   const [revertPreviewLoading, setRevertPreviewLoading] = useState(false);
   const [revertWarnings, setRevertWarnings] = useState([]);
   const [canRevertIndent, setCanRevertIndent] = useState(true);
+  const revertRequestInFlightRef = useRef(false);
   
   // Reject Incoming Stock State
   const [showRejectIncomingModal, setShowRejectIncomingModal] = useState(false);
@@ -1172,9 +1173,10 @@ export default function ViewAllIndents() {
   };
 
   const handleConfirmRevert = async () => {
-    if (!selectedIndent) return;
+    if (!selectedIndent || revertRequestInFlightRef.current) return;
 
     try {
+      revertRequestInFlightRef.current = true;
       setRevertLoading(true);
       const res = await storeService.revertIndent(selectedIndent.id);
 
@@ -1216,6 +1218,7 @@ export default function ViewAllIndents() {
       setShowRevertModal(false);
       setIsModalOpen(true);
     } finally {
+      revertRequestInFlightRef.current = false;
       setRevertLoading(false);
     }
   };
