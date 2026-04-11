@@ -215,6 +215,7 @@ function StoreManageStock() {
       setPageLoading(true);
       const response = await storeService.getStoreProducts(storeId, {
         compact: true,
+        selector: true,
       });
 
       if (response.success) {
@@ -333,14 +334,23 @@ function StoreManageStock() {
             ledgerDetails
               ? `\n\nBalance at recorded time: ${Number(
                   ledgerDetails.balanceAtRecordedAt || 0,
-                )} ${currentStock?.unit || "bag"}\nCurrent balance after later entries: ${Number(
-                  ledgerDetails.currentBalance || 0,
                 )} ${currentStock?.unit || "bag"}`
               : ""
           }`,
         );
         setShowSuccessModal(true);
         setLastLedgerResult(ledgerDetails);
+
+        const touchedProductId = String(
+          selectedActualProductId || formData.productId || "",
+        );
+        if (touchedProductId) {
+          Array.from(stockCacheRef.current.keys()).forEach((key) => {
+            if (key.startsWith(`${storeId}:${touchedProductId}:`)) {
+              stockCacheRef.current.delete(key);
+            }
+          });
+        }
 
         // Reset form
         setFormData({
@@ -673,10 +683,6 @@ function StoreManageStock() {
                   <div style={{ fontSize: "12px", color: "#64748b" }}>
                     Immediate balance after posting at the selected date and
                     time.
-                  </div>
-
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>
-                    Present stock after later transfers, sales, or resets.
                   </div>
                 </div>
               </div>

@@ -650,6 +650,20 @@ const storeService = {
     );
     return res.json();
   },
+  async revertStoreImport(logId) {
+    const res = await api.request(`/stores/ledger/import/history/${logId}/revert`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const error = new Error(
+        data.message || data.error || `HTTP ${res.status}: ${res.statusText}`,
+      );
+      error.response = { data, status: res.status };
+      throw error;
+    }
+    return data;
+  },
   // All Stores Sales Reports operations (Admin/Super Admin only)
   async getAllStoresSalesReports(params = {}) {
     // GET /stores/reports/sales - Get sales report for all stores
@@ -1159,6 +1173,7 @@ const storeService = {
     if (params.sortBy) queryParams.append("sortBy", params.sortBy);
     if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
     if (params.compact) queryParams.append("compact", "true");
+    if (params.selector) queryParams.append("selector", "true");
 
     const res = await api.request(
       `/stores/${storeId}/products${queryParams.toString() ? `?${queryParams.toString()}` : ""}`,
