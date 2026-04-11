@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
@@ -845,6 +845,10 @@ export default function StoreImportPanel({
   const [success, setSuccess] = useState("");
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [allowNegativeLedgerOnImport, setAllowNegativeLedgerOnImport] =
+    useState(true);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const confirmResolverRef = useRef(null);
 
   const active = config[importType];
   const helperText = useMemo(
@@ -869,7 +873,52 @@ export default function StoreImportPanel({
     [pendingImportRows],
   );
 
-  const confirmNegativeImportProceed = (actionLabel) => {
+  const promptUserConfirmation = ({
+    title,
+    message,
+    confirmLabel = "Continue",
+    cancelLabel = "Cancel",
+    tone = "warning",
+  }) =>
+    new Promise((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialog({
+        title,
+        message,
+        confirmLabel,
+        cancelLabel,
+        tone,
+      });
+    });
+
+  const resolveConfirmation = (value) => {
+    if (confirmResolverRef.current) {
+      confirmResolverRef.current(value);
+      confirmResolverRef.current = null;
+    }
+    setConfirmDialog(null);
+  };
+
+  useEffect(() => {
+    if (!confirmDialog) return undefined;
+
+    const originalTitle = document.title;
+    const updateTitle = () => {
+      document.title = document.hidden
+        ? "Action Required | Feed Bazaar"
+        : originalTitle;
+    };
+
+    updateTitle();
+    document.addEventListener("visibilitychange", updateTitle);
+
+    return () => {
+      document.removeEventListener("visibilitychange", updateTitle);
+      document.title = originalTitle;
+    };
+  }, [confirmDialog]);
+
+  const confirmNegativeImportProceed = async (actionLabel) => {
     if (!negativeQuantityRows.length) return true;
     const preview = negativeQuantityRows
       .slice(0, 8)
@@ -878,9 +927,13 @@ export default function StoreImportPanel({
           `Row ${row.rowNumber}: ${row.storeCode} / ${row.productSku} / ${row.quantity}`,
       )
       .join("\n");
-    return window.confirm(
-      `Negative stock quantities were detected in this import.\n\n${preview}${negativeQuantityRows.length > 8 ? `\n...and ${negativeQuantityRows.length - 8} more row(s)` : ""}\n\nDo you want to continue and ${actionLabel}?`,
-    );
+    return promptUserConfirmation({
+      title: "Negative Quantity Detected",
+      message: `Negative stock quantities were detected in this import.\n\n${preview}${negativeQuantityRows.length > 8 ? `\n...and ${negativeQuantityRows.length - 8} more row(s)` : ""}\n\nDo you want to continue and ${actionLabel}?`,
+      confirmLabel: "Continue",
+      cancelLabel: "Cancel",
+      tone: "warning",
+    });
   };
 
   const confirmNegativeLedgerOverride = (errorData, actionLabel) => {
@@ -892,9 +945,7 @@ export default function StoreImportPanel({
         ? `Product ID: ${errorDetails.productId}`
         : "",
       errorDetails.referenceId ? `Reference: ${errorDetails.referenceId}` : "",
-      errorDetails.recordedAt
-        ? `Recorded At: ${errorDetails.recordedAt}`
-        : "",
+      errorDetails.recordedAt ? `Recorded At: ${errorDetails.recordedAt}` : "",
       Number.isFinite(errorDetails.runningBalance)
         ? `Running Balance After Entry: ${errorDetails.runningBalance}`
         : "",
@@ -902,10 +953,22 @@ export default function StoreImportPanel({
       `Do you want to continue and ${actionLabel} anyway?`,
     ].filter(Boolean);
 
-    return window.confirm(lines.join("\n"));
+    return promptUserConfirmation({
+      title: "Ledger Will Go Negative",
+      message: lines.join("\n"),
+      confirmLabel: "Proceed Anyway",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
   };
 
   const statusStyles = {
+    queued: { background: "#e0f2fe", color: "#075985", label: "Queued" },
+    processing: {
+      background: "#ede9fe",
+      color: "#6d28d9",
+      label: "Processing",
+    },
     success: { background: "#dcfce7", color: "#166534", label: "Success" },
     failed: { background: "#fee2e2", color: "#b91c1c", label: "Failed" },
     reverted: { background: "#ede9fe", color: "#6d28d9", label: "Reverted" },
@@ -948,6 +1011,23 @@ export default function StoreImportPanel({
     };
   }, [allowMultiStore]);
 
+  useEffect(() => {
+    if (
+      !Array.isArray(importHistory) ||
+      !importHistory.some((entry) =>
+        ["queued", "processing"].includes(entry.importStatus),
+      )
+    ) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadImportHistory().catch(() => null);
+    }, 45000);
+
+    return () => window.clearInterval(intervalId);
+  }, [importHistory]);
+
   const downloadExcelTemplate = () => {
     const a = storeCode || "STORE039";
     const b = allowMultiStore ? "STORE040" : a;
@@ -984,6 +1064,7 @@ export default function StoreImportPanel({
       setPendingImportRows(parsed);
       setPendingImportFileName(file.name || "import.xlsx");
       setValidationSummary("");
+      setAllowNegativeLedgerOnImport(true);
       setShowImportPreview(true);
     } catch (err) {
       setError(err.message || "Failed to parse import file.");
@@ -996,7 +1077,7 @@ export default function StoreImportPanel({
 
   const handleConfirmImport = async () => {
     if (!pendingImportRows.length) return;
-    if (!confirmNegativeImportProceed("import these rows")) return;
+    if (!(await confirmNegativeImportProceed("import these rows"))) return;
     try {
       setImporting(true);
       let response;
@@ -1005,12 +1086,13 @@ export default function StoreImportPanel({
           rows: pendingImportRows,
           referenceType: "ExcelLedgerImport",
           importType,
+          allowNegativeLedger: allowNegativeLedgerOnImport,
         });
       } catch (err) {
         const errorData = err.response?.data || {};
         if (
           errorData?.errorCode === "NEGATIVE_LEDGER" &&
-          confirmNegativeLedgerOverride(errorData, "import these rows")
+          (await confirmNegativeLedgerOverride(errorData, "import these rows"))
         ) {
           response = await storeService.importStoreLedgerRows({
             rows: pendingImportRows,
@@ -1025,13 +1107,14 @@ export default function StoreImportPanel({
       if (!response.success)
         throw new Error(response.message || "Import failed.");
       setSuccess(
-        `${active.label} import completed successfully for ${pendingImportRows.length} row(s).`,
+        `${active.label} import started for ${pendingImportRows.length} row(s). ETA: ${response?.data?.etaLabel || "a few seconds"}. Please check Recent Import History for live progress.`,
       );
       setShowSuccessModal(true);
       setShowImportPreview(false);
       setPendingImportRows([]);
       setPendingImportFileName("");
       setValidationSummary("");
+      setAllowNegativeLedgerOnImport(true);
       await loadImportHistory().catch(() => null);
       if (onImportSuccess) await onImportSuccess();
     } catch (err) {
@@ -1069,7 +1152,7 @@ export default function StoreImportPanel({
 
   const handleValidateImport = async () => {
     if (!pendingImportRows.length) return;
-    if (!confirmNegativeImportProceed("validate these rows")) return;
+    if (!(await confirmNegativeImportProceed("validate these rows"))) return;
     try {
       setImporting(true);
       let response;
@@ -1078,12 +1161,16 @@ export default function StoreImportPanel({
           rows: pendingImportRows,
           referenceType: "ExcelLedgerImport",
           importType,
+          allowNegativeLedger: allowNegativeLedgerOnImport,
         });
       } catch (err) {
         const errorData = err.response?.data || {};
         if (
           errorData?.errorCode === "NEGATIVE_LEDGER" &&
-          confirmNegativeLedgerOverride(errorData, "validate these rows")
+          (await confirmNegativeLedgerOverride(
+            errorData,
+            "validate these rows",
+          ))
         ) {
           response = await storeService.validateStoreImportRows({
             rows: pendingImportRows,
@@ -1127,9 +1214,13 @@ export default function StoreImportPanel({
 
   const handleRevertImport = async (entry) => {
     if (!entry?.id || revertingImportId) return;
-    const confirmed = window.confirm(
-      `Revert this ${entry.importType || "import"} batch? This will remove only the imported rows from this batch and rebuild affected stock summaries.`,
-    );
+    const confirmed = await promptUserConfirmation({
+      title: "Revert Import Batch",
+      message: `Revert this ${entry.importType || "import"} batch? This will remove only the imported rows from this batch and rebuild affected stock summaries.`,
+      confirmLabel: "Revert Import",
+      cancelLabel: "Keep Import",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     try {
@@ -1157,16 +1248,16 @@ export default function StoreImportPanel({
   const historyRowsForView = (entry) => {
     if (!entry) return [];
     if (
-      Array.isArray(entry.attemptedRowsPreview) &&
-      entry.attemptedRowsPreview.length
-    ) {
-      return entry.attemptedRowsPreview;
-    }
-    if (
       Array.isArray(entry.request_body?.rows) &&
       entry.request_body.rows.length
     ) {
       return entry.request_body.rows;
+    }
+    if (
+      Array.isArray(entry.attemptedRowsPreview) &&
+      entry.attemptedRowsPreview.length
+    ) {
+      return entry.attemptedRowsPreview;
     }
     if (
       Array.isArray(entry.response_body?.data?.previewRecords) &&
@@ -1462,6 +1553,9 @@ export default function StoreImportPanel({
                         entry.response_body?.importedRows ||
                         entry.request_body?.rows?.length ||
                         0}
+                      {entry.progress?.completedRows != null
+                        ? ` | Done: ${entry.progress.completedRows}`
+                        : ""}
                     </div>
                     <span
                       style={{
@@ -1489,6 +1583,18 @@ export default function StoreImportPanel({
                       entry.error_message ||
                       "Import processed"}
                   </div>
+                  {(entry.importStatus === "queued" ||
+                    entry.importStatus === "processing") && (
+                    <div style={{ fontSize: 12, color: "#1d4ed8" }}>
+                      {entry.progress?.completedRows || 0} /{" "}
+                      {entry.progress?.totalRows || entry.rowCount || 0} row(s)
+                      completed
+                      {entry.progress?.lastProcessedRow
+                        ? ` | Last row: ${entry.progress.lastProcessedRow}`
+                        : ""}
+                      {entry.etaLabel ? ` | ETA: ${entry.etaLabel}` : ""}
+                    </div>
+                  )}
                   <div
                     style={{
                       display: "flex",
@@ -1581,9 +1687,16 @@ export default function StoreImportPanel({
               padding: 22,
               overflow: "hidden",
               boxShadow: "0 28px 70px rgba(0,0,0,0.24)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <div style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                marginBottom: 14,
+                flex: "0 0 auto",
+              }}
+            >
               <h5 style={{ margin: 0, fontWeight: 800 }}>Import Preview</h5>
               <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
                 File: {pendingImportFileName} | Type: {importType} | Rows:{" "}
@@ -1611,11 +1724,37 @@ export default function StoreImportPanel({
                   validate/import.
                 </div>
               )}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  marginTop: 10,
+                  padding: 12,
+                  borderRadius: 12,
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  color: "#1e3a8a",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={allowNegativeLedgerOnImport}
+                  onChange={(event) =>
+                    setAllowNegativeLedgerOnImport(event.target.checked)
+                  }
+                />
+                Allow this import to continue even if the running stock balance
+                goes negative. We can correct that later in Manage Stock.
+              </label>
             </div>
             <div
               style={{
                 overflow: "auto",
-                maxHeight: "60vh",
+                flex: "1 1 auto",
+                minHeight: 0,
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
               }}
@@ -1657,6 +1796,10 @@ export default function StoreImportPanel({
                 justifyContent: "flex-end",
                 gap: 10,
                 marginTop: 16,
+                flex: "0 0 auto",
+                paddingTop: 4,
+                borderTop: "1px solid #e5e7eb",
+                background: "#fff",
               }}
             >
               <button
@@ -1665,6 +1808,7 @@ export default function StoreImportPanel({
                   setShowImportPreview(false);
                   setPendingImportRows([]);
                   setPendingImportFileName("");
+                  setAllowNegativeLedgerOnImport(true);
                 }}
                 disabled={importing}
                 style={{
@@ -1711,6 +1855,132 @@ export default function StoreImportPanel({
         </div>
       )}
 
+      {confirmDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15,23,42,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10001,
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              width: "min(640px, 100%)",
+              borderRadius: 24,
+              overflow: "hidden",
+              boxShadow: "0 28px 70px rgba(0,0,0,0.24)",
+              border: `1px solid ${
+                confirmDialog.tone === "danger" ? "#fecaca" : "#fed7aa"
+              }`,
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px",
+                background:
+                  confirmDialog.tone === "danger" ? "#fef2f2" : "#fff7ed",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color:
+                    confirmDialog.tone === "danger" ? "#991b1b" : "#9a3412",
+                }}
+              >
+                {confirmDialog.title}
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#64748b",
+                }}
+              >
+                Please review and choose how to continue.
+              </div>
+            </div>
+            <div style={{ padding: 22 }}>
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                  lineHeight: 1.65,
+                  color: "#0f172a",
+                }}
+              >
+                {confirmDialog.message}
+              </pre>
+              <div
+                style={{
+                  marginTop: 20,
+                  padding: 12,
+                  borderRadius: 12,
+                  background: "#eff6ff",
+                  color: "#1e3a8a",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                This confirmation stays inside the app, so the browser cannot
+                suppress it if you switch tabs and come back.
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 12,
+                  marginTop: 20,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => resolveConfirmation(false)}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 12,
+                    border: "1px solid #cbd5e1",
+                    background: "#fff",
+                    color: "#334155",
+                    fontWeight: 700,
+                  }}
+                >
+                  {confirmDialog.cancelLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => resolveConfirmation(true)}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 12,
+                    border: "none",
+                    background:
+                      confirmDialog.tone === "danger" ? "#dc2626" : "#d97706",
+                    color: "#fff",
+                    fontWeight: 700,
+                  }}
+                >
+                  {confirmDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedHistoryEntry && (
         <div
           style={{
@@ -1733,6 +2003,8 @@ export default function StoreImportPanel({
               padding: 22,
               overflow: "hidden",
               boxShadow: "0 28px 70px rgba(0,0,0,0.24)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <div
@@ -1743,6 +2015,7 @@ export default function StoreImportPanel({
                 alignItems: "flex-start",
                 marginBottom: 14,
                 flexWrap: "wrap",
+                flex: "0 0 auto",
               }}
             >
               <div>
@@ -1763,6 +2036,22 @@ export default function StoreImportPanel({
                     ? `| Reverted: ${selectedHistoryEntry.revertedRows || 0}`
                     : ""}
                 </div>
+                {(selectedHistoryEntry.importStatus === "queued" ||
+                  selectedHistoryEntry.importStatus === "processing") && (
+                  <div style={{ fontSize: 12, color: "#1d4ed8", marginTop: 4 }}>
+                    Progress:{" "}
+                    {selectedHistoryEntry.progress?.completedRows || 0} /{" "}
+                    {selectedHistoryEntry.progress?.totalRows ||
+                      selectedHistoryEntry.rowCount ||
+                      0}
+                    {selectedHistoryEntry.progress?.lastProcessedRow
+                      ? ` | Last row: ${selectedHistoryEntry.progress.lastProcessedRow}`
+                      : ""}
+                    {selectedHistoryEntry.etaLabel
+                      ? ` | ETA: ${selectedHistoryEntry.etaLabel}`
+                      : ""}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
@@ -1828,7 +2117,8 @@ export default function StoreImportPanel({
             <div
               style={{
                 overflow: "auto",
-                maxHeight: "58vh",
+                flex: "1 1 auto",
+                minHeight: 0,
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
               }}
