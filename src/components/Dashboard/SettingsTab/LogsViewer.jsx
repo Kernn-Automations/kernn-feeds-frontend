@@ -74,6 +74,9 @@ const buildVerificationUrl = (filters) => {
 
 const loadImageAsDataUrl = async (src) => {
   const response = await fetch(src);
+  if (!response.ok) {
+    throw new Error(`Image request failed with status ${response.status}`);
+  }
   const blob = await response.blob();
   return await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -227,7 +230,15 @@ function LogsViewer() {
       const qrBase64 = verificationUrl
         ? await QRCode.toDataURL(verificationUrl)
         : null;
-      const logoBase64 = await loadImageAsDataUrl(FEEDS_LOGO_URL);
+      let logoBase64 = null;
+      try {
+        logoBase64 = await loadImageAsDataUrl(FEEDS_LOGO_URL);
+      } catch (logoError) {
+        console.warn(
+          "Logs PDF export: logo could not be loaded, continuing without banner image.",
+          logoError,
+        );
+      }
       const downloadedBy =
         user?.name || user?.employeeId || user?.email || "Super Admin";
       const exportedAt = formatDateTime(new Date().toISOString());
@@ -255,6 +266,10 @@ function LogsViewer() {
       );
       if (logoBase64) {
         doc.addImage(logoBase64, "PNG", pageWidth - 180, 18, 130, 48);
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        doc.text("Feed Bazaar Pvt Ltd", pageWidth - 190, 50);
       }
 
       doc.setTextColor(...textDark);
@@ -459,7 +474,10 @@ function LogsViewer() {
       );
     } catch (err) {
       console.error("Failed to export logs PDF:", err);
-      setError(err.message || "Failed to export logs PDF");
+      setError(
+        err.message ||
+          "Failed to export logs PDF. The log data loaded, but PDF generation failed in the browser.",
+      );
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,7 @@ import { BrowserRouter } from "react-router-dom";
 import { DivisionProvider } from "./components/context/DivisionContext";
 import { Provider } from "./components/ui/provider";
 import { LightMode } from "@/components/ui/color-mode";
+import { Toaster } from "@/components/ui/toaster";
 import { LoadScript } from "@react-google-maps/api";
 
 const theme = {
@@ -25,6 +26,7 @@ const AppTree = (
           <Provider theme={theme}>
             <LightMode>
               <App />
+              <Toaster />
             </LightMode>
           </Provider>
         </DivisionProvider>
