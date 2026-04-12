@@ -26,6 +26,8 @@ function StoreManageStock() {
   const [lastLedgerResult, setLastLedgerResult] = useState(null);
   const [stockLoading, setStockLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const confirmResolverRef = useRef(null);
   const productCacheRef = useRef(new Map());
   const stockCacheRef = useRef(new Map());
 
@@ -260,7 +262,31 @@ function StoreManageStock() {
     }));
   };
 
-  const handleSubmit = async () => {
+  const promptUserConfirmation = ({
+    title,
+    message,
+    confirmLabel = "Proceed",
+    cancelLabel = "Cancel",
+  }) =>
+    new Promise((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialog({
+        title,
+        message,
+        confirmLabel,
+        cancelLabel,
+      });
+    });
+
+  const resolveConfirmation = (value) => {
+    if (confirmResolverRef.current) {
+      confirmResolverRef.current(value);
+      confirmResolverRef.current = null;
+    }
+    setConfirmDialog(null);
+  };
+
+  const submitStockChange = async ({ allowNegativeLedger = false } = {}) => {
     setError(null);
     setShowErrorModal(false);
     setSuccess(null);
@@ -311,6 +337,7 @@ function StoreManageStock() {
         quantity: parseFloat(formData.quantity),
         reason: formData.reason.trim(),
         recordedAt: formData.recordedAt,
+        allowNegativeLedger,
       });
 
       const responseData = response;
@@ -368,13 +395,46 @@ function StoreManageStock() {
       }
     } catch (err) {
       console.error("Error updating stock:", err);
+      const responseData = err.response?.data || {};
+      const errorCode = responseData.errorCode || responseData.code || null;
+      const errorDetails = responseData.errorDetails || responseData.details || null;
+
+      if (!allowNegativeLedger && errorCode === "NEGATIVE_LEDGER") {
+        const runningBalance = Number(
+          errorDetails?.runningBalance ??
+            Number(errorDetails?.available || 0) -
+              Number(errorDetails?.required || errorDetails?.quantity || 0),
+        );
+        const userConfirmed = await promptUserConfirmation({
+          title: "Negative Ledger Warning",
+          message: `This stock entry will make the ledger balance negative for ${getProductName(
+            formData.productId,
+          )} at ${formatDateTimeIN(
+            errorDetails?.recordedAt || formData.recordedAt,
+          )}.\n\nExpected balance after posting: ${runningBalance} ${
+            currentStock?.unit || "bag"
+          }.\n\nDo you want to continue anyway?`,
+          confirmLabel: "Proceed Anyway",
+          cancelLabel: "Cancel",
+        });
+
+        if (userConfirmed) {
+          await submitStockChange({ allowNegativeLedger: true });
+        }
+        return;
+      }
+
       const errorMessage =
-        err.response?.data?.message || err.message || "Failed to update stock";
+        responseData.message || err.message || "Failed to update stock";
       setError(errorMessage);
       setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    await submitStockChange({ allowNegativeLedger: false });
   };
 
   const getProductName = (productId) => {
@@ -801,6 +861,78 @@ function StoreManageStock() {
             navigate("/store/inventory");
           }}
         />
+      )}
+
+      {confirmDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "560px",
+              background: "#fff",
+              borderRadius: "18px",
+              boxShadow: "0 24px 70px rgba(15, 23, 42, 0.18)",
+              padding: "24px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: 800,
+                color: "#0f172a",
+                marginBottom: "12px",
+              }}
+            >
+              {confirmDialog.title}
+            </div>
+            <div
+              style={{
+                whiteSpace: "pre-line",
+                color: "#334155",
+                lineHeight: 1.6,
+                fontSize: "15px",
+              }}
+            >
+              {confirmDialog.message}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                marginTop: "24px",
+              }}
+            >
+              <button
+                className="cancelbtn"
+                type="button"
+                onClick={() => resolveConfirmation(false)}
+                style={{ width: "auto", minWidth: "120px" }}
+              >
+                {confirmDialog.cancelLabel}
+              </button>
+              <button
+                className="submitbtn"
+                type="button"
+                onClick={() => resolveConfirmation(true)}
+                style={{ width: "auto", minWidth: "160px" }}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
