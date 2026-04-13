@@ -99,7 +99,7 @@ export default function StoreHome() {
   const [activityTimeline, setActivityTimeline] = useState([]);
 
   const [storePerformance, setStorePerformance] = useState([]);
-  
+
   // New States for Search & Filtering
   const [filteredStorePerformance, setFilteredStorePerformance] = useState([]);
   const [searchFilters, setSearchFilters] = useState({});
@@ -109,18 +109,18 @@ export default function StoreHome() {
   const ITEMS_PER_PAGE = 10;
   const [salesPage, setSalesPage] = useState(1);
   const [indentsPage, setIndentsPage] = useState(1);
-  
+
   // Pagination Data Fetching
   const [fetchedSales, setFetchedSales] = useState([]);
   const [fetchedIndents, setFetchedIndents] = useState([]);
-  
+
   // Helper for Time Ago
   const calculateTimeAgo = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
-    
+
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " years ago";
     interval = seconds / 2592000;
@@ -150,53 +150,65 @@ export default function StoreHome() {
   useEffect(() => {
     const fetchLists = async () => {
       if (!storeId) return;
-      
+
       try {
         // Fetch Sales (Limit 50 for dashboard pagination)
         console.log("Fetching sales for pagination...");
-        const salesRes = await storeService.getStoreSales(storeId, { limit: 50 });
+        const salesRes = await storeService.getStoreSales(storeId, {
+          limit: 50,
+        });
         const salesData = salesRes.data || salesRes.sales || salesRes || [];
-        
-        if (Array.isArray(salesData)) {
-           const mappedSales = salesData.map(sale => {
-             // Customer Name Logic from StoreSalesOrders
-             let customerName = "Customer";
-             if (sale.customer) {
-                const farmerName = sale.customer.farmerName?.trim();
-                if (farmerName && farmerName !== "null") customerName = farmerName;
-                else {
-                    const displayName = sale.customer.displayName?.trim();
-                    if (displayName && displayName !== "null") customerName = displayName;
-                    else {
-                        const name = sale.customer.name?.trim();
-                        if (name && name !== "null") customerName = name;
-                    }
-                }
-             }
 
-             return {
-               customerName: customerName,
-               timeAgo: calculateTimeAgo(sale.createdAt || sale.saleDate || sale.date),
-               original: sale
-             };
-           });
-           console.log("Fetched Sales for Pagination:", mappedSales.length);
-           setFetchedSales(mappedSales);
+        if (Array.isArray(salesData)) {
+          const mappedSales = salesData.map((sale) => {
+            // Customer Name Logic from StoreSalesOrders
+            let customerName = "Customer";
+            if (sale.customer) {
+              const farmerName = sale.customer.farmerName?.trim();
+              if (farmerName && farmerName !== "null")
+                customerName = farmerName;
+              else {
+                const displayName = sale.customer.displayName?.trim();
+                if (displayName && displayName !== "null")
+                  customerName = displayName;
+                else {
+                  const name = sale.customer.name?.trim();
+                  if (name && name !== "null") customerName = name;
+                }
+              }
+            }
+
+            return {
+              customerName: customerName,
+              timeAgo: calculateTimeAgo(
+                sale.createdAt || sale.saleDate || sale.date,
+              ),
+              original: sale,
+            };
+          });
+          console.log("Fetched Sales for Pagination:", mappedSales.length);
+          setFetchedSales(mappedSales);
         }
 
         // Fetch Indents (Limit 50, Pending)
-        const indentsRes = await storeService.getStoreIndents(storeId, { limit: 50, status: 'pending' }); 
-        const indentsData = indentsRes.data || indentsRes.indents || indentsRes || [];
+        const indentsRes = await storeService.getStoreIndents(storeId, {
+          limit: 50,
+          status: "pending",
+        });
+        const indentsData =
+          indentsRes.data || indentsRes.indents || indentsRes || [];
 
         if (Array.isArray(indentsData)) {
-            const mappedIndents = indentsData.map(indent => ({
-                indentCode: indent.indentCode || indent.code || `IND${String(indent.id).padStart(6, "0")}`,
-                status: mapIndentStatus(indent.status),
-                amount: indent.totalAmount || indent.value || 0
-            }));
-            setFetchedIndents(mappedIndents);
+          const mappedIndents = indentsData.map((indent) => ({
+            indentCode:
+              indent.indentCode ||
+              indent.code ||
+              `IND${String(indent.id).padStart(6, "0")}`,
+            status: mapIndentStatus(indent.status),
+            amount: indent.totalAmount || indent.value || 0,
+          }));
+          setFetchedIndents(mappedIndents);
         }
-
       } catch (err) {
         console.error("Error fetching dashboard lists:", err);
       }
@@ -363,7 +375,7 @@ export default function StoreHome() {
     // Close other searches when opening one, or toggle current
     setShowSearch((prev) => ({
       // Optional: Close others? For now just toggle specific one
-      // ...{}, 
+      // ...{},
       [column]: !prev[column],
     }));
   };
@@ -455,9 +467,13 @@ export default function StoreHome() {
   });
 
   // Prepare lists for rendering (prefer fetched data over dashboard summary)
-  const salesList = fetchedSales.length > 0 ? fetchedSales : (dashboardData.salesActivity || []);
+  const salesList =
+    fetchedSales.length > 0 ? fetchedSales : dashboardData.salesActivity || [];
   const targetSummary = dashboardData.targetSummary;
-  const indentsList = fetchedIndents.length > 0 ? fetchedIndents : (dashboardData.pendingIndents || []);
+  const indentsList =
+    fetchedIndents.length > 0
+      ? fetchedIndents
+      : dashboardData.pendingIndents || [];
 
   return (
     <>
@@ -605,40 +621,51 @@ export default function StoreHome() {
           <div className={styles.dashboardGrid}>
             {/* Target Summary Section - IMPORTANT NEW COMPONENT */}
             <div className="mb-4">
-              <div 
+              <div
                 className={styles.orderStatusCard}
-                style={{ 
-                  borderRadius: '20px',
-                  background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
-                  border: '1px solid rgba(102, 126, 234, 0.1)',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
-                  overflow: 'hidden',
-                  position: 'relative'
+                style={{
+                  borderRadius: "20px",
+                  background:
+                    "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+                  border: "1px solid rgba(102, 126, 234, 0.1)",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+                  overflow: "hidden",
+                  position: "relative",
                 }}
               >
                 {/* Decorative background element */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-20px',
-                  right: '-20px',
-                  opacity: 0.05,
-                  transform: 'rotate(-15deg)'
-                }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "-20px",
+                    right: "-20px",
+                    opacity: 0.05,
+                    transform: "rotate(-15deg)",
+                  }}
+                >
                   <FaBullseye size={120} color="#667eea" />
                 </div>
 
                 <div className="d-flex justify-content-between align-items-center mb-4 position-relative">
-                  <h4 style={{ margin: 0, fontWeight: 700, fontSize: '20px', color: '#003176', letterSpacing: '-0.5px' }}>
+                  <h4
+                    style={{
+                      margin: 0,
+                      fontWeight: 700,
+                      fontSize: "20px",
+                      color: "#003176",
+                      letterSpacing: "-0.5px",
+                    }}
+                  >
                     Target Progress
                   </h4>
                   {targetSummary && (
-                    <span 
-                      className="badge rounded-pill" 
-                      style={{ 
-                        background: 'rgba(102, 126, 234, 0.1)', 
-                        color: '#667eea',
-                        padding: '6px 14px',
-                        fontSize: '12px'
+                    <span
+                      className="badge rounded-pill"
+                      style={{
+                        background: "rgba(102, 126, 234, 0.1)",
+                        color: "#667eea",
+                        padding: "6px 14px",
+                        fontSize: "12px",
                       }}
                     >
                       Store Performance
@@ -655,25 +682,62 @@ export default function StoreHome() {
                   <div className="row g-4 position-relative">
                     {/* Sales Target */}
                     <div className="col-md-6">
-                      <div className="p-3 rounded-4 bg-white shadow-sm border" style={{ transition: 'all 0.3s ease' }}>
+                      <div
+                        className="p-3 rounded-4 bg-white shadow-sm border"
+                        style={{ transition: "all 0.3s ease" }}
+                      >
                         <div className="d-flex justify-content-between align-items-end mb-2">
                           <div>
-                            <span className="text-muted small text-uppercase fw-bold" style={{ letterSpacing: '0.5px' }}>Sales Target</span>
-                            <h3 className="mb-0 mt-1" style={{ color: '#003176', fontWeight: 800 }}>
-                              ₹{Number(targetSummary.currentProgress || 0).toLocaleString()} 
-                              <span className="text-muted fw-normal mx-1" style={{ fontSize: '14px' }}>/ ₹{Number(targetSummary.targetAmount).toLocaleString()}</span>
+                            <span
+                              className="text-muted small text-uppercase fw-bold"
+                              style={{ letterSpacing: "0.5px" }}
+                            >
+                              Sales Target
+                            </span>
+                            <h3
+                              className="mb-0 mt-1"
+                              style={{ color: "#003176", fontWeight: 800 }}
+                            >
+                              ₹
+                              {Number(
+                                targetSummary.currentProgress || 0,
+                              ).toLocaleString()}
+                              <span
+                                className="text-muted fw-normal mx-1"
+                                style={{ fontSize: "14px" }}
+                              >
+                                / ₹
+                                {Number(
+                                  targetSummary.targetAmount,
+                                ).toLocaleString()}
+                              </span>
                             </h3>
                           </div>
                           <div className="text-end">
-                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#3b82f6' }}>{Number(targetSummary.progressPercentage || 0).toFixed(1)}%</span>
+                            <span
+                              style={{
+                                fontSize: "18px",
+                                fontWeight: 800,
+                                color: "#3b82f6",
+                              }}
+                            >
+                              {Number(
+                                targetSummary.progressPercentage || 0,
+                              ).toFixed(1)}
+                              %
+                            </span>
                           </div>
                         </div>
-                        <div className="progress rounded-pill shadow-sm" style={{ height: '10px', background: '#f1f5f9' }}>
-                          <div 
-                            className="progress-bar progress-bar-striped progress-bar-animated rounded-pill" 
-                            style={{ 
+                        <div
+                          className="progress rounded-pill shadow-sm"
+                          style={{ height: "10px", background: "#f1f5f9" }}
+                        >
+                          <div
+                            className="progress-bar progress-bar-striped progress-bar-animated rounded-pill"
+                            style={{
                               width: `${targetSummary.progressPercentage || 0}%`,
-                              background: 'linear-gradient(90deg, #667eea 0%, #3b82f6 100%)' 
+                              background:
+                                "linear-gradient(90deg, #667eea 0%, #3b82f6 100%)",
                             }}
                           ></div>
                         </div>
@@ -685,20 +749,54 @@ export default function StoreHome() {
                       <div className="p-3 rounded-4 bg-white shadow-sm border">
                         <div className="d-flex justify-content-between align-items-end mb-2">
                           <div>
-                            <span className="text-muted small text-uppercase fw-bold" style={{ letterSpacing: '0.5px' }}>Quantity Target (Bags)</span>
-                            <h3 className="mb-0 mt-1" style={{ color: '#003176', fontWeight: 800 }}>
-                              {Number(targetSummary.currentBagsProgress || 0).toLocaleString()} 
-                              <span className="text-muted fw-normal mx-1" style={{ fontSize: '14px' }}>/ {Number(targetSummary.targetBags).toLocaleString()}</span>
+                            <span
+                              className="text-muted small text-uppercase fw-bold"
+                              style={{ letterSpacing: "0.5px" }}
+                            >
+                              Quantity Target (Bags)
+                            </span>
+                            <h3
+                              className="mb-0 mt-1"
+                              style={{ color: "#003176", fontWeight: 800 }}
+                            >
+                              {Number(
+                                targetSummary.currentBagsProgress || 0,
+                              ).toLocaleString()}
+                              <span
+                                className="text-muted fw-normal mx-1"
+                                style={{ fontSize: "14px" }}
+                              >
+                                /{" "}
+                                {Number(
+                                  targetSummary.targetBags,
+                                ).toLocaleString()}
+                              </span>
                             </h3>
                           </div>
                           <div className="text-end">
-                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#f59e0b' }}>{Number(targetSummary.bagsPercentage || 0).toFixed(1)}%</span>
+                            <span
+                              style={{
+                                fontSize: "18px",
+                                fontWeight: 800,
+                                color: "#f59e0b",
+                              }}
+                            >
+                              {Number(
+                                targetSummary.bagsPercentage || 0,
+                              ).toFixed(1)}
+                              %
+                            </span>
                           </div>
                         </div>
-                        <div className="progress rounded-pill shadow-sm" style={{ height: '10px', background: '#f1f5f9' }}>
-                          <div 
-                            className="progress-bar progress-bar-striped progress-bar-animated bg-warning rounded-pill" 
-                            style={{ width: `${targetSummary.bagsPercentage || 0}%` }}
+                        <div
+                          className="progress rounded-pill shadow-sm"
+                          style={{ height: "10px", background: "#f1f5f9" }}
+                        >
+                          <div
+                            className="progress-bar progress-bar-striped progress-bar-animated bg-warning rounded-pill"
+                            style={{
+                              width: `${targetSummary.bagsPercentage || 0}%`,
+                            }}
                           ></div>
                         </div>
                       </div>
@@ -707,26 +805,39 @@ export default function StoreHome() {
                     <div className="col-12 mt-3">
                       <div className="d-flex align-items-center justify-content-center gap-2 text-muted">
                         <FaCalendarAlt />
-                        <span className="small">Target valid until <strong>{new Date(targetSummary.endDate).toLocaleDateString()}</strong></span>
+                        <span className="small">
+                          Target valid until{" "}
+                          <strong>
+                            {new Date(
+                              targetSummary.endDate,
+                            ).toLocaleDateString()}
+                          </strong>
+                        </span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-5">
-                    <div 
+                    <div
                       className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
-                      style={{ width: '60px', height: '60px', background: '#f1f5f9' }}
+                      style={{
+                        width: "60px",
+                        height: "60px",
+                        background: "#f1f5f9",
+                      }}
                     >
                       <FaBullseye size={24} className="text-muted" />
                     </div>
                     <h5 className="text-muted mb-1">No Active Target</h5>
-                    <p className="text-muted small mb-0">Set your store targets to track progress here.</p>
+                    <p className="text-muted small mb-0">
+                      Set your store targets to track progress here.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="mb-4">
+            {/*<div className="mb-4">
               <div
                 className={styles.orderStatusCard}
                 style={{
@@ -794,7 +905,7 @@ export default function StoreHome() {
                   )}
                 </div>
               </div>
-            </div>
+            </div>*/}
 
             {/* Row 1: Sales Activity + Pending Indents */}
             <div className={styles.firstRow}>
@@ -842,85 +953,137 @@ export default function StoreHome() {
                     // 🔹 Paginated Content
                     <>
                       {salesList
-                        .slice((salesPage - 1) * ITEMS_PER_PAGE, salesPage * ITEMS_PER_PAGE)
+                        .slice(
+                          (salesPage - 1) * ITEMS_PER_PAGE,
+                          salesPage * ITEMS_PER_PAGE,
+                        )
                         .map((s, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "12px",
-                            background:
-                              idx % 2 === 0
-                                ? "rgba(59, 130, 246, 0.03)"
-                                : "transparent",
-                            borderRadius: "8px",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          <div className="d-flex align-items-center gap-3">
-                            <div 
-                              className="rounded-circle d-flex align-items-center justify-content-center"
-                              style={{ 
-                                width: '36px', 
-                                height: '36px', 
-                                background: idx % 2 === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(102, 126, 234, 0.1)',
-                                color: idx % 2 === 0 ? '#3b82f6' : '#667eea'
-                              }}
-                            >
-                              <FaUserCheck size={16} />
-                            </div>
-                            <div>
-                              <div
-                                style={{
-                                  fontWeight: 600,
-                                  color: "#111827",
-                                  fontFamily: "Poppins",
-                                  fontSize: "14px",
-                                }}
-                              >
-                                {s.customerName || "-"}
-                              </div>
-                              {s.amount && (
-                                <div style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
-                                  ₹{Number(s.amount).toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                          </div>
                           <div
+                            key={idx}
                             style={{
-                              fontWeight: 600,
-                              color: "#6b7280",
-                              fontFamily: "Poppins",
-                              fontSize: "13px",
-                              textAlign: 'right'
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px",
+                              background:
+                                idx % 2 === 0
+                                  ? "rgba(59, 130, 246, 0.03)"
+                                  : "transparent",
+                              borderRadius: "8px",
+                              marginBottom: "8px",
                             }}
                           >
-                            <div className="d-flex align-items-center gap-1 text-muted" style={{ fontSize: '11px' }}>
-                              <FaClock size={10} />
-                              {s.timeAgo || "-"}
+                            <div className="d-flex align-items-center gap-3">
+                              <div
+                                className="rounded-circle d-flex align-items-center justify-content-center"
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  background:
+                                    idx % 2 === 0
+                                      ? "rgba(59, 130, 246, 0.1)"
+                                      : "rgba(102, 126, 234, 0.1)",
+                                  color: idx % 2 === 0 ? "#3b82f6" : "#667eea",
+                                }}
+                              >
+                                <FaUserCheck size={16} />
+                              </div>
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight: 600,
+                                    color: "#111827",
+                                    fontFamily: "Poppins",
+                                    fontSize: "14px",
+                                  }}
+                                >
+                                  {s.customerName || "-"}
+                                </div>
+                                {s.amount && (
+                                  <div
+                                    style={{
+                                      fontSize: "12px",
+                                      color: "#10b981",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    ₹{Number(s.amount).toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                fontWeight: 600,
+                                color: "#6b7280",
+                                fontFamily: "Poppins",
+                                fontSize: "13px",
+                                textAlign: "right",
+                              }}
+                            >
+                              <div
+                                className="d-flex align-items-center gap-1 text-muted"
+                                style={{ fontSize: "11px" }}
+                              >
+                                <FaClock size={10} />
+                                {s.timeAgo || "-"}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                       {/* Pagination Controls */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                        <button 
-                          disabled={salesPage === 1} 
-                          onClick={() => setSalesPage(p => p - 1)}
-                          style={{ border: '1px solid #e5e7eb', background: 'white', padding: '4px 8px', borderRadius: '4px', cursor: salesPage === 1 ? 'not-allowed' : 'pointer', opacity: salesPage === 1 ? 0.5 : 1 }}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          alignItems: "center",
+                          gap: "10px",
+                          marginTop: "10px",
+                        }}
+                      >
+                        <button
+                          disabled={salesPage === 1}
+                          onClick={() => setSalesPage((p) => p - 1)}
+                          style={{
+                            border: "1px solid #e5e7eb",
+                            background: "white",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            cursor: salesPage === 1 ? "not-allowed" : "pointer",
+                            opacity: salesPage === 1 ? 0.5 : 1,
+                          }}
                         >
                           Prev
                         </button>
-                        <span style={{ fontSize: '12px', fontFamily: 'Poppins', color: '#6b7280' }}>
-                          Page {salesPage} of {Math.ceil(salesList.length / ITEMS_PER_PAGE) || 1}
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontFamily: "Poppins",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Page {salesPage} of{" "}
+                          {Math.ceil(salesList.length / ITEMS_PER_PAGE) || 1}
                         </span>
-                        <button 
-                          disabled={salesPage * ITEMS_PER_PAGE >= salesList.length} 
-                          onClick={() => setSalesPage(p => p + 1)}
-                          style={{ border: '1px solid #e5e7eb', background: 'white', padding: '4px 8px', borderRadius: '4px', cursor: salesPage * ITEMS_PER_PAGE >= salesList.length ? 'not-allowed' : 'pointer', opacity: salesPage * ITEMS_PER_PAGE >= salesList.length ? 0.5 : 1 }}
+                        <button
+                          disabled={
+                            salesPage * ITEMS_PER_PAGE >= salesList.length
+                          }
+                          onClick={() => setSalesPage((p) => p + 1)}
+                          style={{
+                            border: "1px solid #e5e7eb",
+                            background: "white",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            cursor:
+                              salesPage * ITEMS_PER_PAGE >= salesList.length
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity:
+                              salesPage * ITEMS_PER_PAGE >= salesList.length
+                                ? 0.5
+                                : 1,
+                          }}
                         >
                           Next
                         </button>
@@ -980,13 +1143,16 @@ export default function StoreHome() {
                       <Skeleton width="70px" height={16} />
                     </div>
                   ))
-                  ) : indentsList.length > 0 ? (
-                    // 🔹 Original Content (UNCHANGED)
-                    // 🔹 Paginated Content
-                    <>
-                      {indentsList
-                        .slice((indentsPage - 1) * ITEMS_PER_PAGE, indentsPage * ITEMS_PER_PAGE)
-                        .map((ind, i) => (
+                ) : indentsList.length > 0 ? (
+                  // 🔹 Original Content (UNCHANGED)
+                  // 🔹 Paginated Content
+                  <>
+                    {indentsList
+                      .slice(
+                        (indentsPage - 1) * ITEMS_PER_PAGE,
+                        indentsPage * ITEMS_PER_PAGE,
+                      )
+                      .map((ind, i) => (
                         <div
                           key={i}
                           style={{
@@ -1035,40 +1201,77 @@ export default function StoreHome() {
                           </div>
                         </div>
                       ))}
-                      {/* Pagination Controls */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                        <button 
-                          disabled={indentsPage === 1} 
-                          onClick={() => setIndentsPage(p => p - 1)}
-                          style={{ border: '1px solid #e5e7eb', background: 'white', padding: '4px 8px', borderRadius: '4px', cursor: indentsPage === 1 ? 'not-allowed' : 'pointer', opacity: indentsPage === 1 ? 0.5 : 1 }}
-                        >
-                          Prev
-                        </button>
-                        <span style={{ fontSize: '12px', fontFamily: 'Poppins', color: '#6b7280' }}>
-                          Page {indentsPage} of {Math.ceil(indentsList.length / ITEMS_PER_PAGE) || 1}
-                        </span>
-                        <button 
-                          disabled={indentsPage * ITEMS_PER_PAGE >= indentsList.length} 
-                          onClick={() => setIndentsPage(p => p + 1)}
-                          style={{ border: '1px solid #e5e7eb', background: 'white', padding: '4px 8px', borderRadius: '4px', cursor: indentsPage * ITEMS_PER_PAGE >= indentsList.length ? 'not-allowed' : 'pointer', opacity: indentsPage * ITEMS_PER_PAGE >= indentsList.length ? 0.5 : 1 }}
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    // 🔹 Empty State (UNCHANGED)
+                    {/* Pagination Controls */}
                     <div
                       style={{
-                        padding: "20px",
-                        textAlign: "center",
-                        color: "#6b7280",
-                        fontFamily: "Poppins",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        gap: "10px",
+                        marginTop: "10px",
                       }}
                     >
-                      No pending indents
+                      <button
+                        disabled={indentsPage === 1}
+                        onClick={() => setIndentsPage((p) => p - 1)}
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          background: "white",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          cursor: indentsPage === 1 ? "not-allowed" : "pointer",
+                          opacity: indentsPage === 1 ? 0.5 : 1,
+                        }}
+                      >
+                        Prev
+                      </button>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          fontFamily: "Poppins",
+                          color: "#6b7280",
+                        }}
+                      >
+                        Page {indentsPage} of{" "}
+                        {Math.ceil(indentsList.length / ITEMS_PER_PAGE) || 1}
+                      </span>
+                      <button
+                        disabled={
+                          indentsPage * ITEMS_PER_PAGE >= indentsList.length
+                        }
+                        onClick={() => setIndentsPage((p) => p + 1)}
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          background: "white",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          cursor:
+                            indentsPage * ITEMS_PER_PAGE >= indentsList.length
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            indentsPage * ITEMS_PER_PAGE >= indentsList.length
+                              ? 0.5
+                              : 1,
+                        }}
+                      >
+                        Next
+                      </button>
                     </div>
-                  )}
+                  </>
+                ) : (
+                  // 🔹 Empty State (UNCHANGED)
+                  <div
+                    style={{
+                      padding: "20px",
+                      textAlign: "center",
+                      color: "#6b7280",
+                      fontFamily: "Poppins",
+                    }}
+                  >
+                    No pending indents
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1364,7 +1567,7 @@ export default function StoreHome() {
                         >
                           ₹
                           {Math.round(
-                            dashboardData.quickInsights?.avgOrderValue || 0
+                            dashboardData.quickInsights?.avgOrderValue || 0,
                           ).toLocaleString()}
                         </div>
                       </div>
@@ -1868,10 +2071,27 @@ export default function StoreHome() {
                             <tbody>
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <tr key={i}>
-                                  <td><Skeleton height={14} width="120px" /></td>
-                                  <td><Skeleton height={14} width="80px" /></td>
-                                  <td><Skeleton height={14} width="40px" /></td>
-                                  <td><div style={{ display: "flex", alignItems: "center", gap: "8px" }}><Skeleton height={8} width="100%" /><Skeleton height={12} width="40px" /></div></td>
+                                  <td>
+                                    <Skeleton height={14} width="120px" />
+                                  </td>
+                                  <td>
+                                    <Skeleton height={14} width="80px" />
+                                  </td>
+                                  <td>
+                                    <Skeleton height={14} width="40px" />
+                                  </td>
+                                  <td>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px",
+                                      }}
+                                    >
+                                      <Skeleton height={8} width="100%" />
+                                      <Skeleton height={12} width="40px" />
+                                    </div>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1882,38 +2102,83 @@ export default function StoreHome() {
                             <thead>
                               <tr>
                                 {[
-                                  { label: "Store", key: "storeName", widthClass: "storeColumn" },
-                                  { label: "Sales", key: "sales", widthClass: "salesColumn" },
-                                  { label: "Orders", key: "orders", widthClass: "ordersColumn" },
-                                  { label: "Performance", key: "performance", widthClass: "performanceColumn" }
+                                  {
+                                    label: "Store",
+                                    key: "storeName",
+                                    widthClass: "storeColumn",
+                                  },
+                                  {
+                                    label: "Sales",
+                                    key: "sales",
+                                    widthClass: "salesColumn",
+                                  },
+                                  {
+                                    label: "Orders",
+                                    key: "orders",
+                                    widthClass: "ordersColumn",
+                                  },
+                                  {
+                                    label: "Performance",
+                                    key: "performance",
+                                    widthClass: "performanceColumn",
+                                  },
                                 ].map((col) => (
-                                  <th 
-                                    key={col.key} 
+                                  <th
+                                    key={col.key}
                                     className={storeHomeStyles[col.widthClass]}
                                     onClick={(e) => toggleSearch(col.key, e)}
                                     style={{ cursor: "pointer" }}
                                   >
                                     {showSearch[col.key] ? (
-                                      <div className={storeHomeStyles.searchContainer} onClick={(e) => e.stopPropagation()}>
+                                      <div
+                                        className={
+                                          storeHomeStyles.searchContainer
+                                        }
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
                                         <input
                                           type="text"
-                                          className={storeHomeStyles.searchInput}
+                                          className={
+                                            storeHomeStyles.searchInput
+                                          }
                                           value={searchFilters[col.key] || ""}
-                                          onChange={(e) => handleSearchChange(col.key, e.target.value)}
+                                          onChange={(e) =>
+                                            handleSearchChange(
+                                              col.key,
+                                              e.target.value,
+                                            )
+                                          }
                                           autoFocus
                                           placeholder={`Search ${col.label}...`}
                                         />
-                                        <button 
-                                          className={storeHomeStyles.clearSearchBtn}
-                                          onClick={(e) => clearSearch(col.key, e)}
+                                        <button
+                                          className={
+                                            storeHomeStyles.clearSearchBtn
+                                          }
+                                          onClick={(e) =>
+                                            clearSearch(col.key, e)
+                                          }
                                         >
                                           ×
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className={storeHomeStyles.headerContent}>
-                                        <span>{col.label} {searchFilters[col.key] && "*"}</span>
-                                        <i className="bi bi-search" style={{ fontSize: '10px', opacity: 0.5 }}></i>
+                                      <div
+                                        className={
+                                          storeHomeStyles.headerContent
+                                        }
+                                      >
+                                        <span>
+                                          {col.label}{" "}
+                                          {searchFilters[col.key] && "*"}
+                                        </span>
+                                        <i
+                                          className="bi bi-search"
+                                          style={{
+                                            fontSize: "10px",
+                                            opacity: 0.5,
+                                          }}
+                                        ></i>
                                       </div>
                                     )}
                                   </th>
@@ -1924,29 +2189,66 @@ export default function StoreHome() {
                               {filteredStorePerformance.length > 0 ? (
                                 filteredStorePerformance.map((store, i) => (
                                   <tr key={i}>
-                                    <td style={{ fontWeight: 600, textAlign: 'left', paddingLeft: '15px' }}>
+                                    <td
+                                      style={{
+                                        fontWeight: 600,
+                                        textAlign: "left",
+                                        paddingLeft: "15px",
+                                      }}
+                                    >
                                       {store.storeName}
                                     </td>
-                                    <td style={{ fontWeight: 600, color: "#059669" }}>
+                                    <td
+                                      style={{
+                                        fontWeight: 600,
+                                        color: "#059669",
+                                      }}
+                                    >
                                       ₹{(store.sales || 0).toLocaleString()}
                                     </td>
+                                    <td>{store.orders || 0}</td>
                                     <td>
-                                      {store.orders || 0}
-                                    </td>
-                                    <td>
-                                      <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
-                                        <div style={{ flex: 1, height: "8px", background: "#e5e7eb", borderRadius: "4px", overflow: "hidden", maxWidth: "100px" }}>
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                          justifyContent: "center",
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            flex: 1,
+                                            height: "8px",
+                                            background: "#e5e7eb",
+                                            borderRadius: "4px",
+                                            overflow: "hidden",
+                                            maxWidth: "100px",
+                                          }}
+                                        >
                                           <div
                                             style={{
                                               width: `${store.performance || 0}%`,
                                               height: "100%",
-                                              background: store.performance >= 90 ? "#10b981" : store.performance >= 70 ? "#f59e0b" : "#ef4444",
+                                              background:
+                                                store.performance >= 90
+                                                  ? "#10b981"
+                                                  : store.performance >= 70
+                                                    ? "#f59e0b"
+                                                    : "#ef4444",
                                               borderRadius: "4px",
                                               transition: "width 0.3s ease",
                                             }}
                                           />
                                         </div>
-                                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#6b7280", minWidth: "40px" }}>
+                                        <span
+                                          style={{
+                                            fontSize: "12px",
+                                            fontWeight: 600,
+                                            color: "#6b7280",
+                                            minWidth: "40px",
+                                          }}
+                                        >
                                           {store.performance || 0}%
                                         </span>
                                       </div>
@@ -1956,8 +2258,18 @@ export default function StoreHome() {
                               ) : (
                                 // 🔹 Empty State Row
                                 <tr>
-                                  <td colSpan="4" style={{ padding: "40px", textAlign: "center", color: "#6b7280", fontFamily: "Poppins" }}>
-                                    {storePerformance.length > 0 ? "No matches found" : "No store performance data available"}
+                                  <td
+                                    colSpan="4"
+                                    style={{
+                                      padding: "40px",
+                                      textAlign: "center",
+                                      color: "#6b7280",
+                                      fontFamily: "Poppins",
+                                    }}
+                                  >
+                                    {storePerformance.length > 0
+                                      ? "No matches found"
+                                      : "No store performance data available"}
                                   </td>
                                 </tr>
                               )}

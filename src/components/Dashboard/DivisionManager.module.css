@@ -16,7 +16,6 @@
 .searchInput {
   width: 100%;
   padding: 10px 12px;
-  margin-bottom: 16px;
   border-radius: 8px;
   border: 1px solid #ddd;
   font-size: 14px;
@@ -25,6 +24,27 @@
 .searchInput:focus {
   outline: none;
   border-color: #4caf50;
+}
+
+.entity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entity label {
+  margin: 0;
+  font-weight: 600;
+  color: #374151;
+}
+
+.entity select {
+  min-width: 90px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  background: #fff;
 }
 
 .headerActions {

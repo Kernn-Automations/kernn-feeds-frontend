@@ -59,6 +59,11 @@ const ChartComponent = ({
   const Chart =
     type === "line" ? Line : type === "doughnut" ? Doughnut : Bar;
 
+  const toNumericValue = (value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
   // Validate data structure to prevent Chart.js errors
   const isValidData = data && 
     typeof data === 'object' && 
@@ -112,7 +117,7 @@ const ChartComponent = ({
             if (data.labels.length && data.datasets.length) {
               return data.labels.map((label, i) => {
                 const dataset = data.datasets[0];
-                const value = dataset.data[i];
+                const value = toNumericValue(dataset.data[i]);
                 const backgroundColor = Array.isArray(dataset.backgroundColor) 
                   ? dataset.backgroundColor[i] 
                   : dataset.backgroundColor;
@@ -142,10 +147,20 @@ const ChartComponent = ({
         callbacks: {
           label: (context) => {
             const label = context.label || '';
-            const value = context.parsed || context.raw || 0;
+            const value =
+              type === "doughnut"
+                ? toNumericValue(context.raw)
+                : toNumericValue(
+                    typeof context.parsed === "object"
+                      ? context.parsed?.y
+                      : context.parsed ?? context.raw,
+                  );
             if (type === "doughnut") {
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
+              const total = context.dataset.data.reduce(
+                (sum, item) => sum + toNumericValue(item),
+                0,
+              );
+              const percentage = total ? ((value / total) * 100).toFixed(1) : "0.0";
               return `${label}: ${value} (${percentage}%)`;
             }
             return `${label}: ${value}`;

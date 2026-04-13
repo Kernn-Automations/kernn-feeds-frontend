@@ -31,7 +31,6 @@ function CreateEmployee({ navigate }) {
   const adminRole = roles.find((r) => r.name.toLowerCase() === "admin");
   const isAdminSelected = selectedRoles.includes(adminRole?.id);
 
-
   // Load roles
   useEffect(() => {
     async function fetchInitial() {

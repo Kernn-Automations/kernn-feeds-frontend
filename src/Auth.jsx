@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.getItem("accessToken") ? true : false,
   );
   const refreshIntervalRef = useRef(null);
+  const sessionCheckIntervalRef = useRef(null);
 
   let token = localStorage.getItem("accessToken") || null;
   let reftoken = localStorage.getItem("refreshToken") || null;
@@ -155,6 +156,10 @@ export const AuthProvider = ({ children }) => {
       clearInterval(refreshIntervalRef.current);
       refreshIntervalRef.current = null;
     }
+    if (sessionCheckIntervalRef.current) {
+      clearInterval(sessionCheckIntervalRef.current);
+      sessionCheckIntervalRef.current = null;
+    }
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
@@ -188,8 +193,10 @@ export const AuthProvider = ({ children }) => {
       errorMessage.includes("invalid token") ||
       errorMessage.includes("please log in again") ||
       errorMessage.includes("please login again") ||
+      errorMessage.includes("duplicate session detected") ||
       errorData.errorCode === "TOKEN_EXPIRED" ||
       errorData.errorCode === "TOKEN_INVALID" ||
+      errorData.errorCode === "DUPLICATE_SESSION" ||
       errorData.error === "TOKEN_MISSING"
     );
   };
@@ -201,13 +208,29 @@ export const AuthProvider = ({ children }) => {
         (response) => response,
         (error) => {
           if (isTokenError(error)) {
+            const isDuplicateSession =
+              error?.response?.data?.errorCode === "DUPLICATE_SESSION";
+
             console.log(
               `Token-related error detected in ${label} response, automatically logging out...`,
             );
             removeLogin();
-            if (window.location.pathname !== "/login") {
+            if (isDuplicateSession) {
+              localStorage.setItem(
+                "sessionConflictMessage",
+                error?.response?.data?.message ||
+                  "Duplicate session detected. Please log in again.",
+              );
+            }
+
+            if (
+              window.location.pathname !== "/login" &&
+              window.location.pathname !== "/session-conflict"
+            ) {
               setTimeout(() => {
-                window.location.href = "/login";
+                window.location.href = isDuplicateSession
+                  ? "/login?reason=duplicate-session"
+                  : "/login";
               }, 1000);
             }
           }
@@ -248,11 +271,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("accessToken", newToken);
     token = newToken;
     setIslogin(true);
+    startSessionCheckCycle();
   };
 
   const saveRefreshToken = (refToken) => {
     localStorage.setItem("refreshToken", refToken);
     reftoken = refToken;
+    startRefreshCycle();
   };
 
   // Function to save both tokens and start refresh cycle
@@ -267,7 +292,38 @@ export const AuthProvider = ({ children }) => {
       // Start the refresh cycle
       console.log("Tokens saved, starting refresh cycle");
       startRefreshCycle();
+      startSessionCheckCycle();
     }
+  };
+
+  const startSessionCheckCycle = () => {
+    const accessToken = localStorage.getItem("accessToken");
+
+    if (!accessToken) {
+      return;
+    }
+
+    if (sessionCheckIntervalRef.current) {
+      clearInterval(sessionCheckIntervalRef.current);
+      sessionCheckIntervalRef.current = null;
+    }
+
+    const runSessionCheck = async () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      try {
+        await api.get("/auth/me");
+      } catch (error) {
+        if (error?.response?.data?.errorCode !== "DUPLICATE_SESSION") {
+          console.error("Session check failed:", error);
+        }
+      }
+    };
+
+    runSessionCheck();
+    sessionCheckIntervalRef.current = setInterval(runSessionCheck, 45000);
   };
 
   // Function to start the refresh cycle
@@ -336,13 +392,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    if (localStorage.getItem("accessToken")) {
+      startSessionCheckCycle();
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        startSessionCheckCycle();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
         refreshIntervalRef.current = null;
       }
+      if (sessionCheckIntervalRef.current) {
+        clearInterval(sessionCheckIntervalRef.current);
+        sessionCheckIntervalRef.current = null;
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [api]);
 
   return (
     <AuthContext.Provider

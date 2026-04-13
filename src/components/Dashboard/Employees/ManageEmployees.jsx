@@ -1,201 +1,99 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styles from "./Employees.module.css";
-import ManageEmpProfile from "./ManageEmpProfile";
 import { useAuth } from "@/Auth";
-import { useDivision } from "@/components/context/DivisionContext";
 import ErrorModal from "@/components/ErrorModal";
 import Loading from "@/components/Loading";
-import EmployeeViewModal from "./EmployeeViewModal";
 import UpdateEmployee from "./UpdateEmployee";
 import DeleteModal from "./DeleteModal";
+import EmployeeViewModal from "./EmployeeViewModal";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 function ManageEmployees({ navigate, isAdmin }) {
-  const [employees, setEmployees] = useState([]);
   const { axiosAPI } = useAuth();
-  const { selectedDivision, getCurrentDivisionId, isAllDivisionsSelected } = useDivision();
-  const [error, setError] = useState();
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [teamMemberIds, setTeamMemberIds] = useState(new Set());
-  const [standaloneIds, setStandaloneIds] = useState(new Set());
-  
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-  
-  const [successful, setSuccessful] = useState();
   const [trigger, setTrigger] = useState(false);
-  const onTrigger = () => setTrigger(!trigger);
+  const [onUpdate, setOnUpdate] = useState(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [pagination, setPagination] = useState(null);
+
+  const canEditEmployees = isAdmin;
+
+  const closeModal = () => setIsModalOpen(false);
+  const onTrigger = () => setTrigger((current) => !current);
 
   useEffect(() => {
-    async function fetchInitial() {
+    const timeout = window.setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (onUpdate && employees.length) {
+      const refreshedEmployee = employees.find((employee) => employee.id === onUpdate.id);
+      if (refreshedEmployee) {
+        setOnUpdate(refreshedEmployee);
+      }
+    }
+  }, [employees, onUpdate]);
+
+  useEffect(() => {
+    async function fetchEmployees() {
       try {
         setLoading(true);
-        
-        // Check if API URL is available
-        const apiUrl = import.meta.env.VITE_API_URL;
-        
-        if (!apiUrl) {
-          throw new Error('API URL not configured. Please check your environment variables.');
-        }
-        
-        // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        const accessToken = localStorage.getItem('accessToken');
-        
-        // ✅ Add division parameters to endpoint
-        let endpoint = "/employees";
-        if (currentDivisionId) {
-          endpoint += `?divisionId=${currentDivisionId}`;
-        }
-        
-        const res = await axiosAPI.get(endpoint);
-        
-        // Handle the actual backend response structure
-        let employeesData = [];
-        if (res.data && res.data.success && res.data.data && Array.isArray(res.data.data)) {
-          employeesData = res.data.data;
-        } else if (res.data && res.data.employees && Array.isArray(res.data.employees)) {
-          employeesData = res.data.employees;
-        } else if (res.data && Array.isArray(res.data)) {
-          employeesData = res.data;
-        }
-        
-        console.log('Employees API Response:', res.data);
-        console.log('Parsed employees data:', employeesData);
-        
-        setEmployees(employeesData);
+        const response = await axiosAPI.get("/employees", {
+          page,
+          limit,
+          search,
+          status: statusFilter,
+        });
 
-        // Fetch team status lists (team members and standalone) with same division filters
-        try {
-          let teamMembersEndpoint = "/employees/by-team-status/team-members";
-          let standaloneEndpoint = "/employees/by-team-status/standalone";
-          if (currentDivisionId && currentDivisionId !== '1') {
-            teamMembersEndpoint += `?divisionId=${currentDivisionId}`;
-            standaloneEndpoint += `?divisionId=${currentDivisionId}`;
-          } else if (currentDivisionId === '1') {
-            teamMembersEndpoint += `?showAllDivisions=true`;
-            standaloneEndpoint += `?showAllDivisions=true`;
-          }
-
-          const [teamMembersRes, standaloneRes] = await Promise.all([
-            axiosAPI.get(teamMembersEndpoint),
-            axiosAPI.get(standaloneEndpoint)
-          ]);
-
-          const extractIds = (data) => {
-            if (!data) return [];
-            if (Array.isArray(data)) return data;
-            if (Array.isArray(data.data)) return data.data;
-            if (Array.isArray(data.employees)) return data.employees;
-            return [];
-          };
-
-          const teamMembers = extractIds(teamMembersRes.data).map((e) => e.id || e.employeeId || e);
-          const standalone = extractIds(standaloneRes.data).map((e) => e.id || e.employeeId || e);
-
-          setTeamMemberIds(new Set(teamMembers));
-          setStandaloneIds(new Set(standalone));
-        } catch (statusErr) {
-          // Non-blocking: log but don't surface modal
-          console.warn("Failed to fetch team status lists:", statusErr);
-          setTeamMemberIds(new Set());
-          setStandaloneIds(new Set());
-        }
-      } catch (err) {
-        console.error("Failed to load employees:", err);
-        
-        let errorMessage = "Failed to load initial data.";
-        if (err.message.includes('API URL not configured')) {
-          errorMessage = "API configuration error. Please check environment variables.";
-        } else if (err.response?.status === 401) {
-          errorMessage = "Authentication failed. Please login again.";
-        } else if (err.response?.status === 404) {
-          errorMessage = "Employees endpoint not found.";
-        } else if (err.response?.status >= 500) {
-          errorMessage = "Server error. Please try again later.";
-        }
-        
-        setError(errorMessage);
+        const rows = response?.data?.data || [];
+        setEmployees(Array.isArray(rows) ? rows : []);
+        setPagination(response?.data?.pagination || null);
+      } catch (requestError) {
+        setError(
+          requestError?.response?.data?.message || "Failed to load employees.",
+        );
         setIsModalOpen(true);
         setEmployees([]);
       } finally {
         setLoading(false);
       }
     }
-    fetchInitial();
-  }, [trigger, axiosAPI]);
 
-  const [onUpdate, setOnUpdate] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('all');
+    fetchEmployees();
+  }, [axiosAPI, page, limit, search, statusFilter, trigger]);
 
-  // Sync onUpdate state with fresh employee data after refetch
-  useEffect(() => {
-    if (onUpdate && employees.length > 0) {
-      // Find the updated employee in the fresh employees list
-      const updatedEmployee = employees.find(emp => emp.id === onUpdate.id);
-      if (updatedEmployee) {
-        // Update onUpdate state with fresh data
-        setOnUpdate(updatedEmployee);
-      }
-    }
+  const totals = useMemo(() => {
+    const active = employees.filter((employee) => employee.status === "Active").length;
+    const inactive = employees.filter((employee) => employee.status !== "Active").length;
+    const roles = new Set(
+      employees.map((employee) => employee.primaryRole).filter(Boolean),
+    );
+
+    return {
+      visible: employees.length,
+      active,
+      inactive,
+      roles: roles.size,
+    };
   }, [employees]);
 
-  let index = 1;
-  
-  // Filter employees based on status
-  const filteredEmployees = employees.filter(emp => {
-    if (statusFilter === 'all') return true;
-    return emp.status === statusFilter;
-  });
-
-  const getTeamStatus = (emp) => {
-    // First check if team status is already in the employee data
-    if (emp.teamStatus !== undefined) {
-      return emp.teamStatus === 'IN' || emp.teamStatus === true ? "IN" : "NOT IN";
-    }
-    if (emp.isInTeam !== undefined) {
-      return emp.isInTeam ? "IN" : "NOT IN";
-    }
-    if (emp.team !== undefined && emp.team !== null) {
-      return "IN";
-    }
-    
-    // Fallback to the separate API call data
-    const identifier = emp.id || emp.employeeId;
-    if (identifier == null) return "NOT IN";
-    return teamMemberIds.has(identifier) ? "IN" : "NOT IN";
-  };
-  
-  // Show loading state
-  if (loading) {
+  if (loading && !employees.length && !onUpdate) {
     return (
       <div className="p-4">
         <Loading />
-        <p className="text-center mt-3">Loading employees...</p>
-      </div>
-    );
-  }
-
-  // Show error state if there's an error and no employees
-  if (error && (!employees || employees.length === 0)) {
-    return (
-      <div className="p-4">
-        <p className="path">
-          <span onClick={() => navigate("/employees")}>Employees</span>{" "}
-          <i className="bi bi-chevron-right"></i> Manage Employees
-        </p>
-        <div className="alert alert-danger">
-          <h5>Error Loading Employees</h5>
-          <p>{error}</p>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
-        </div>
       </div>
     );
   }
@@ -207,144 +105,203 @@ function ManageEmployees({ navigate, isAdmin }) {
         <i className="bi bi-chevron-right"></i> Manage Employees
       </p>
 
-       {/* Show sample data if no employees loaded */}
-      {(!employees || employees.length === 0) && !loading && (
-        <div className="alert alert-warning m-3">
-          <strong>No Employee Data Available</strong>
-          <br />
-          This could be due to:
-          <ul>
-            <li>API connection issues</li>
-            <li>Authentication problems</li>
-            <li>No employees in the current division</li>
-            <li>Backend service not running</li>
-          </ul>
-          <button 
-            className="btn btn-primary me-2" 
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
-          <button 
-            className="btn btn-secondary me-2" 
-            onClick={() => navigate("/employees")}
-          >
-            Back to Employees
-          </button>
-          <button 
-            className="btn btn-info" 
-            onClick={() => {
-              // Show sample data for testing
-              setEmployees([
-                {
-                  id: 1,
-                  employeeId: 'EMP001',
-                  name: 'John Doe',
-                  mobile: '+1234567890',
-                  email: 'john.doe@example.com',
-                  roles: [{ name: 'Manager' }]
-                },
-                {
-                  id: 2,
-                  employeeId: 'EMP002',
-                  name: 'Jane Smith',
-                  mobile: '+1234567891',
-                  email: 'jane.smith@example.com',
-                  roles: [{ name: 'Sales' }]
-                }
-              ]);
-            }}
-          >
-            Show Sample Data
-          </button>
-        </div>
-      )}
-
       {!onUpdate && (
-        <div className="row m-0 p-3 justify-content-center">
-          <div className="col-lg-10">
-            {/* Filter Controls */}
-            <div className="mb-3">
-              <label className="form-label me-2">Filter by Status:</label>
-              <select 
-                className="form-select d-inline-block w-auto" 
-                value={statusFilter} 
-                onChange={(e) => setStatusFilter(e.target.value)}
+        <div className={styles.employeeWorkspace}>
+          <section className={styles.employeeHero}>
+            <div>
+              <h2>Manage Employees</h2>
+              <p>
+                Search, review, and update employee access without loading the
+                whole organization at once.
+              </p>
+            </div>
+            <div className={styles.employeeHeroStats}>
+              <div className={styles.employeeHeroStat}>
+                <span>Visible Rows</span>
+                <strong>{totals.visible}</strong>
+              </div>
+              <div className={styles.employeeHeroStat}>
+                <span>Active On Page</span>
+                <strong>{totals.active}</strong>
+              </div>
+              <div className={styles.employeeHeroStat}>
+                <span>Roles On Page</span>
+                <strong>{totals.roles}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.employeeControlBar}>
+            <div className={styles.employeeControlField}>
+              <label>Search Employees</label>
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search by name, emp id, mobile, or email"
+              />
+            </div>
+
+            <div className={styles.employeeControlField}>
+              <label>Status</label>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setPage(1);
+                  setStatusFilter(event.target.value);
+                }}
               >
                 <option value="all">All Employees</option>
-                <option value="Active">Active Only</option>
-                <option value="Inactive">Inactive Only</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Terminated">Terminated</option>
               </select>
-              <span className="ms-3">
-                Showing {filteredEmployees.length} of {employees.length} employees
-              </span>
             </div>
-            <table className={`table table-bordered borderedtable`}>
-              <thead>
-                <tr>
-                  <th>S.No</th>
-                  <th>Emp ID</th>
-                  <th>Employee Name</th>
-                  <th>Mobile Number</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Team Status</th>
-                  <th>Warehouse</th>
-                  {isAdmin && <th>Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                                                  {(!filteredEmployees || filteredEmployees.length === 0) && (
-                   <tr>
-                    <td colSpan={isAdmin ? 10 : 9}>
-                       {loading ? 'Loading...' : 'NO DATA FOUND'}
-                     </td>
-                   </tr>
-                 )}
-                 {filteredEmployees && filteredEmployees.length > 0 &&
-                   filteredEmployees.map((emp) => (
-                    <tr
-                      key={emp.id}
-                      className="animated-row"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <td>{index++}</td>
-                      <td>{emp.employeeId || emp.id || "-"}</td>
-                      <td>{emp.name || emp.employeeName || "-"}</td>
-                      <td>{emp.mobile || emp.phone || "-"}</td>
-                      <td>{emp.email || "-"}</td>
-                                             <td>
-                         {emp.primaryRole || 
-                          (Array.isArray(emp.roles) && emp.roles.length > 0 ? emp.roles[0] : "-")}
-                       </td>
-                       <td>
-                         <span className={`badge ${emp.status === 'Active' ? 'bg-success' : 'bg-danger'}`}>
-                           {emp.status || "-"}
-                         </span>
-                       </td>
+
+            <div className={styles.employeeControlField}>
+              <label>Rows Per Page</label>
+              <select
+                value={limit}
+                onChange={(event) => {
+                  setPage(1);
+                  setLimit(Number(event.target.value));
+                }}
+              >
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+
+          <section className={styles.employeeTableCard}>
+            <div className={styles.employeeTableHeader}>
+              <div>
+                <h3>Employee Directory</h3>
+                <p>
+                  {pagination?.total || employees.length} employees matched this
+                  view.
+                </p>
+              </div>
+              {pagination && (
+                <div className={styles.employeePaginationMeta}>
+                  Page {pagination.page} of {pagination.totalPages}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.employeeTableWrap}>
+              <table className={styles.employeeTable}>
+                <thead>
+                  <tr>
+                    <th>S.No</th>
+                    <th>Employee</th>
+                    <th>Role</th>
+                    <th>Contact</th>
+                    <th>Status</th>
+                    <th>Team</th>
+                    <th>Warehouse</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!employees.length && (
+                    <tr>
+                      <td colSpan="8" className={styles.employeeEmptyState}>
+                        No employees matched this filter.
+                      </td>
+                    </tr>
+                  )}
+
+                  {employees.map((employee, index) => (
+                    <tr key={employee.id}>
+                      <td>{(page - 1) * limit + index + 1}</td>
                       <td>
-                        <span className={`badge ${getTeamStatus(emp) === 'IN' ? 'bg-success' : 'bg-secondary'}`}>
-                          {getTeamStatus(emp)}
+                        <div className={styles.employeeIdentity}>
+                          <strong>{employee.name || "-"}</strong>
+                          <span>{employee.employeeId || employee.id}</span>
+                          {employee.email && <small>{employee.email}</small>}
+                        </div>
+                      </td>
+                      <td>{employee.primaryRole || "-"}</td>
+                      <td>
+                        <div className={styles.employeeContact}>
+                          <span>{employee.mobile || "-"}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`${styles.employeeBadge} ${
+                            employee.status === "Active"
+                              ? styles.employeeBadgeSuccess
+                              : styles.employeeBadgeMuted
+                          }`}
+                        >
+                          {employee.status || "-"}
                         </span>
                       </td>
-                       <td>{emp.warehouse?.name || "-"}</td>
-                       {isAdmin && (
-                         <td className={styles.delcol}>
-                           <button onClick={() => setOnUpdate(emp)}>
-                             Update
-                           </button>
-                           <DeleteModal
-                             employee={emp}
-                             changeTrigger={onTrigger}
-                           />
-                         </td>
-                       )}
+                      <td>
+                        <span
+                          className={`${styles.employeeBadge} ${
+                            employee.teamStatus === "IN"
+                              ? styles.employeeBadgeSuccess
+                              : styles.employeeBadgeInfo
+                          }`}
+                        >
+                          {employee.teamStatus || "NOT IN"}
+                        </span>
+                      </td>
+                      <td>{employee.warehouse?.name || "-"}</td>
+                      <td>
+                        <div className={styles.employeeActionRow}>
+                          <EmployeeViewModal employee={employee} />
+                          {canEditEmployees && (
+                            <button
+                              className={styles.employeeSecondaryAction}
+                              onClick={() => setOnUpdate(employee)}
+                            >
+                              Update
+                            </button>
+                          )}
+                          {canEditEmployees && (
+                            <DeleteModal employee={employee} changeTrigger={onTrigger} />
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+
+            {pagination && (
+              <div className={styles.employeePaginationBar}>
+                <button
+                  className={styles.employeeSecondaryAction}
+                  disabled={!pagination.hasPreviousPage}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  Previous
+                </button>
+                <span>
+                  Showing {(pagination.page - 1) * pagination.limit + 1}-
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total,
+                  )}{" "}
+                  of {pagination.total}
+                </span>
+                <button
+                  className={styles.employeeSecondaryAction}
+                  disabled={!pagination.hasNextPage}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </section>
         </div>
       )}
 
@@ -355,6 +312,8 @@ function ManageEmployees({ navigate, isAdmin }) {
           onTrigger={onTrigger}
         />
       )}
+
+      {loading && employees.length > 0 && <Loading />}
 
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />

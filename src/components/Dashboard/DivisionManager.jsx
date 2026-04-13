@@ -205,9 +205,7 @@ function DivisionManager() {
     }
   }, [activeTab]);
 
-  const filteredStores = stores.filter((store) =>
-    store.name?.toLowerCase().includes(storeSearch.toLowerCase()),
-  );
+  const filteredStores = stores;
 
   // Refetch dropdowns when division changes in store form
   useEffect(() => {
@@ -1562,7 +1560,7 @@ function DivisionManager() {
   const fetchStores = async (
     page = 1,
     limit = 10,
-    search = "",
+    search = storeSearch,
     storeType = "",
   ) => {
     try {
@@ -1665,97 +1663,15 @@ function DivisionManager() {
         storesData = [];
       }
 
-      // Fetch full details for stores that don't have manager/employees data
-      // This ensures we always have the complete information
-      const storesWithDetails = await Promise.all(
-        storesData.map(async (store) => {
-          // Check if store has manager object (not just ID) and employees array
-          const hasManagerObject =
-            store.staffManager || store.manager || store.storeManager;
-          const hasEmployeesArray =
-            store.employees &&
-            Array.isArray(store.employees) &&
-            store.employees.length > 0;
-          const hasManagerId = store.staffManagerId;
-
-          // If we have manager object AND employees array, return as is
-          // Otherwise, fetch details (especially if we have managerId but no manager object)
-          if (hasManagerObject && hasEmployeesArray) {
-            return store;
-          }
-
-          // Fetch full details to get manager and employees
-          try {
-            const detailResponse = await axiosAPI.get(`/stores/${store.id}`);
-            const detailData =
-              detailResponse.data?.data || detailResponse.data || store;
-            console.log(`Fetched details for store ${store.id}:`, {
-              staffManagerId: detailData.staffManagerId,
-              staffManager: detailData.staffManager,
-              manager: detailData.manager,
-              employees: detailData.employees?.length || 0,
-            });
-
-            // If we have staffManagerId but no manager object, try to fetch store staff
-            let managerData =
-              detailData.staffManager ||
-              detailData.manager ||
-              detailData.storeManager ||
-              store.staffManager ||
-              store.manager ||
-              store.storeManager;
-            if (detailData.staffManagerId && !managerData) {
-              try {
-                const staffResponse = await axiosAPI.get(
-                  `/store-employees/store/${store.id}`,
-                );
-                const staffData =
-                  staffResponse.data?.data || staffResponse.data || {};
-                if (staffData.manager || staffData.staffManager) {
-                  managerData = staffData.manager || staffData.staffManager;
-                }
-              } catch (staffError) {
-                console.log(
-                  `Could not fetch staff for store ${store.id}:`,
-                  staffError,
-                );
-              }
-            }
-
-            // Merge the detail data with the original store data
-            return {
-              ...store,
-              ...detailData,
-              staffManager: managerData,
-              staffManagerId:
-                detailData.staffManagerId ||
-                detailData.storeManagerId ||
-                managerData?.id ||
-                store.staffManagerId,
-              employees: detailData.employees || store.employees || [],
-              employeeIds: detailData.employeeIds || store.employeeIds || [],
-              division: detailData.division || store.division,
-              zone: detailData.zone || store.zone,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching details for store ${store.id}:`,
-              error,
-            );
-            return store;
-          }
-        }),
-      );
-
       const pagination = responseData.pagination || {
         page,
         limit,
-        total: storesWithDetails.length,
+        total: storesData.length,
         totalPages: 1,
       };
 
-      console.log("Stores with details:", storesWithDetails);
-      setStores(storesWithDetails);
+      console.log("Stores data:", storesData);
+      setStores(storesData);
       setStoresPagination(pagination);
     } catch (error) {
       console.error("Error fetching stores:", error);
@@ -1770,6 +1686,15 @@ function DivisionManager() {
       setStoresLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab !== "stores") return;
+    const timeoutId = setTimeout(() => {
+      fetchStores(1, storesPagination.limit, storeSearch);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [storeSearch]);
 
   const handleCreateStore = async (e) => {
     e.preventDefault();
@@ -5083,6 +5008,8 @@ function DivisionManager() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   marginBottom: "20px",
+                  gap: "12px",
+                  flexWrap: "wrap",
                 }}
               >
                 <h3 style={{ margin: 0 }}>Existing Stores</h3>
@@ -5105,13 +5032,43 @@ function DivisionManager() {
                     Stores Abstract
                   </button>
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search store by name..."
-                  value={storeSearch}
-                  onChange={(e) => setStoreSearch(e.target.value)}
-                  className={styles.searchInput}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    alignItems: "center",
+                    marginLeft: "auto",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div className={styles.entity}>
+                    <label>Entity :</label>
+                    <select
+                      value={storesPagination.limit}
+                      onChange={(e) => {
+                        const nextLimit = parseInt(e.target.value, 10) || 10;
+                        setStoresPagination((prev) => ({
+                          ...prev,
+                          page: 1,
+                          limit: nextLimit,
+                        }));
+                        fetchStores(1, nextLimit, storeSearch);
+                      }}
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search store by name, code, district..."
+                    value={storeSearch}
+                    onChange={(e) => setStoreSearch(e.target.value)}
+                    className={styles.searchInput}
+                  />
+                </div>
               </div>
               {storesLoading ? (
                 <p>Loading stores...</p>
@@ -5329,6 +5286,7 @@ function DivisionManager() {
                           fetchStores(
                             storesPagination.page - 1,
                             storesPagination.limit,
+                            storeSearch,
                           )
                         }
                         disabled={storesPagination.page === 1}
@@ -5346,6 +5304,7 @@ function DivisionManager() {
                           fetchStores(
                             storesPagination.page + 1,
                             storesPagination.limit,
+                            storeSearch,
                           )
                         }
                         disabled={

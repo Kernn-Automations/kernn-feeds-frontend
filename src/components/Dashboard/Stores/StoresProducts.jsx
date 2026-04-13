@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../Auth";
 import { useDivision } from "../../context/DivisionContext";
 import Loading from "@/components/Loading";
 import ErrorModal from "@/components/ErrorModal";
@@ -12,7 +11,6 @@ import styles from "./StoresProducts.module.css";
 
 const StoresProducts = () => {
   const navigate = useNavigate();
-  const { axiosAPI } = useAuth();
   const { selectedDivision, showAllDivisions } = useDivision();
 
   const [loading, setLoading] = useState(false);
@@ -316,63 +314,10 @@ const StoresProducts = () => {
           }
 
           if (zbmZoneId) {
-            // 2. Fetch stores list for this zone
-            // Using axiosAPI directly as per requirement /stores/list?zoneId=...
-            const storesRes = await axiosAPI.get(
-              `/stores/list?zoneId=${zbmZoneId}`,
-            );
-            const stores = storesRes.data?.data || storesRes.data || [];
-
-            // 3. Fetch products for each store
-            const productsPromises = stores.map((store) =>
-              storeService
-                .getStoreProducts(store.id || store.storeId)
-                .then((res) => {
-                  const products = res.data || res.products || res || [];
-                  return { store, products };
-                })
-                .catch((e) => {
-                  console.error(
-                    `Failed to fetch products for store ${store.id}`,
-                    e,
-                  );
-                  return { store, products: [] };
-                }),
-            );
-
-            const storesWithProducts = await Promise.all(productsPromises);
-
-            // 4. Construct hierarchy for transformApiDataToFlatStructure
-            // zones[] -> subZones[] -> stores[] -> products[]
-            const zoneMap = {};
-
-            storesWithProducts.forEach(({ store, products }) => {
-              const zName = store.zone?.name || store.zoneName || "Zone";
-              const szName =
-                store.subZone?.name || store.subZoneName || "SubZone";
-
-              if (!zoneMap[zName])
-                zoneMap[zName] = { zone: zName, subZones: {} };
-              if (!zoneMap[zName].subZones[szName])
-                zoneMap[zName].subZones[szName] = {
-                  subZone: szName,
-                  stores: [],
-                };
-
-              zoneMap[zName].subZones[szName].stores.push({
-                storeName: store.name || store.storeName,
-                storeCode: store.storeCode,
-                storeId: store.id || store.storeId,
-                products: products,
-              });
+            const response = await storeService.getAllStoresWithProducts({
+              zoneId: zbmZoneId,
             });
-
-            // Convert map to array
-            rawData = Object.values(zoneMap).map((z) => ({
-              // Zone object
-              zone: z.zone,
-              subZones: Object.values(z.subZones), // SubZone array
-            }));
+            rawData = response.data || response?.zones || response || [];
           }
         } catch (zbmError) {
           console.error("Error in ZBM product fetch:", zbmError);
@@ -395,58 +340,10 @@ const StoresProducts = () => {
           }
 
           if (rbmSubZoneId) {
-            // 2. Fetch stores list for this subzone
-            const storesRes = await axiosAPI.get(
-              `/stores/list?subZoneId=${rbmSubZoneId}`,
-            );
-            const stores = storesRes.data?.data || storesRes.data || [];
-
-            // 3. Fetch products for each store
-            const productsPromises = stores.map((store) =>
-              storeService
-                .getStoreProducts(store.id || store.storeId)
-                .then((res) => {
-                  const products = res.data || res.products || res || [];
-                  return { store, products };
-                })
-                .catch((e) => {
-                  console.error(
-                    `Failed to fetch products for store ${store.id}`,
-                    e,
-                  );
-                  return { store, products: [] };
-                }),
-            );
-
-            const storesWithProducts = await Promise.all(productsPromises);
-
-            // 4. Construct hierarchy for transformApiDataToFlatStructure
-            const zoneMap = {};
-            storesWithProducts.forEach(({ store, products }) => {
-              const zName = store.zone?.name || store.zoneName || "Zone";
-              const szName =
-                store.subZone?.name || store.subZoneName || "SubZone";
-
-              if (!zoneMap[zName])
-                zoneMap[zName] = { zone: zName, subZones: {} };
-              if (!zoneMap[zName].subZones[szName])
-                zoneMap[zName].subZones[szName] = {
-                  subZone: szName,
-                  stores: [],
-                };
-
-              zoneMap[zName].subZones[szName].stores.push({
-                storeName: store.name || store.storeName,
-                storeCode: store.storeCode,
-                storeId: store.id || store.storeId,
-                products: products,
-              });
+            const response = await storeService.getAllStoresWithProducts({
+              subZoneId: rbmSubZoneId,
             });
-
-            rawData = Object.values(zoneMap).map((z) => ({
-              zone: z.zone,
-              subZones: Object.values(z.subZones),
-            }));
+            rawData = response.data || response?.zones || response || [];
           }
         } catch (rbmError) {
           console.error("Error in RBM product fetch:", rbmError);
@@ -892,9 +789,6 @@ const StoresProducts = () => {
         return storeService.bulkUpdateStoreProductPrices(storeId, updates);
       });
 
-      await Promise.all(updatePromises);
-
-      // Wait for all updates to complete
       await Promise.all(updatePromises);
 
       console.log("All price updates completed successfully");

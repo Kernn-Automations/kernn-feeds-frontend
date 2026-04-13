@@ -6,210 +6,174 @@ import Loading from "@/components/Loading";
 
 function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
   const { axiosAPI } = useAuth();
-  console.log(employee)
   const [form, setForm] = useState({
-    name: employee.name,
-    employeeId: employee.employeeId,
-    email: employee.email,
-    mobile: employee.mobile,
-    warehouseId: employee.warehouseId,
+    name: employee.name || "",
+    employeeId: employee.employeeId || "",
+    email: employee.email || "",
+    mobile: employee.mobile || "",
+    warehouseId: employee.warehouseId || "",
   });
-
   const [roles, setRoles] = useState([]);
-  const [selectedRoles, setSelectedRoles] = useState(employee.roles?.map((role) => role.id));
+  const [selectedRoles, setSelectedRoles] = useState(
+    employee.roles?.map((role) => role.id) || [],
+  );
   const [supervisors, setSupervisors] = useState([]);
-  const [selectedSupervisor, setSelectedSupervisor] = useState(Number(employee.supervisorId));
+  const [selectedSupervisor, setSelectedSupervisor] = useState(
+    employee.supervisorId ? Number(employee.supervisorId) : "",
+  );
   const [warehouses, setWarehouses] = useState([]);
-
-
-  const [error, setError] = useState();
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [successful, setSuccessful] = useState();
+  const [successful, setSuccessful] = useState("");
 
   const closeModal = () => setIsModalOpen(false);
 
-  const adminRole = roles.find((r) => r.name.toLowerCase() === "admin");
-  const isAdminSelected = selectedRoles.includes(adminRole?.id);
-
-  // Hide warehouse selection when specific roles are selected
-  const rolesHideWarehouse = [
-    "business officer",
-    "warehouse manager",
-    "area business manager",
-  ];
-  const hasRoleThatHidesWarehouse = roles.some(
-    (r) => selectedRoles.includes(r.id) && rolesHideWarehouse.includes(r.name.toLowerCase())
-  );
-  // As per requirement, when the above roles are selected, warehouse field should not appear
-  const warehouseRequired = !hasRoleThatHidesWarehouse && false;
-
-  // Update form state when employee prop changes (after successful update)
   useEffect(() => {
     setForm({
-      name: employee.name,
-      employeeId: employee.employeeId,
-      email: employee.email,
-      mobile: employee.mobile,
-      warehouseId: employee.warehouseId,
+      name: employee.name || "",
+      employeeId: employee.employeeId || "",
+      email: employee.email || "",
+      mobile: employee.mobile || "",
+      warehouseId: employee.warehouseId || "",
     });
     setSelectedRoles(employee.roles?.map((role) => role.id) || []);
-    setSelectedSupervisor(Number(employee.supervisorId));
+    setSelectedSupervisor(employee.supervisorId ? Number(employee.supervisorId) : "");
   }, [employee]);
 
-  // Load roles and warehouses
   useEffect(() => {
     async function fetchInitial() {
       try {
         setLoading(true);
-        
-        // ✅ Get division ID from localStorage for division filtering
-        const currentDivisionId = localStorage.getItem('currentDivisionId');
-        const currentDivisionName = localStorage.getItem('currentDivisionName');
-        
-        // ✅ Add division parameters to warehouses endpoint
+        const currentDivisionId = localStorage.getItem("currentDivisionId");
         let warehousesEndpoint = "/warehouse";
-        if (currentDivisionId && currentDivisionId !== '1') {
+        if (currentDivisionId && currentDivisionId !== "1") {
           warehousesEndpoint += `?divisionId=${currentDivisionId}`;
-        } else if (currentDivisionId === '1') {
-          warehousesEndpoint += `?showAllDivisions=true`;
+        } else if (currentDivisionId === "1") {
+          warehousesEndpoint += "?showAllDivisions=true";
         }
-        
-        console.log('UpdateEmployee - Fetching warehouses with endpoint:', warehousesEndpoint);
-        console.log('UpdateEmployee - Division ID:', currentDivisionId);
-        console.log('UpdateEmployee - Division Name:', currentDivisionName);
-        
-        const [rolesRes, warehousesRes] = await Promise.all([
-          axiosAPI.get("/employees/roles"),
-          axiosAPI.get(warehousesEndpoint),
-        ]);
-        setRoles(rolesRes.data.roles || []);
-        setWarehouses(warehousesRes.data.warehouses || []);
-      } catch (err) {
+
+        const [rolesRes, warehousesRes] =
+          await Promise.allSettled([
+            axiosAPI.get("/employees/roles"),
+            axiosAPI.get(warehousesEndpoint),
+          ]);
+
+        if (rolesRes.status !== "fulfilled" || warehousesRes.status !== "fulfilled") {
+          throw rolesRes.status !== "fulfilled" ? rolesRes.reason : warehousesRes.reason;
+        }
+
+        setRoles(rolesRes.value.data.roles || []);
+        setWarehouses(warehousesRes.value.data.warehouses || []);
+      } catch (requestError) {
         setError(
-          err?.response?.data?.message || "Failed to load initial data."
+          requestError?.response?.data?.message ||
+            "Failed to load employee details.",
         );
         setIsModalOpen(true);
       } finally {
         setLoading(false);
       }
     }
-    fetchInitial();
-  }, []);
 
-  // Fetch supervisors unless Admin is selected
+    fetchInitial();
+  }, [axiosAPI, employee.id]);
+
   useEffect(() => {
     async function fetchSupervisors() {
       const lastRoleId = selectedRoles[selectedRoles.length - 1];
-      const lastRole = roles.find((r) => r.id === lastRoleId);
+      const lastRole = roles.find((role) => role.id === lastRoleId);
 
-      if (!lastRole) {
-        setSupervisors([]);
-        return;
-      }
-
-      if (lastRole.name && lastRole.name.toLowerCase() === "admin") {
+      if (!lastRole || lastRole.name.toLowerCase() === "admin") {
         setSupervisors([]);
         return;
       }
 
       try {
-        console.log(`/employees/supervisors/${lastRoleId}`)
-        const res = await axiosAPI.get(`/employees/supervisors/${lastRoleId}`);
-        setSupervisors(res.data.supervisors || []);
-        console.log(res)
-      } catch (err) {
-        // Handle supervisor fetch errors gracefully - supervisors are optional
-        // Only log the error, don't show modal as it doesn't prevent employee update
-        console.warn("Failed to load supervisors:", err?.response?.data?.message || err.message);
-        setSupervisors([]); // Set empty supervisors list on error
+        const response = await axiosAPI.get(`/employees/supervisors/${lastRoleId}`);
+        setSupervisors(response.data.supervisors || []);
+      } catch (requestError) {
+        setSupervisors([]);
       }
     }
 
-    if (selectedRoles.length > 0) {
+    if (selectedRoles.length) {
       fetchSupervisors();
     }
-  }, [selectedRoles, roles]);
+  }, [axiosAPI, roles, selectedRoles]);
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    // Enforce uppercase for employee name
-    const processedValue = name === "name" ? value.toUpperCase().replace(/\s\s+/g, ' ') : value;
-    setForm((prev) => ({ ...prev, [name]: processedValue }));
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+    const processedValue =
+      name === "name" ? value.toUpperCase().replace(/\s\s+/g, " ") : value;
+    setForm((current) => ({ ...current, [name]: processedValue }));
   };
 
   const addRole = (roleId) => {
-    if (roleId) {
-      const parsedId = parseInt(roleId);
-      if (!selectedRoles.includes(parsedId)) {
-        setSelectedRoles((prev) => [...prev, parsedId]);
-      }
+    const parsedId = Number.parseInt(roleId, 10);
+    if (Number.isInteger(parsedId) && !selectedRoles.includes(parsedId)) {
+      setSelectedRoles((current) => [...current, parsedId]);
     }
   };
 
-  const removeRole = (index) => {
-    const updatedRoles = selectedRoles.filter((_, i) => i !== index);
-    setSelectedRoles(updatedRoles);
-
-    // Reset warehouse & supervisor if the conditions no longer apply
-    if (
-      !updatedRoles.some((roleId) => {
-        const role = roles.find((r) => r.id === roleId);
-        return ["business officer", "warehouse manager"].includes(
-          role?.name.toLowerCase()
-        );
-      })
-    ) {
-      setForm((prev) => ({ ...prev, warehouseId: "" }));
-    }
-
-    if (
-      updatedRoles.every((roleId) => {
-        const role = roles.find((r) => r.id === roleId);
-        return role?.name.toLowerCase() === "admin";
-      })
-    ) {
-      setSelectedSupervisor(undefined);
-    }
+  const removeRole = (roleId) => {
+    setSelectedRoles((current) => current.filter((item) => item !== roleId));
   };
 
-  const availableRoles = roles.filter((r) => !selectedRoles.includes(r.id));
-  console.log(selectedRoles);
-  console.log(availableRoles);
+  const availableRoles = roles.filter((role) => !selectedRoles.includes(role.id));
+  const isAdminSelected = selectedRoles.some((roleId) => {
+    const role = roles.find((item) => item.id === roleId);
+    return role?.name?.toLowerCase() === "admin";
+  });
+
+  const warehouseOptionalRoles = [
+    "business officer",
+    "warehouse manager",
+    "area business manager",
+  ];
+  const warehouseRequired = !selectedRoles.some((roleId) => {
+    const role = roles.find((item) => item.id === roleId);
+    return warehouseOptionalRoles.includes(role?.name?.toLowerCase());
+  });
+
   const handleSubmit = async () => {
-    const parsedSupervisorId = selectedSupervisor != null && selectedSupervisor !== "" ? parseInt(selectedSupervisor) : null;
-    
-    // Check if supervisor is actually required
-    // Supervisor is required only if: not admin AND supervisors list is available (length > 0)
+    const parsedSupervisorId =
+      selectedSupervisor !== "" && selectedSupervisor != null
+        ? Number.parseInt(selectedSupervisor, 10)
+        : null;
+
     const supervisorRequired = !isAdminSelected && supervisors.length > 0;
-    
+
     if (
       !form.name ||
       !form.employeeId ||
       !form.mobile ||
-      selectedRoles.length === 0 ||
+      !selectedRoles.length ||
       (warehouseRequired && !form.warehouseId) ||
-      (supervisorRequired && (parsedSupervisorId == null || Number.isNaN(parsedSupervisorId)))
+      (supervisorRequired &&
+        (parsedSupervisorId == null || Number.isNaN(parsedSupervisorId)))
     ) {
-      setError("Please fill all the required fields.");
+      setError("Please fill all required fields before updating.");
       setIsModalOpen(true);
       return;
     }
 
-    const payload = {
-      ...form,
-      warehouseId: warehouseRequired ? parseInt(form.warehouseId) : null,
-      roleIds: selectedRoles,
-      supervisorId: isAdminSelected ? null : parsedSupervisorId,
-    };
-    console.log(payload)
     try {
       setLoading(true);
-      const res = await axiosAPI.put(`/employees/${employee.id}`, payload);
-      setSuccessful(res.data.message);
+      const payload = {
+        ...form,
+        warehouseId: warehouseRequired ? Number.parseInt(form.warehouseId, 10) : null,
+        roleIds: selectedRoles,
+        supervisorId: isAdminSelected ? null : parsedSupervisorId,
+      };
+
+      const response = await axiosAPI.put(`/employees/${employee.id}`, payload);
+      setSuccessful(response.data.message || "Employee updated successfully.");
       onTrigger();
-    } catch (err) {
-      setError(err?.response?.data?.message || "Failed to Update employee.");
+    } catch (requestError) {
+      setError(
+        requestError?.response?.data?.message || "Failed to update employee.",
+      );
       setIsModalOpen(true);
     } finally {
       setLoading(false);
@@ -218,132 +182,150 @@ function UpdateEmployee({ employee, setOnUpdate, onTrigger }) {
 
   return (
     <>
-      <div className="row m-0 p-3 justify-content-center">
-        <div className={`col-8 ${styles.longform}`}>
-          <label>Full Name:</label>
-          <input name="name" value={form.name} onChange={handleFormChange} />
+      <p className="path">
+        <span onClick={() => setOnUpdate(false)}>Manage Employees</span>{" "}
+        <i className="bi bi-chevron-right"></i> Update Employee
+      </p>
 
-          <label className="mt-3">Employee ID:</label>
-          <input
-            name="employeeId"
-            value={form.employeeId}
-            onChange={handleFormChange}
-          />
+      <div className={styles.employeeEditPage}>
+        <section className={styles.employeeEditHero}>
+          <div>
+            <h2>Update Employee</h2>
+            <p>
+              Edit profile details and assigned roles in one place.
+            </p>
+          </div>
+          <div className={styles.employeeEditHeroMeta}>
+            <span>{employee.primaryRole || employee.roles?.[0]?.name || "No Role"}</span>
+            <strong>{employee.employeeId || employee.id}</strong>
+          </div>
+        </section>
 
-          <label className="mt-3">Email:</label>
-          <input name="email" value={form.email} onChange={handleFormChange} />
-
-          <label className="mt-3">Mobile:</label>
-          <input
-            name="mobile"
-            value={form.mobile}
-            onChange={handleFormChange}
-          />
-
-          {selectedRoles.map((roleId, index) => {
-            const role = roles.find((r) => r.id === roleId);
-            return (
-              <div
-                key={roleId}
-                className={`d-flex justify-content-between align-items-center pt-2 mb-2 ${styles.longform}`}
-              >
-                <span>{role?.name}</span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => removeRole(index)}
-                >
-                  Remove
-                </button>
-              </div>
-            );
-          })}
-
-          {availableRoles.length > 0 && (
-            <>
-              <label className="mt-3">Roles:</label>
-              <select onChange={(e) => addRole(e.target.value)} defaultValue="">
-                <option value="null">-- Add Role --</option>
-                {availableRoles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {warehouseRequired && (
-            <>
-              <label className="mt-3">Warehouse:</label>
-              <select
-                name="warehouseId"
-                value={form.warehouseId || ""}
-                onChange={handleFormChange}
-              >
-                <option value="">-- Select Warehouse --</option>
-                {warehouses.map((wh) => (
-                  <option key={wh.id} value={wh.id}>
-                    {wh.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {!isAdminSelected && supervisors.length > 0 && (
-            <>
-              <label className="mt-3">Supervisor:</label>
-              <select
-                value={selectedSupervisor || ""}
-                onChange={(e) => setSelectedSupervisor(e.target.value)}
-              >
-                <option value="">-- Select Supervisor --</option>
-                {supervisors.map((sup) => (
-                  <option key={sup.id} value={sup.id}>
-                    {sup.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {!loading && !successful && (
-            <div className="row m-0 p-3 justify-content-center">
-              <div className="col-9">
-                <button className="submitbtn" onClick={handleSubmit}>
-                  Update
-                </button>
-                <button
-                  className="cancelbtn"
-                  onClick={() => setOnUpdate(false)}
-                >
-                  Cancel
-                </button>
-              </div>
+        <div className={styles.employeeEditGrid}>
+          <section className={styles.employeeEditCard}>
+            <h3>Profile Details</h3>
+            <div className={styles.employeeFormGrid}>
+              <label>
+                <span>Full Name</span>
+                <input name="name" value={form.name} onChange={handleFormChange} />
+              </label>
+              <label>
+                <span>Employee ID</span>
+                <input
+                  name="employeeId"
+                  value={form.employeeId}
+                  onChange={handleFormChange}
+                />
+              </label>
+              <label>
+                <span>Email</span>
+                <input name="email" value={form.email} onChange={handleFormChange} />
+              </label>
+              <label>
+                <span>Mobile</span>
+                <input
+                  name="mobile"
+                  value={form.mobile}
+                  onChange={handleFormChange}
+                />
+              </label>
+              {warehouseRequired && (
+                <label>
+                  <span>Warehouse</span>
+                  <select
+                    name="warehouseId"
+                    value={form.warehouseId || ""}
+                    onChange={handleFormChange}
+                  >
+                    <option value="">-- Select Warehouse --</option>
+                    {warehouses.map((warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {!isAdminSelected && supervisors.length > 0 && (
+                <label>
+                  <span>Supervisor</span>
+                  <select
+                    value={selectedSupervisor || ""}
+                    onChange={(event) => setSelectedSupervisor(event.target.value)}
+                  >
+                    <option value="">-- Select Supervisor --</option>
+                    {supervisors.map((supervisor) => (
+                      <option key={supervisor.id} value={supervisor.id}>
+                        {supervisor.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
-          )}
+          </section>
 
-          {successful && (
-            <div className="row m-0 p-3 justify-content-center">
-              <div className="col-12">
-                <button
-                  className="submitbtn"
-                  onClick={() => setOnUpdate(null)}
-                >
-                  {successful}
-                </button>
-              </div>
+          <section className={styles.employeeEditCard}>
+            <h3>Roles</h3>
+            <div className={styles.employeeRolePills}>
+              {selectedRoles.map((roleId) => {
+                const role = roles.find((item) => item.id === roleId);
+                return (
+                  <span key={roleId} className={styles.employeeRolePill}>
+                    {role?.name || roleId}
+                    <button type="button" onClick={() => removeRole(roleId)}>
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
             </div>
+
+            {availableRoles.length > 0 && (
+              <label className={styles.employeeSelectField}>
+                <span>Add Role</span>
+                <select defaultValue="" onChange={(event) => addRole(event.target.value)}>
+                  <option value="">-- Add Role --</option>
+                  {availableRoles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </section>
+        </div>
+
+        <div className={styles.employeeEditActions}>
+          {!successful ? (
+            <>
+              <button className={styles.employeePrimaryAction} onClick={handleSubmit}>
+                Update Employee
+              </button>
+              <button
+                className={styles.employeeSecondaryAction}
+                onClick={() => setOnUpdate(false)}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              className={styles.employeePrimaryAction}
+              onClick={() => setOnUpdate(false)}
+            >
+              {successful}
+            </button>
           )}
         </div>
       </div>
 
+      {loading && <Loading />}
+
       {isModalOpen && (
         <ErrorModal isOpen={isModalOpen} message={error} onClose={closeModal} />
       )}
-
-      {loading && <Loading />}
     </>
   );
 }

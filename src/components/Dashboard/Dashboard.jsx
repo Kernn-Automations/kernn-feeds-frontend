@@ -471,6 +471,7 @@ export default function Dashboard({
                     </Suspense>
                   }
                 />
+                <Route path="*" element={<Navigate to="/404" replace />} />
               </Routes>
             </div>
           </div>
