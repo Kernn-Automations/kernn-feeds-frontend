@@ -21,7 +21,6 @@ export const dashboardOptions = [
   { name: "Payments - Approvals", path: "/payments/payment-approvals" },
   { name: "Employees", path: "/employees" },
   { name: "Employees - Create", path: "/employees/create-employee" },
-  { name: "Employees - Assign Role", path: "/employees/assign-role" },
   { name: "Employees - Manage", path: "/employees/manage-employees" },
   { name: "Live Locations", path: "/location" },
   { name: "Warehouse", path: "/warehouses" },

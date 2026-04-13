@@ -442,6 +442,36 @@ export default function StoreCreateSale() {
       .replace(/[^0-9]/g, "")
       .slice(-10);
 
+  const getCartItemUnitPrice = (item) => {
+    const parsedPrice = Number(
+      item?.unitPrice !== undefined ? item.unitPrice : item?.price || 0,
+    );
+    return Number.isFinite(parsedPrice) ? parsedPrice : 0;
+  };
+
+  const getCartItemDisplayTotal = (item) => {
+    if (
+      item?.finalAmount !== undefined &&
+      item?.finalAmount !== null &&
+      item?.finalAmount !== ""
+    ) {
+      const parsedFinalAmount = Number(item.finalAmount);
+      if (Number.isFinite(parsedFinalAmount)) {
+        return parsedFinalAmount;
+      }
+    }
+
+    const quantity = Number(item?.quantity || 0);
+    const unitPrice = getCartItemUnitPrice(item);
+    const computedTotal = unitPrice * quantity;
+    if (Number.isFinite(computedTotal)) {
+      return computedTotal;
+    }
+
+    const storedTotal = Number(item?.totalPrice || 0);
+    return Number.isFinite(storedTotal) ? storedTotal : 0;
+  };
+
   const normalizeCustomerResults = (customers = []) =>
     Array.isArray(customers)
       ? customers.map((customer) => {
@@ -570,6 +600,12 @@ export default function StoreCreateSale() {
         const nextCart = {};
         draft.items.forEach((item) => {
           const key = item.productId;
+          const quantity = Number(item.quantity || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          const parsedFinalAmount =
+            item.finalAmount !== undefined && item.finalAmount !== null
+              ? Number(item.finalAmount)
+              : undefined;
           nextCart[key] = {
             id: key,
             storeProductId: key,
@@ -578,12 +614,18 @@ export default function StoreCreateSale() {
             sku: item.product?.SKU || item.sku || "",
             productType: item.product?.productType || item.productType || "packed",
             unit: "bag",
-            price: Number(item.unitPrice || 0),
-            unitPrice: Number(item.unitPrice || 0),
-            quantity: Number(item.quantity || 0),
-            totalPrice: Number(item.totalPrice || 0),
+            price: unitPrice,
+            unitPrice,
+            quantity,
+            totalPrice:
+              Number(item.totalPrice || 0) ||
+              (Number.isFinite(parsedFinalAmount)
+                ? parsedFinalAmount
+                : unitPrice * quantity),
             discountAmount: Number(item.discountAmount || 0),
-            finalAmount: Number(item.finalAmount || 0),
+            finalAmount: Number.isFinite(parsedFinalAmount)
+              ? parsedFinalAmount
+              : undefined,
           };
         });
         setCartItems(nextCart);
@@ -1035,10 +1077,17 @@ export default function StoreCreateSale() {
     };
   }, []);
 
-  const cartItemsList = useMemo(() => Object.values(cartItems), [cartItems]);
+  const cartItemsList = useMemo(
+    () =>
+      Object.values(cartItems).map((item) => ({
+        ...item,
+        totalPrice: getCartItemDisplayTotal(item),
+      })),
+    [cartItems],
+  );
   const cartItemsCount = cartItemsList.length;
   const totalCartValue = cartItemsList.reduce(
-    (sum, item) => sum + (item.totalPrice || 0),
+    (sum, item) => sum + getCartItemDisplayTotal(item),
     0,
   );
 
@@ -3541,14 +3590,24 @@ export default function StoreCreateSale() {
                           type="number"
                           step="0.01"
                           min="0"
-                          value={item.price}
+                          value={
+                            item.unitPrice !== undefined
+                              ? item.unitPrice
+                              : item.price
+                          }
                           onChange={(e) => {
                             const val = e.target.value;
+                            const nextUnitPrice =
+                              val === "" ? 0 : parseFloat(val);
                             setCartItems((prev) => ({
                               ...prev,
                               [item.id]: {
                                 ...prev[item.id],
-                                unitPrice: val === "" ? 0 : parseFloat(val),
+                                price: nextUnitPrice,
+                                unitPrice: nextUnitPrice,
+                                totalPrice:
+                                  nextUnitPrice *
+                                  (parseFloat(prev[item.id]?.quantity) || 0),
                                 finalAmount: undefined, // Clear final amount override to let unitPrice take precedence
                               },
                             }));

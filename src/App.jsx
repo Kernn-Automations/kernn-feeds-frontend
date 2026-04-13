@@ -15,6 +15,8 @@ const ProtectedRoute = lazy(() => import("./ProtectedRoute"));
 const Divs = lazy(() => import("./pages/Divs"));
 const StoreSelector = lazy(() => import("./pages/StoreSelector"));
 const StoreDashboard = lazy(() => import("./components/Store/StoreDashboard"));
+const SessionConflictPage = lazy(() => import("./pages/SessionConflictPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const DocumentAuthenticityPage = lazy(() =>
   import("./components/Public/DocumentAuthenticityPage"),
 );
@@ -122,6 +124,24 @@ export default function App() {
         }
       />
 
+      <Route
+        path="/session-conflict"
+        element={
+          <Suspense fallback={<DashboardSkeleton />}>
+            <SessionConflictPage />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/404"
+        element={
+          <Suspense fallback={<DashboardSkeleton />}>
+            <NotFoundPage />
+          </Suspense>
+        }
+      />
+
       <Route path="/divs" element={<Divs />} />
       
       {/* Store Selector Route */}
@@ -163,6 +183,15 @@ export default function App() {
           </Suspense>
         } /> */}
       </Route>
+
+      <Route
+        path="*"
+        element={
+          <Suspense fallback={<DashboardSkeleton />}>
+            <NotFoundPage />
+          </Suspense>
+        }
+      />
     </Routes>
   );
 }

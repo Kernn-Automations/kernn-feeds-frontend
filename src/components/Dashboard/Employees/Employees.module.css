@@ -188,3 +188,538 @@
 .deltext span{
   font-weight: 600;
 }
+
+.rbacPage {
+  display: grid;
+  gap: 24px;
+}
+
+.rbacCard {
+  background: #ffffff;
+  border: 1px solid #d9e2f2;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 14px 32px rgba(21, 55, 113, 0.08);
+}
+
+.rbacCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.rbacTitle {
+  margin: 0;
+  color: var(--primary-color);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.rbacSubtitle {
+  margin: 8px 0 0;
+  color: #5f6f94;
+  max-width: 800px;
+  font-size: 14px;
+}
+
+.rbacToolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.rbacField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rbacField label {
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.rbacField input,
+.rbacField select {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #d1dbef;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+.inlineAction {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.primaryAction {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #0d4ea6, #1c77c3);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sectionActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+.roleSummary,
+.employeePermissionSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: center;
+  background: #f6f9ff;
+  border: 1px solid #dce7fb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.employeePermissionSummary p {
+  margin: 4px 0 0;
+  color: #5f6f94;
+}
+
+.rolePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #0d4ea6;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.permissionGroup {
+  margin-top: 18px;
+}
+
+.permissionGroupTitle {
+  margin: 0 0 12px;
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.permissionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.permissionCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #fbfdff;
+  border: 1px solid #dce7fb;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.permissionCard input {
+  margin-top: 4px;
+}
+
+.permissionCard strong {
+  display: block;
+  color: #1c2e5a;
+  font-size: 14px;
+}
+
+.permissionCard p {
+  margin: 4px 0 0;
+  color: #5f6f94;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.permissionSubList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.permissionSubItem {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #315aa6;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.employeeWorkspace {
+  display: grid;
+  gap: 20px;
+  padding: 18px 24px 28px;
+}
+
+.employeeHero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  background: linear-gradient(135deg, #f7fbff, #eef5ff);
+  border: 1px solid #dbe7fb;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 16px 36px rgba(21, 55, 113, 0.08);
+}
+
+.employeeHero h2,
+.employeeEditHero h2 {
+  margin: 0;
+  color: #16366c;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.employeeHero p,
+.employeeEditHero p,
+.employeeTableHeader p,
+.employeeCardHeader p {
+  margin: 8px 0 0;
+  color: #5f6f94;
+}
+
+.employeeHeroStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+  min-width: 360px;
+}
+
+.employeeHeroStat {
+  background: #ffffff;
+  border: 1px solid #dce7fb;
+  border-radius: 18px;
+  padding: 16px;
+  text-align: center;
+}
+
+.employeeHeroStat span {
+  display: block;
+  color: #61749c;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.employeeHeroStat strong {
+  display: block;
+  margin-top: 8px;
+  color: #16366c;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.employeeControlBar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.6fr) repeat(2, minmax(180px, 0.7fr));
+  gap: 16px;
+}
+
+.employeeControlField,
+.employeeSelectField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.employeeControlField label,
+.employeeSelectField span,
+.employeeFormGrid label span {
+  color: #16366c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.employeeControlField input,
+.employeeControlField select,
+.employeeSelectField select,
+.employeeFormGrid input,
+.employeeFormGrid select {
+  min-height: 46px;
+  border-radius: 14px;
+  border: 1px solid #d4e0f6;
+  background: #ffffff;
+  padding: 0 14px;
+  font-size: 14px;
+  box-shadow: 0 8px 18px rgba(21, 55, 113, 0.05);
+}
+
+.employeeTableCard,
+.employeeEditCard {
+  background: #ffffff;
+  border: 1px solid #dce7fb;
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 18px 40px rgba(21, 55, 113, 0.08);
+}
+
+.employeeTableHeader,
+.employeeCardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.employeeTableHeader h3,
+.employeeEditCard h3 {
+  margin: 0;
+  color: #16366c;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.employeePaginationMeta,
+.employeePermissionCount {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #f0f5ff;
+  color: #315aa6;
+  font-weight: 700;
+}
+
+.employeeTableWrap {
+  overflow: auto;
+  border: 1px solid #e3ebfb;
+  border-radius: 18px;
+}
+
+.employeeTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.employeeTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7faff;
+  color: #16366c;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 14px 16px;
+  border-bottom: 1px solid #dce7fb;
+  white-space: nowrap;
+}
+
+.employeeTable tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef3fc;
+  vertical-align: top;
+  color: #1f335e;
+  font-size: 14px;
+}
+
+.employeeIdentity {
+  display: grid;
+  gap: 4px;
+}
+
+.employeeIdentity strong {
+  color: #16366c;
+}
+
+.employeeIdentity span,
+.employeeIdentity small {
+  color: #63779f;
+}
+
+.employeeContact {
+  display: grid;
+  gap: 4px;
+}
+
+.employeeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.employeeBadgeSuccess {
+  background: #e9fbef;
+  color: #18794e;
+}
+
+.employeeBadgeMuted {
+  background: #f4f5f7;
+  color: #5b6476;
+}
+
+.employeeBadgeInfo {
+  background: #eef4ff;
+  color: #315aa6;
+}
+
+.employeeActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.employeeSecondaryAction,
+.employeePrimaryAction {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.employeePrimaryAction {
+  border: none;
+  background: linear-gradient(135deg, #0d4ea6, #1c77c3);
+  color: #ffffff;
+}
+
+.employeeSecondaryAction {
+  border: 1px solid #b8caec;
+  background: #ffffff;
+  color: #16366c;
+}
+
+.employeeSecondaryAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.employeePaginationBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+  color: #586a90;
+  font-weight: 600;
+}
+
+.employeeEmptyState {
+  text-align: center;
+  padding: 36px !important;
+  color: #687b9e !important;
+  font-weight: 600;
+}
+
+.employeeEditPage {
+  display: grid;
+  gap: 20px;
+  padding: 18px 24px 28px;
+}
+
+.employeeEditHero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  background: linear-gradient(135deg, #f7fbff, #eef5ff);
+  border: 1px solid #dbe7fb;
+  border-radius: 24px;
+  padding: 24px;
+}
+
+.employeeEditHeroMeta {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  color: #315aa6;
+  font-weight: 700;
+}
+
+.employeeEditGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px;
+}
+
+.employeeFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.employeeFormGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.employeeRolePills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.employeeRolePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #16366c;
+  font-weight: 700;
+}
+
+.employeeRolePill button {
+  border: none;
+  background: transparent;
+  color: #5471ae;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.employeeEditActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .employeeHero,
+  .employeeEditHero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .employeeHeroStats {
+    min-width: 0;
+  }
+
+  .employeeControlBar,
+  .employeeEditGrid,
+  .employeeFormGrid {
+    grid-template-columns: 1fr;
+  }
+}

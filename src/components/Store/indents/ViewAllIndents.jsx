@@ -14,6 +14,12 @@ import ErrorModal from "@/components/ErrorModal";
 import storeService from "../../../services/storeService";
 import compressImageToUnder100KB from "../../../services/compressImageUnder100kb";
 
+const getCurrentDateTimeLocal = () => {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 16);
+};
+
 export default function ViewAllIndents() {
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
@@ -189,6 +195,9 @@ export default function ViewAllIndents() {
   const [hasDamagedGoods, setHasDamagedGoods] = useState(false);
   const [damagedGoodsRows, setDamagedGoodsRows] = useState([]);
   const [stockInLoading, setStockInLoading] = useState(false);
+  const [stockInRecordedAt, setStockInRecordedAt] = useState(
+    getCurrentDateTimeLocal(),
+  );
 
   // Manual Stock In states
   const [showManualStockIn, setShowManualStockIn] = useState(false);
@@ -200,6 +209,9 @@ export default function ViewAllIndents() {
   const [manualStockDamagedGoods, setManualStockDamagedGoods] = useState([]);
   const [hasManualDamagedGoods, setHasManualDamagedGoods] = useState(false);
   const [manualStockInLoading, setManualStockInLoading] = useState(false);
+  const [manualStockRecordedAt, setManualStockRecordedAt] = useState(
+    getCurrentDateTimeLocal(),
+  );
 
   // Indent Revert states
   const [showRevertModal, setShowRevertModal] = useState(false);
@@ -503,6 +515,7 @@ export default function ViewAllIndents() {
     setShowManualStockIn(false);
     setManualStockItems([{ productId: "", quantity: "", unit: "units" }]);
     setManualStockEntryType("inward");
+    setManualStockRecordedAt(getCurrentDateTimeLocal());
     setManualStockDamagedGoods([]);
     setHasManualDamagedGoods(false);
   };
@@ -650,6 +663,7 @@ export default function ViewAllIndents() {
 
       const finalPayload = {
         storeId: storeId,
+        recordedAt: manualStockRecordedAt,
         isOpeningStock: manualStockEntryType === "openingstock",
         isDamagedGoods: hasAnyDamagedGoods || false, // Optional flag
         items: validItems.map((item) => {
@@ -876,6 +890,7 @@ export default function ViewAllIndents() {
         initialQuantities[productId] = ""; // Initialize as empty
       });
       setReceivedQuantities(initialQuantities);
+      setStockInRecordedAt(getCurrentDateTimeLocal());
       setShowStockIn(true);
     }
   };
@@ -883,6 +898,7 @@ export default function ViewAllIndents() {
   const handleCancelStockIn = () => {
     setShowStockIn(false);
     setReceivedQuantities({});
+    setStockInRecordedAt(getCurrentDateTimeLocal());
     setHasDamagedGoods(false);
     setDamagedGoodsRows([]);
   };
@@ -1027,6 +1043,7 @@ export default function ViewAllIndents() {
       // Prepare stock in payload according to backend API format
       const stockInPayload = {
         indentId: selectedIndent.id,
+        recordedAt: stockInRecordedAt,
         items: items.map((item) => {
           const productId = item.productId || item.id;
           const receivedQty = parseFloat(
@@ -1273,12 +1290,14 @@ export default function ViewAllIndents() {
       setPendingIndentsCount(pendingIndents.length);
       setShowPendingIndentsWarning(true);
     } else {
+      setManualStockRecordedAt(getCurrentDateTimeLocal());
       setShowManualStockIn(true);
     }
   };
 
   const handleProceedWithManualStockIn = () => {
     setShowPendingIndentsWarning(false);
+    setManualStockRecordedAt(getCurrentDateTimeLocal());
     setShowManualStockIn(true);
   };
 
@@ -1581,10 +1600,10 @@ export default function ViewAllIndents() {
                 {!showStockIn ? (
                   <>
                     {/* Indent Information */}
-                    <div style={{ marginBottom: "2rem" }}>
-                      <h6
-                        style={{
-                          fontFamily: "Poppins",
+                      <div style={{ marginBottom: "2rem" }}>
+                        <h6
+                          style={{
+                            fontFamily: "Poppins",
                           fontWeight: 600,
                           marginBottom: "1rem",
                           color: "var(--primary-color)",
@@ -1891,6 +1910,44 @@ export default function ViewAllIndents() {
                               })}
                             </tbody>
                           </table>
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: "1.5rem" }}>
+                        <h6
+                          style={{
+                            fontFamily: "Poppins",
+                            fontWeight: 600,
+                            marginBottom: "0.75rem",
+                            fontSize: "14px",
+                            color: "var(--primary-color)",
+                          }}
+                        >
+                          Recorded At
+                        </h6>
+                        <input
+                          type="datetime-local"
+                          value={stockInRecordedAt}
+                          onChange={(e) => setStockInRecordedAt(e.target.value)}
+                          style={{
+                            width: "100%",
+                            maxWidth: "320px",
+                            padding: "10px 12px",
+                            border: "1px solid #d0d7e2",
+                            borderRadius: "10px",
+                            fontFamily: "Poppins",
+                            fontWeight: 500,
+                          }}
+                        />
+                        <div
+                          style={{
+                            marginTop: "8px",
+                            fontSize: "12px",
+                            color: "#64748b",
+                            fontFamily: "Poppins",
+                          }}
+                        >
+                          Stock-in entries will be posted at this recorded time.
                         </div>
                       </div>
 
@@ -2231,6 +2288,43 @@ export default function ViewAllIndents() {
                     {manualStockEntryType === "openingstock"
                       ? "Opening stock resets the starting quantity for the selected products."
                       : "Manual stock in adds received quantity as inward stock."}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h6
+                    style={{
+                      fontFamily: "Poppins",
+                      fontWeight: 600,
+                      marginBottom: "0.75rem",
+                      color: "var(--primary-color)",
+                    }}
+                  >
+                    Recorded At
+                  </h6>
+                  <input
+                    type="datetime-local"
+                    value={manualStockRecordedAt}
+                    onChange={(e) => setManualStockRecordedAt(e.target.value)}
+                    style={{
+                      width: "100%",
+                      maxWidth: "320px",
+                      padding: "10px 12px",
+                      border: "1px solid #d0d7e2",
+                      borderRadius: "10px",
+                      fontFamily: "Poppins",
+                      fontWeight: 500,
+                    }}
+                  />
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      fontSize: "12px",
+                      color: "#64748b",
+                      fontFamily: "Poppins",
+                    }}
+                  >
+                    Use this to backdate manual inward or opening stock entries.
                   </div>
                 </div>
 

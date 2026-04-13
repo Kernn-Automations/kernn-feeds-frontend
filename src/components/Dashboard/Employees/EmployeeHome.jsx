@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { Flex } from "@chakra-ui/react";
 import ReusableCard from "@/components/ReusableCard";
 import ChartComponent from "@/components/ChartComponent";
@@ -11,6 +11,9 @@ function EmployeeHome({ navigate, isAdmin }) {
   const [loading, setLoading] = useState(false);
   const [employeeData, setEmployeeData] = useState(null);
   const [error, setError] = useState(null);
+  const canCreateEmployees = isAdmin;
+  const canManageEmployees = isAdmin;
+  const canTransferTeams = isAdmin;
 
   useEffect(() => {
     async function fetchEmployeeDashboard() {
@@ -27,12 +30,7 @@ function EmployeeHome({ navigate, isAdmin }) {
           endpoint += `?divisionId=${currentDivisionId}`;
         }
         
-        console.log('EmployeeHome - Fetching employee dashboard with endpoint:', endpoint);
-        console.log('EmployeeHome - Division ID:', currentDivisionId);
-        console.log('EmployeeHome - Division Name:', currentDivisionName);
-        
         const res = await axiosAPI.get(endpoint);
-        console.log("Employee Dashboard Response:", res.data);
         setEmployeeData(res.data);
       } catch (err) {
         console.error("Employee dashboard fetch error:", err);
@@ -46,10 +44,7 @@ function EmployeeHome({ navigate, isAdmin }) {
 
   // Transform backend data for Chart.js format
   const trendData = React.useMemo(() => {
-    console.log("employeesTrend data:", employeeData?.employeesTrend);
-    
     if (!employeeData?.employeesTrend || !Array.isArray(employeeData.employeesTrend)) {
-      console.log("Using fallback trend data");
       return {
     labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
     datasets: [
@@ -69,8 +64,6 @@ function EmployeeHome({ navigate, isAdmin }) {
     const labels = employeeData.employeesTrend.map(item => item.month || item.label || item.date || "");
     const data = employeeData.employeesTrend.map(item => item.count ?? item.value ?? item.employees ?? 0);
 
-    console.log("Transformed trend data:", { labels, data });
-
     return {
       labels,
       datasets: [
@@ -87,10 +80,7 @@ function EmployeeHome({ navigate, isAdmin }) {
   }, [employeeData?.employeesTrend]);
 
   const roleData = React.useMemo(() => {
-    console.log("employeesByRole data:", employeeData?.employeesByRole);
-    
     if (!employeeData?.employeesByRole || !Array.isArray(employeeData.employeesByRole)) {
-      console.log("Using fallback role data");
       return {
     labels: ["Warehouse", "Sales", "Admin", "Manager", "Support", "Driver"],
     datasets: [
@@ -113,8 +103,6 @@ function EmployeeHome({ navigate, isAdmin }) {
     // Transform the array data to Chart.js format
     const labels = employeeData.employeesByRole.map(item => item.role || item.name || "");
     const data = employeeData.employeesByRole.map(item => item.count ?? item.value ?? 0);
-
-    console.log("Transformed role data:", { labels, data });
 
     return {
       labels,
@@ -140,7 +128,7 @@ function EmployeeHome({ navigate, isAdmin }) {
       {/* Buttons - Always visible */}
       <div className="row m-0 p-3">
         <div className="col">
-          {isAdmin && (
+          {canCreateEmployees && (
             <button
               className="homebtn"
               onClick={() => navigate("/employees/create-employee")}
@@ -148,18 +136,22 @@ function EmployeeHome({ navigate, isAdmin }) {
               Create Employee
             </button>
           )}
-          <button
-            className="homebtn"
-            onClick={() => navigate("/employees/manage-employees")}
-          >
-            Manage Employees
-          </button>
-          <button
-            className="homebtn"
-            onClick={() => navigate("/employees/team-transfer")}
-          >
-            Team Transfer
-          </button>
+          {canManageEmployees && (
+            <button
+              className="homebtn"
+              onClick={() => navigate("/employees/manage-employees")}
+            >
+              Manage Employees
+            </button>
+          )}
+          {canTransferTeams && (
+            <button
+              className="homebtn"
+              onClick={() => navigate("/employees/team-transfer")}
+            >
+              Team Transfer
+            </button>
+          )}
           <button
             className="homebtn"
             onClick={() => navigate("/teams")}
@@ -173,21 +165,21 @@ function EmployeeHome({ navigate, isAdmin }) {
       <Flex wrap="wrap" justify="space-between" px={4}>
         <ReusableCard 
           title="Total Employees" 
-          value={employeeData?.totalEmployees || (loading ? <Loading /> : "52")} 
+          value={employeeData?.totalEmployees ?? (loading ? <Loading /> : "52")} 
         />
         <ReusableCard 
           title="Active Employees" 
-          value={employeeData?.activeEmployees || (loading ? <Loading /> : "48")} 
+          value={employeeData?.activeEmployees ?? (loading ? <Loading /> : "48")} 
           color="green.500" 
         />
         <ReusableCard 
           title="Inactive Employees" 
-          value={employeeData?.inactiveEmployees || (loading ? <Loading /> : "4")} 
+          value={employeeData?.inactiveEmployees ?? (loading ? <Loading /> : "4")} 
           color="red.500" 
         />
         <ReusableCard 
           title="Roles Covered" 
-          value={employeeData?.rolesCovered || (loading ? <Loading /> : "6")} 
+          value={employeeData?.rolesCovered ?? (loading ? <Loading /> : "6")} 
           color="purple.500" 
         />
       </Flex>
