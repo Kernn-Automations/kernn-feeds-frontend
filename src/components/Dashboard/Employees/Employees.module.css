@@ -673,6 +673,15 @@
   gap: 8px;
 }
 
+.employeeSpanTwo {
+  grid-column: 1 / -1;
+}
+
+.employeeSpanTwo small {
+  color: #5f6f92;
+  line-height: 1.5;
+}
+
 .employeeRolePills {
   display: flex;
   flex-wrap: wrap;
@@ -704,6 +713,128 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.employeeHierarchySection {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid #e4ecfb;
+}
+
+.employeeHierarchyHeader h4 {
+  margin: 0;
+  color: #16366c;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.employeeHierarchyHeader p {
+  margin: 6px 0 0;
+  color: #5f6f94;
+  line-height: 1.5;
+}
+
+.employeeHierarchyFieldLabel {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.employeeStoreSelectionMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #315aa6;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.employeeStoreSelectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.employeeStoreSelectionCard {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 12px !important;
+  padding: 14px;
+  border: 1px solid #dce7fb;
+  border-radius: 16px;
+  background: #f9fbff;
+  cursor: pointer;
+}
+
+.employeeStoreSelectionCard input {
+  min-height: auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  box-shadow: none;
+}
+
+.employeeStoreSelectionCard div {
+  display: grid;
+  gap: 4px;
+}
+
+.employeeStoreSelectionCard strong {
+  color: #16366c;
+}
+
+.employeeStoreSelectionCard span {
+  color: #5f6f94;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.employeeStoreEmpty {
+  margin: 0;
+  color: #61749c;
+  padding: 16px;
+  border: 1px dashed #c7d6f3;
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+.employeeAssignedStoreSummary {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f4f8ff;
+  border: 1px solid #dce7fb;
+}
+
+.employeeAssignedStoreSummary strong {
+  color: #16366c;
+}
+
+.employeeAssignedStorePills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.employeeAssignedStorePills span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #d6e3fb;
+  color: #315aa6;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 @media (max-width: 1100px) {
