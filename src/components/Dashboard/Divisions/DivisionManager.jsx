@@ -12,6 +12,8 @@ function DivisionManager() {
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingDivision, setEditingDivision] = useState(null);
+  const [selectedDivisionHeads, setSelectedDivisionHeads] = useState([]);
   const [newDivision, setNewDivision] = useState({
     name: "",
     state: "",
@@ -56,6 +58,12 @@ function DivisionManager() {
     fetchDivisions();
     fetchEmployees();
   }, []);
+
+  const divisionHeadCandidates = employees.filter((employee) =>
+    Array.isArray(employee.roles)
+      ? employee.roles.some((role) => role.name === "Division Head")
+      : false,
+  );
 
   const fetchDivisions = async () => {
     try {
@@ -302,6 +310,8 @@ function DivisionManager() {
           gstinNumber: "",
           cinNumber: ""
         });
+        setSelectedDivisionHeads([]);
+        setEditingDivision(null);
         setShowCreateForm(false);
         // Show success message
         setError("Division created successfully with detailed address information!");
@@ -341,6 +351,101 @@ function DivisionManager() {
   const closeModal = () => {
     setIsModalOpen(false);
     setError(""); // Clear error when modal is closed
+  };
+
+  const resetDivisionForm = () => {
+    setEditingDivision(null);
+    setSelectedDivisionHeads([]);
+    setNewDivision({
+      name: "",
+      state: "",
+      stateCode: "",
+      plot: "",
+      street1: "",
+      street2: "",
+      areaLocality: "",
+      cityVillage: "",
+      pincode: "",
+      district: "",
+      gstinNumber: "",
+      cinNumber: "",
+    });
+  };
+
+  const handleEditDivision = (division) => {
+    setEditingDivision(division);
+    setShowCreateForm(true);
+    setNewDivision({
+      name: division.name || "",
+      state: division.state || "",
+      stateCode: division.stateCode || "",
+      plot: division.plot || "",
+      street1: division.street1 || "",
+      street2: division.street2 || "",
+      areaLocality: division.areaLocality || "",
+      cityVillage: division.cityVillage || "",
+      pincode: division.pincode || "",
+      district: division.district || "",
+      gstinNumber: division.gstinNumber || "",
+      cinNumber: division.cinNumber || "",
+    });
+    setSelectedDivisionHeads(
+      Array.isArray(division.divisionHeads)
+        ? division.divisionHeads.map((head) => head.id)
+        : divisionHeadCandidates
+            .filter((employee) => employee.divisionId === division.id)
+            .map((employee) => employee.id),
+    );
+  };
+
+  const handleCancelDivisionForm = () => {
+    resetDivisionForm();
+    setShowCreateForm(false);
+  };
+
+  const handleToggleDivisionHead = (employeeId) => {
+    setSelectedDivisionHeads((current) =>
+      current.includes(employeeId)
+        ? current.filter((id) => id !== employeeId)
+        : [...current, employeeId],
+    );
+  };
+
+  const handleUpdateDivision = async (e) => {
+    e.preventDefault();
+
+    const requiredFields = ['name', 'state', 'plot', 'street1', 'areaLocality', 'cityVillage', 'pincode', 'district'];
+    const missingFields = requiredFields.filter(field => !newDivision[field] || newDivision[field].trim() === '');
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      setCreating(true);
+      const payload = {
+        ...newDivision,
+        divisionHeadIds: selectedDivisionHeads,
+      };
+
+      const response = await axiosAPI.put(`/divisions/${editingDivision.id}`, payload);
+      if (response.status === 200) {
+        setError("Division updated successfully!");
+        setIsModalOpen(true);
+        handleCancelDivisionForm();
+        fetchDivisions();
+        fetchEmployees();
+      }
+    } catch (error) {
+      console.error("Error updating division:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to update division";
+      setError(errorMessage);
+      setIsModalOpen(true);
+    } finally {
+      setCreating(false);
+    }
   };
 
   // Zones functions
@@ -546,7 +651,14 @@ function DivisionManager() {
             {activeTab === "divisions" && (
               <button
                 className="homebtn"
-                onClick={() => setShowCreateForm(!showCreateForm)}
+                onClick={() => {
+                  if (showCreateForm) {
+                    handleCancelDivisionForm();
+                  } else {
+                    resetDivisionForm();
+                    setShowCreateForm(true);
+                  }
+                }}
               >
                 {showCreateForm ? "Cancel" : "Create New Division"}
               </button>
@@ -588,8 +700,8 @@ function DivisionManager() {
           <>
             {showCreateForm && (
               <div className={styles.createForm}>
-                <h3>Create New Division</h3>
-                <form onSubmit={handleCreateDivision}>
+                <h3>{editingDivision ? "Edit Division" : "Create New Division"}</h3>
+                <form onSubmit={editingDivision ? handleUpdateDivision : handleCreateDivision}>
               
               {/* Basic Information Section */}
               <div className={styles.formSection}>
@@ -798,18 +910,45 @@ function DivisionManager() {
                 </div>
               </div>
 
+              {editingDivision && (
+                <div className={styles.formSection}>
+                  <h4 className={styles.sectionTitle}>Division Heads</h4>
+                  <p className={styles.formHint}>
+                    Select one or more employees with the Division Head role for this division.
+                  </p>
+                  <p className={styles.formHint}>
+                    Currently selected: {selectedDivisionHeads.length || 0}
+                  </p>
+                  <div className={styles.checkboxGrid}>
+                    {divisionHeadCandidates.map((employee) => (
+                      <label key={employee.id} className={styles.checkboxCard}>
+                        <input
+                          type="checkbox"
+                          checked={selectedDivisionHeads.includes(employee.id)}
+                          onChange={() => handleToggleDivisionHead(employee.id)}
+                        />
+                        <div>
+                          <strong>{employee.name}</strong>
+                          <span>{employee.employeeId || employee.mobile}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className={styles.formActions}>
                 <button
                   type="submit"
                   className="homebtn"
                   disabled={creating}
                 >
-                  {creating ? "Creating..." : "Create Division"}
+                  {creating ? "Saving..." : editingDivision ? "Update Division" : "Create Division"}
                 </button>
                 <button
                   type="button"
                   className="homebtn"
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={handleCancelDivisionForm}
                 >
                   Cancel
                 </button>
@@ -836,9 +975,21 @@ function DivisionManager() {
                           <p><strong>Warehouses:</strong> {getWarehouseCount(division)}</p>
                           <p><strong>Sales Orders:</strong> {getSalesOrderCount(division)}</p>
                           <p><strong>Purchase Orders:</strong> {getPurchaseOrderCount(division)}</p>
+                          <p>
+                            <strong>Division Heads:</strong>{" "}
+                            {Array.isArray(division.divisionHeads) && division.divisionHeads.length
+                              ? division.divisionHeads.map((head) => head.name).join(", ")
+                              : "None assigned"}
+                          </p>
                         </div>
                       </div>
                       <div className={styles.divisionActions}>
+                        <button
+                          className="homebtn"
+                          onClick={() => handleEditDivision(division)}
+                        >
+                          Edit Division
+                        </button>
                         <button
                           className="homebtn"
                           onClick={() => handleDeleteDivision(division.id)}

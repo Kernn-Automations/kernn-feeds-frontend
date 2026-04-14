@@ -158,6 +158,15 @@
   transition: border-color 0.3s ease;
 }
 
+.formGroup select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+}
+
 .formGroup input:focus {
   outline: none;
   border-color: #667eea;
@@ -177,6 +186,43 @@
   display: flex;
   gap: 15px;
   margin-top: 25px;
+}
+
+.formHint {
+  margin: 0 0 16px;
+  color: #5f6f92;
+  font-size: 14px;
+}
+
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.checkboxCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid #d7e3ff;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.checkboxCard input {
+  margin-top: 3px;
+}
+
+.checkboxCard div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkboxCard span {
+  color: #5f6f92;
+  font-size: 13px;
 }
 
 .submitButton {
