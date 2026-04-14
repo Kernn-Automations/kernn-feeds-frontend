@@ -815,6 +815,26 @@ export default function StoreCreateSale() {
     setVillageSearchTerm(value);
   };
 
+  const fetchStoreVillages = async (storeId, { silent = false } = {}) => {
+    if (!storeId) return;
+    try {
+      const response = await storeService.getStoreVillages(storeId);
+      const villagesPayload =
+        response.data || response.villages || response || [];
+      const mapped = Array.isArray(villagesPayload)
+        ? villagesPayload.map((village) => ({
+            id: village.id || village.villageId || village.value || village,
+            villageName: village.villageName || village.label || village.value || village,
+          }))
+        : [];
+      setStoreVillages(mapped);
+    } catch (err) {
+      if (!silent) {
+        console.warn("Error fetching villages:", err?.message || err);
+      }
+    }
+  };
+
   const handleCreateVillage = async () => {
     if (!newVillageNameInput || !newVillageNameInput.trim()) {
       setError("Please enter a village name");
@@ -867,6 +887,10 @@ export default function StoreCreateSale() {
       }
     } catch (err) {
       console.error("Error creating village:", err);
+      const errorMessage = err?.response?.data?.message || err.message || "Failed to create village";
+      if (errorMessage.toLowerCase().includes("already exists")) {
+        await fetchStoreVillages(storeId, { silent: true });
+      }
       setError(err.message || "Failed to create village");
       setIsErrorModalOpen(true);
     } finally {
@@ -1024,6 +1048,8 @@ export default function StoreCreateSale() {
             setStoreVillages(mappedVillages);
           } else if (mappedVillages.length > 0) {
             setStoreVillages(mappedVillages);
+          } else if (storeVillages.length === 0) {
+            await fetchStoreVillages(storeId, { silent: true });
           }
         } else {
           const errorMsg = response.message || "Failed to load products";
@@ -1049,7 +1075,13 @@ export default function StoreCreateSale() {
     return () => {
       active = false;
     };
-  }, [deferredRecordedAt, hasManuallyChangedRecordedAt]);
+  }, [deferredRecordedAt, hasManuallyChangedRecordedAt, storeVillages.length]);
+
+  useEffect(() => {
+    const storeId = getStoreId();
+    if (!storeId) return;
+    fetchStoreVillages(storeId, { silent: true });
+  }, []);
 
   useEffect(() => {
     const storeId = getStoreId();
