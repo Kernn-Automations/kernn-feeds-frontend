@@ -1108,6 +1108,13 @@ const storeService = {
     return res.json();
   },
 
+  async getStoreIndentDetails(storeId, indentId) {
+    const res = await api.request(`/stores/${storeId}/indents/${indentId}`, {
+      method: "GET",
+    });
+    return res.json();
+  },
+
   // Store Damaged Goods operations
   async getDamagedStock(storeId, params = {}) {
     const queryParams = new URLSearchParams(params).toString();

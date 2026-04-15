@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
 import { isStoreEmployee } from "../../../utils/roleUtils";
@@ -160,7 +160,8 @@ export default function StoreCashDeposit() {
   const today = new Date().toISOString().split("T")[0];
   const [filterFrom, setFilterFrom] = useState(sevenDaysAgo);
   const [filterTo, setFilterTo] = useState(today);
-  const [triggerFetch, setTriggerFetch] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const hasLoadedInitialDataRef = useRef(false);
 
   useEffect(() => {
     if (!storeId) {
@@ -194,6 +195,10 @@ export default function StoreCashDeposit() {
         setIsErrorModalOpen(true);
       }
     }
+  }, [storeId]);
+
+  useEffect(() => {
+    hasLoadedInitialDataRef.current = false;
   }, [storeId]);
 
   // Fetch store cash balance
@@ -244,7 +249,6 @@ export default function StoreCashDeposit() {
       }
 
       const res = await axiosAPI.get(query);
-      console.log(res);
       const depositsData = res.data?.data || res.data || res;
       const depositsList = Array.isArray(depositsData)
         ? depositsData
@@ -259,11 +263,18 @@ export default function StoreCashDeposit() {
   }, [storeId, axiosAPI, filterFrom, filterTo]);
 
   useEffect(() => {
-    if (storeId) {
-      fetchStoreCash();
-      fetchCashDeposits();
-    }
-  }, [storeId, fetchStoreCash, fetchCashDeposits, triggerFetch]);
+    if (!storeId || hasLoadedInitialDataRef.current) return;
+
+    hasLoadedInitialDataRef.current = true;
+    Promise.all([fetchStoreCash(), fetchCashDeposits()]).catch((err) => {
+      console.error("Failed to load cash deposit page data", err);
+    });
+  }, [storeId, fetchStoreCash, fetchCashDeposits]);
+
+  useEffect(() => {
+    if (!storeId || historyRefreshKey === 0) return;
+    fetchCashDeposits();
+  }, [storeId, historyRefreshKey, fetchCashDeposits]);
 
   // Click outside functionality
   useEffect(() => {
@@ -383,8 +394,8 @@ export default function StoreCashDeposit() {
 
       // ✅ PDF HANDLING (unchanged)
       if (file.type === "application/pdf") {
-        if (file.size > 2 * 1024 * 1024) {
-          showError("PDF size should be less than 2MB.");
+        if (file.size > 100 * 1024) {
+          showError("PDF size should be less than 100KB.");
           e.target.value = "";
           return;
         }
@@ -471,8 +482,34 @@ export default function StoreCashDeposit() {
         payload,
       );
       const responseData = res.data || res;
+      const createdDeposit =
+        responseData?.data?.deposit ||
+        responseData?.data ||
+        responseData?.deposit ||
+        null;
 
-      showSuccess(res.message || "Cash deposit recorded successfully.");
+      const optimisticDeposit = createdDeposit || {
+        id: `temp-${Date.now()}`,
+        amount: depositAmount,
+        depositDate: depositDateTime || new Date().toISOString(),
+        createdAt: depositDateTime || new Date().toISOString(),
+        notes: notes.trim() || "",
+        store: {
+          id: storeId,
+          name: storeName,
+        },
+        depositedByEmployee: {
+          name: actualUser?.name || actualUser?.employee_name || "Current User",
+        },
+        depositSlip: null,
+      };
+
+      showSuccess(
+        responseData?.message ||
+          "Cash deposit recorded successfully. Deposit slip is syncing in the background.",
+      );
+      setStoreCash((prev) => Math.max(0, Number(prev || 0) - depositAmount));
+      setDeposits((prev) => [optimisticDeposit, ...prev]);
       setAmount("");
       setDepositDate("");
       setDepositTime("");
@@ -480,8 +517,6 @@ export default function StoreCashDeposit() {
       setDepositSlip(null);
       setDepositSlipPreview(null);
       setShowCreateForm(false);
-      await fetchStoreCash();
-      await fetchCashDeposits();
     } catch (err) {
       console.error("Failed to record cash deposit", err);
       showError(
@@ -638,7 +673,7 @@ export default function StoreCashDeposit() {
         <div className="col-lg-4 col-md-4 col-sm-12 d-flex align-items-center gap-2">
           <button
             className="submitbtn"
-            onClick={() => setTriggerFetch(!triggerFetch)}
+            onClick={() => setHistoryRefreshKey((prev) => prev + 1)}
           >
             Submit
           </button>
@@ -647,7 +682,7 @@ export default function StoreCashDeposit() {
             onClick={() => {
               setFilterFrom(sevenDaysAgo);
               setFilterTo(today);
-              setTriggerFetch(!triggerFetch);
+              setHistoryRefreshKey((prev) => prev + 1);
             }}
           >
             Cancel

@@ -29,6 +29,7 @@ export default function ViewAllIndents() {
   const [totalPages, setTotalPages] = useState(1);
   const [indents, setIndents] = useState([]);
   const [selectedIndent, setSelectedIndent] = useState(null);
+  const [indentDetailsLoading, setIndentDetailsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -301,9 +302,7 @@ export default function ViewAllIndents() {
 
     try {
       setLoading(true);
-      const params = {
-        limit: 1000,
-      };
+      const params = { limit: 1000 };
 
       const res = await storeService.getStoreIndents(storeId, params);
       console.log(res);
@@ -324,14 +323,13 @@ export default function ViewAllIndents() {
             status: mapStatus(indent.status),
             originalStatus: indent.status?.toLowerCase() || indent.status, // Store original backend status
             date: formatDate(indent.createdAt || indent.date),
-            itemCount: indent.items?.length || indent.itemCount || 0,
+            itemCount: indent.itemCount || indent.items?.length || 0,
             storeName: indent.store?.name || indent.storeName || "Store",
             notes: indent.notes || "",
             items: indent.items || [],
           }))
         : [];
 
-      setIndents(mappedIndents);
       setIndents(mappedIndents);
       // setTotalPages will be handled by the useEffect based on displayIndents
     } catch (err) {
@@ -493,9 +491,48 @@ export default function ViewAllIndents() {
     );
   };
 
-  const handleViewClick = (indent) => {
+  const handleViewClick = async (indent) => {
     setSelectedIndent(indent);
     setShowModal(true);
+    setIndentDetailsLoading(true);
+
+    try {
+      const res = await storeService.getStoreIndentDetails(storeId, indent.id);
+      const indentData = res.data || res;
+
+      setSelectedIndent((prev) => ({
+        ...(prev || {}),
+        id: indentData.id,
+        code:
+          indentData.indentCode ||
+          indentData.code ||
+          `IND${String(indentData.id).padStart(6, "0")}`,
+        value: indentData.totalAmount || indentData.value || 0,
+        status: mapStatus(indentData.status),
+        originalStatus: indentData.status?.toLowerCase() || indentData.status,
+        date: formatDate(indentData.createdAt || indentData.date),
+        itemCount:
+          indentData.itemCount ||
+          indentData.items?.length ||
+          prev?.itemCount ||
+          0,
+        storeName: indentData.store?.name || indentData.storeName || "Store",
+        notes: indentData.notes || "",
+        items: indentData.items || [],
+        revertedBy: indentData.revertedBy || null,
+        revertedAt: indentData.revertedAt || null,
+      }));
+    } catch (err) {
+      console.error("Error fetching indent details:", err);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Error fetching indent details",
+      );
+      setIsModalOpen(true);
+    } finally {
+      setIndentDetailsLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -509,6 +546,7 @@ export default function ViewAllIndents() {
     setRevertItems([]);
     setRevertWarnings([]);
     setCanRevertIndent(true);
+    setIndentDetailsLoading(false);
   };
 
   const handleCloseManualStockIn = () => {
@@ -1597,7 +1635,21 @@ export default function ViewAllIndents() {
                   overflowY: "auto",
                 }}
               >
-                {!showStockIn ? (
+                {indentDetailsLoading ? (
+                  <div
+                    style={{
+                      minHeight: "220px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "Poppins",
+                      color: "#475569",
+                    }}
+                  >
+                    Loading indent details...
+                  </div>
+                ) : !showStockIn ? (
+                
                   <>
                     {/* Indent Information */}
                       <div style={{ marginBottom: "2rem" }}>
