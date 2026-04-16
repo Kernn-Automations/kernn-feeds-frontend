@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/Auth";
-import { isStoreEmployee } from "../../../utils/roleUtils";
+import {
+  getUserFromStorage,
+  isAdmin,
+  isAreaBusinessManager,
+  isDivisionHead,
+  isRBM,
+  isStoreEmployee,
+  isSuperAdmin,
+  isZBM,
+} from "../../../utils/roleUtils";
 import ErrorModal from "@/components/ErrorModal";
 import SuccessModal from "@/components/SuccessModal";
 import Loading from "@/components/Loading";
@@ -21,14 +30,28 @@ import paginationStyles from "./StoreSalesOrders.module.css";
 export default function StoreCashDeposit() {
   const navigate = useNavigate();
   const { user, axiosAPI } = useAuth();
-  const actualUser = user?.user || user || {};
+  const storedUserData = getUserFromStorage();
+  const actualUser =
+    user?.user ||
+    user ||
+    storedUserData?.user ||
+    storedUserData ||
+    {};
   const inferredStoreId = actualUser?.storeId || actualUser?.store?.id || null;
   const isEmployee = isStoreEmployee(actualUser);
+  const canCancelDeposits =
+    isAreaBusinessManager(actualUser) ||
+    isRBM(actualUser) ||
+    isZBM(actualUser) ||
+    isDivisionHead(actualUser) ||
+    isAdmin(actualUser) ||
+    isSuperAdmin(actualUser);
 
   const [storeId, setStoreId] = useState(inferredStoreId);
   const [storeCash, setStoreCash] = useState(0);
   const [storeName, setStoreName] = useState("");
   const [amount, setAmount] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [depositDate, setDepositDate] = useState("");
   const [depositTime, setDepositTime] = useState("");
   const [notes, setNotes] = useState("");
@@ -45,6 +68,7 @@ export default function StoreCashDeposit() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [filteredHistory, setFilteredHistory] = useState([]);
+  const [cancellingDepositId, setCancellingDepositId] = useState(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -444,6 +468,11 @@ export default function StoreCashDeposit() {
       return;
     }
 
+    if (!referenceNumber.trim()) {
+      showError("Please enter the bank reference number / UTR.");
+      return;
+    }
+
     if (!depositSlip) {
       showError("Please upload the deposit slip before submitting.");
       return;
@@ -469,6 +498,7 @@ export default function StoreCashDeposit() {
       const payload = {
         storeId: storeId,
         amount: depositAmount,
+        referenceNumber: referenceNumber.trim().toUpperCase(),
         notes: notes.trim() || "",
         ...(depositDateTime && { depositDate: depositDateTime }),
       };
@@ -494,6 +524,7 @@ export default function StoreCashDeposit() {
         depositDate: depositDateTime || new Date().toISOString(),
         createdAt: depositDateTime || new Date().toISOString(),
         notes: notes.trim() || "",
+        referenceNumber: referenceNumber.trim().toUpperCase(),
         store: {
           id: storeId,
           name: storeName,
@@ -502,6 +533,7 @@ export default function StoreCashDeposit() {
           name: actualUser?.name || actualUser?.employee_name || "Current User",
         },
         depositSlip: null,
+        isCancelled: false,
       };
 
       showSuccess(
@@ -511,6 +543,7 @@ export default function StoreCashDeposit() {
       setStoreCash((prev) => Math.max(0, Number(prev || 0) - depositAmount));
       setDeposits((prev) => [optimisticDeposit, ...prev]);
       setAmount("");
+      setReferenceNumber("");
       setDepositDate("");
       setDepositTime("");
       setNotes("");
@@ -573,6 +606,58 @@ export default function StoreCashDeposit() {
     if (imageUrl) {
       setSelectedImage(imageUrl);
       setShowImageModal(true);
+    }
+  };
+
+  const handleCancelDeposit = async (deposit) => {
+    if (!deposit?.id || deposit.isCancelled || !canCancelDeposits) return;
+
+    const reason = window.prompt(
+      `Cancel deposit ${deposit.depositCode || deposit.referenceNumber || deposit.id}.\nPlease enter cancellation reason:`,
+      "Duplicate cash deposit uploaded",
+    );
+
+    if (reason == null) return;
+
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      showError("Cancellation reason is required.");
+      return;
+    }
+
+    setCancellingDepositId(deposit.id);
+    try {
+      const res = await axiosAPI.post(
+        `/stores/${storeId}/cash-deposits/${deposit.id}/cancel`,
+        { reason: trimmedReason },
+      );
+
+      setDeposits((prev) =>
+        prev.map((row) =>
+          row.id === deposit.id
+            ? {
+                ...row,
+                isCancelled: true,
+                cancelledAt: new Date().toISOString(),
+                cancelReason: trimmedReason,
+              }
+            : row,
+        ),
+      );
+      setStoreCash((prev) => Number(prev || 0) + Number(deposit.amount || 0));
+      showSuccess(
+        res?.data?.message ||
+          "Cash deposit cancelled successfully and store cash balance restored.",
+      );
+    } catch (err) {
+      console.error("Failed to cancel cash deposit", err);
+      showError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to cancel cash deposit",
+      );
+    } finally {
+      setCancellingDepositId(null);
     }
   };
 
@@ -844,6 +929,30 @@ export default function StoreCashDeposit() {
                     )}
                   </div>
                   <div>
+                    <label>Reference Number / UTR *</label>
+                    <input
+                      type="text"
+                      value={referenceNumber}
+                      onChange={(e) =>
+                        setReferenceNumber(
+                          e.target.value.replace(/\s+/g, " ").toUpperCase(),
+                        )
+                      }
+                      required
+                      placeholder="Enter UTR / bank reference number"
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #000",
+                        borderRadius: "4px",
+                        fontSize: "14px",
+                        fontFamily: "Poppins",
+                        backgroundColor: "#fff",
+                        color: "#000",
+                      }}
+                    />
+                  </div>
+                  <div>
                     <label>Date *</label>
                     <input
                       type="date"
@@ -952,6 +1061,7 @@ export default function StoreCashDeposit() {
                     type="button"
                     onClick={() => {
                       setAmount("");
+                      setReferenceNumber("");
                       const now = new Date();
                       const dateStr = now.toISOString().split("T")[0];
                       const timeStr = now
@@ -1083,7 +1193,25 @@ export default function StoreCashDeposit() {
                           fontSize: "13px",
                         }}
                       >
-                        Cash Deposited (₹)
+                        Reference / UTR
+                      </th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Cash Deposited
+                      </th>
+                      <th
+                        style={{
+                          fontFamily: "Poppins",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                        }}
+                      >
+                        Status
                       </th>
                       {renderSearchHeader(
                         "Deposited By",
@@ -1103,7 +1231,7 @@ export default function StoreCashDeposit() {
                     {(searchTerms.storeName || searchTerms.depositedBy) && (
                       <tr>
                         <td
-                          colSpan="6"
+                          colSpan="8"
                           style={{
                             padding: "4px 12px",
                             fontSize: "12px",
@@ -1122,8 +1250,9 @@ export default function StoreCashDeposit() {
                       <tr
                         key={deposit.id || index}
                         style={{
-                          background:
-                            index % 2 === 0
+                          background: deposit.isCancelled
+                            ? "rgba(239, 68, 68, 0.06)"
+                            : index % 2 === 0
                               ? "rgba(59, 130, 246, 0.03)"
                               : "transparent",
                         }}
@@ -1142,8 +1271,27 @@ export default function StoreCashDeposit() {
                             storeName ||
                             "-"}
                         </td>
+                        <td>{deposit.referenceNumber || deposit.depositCode || "-"}</td>
                         <td style={{ fontWeight: 600 }}>
                           {formatCurrency(deposit.amount)}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              padding: "4px 10px",
+                              borderRadius: "999px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              color: deposit.isCancelled ? "#991b1b" : "#166534",
+                              backgroundColor: deposit.isCancelled
+                                ? "#fee2e2"
+                                : "#dcfce7",
+                            }}
+                          >
+                            {deposit.isCancelled ? "Cancelled" : "Active"}
+                          </span>
                         </td>
                         <td>
                           {deposit.depositedByEmployee?.name ||
@@ -1154,26 +1302,53 @@ export default function StoreCashDeposit() {
                             "-"}
                         </td>
                         <td>
-                          {deposit.depositSlip ||
-                          deposit.depositSlipUrl ||
-                          deposit.image ? (
-                            <button
-                              className="homebtn"
-                              style={{ fontSize: "11px" }}
-                              onClick={() =>
-                                handleViewImage(
-                                  deposit.depositSlip ||
-                                    deposit.depositSlipUrl ||
-                                    deposit.image,
-                                )
-                              }
-                              title="View Deposit Slip"
-                            >
-                              <i className="bi bi-eye"></i> View
-                            </button>
-                          ) : (
-                            "-"
-                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "8px",
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            {deposit.depositSlip ||
+                            deposit.depositSlipUrl ||
+                            deposit.image ? (
+                              <button
+                                className="homebtn"
+                                style={{ fontSize: "11px" }}
+                                onClick={() =>
+                                  handleViewImage(
+                                    deposit.depositSlip ||
+                                      deposit.depositSlipUrl ||
+                                      deposit.image,
+                                  )
+                                }
+                                title="View Deposit Slip"
+                              >
+                                <i className="bi bi-eye"></i> View
+                              </button>
+                            ) : (
+                              <span>-</span>
+                            )}
+                            {canCancelDeposits && !deposit.isCancelled && (
+                              <button
+                                className="homebtn"
+                                style={{
+                                  fontSize: "11px",
+                                  background: "#fee2e2",
+                                  color: "#991b1b",
+                                  borderColor: "#fca5a5",
+                                }}
+                                disabled={cancellingDepositId === deposit.id}
+                                onClick={() => handleCancelDeposit(deposit)}
+                                title="Cancel duplicate deposit"
+                              >
+                                {cancellingDepositId === deposit.id
+                                  ? "Cancelling..."
+                                  : "Cancel"}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1328,3 +1503,4 @@ export default function StoreCashDeposit() {
     </div>
   );
 }
+

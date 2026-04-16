@@ -243,15 +243,28 @@ const storeService = {
     );
     return res.json();
   },
-  async getStockTransfers(storeId) {
-    const res = await api.request(`/stores/${storeId}/stock-transfers`, {
-      method: "GET",
-    });
+  async getStockTransfers(storeId, params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append("page", params.page);
+    if (params.limit) queryParams.append("limit", params.limit);
+    if (params.type) queryParams.append("type", params.type);
+    if (params.status) queryParams.append("status", params.status);
+    if (params.fromDate) queryParams.append("fromDate", params.fromDate);
+    if (params.toDate) queryParams.append("toDate", params.toDate);
+    const queryString = queryParams.toString();
+    const res = await api.request(
+      `/stores/${storeId}/stock-transfers${queryString ? `?${queryString}` : ""}`,
+      {
+        method: "GET",
+      },
+    );
     return res.json();
   },
-  async getStockTransferById(storeId, transferId) {
+  async getStockTransferById(storeId, transferId, params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.includeHistory) queryParams.append("includeHistory", "true");
     const res = await api.request(
-      `/stores/${storeId}/stock-transfer/${transferId}`,
+      `/stores/${storeId}/stock-transfer/${transferId}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`,
       { method: "GET" },
     );
     return res.json();
@@ -489,11 +502,11 @@ const storeService = {
   },
 
   // Store Sales operations
-  async getStoreSales(storeId, params = {}) {
+  async getStoreSales(storeId, params = {}, options = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(
       `/stores/${storeId}/sales${queryParams ? `?${queryParams}` : ""}`,
-      { method: "GET" },
+      { method: "GET", ...options },
     );
     return res.json();
   },
@@ -1099,11 +1112,11 @@ const storeService = {
   },
 
   // Store Indents operations
-  async getStoreIndents(storeId, params = {}) {
+  async getStoreIndents(storeId, params = {}, options = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(
       `/stores/${storeId}/indents${queryParams ? `?${queryParams}` : ""}`,
-      { method: "GET" },
+      { method: "GET", ...options },
     );
     return res.json();
   },

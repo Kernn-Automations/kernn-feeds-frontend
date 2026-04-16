@@ -28,6 +28,37 @@ function StoreStockTransfer() {
     )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
+  const toDateInputValue = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (input) => String(input).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  };
+
+  const normalizeHistoryDateValue = (value) => {
+    if (!value) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+      return value;
+    }
+
+    const mmddyyyy = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (mmddyyyy) {
+      const [, month, day, year] = mmddyyyy;
+      return `${year}-${month}-${day}`;
+    }
+
+    const ddmmyyyy = String(value).match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (ddmmyyyy) {
+      const [, day, month, year] = ddmmyyyy;
+      return `${year}-${month}-${day}`;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return toDateInputValue(parsed);
+  };
+
   const navigate = useNavigate();
   const { axiosAPI } = useAuth();
   const [pageInitializing, setPageInitializing] = useState(false);
@@ -60,10 +91,25 @@ function StoreStockTransfer() {
   const [viewMode, setViewMode] = useState("create"); // "create" or "history"
   const [transferHistory, setTransferHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyLimit, setHistoryLimit] = useState(10);
+  const [historyPagination, setHistoryPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
+  const [historyFromDate, setHistoryFromDate] = useState("");
+  const [historyToDate, setHistoryToDate] = useState("");
+  const [appliedHistoryFilters, setAppliedHistoryFilters] = useState({
+    fromDate: "",
+    toDate: "",
+  });
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
   const [historyTransfer, setHistoryTransfer] = useState(null);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const [editingTransferId, setEditingTransferId] = useState(null);
   const [editingTransferCode, setEditingTransferCode] = useState("");
   const [editChangeNote, setEditChangeNote] = useState("");
@@ -119,7 +165,9 @@ function StoreStockTransfer() {
 
   const getEffectiveAvailableStock = (product) => {
     const productId = product?.productId || product?.id;
-    const baseAvailable = Number(product?.available || product?.currentStock || 0);
+    const baseAvailable = Number(
+      product?.available || product?.currentStock || 0,
+    );
     if (!editingTransferId) return baseAvailable;
     return baseAvailable + getDraftQuantityForProduct(productId);
   };
@@ -284,12 +332,20 @@ function StoreStockTransfer() {
     if (viewMode === "history" && currentStore?.id) {
       fetchHistory();
     }
-  }, [viewMode, currentStore]);
+  }, [
+    viewMode,
+    currentStore,
+    historyPage,
+    historyLimit,
+    appliedHistoryFilters.fromDate,
+    appliedHistoryFilters.toDate,
+  ]);
 
   const fetchCurrentStore = async () => {
     try {
       setPageInitializing(true);
       let storeId = null;
+      let cachedStore = null;
 
       // Try from selectedStore in localStorage
       const selectedStore = localStorage.getItem("selectedStore");
@@ -297,6 +353,7 @@ function StoreStockTransfer() {
         try {
           const store = JSON.parse(selectedStore);
           storeId = store.id;
+          cachedStore = store;
         } catch (e) {
           console.error("Error parsing selectedStore:", e);
         }
@@ -321,13 +378,17 @@ function StoreStockTransfer() {
         );
       }
 
-      // Fetch store details from backend
-      const res = await storeService.getStoreById(storeId);
-      const store = res.store || res.data || res;
-      if (store && store.id) {
-        setCurrentStore(store);
+      if (cachedStore && cachedStore.id) {
+        setCurrentStore(cachedStore);
       } else {
-        throw new Error("Store not found");
+        // Fallback only when local cache is unavailable.
+        const res = await storeService.getStoreById(storeId);
+        const store = res.store || res.data || res;
+        if (store && store.id) {
+          setCurrentStore(store);
+        } else {
+          throw new Error("Store not found");
+        }
       }
     } catch (err) {
       console.error("Error fetching current store:", err);
@@ -491,13 +552,12 @@ function StoreStockTransfer() {
       // If Company store selected, clear default stock and wait for user selection
       setCurrentStock([]);
       setStockTableTitle("");
-    } else if (currentStore?.id) {
-      // If regular store, verify if we need to reload default stock (only if it was cleared)
-      // Check if we are switching FROM company store
-      // But fetchCurrentStock handles normal loading
+    } else if (currentStore?.id && currentStock.length === 0) {
+      // Only repopulate stock when we are coming back from a company destination
+      // that had explicitly cleared the table.
       fetchCurrentStock();
     }
-  }, [selectedDestinationStore, currentStore]);
+  }, [selectedDestinationStore, currentStore, currentStock.length]);
 
   // ESC key functionality
   useEffect(() => {
@@ -557,12 +617,23 @@ function StoreStockTransfer() {
             productId,
             productName: draftProduct.productName || "Product",
             productCode:
-              draftProduct.productCode || draftProduct.sku || draftProduct.SKU || "",
-            currentStock: Number(draftProduct.currentStock || draftProduct.available || 0),
-            available: Number(draftProduct.available || draftProduct.currentStock || 0),
+              draftProduct.productCode ||
+              draftProduct.sku ||
+              draftProduct.SKU ||
+              "",
+            currentStock: Number(
+              draftProduct.currentStock || draftProduct.available || 0,
+            ),
+            available: Number(
+              draftProduct.available || draftProduct.currentStock || 0,
+            ),
             unit: TRANSFER_DISPLAY_UNIT,
-            unitPrice: Number(draftProduct.unitPrice || draftProduct.basePrice || 0),
-            basePrice: Number(draftProduct.basePrice || draftProduct.unitPrice || 0),
+            unitPrice: Number(
+              draftProduct.unitPrice || draftProduct.basePrice || 0,
+            ),
+            basePrice: Number(
+              draftProduct.basePrice || draftProduct.unitPrice || 0,
+            ),
             customPrice: draftProduct.customPrice || null,
             productType: draftProduct.productType || "packed",
           });
@@ -833,9 +904,22 @@ function StoreStockTransfer() {
     if (!currentStore?.id) return;
     setHistoryLoading(true);
     try {
-      const res = await storeService.getStockTransfers(currentStore.id);
+      const res = await storeService.getStockTransfers(currentStore.id, {
+        page: historyPage,
+        limit: historyLimit,
+        fromDate: appliedHistoryFilters.fromDate,
+        toDate: appliedHistoryFilters.toDate,
+      });
       const data = res.data || res.transfers || res || [];
       setTransferHistory(Array.isArray(data) ? data : []);
+      setHistoryPagination(
+        res.pagination || {
+          page: historyPage,
+          limit: historyLimit,
+          total: Array.isArray(data) ? data.length : 0,
+          totalPages: 1,
+        },
+      );
     } catch (err) {
       console.error("Error fetching transfer history:", err);
       // setError("Failed to fetch transfer history");
@@ -844,17 +928,25 @@ function StoreStockTransfer() {
     }
   };
 
-  const handleViewDetails = async (transferId) => {
+  const handleViewDetails = async (transfer) => {
     if (!currentStore?.id) return;
+    const transferId = transfer?.id;
+    if (!transferId) return;
+    setSelectedTransfer(transfer);
+    setShowDetailModal(true);
     setDetailLoading(true);
     try {
       const res = await storeService.getStockTransferById(
         currentStore.id,
         transferId,
+        { includeHistory: false },
       );
       const data = res.data || res.transfer || res;
-      setSelectedTransfer(data);
-      setShowDetailModal(true);
+      setSelectedTransfer((prev) =>
+        prev && Number(prev.id) === Number(transferId)
+          ? { ...prev, ...data }
+          : data,
+      );
     } catch (err) {
       console.error("Error fetching transfer details:", err);
       setError("Failed to fetch transfer details");
@@ -872,7 +964,9 @@ function StoreStockTransfer() {
     const draft = transfer || selectedTransfer;
     if (!draft) return;
     if (Number(draft.fromStoreId) !== Number(currentStore?.id)) {
-      setError("Only outgoing transfers from the current store can be edited here");
+      setError(
+        "Only outgoing transfers from the current store can be edited here",
+      );
       return;
     }
     if (Number(draft.toStoreId) === Number(currentStore?.id)) {
@@ -932,6 +1026,7 @@ function StoreStockTransfer() {
       const res = await storeService.getStockTransferById(
         currentStore.id,
         targetTransfer.id,
+        { includeHistory: true },
       );
       const data = res.data || res.transfer || res;
       setHistoryTransfer(data);
@@ -955,7 +1050,7 @@ function StoreStockTransfer() {
 
   const handleDownloadInvoice = async (transferId) => {
     if (!transferId) return;
-    setDetailLoading(true);
+    setDownloadLoading(true);
     try {
       const response =
         await storeService.downloadStockTransferInvoice(transferId);
@@ -971,7 +1066,7 @@ function StoreStockTransfer() {
       console.error("Error downloading invoice:", err);
       setError("Failed to download invoice");
     } finally {
-      setDetailLoading(false);
+      setDownloadLoading(false);
     }
   };
 
@@ -1055,6 +1150,30 @@ function StoreStockTransfer() {
   };
 
   const transferItemsList = Object.values(transferItems);
+  const hasAppliedHistoryFilters = Boolean(
+    appliedHistoryFilters.fromDate || appliedHistoryFilters.toDate,
+  );
+  const visibleHistoryCount = filteredHistory.length;
+  const totalHistoryCount = Number(historyPagination.total || 0);
+
+  const applyHistoryFilters = () => {
+    setHistoryPage(1);
+    setAppliedHistoryFilters({
+      fromDate: normalizeHistoryDateValue(historyFromDate),
+      toDate: normalizeHistoryDateValue(historyToDate),
+    });
+  };
+
+  const resetHistoryFilters = () => {
+    setHistoryFromDate("");
+    setHistoryToDate("");
+    setHistoryPage(1);
+    setAppliedHistoryFilters({
+      fromDate: "",
+      toDate: "",
+    });
+  };
+
   const totalItems = transferItemsList.reduce(
     (sum, item) => sum + item.quantity,
     0,
@@ -1116,7 +1235,7 @@ function StoreStockTransfer() {
       </div>
 
       {/* Loading State */}
-      {(pageInitializing || detailLoading) && (
+      {pageInitializing && (
         <div
           style={{
             position: "fixed",
@@ -1645,7 +1764,11 @@ function StoreStockTransfer() {
                               color: "#666",
                             }}
                           >
-                            {filteredStock.filter((p) => getEffectiveAvailableStock(p) > 0).length}{" "}
+                            {
+                              filteredStock.filter(
+                                (p) => getEffectiveAvailableStock(p) > 0,
+                              ).length
+                            }{" "}
                             products found
                           </td>
                         </tr>
@@ -1653,10 +1776,13 @@ function StoreStockTransfer() {
                     </thead>
                     <tbody>
                       {filteredStock
-                        .filter((product) => getEffectiveAvailableStock(product) > 0)
+                        .filter(
+                          (product) => getEffectiveAvailableStock(product) > 0,
+                        )
                         .map((product, index) => {
                           const productId = product.id || product.productId;
-                          const availableStock = getEffectiveAvailableStock(product);
+                          const availableStock =
+                            getEffectiveAvailableStock(product);
                           const transferItem =
                             transferItems[productId] ||
                             transferItems[String(productId)];
@@ -1979,6 +2105,159 @@ function StoreStockTransfer() {
           >
             Transfer History
           </h4>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "12px",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              marginBottom: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "12px",
+                alignItems: "flex-end",
+              }}
+            >
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    color: "#475569",
+                  }}
+                >
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={historyFromDate}
+                  onChange={(e) => setHistoryFromDate(e.target.value)}
+                  style={{
+                    minWidth: "160px",
+                    padding: "8px 10px",
+                    borderRadius: "10px",
+                    border: "1px solid #dbe2ea",
+                    fontFamily: "Poppins",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    color: "#475569",
+                  }}
+                >
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={historyToDate}
+                  onChange={(e) => setHistoryToDate(e.target.value)}
+                  style={{
+                    minWidth: "160px",
+                    padding: "8px 10px",
+                    borderRadius: "10px",
+                    border: "1px solid #dbe2ea",
+                    fontFamily: "Poppins",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    color: "#475569",
+                  }}
+                >
+                  Rows Per Page
+                </label>
+                <select
+                  value={historyLimit}
+                  onChange={(e) => {
+                    setHistoryPage(1);
+                    setHistoryLimit(Number(e.target.value));
+                  }}
+                  style={{
+                    minWidth: "120px",
+                    padding: "8px 10px",
+                    borderRadius: "10px",
+                    border: "1px solid #dbe2ea",
+                    fontFamily: "Poppins",
+                    background: "#fff",
+                  }}
+                >
+                  {[10, 25, 50, 100].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  className="btn btn-sm btn-success"
+                  onClick={applyHistoryFilters}
+                  style={{ fontFamily: "Poppins", padding: "8px 14px" }}
+                >
+                  Apply
+                </button>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={resetHistoryFilters}
+                  style={{ fontFamily: "Poppins", padding: "8px 14px" }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: "12px",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                minWidth: "220px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#64748b",
+                  fontWeight: 600,
+                  marginBottom: "4px",
+                }}
+              >
+                Loaded Results
+              </div>
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: "var(--primary-color)",
+                }}
+              >
+                {visibleHistoryCount} / {totalHistoryCount}
+              </div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>
+                Page {historyPagination.page || 1} of{" "}
+                {historyPagination.totalPages || 1}
+              </div>
+            </div>
+          </div>
           {historyLoading ? (
             <div style={{ textAlign: "center", padding: "20px" }}>
               Loading history...
@@ -2054,7 +2333,8 @@ function StoreStockTransfer() {
                     </th>
                   </tr>
                   {(searchTerms.historyTransferCode ||
-                    searchTerms.historyToStore) && (
+                    searchTerms.historyToStore ||
+                    hasAppliedHistoryFilters) && (
                     <tr>
                       <td
                         colSpan={7}
@@ -2066,7 +2346,11 @@ function StoreStockTransfer() {
                           color: "#666",
                         }}
                       >
-                        {filteredHistory.length} transfers found
+                        Showing {filteredHistory.length} transfer
+                        {filteredHistory.length === 1 ? "" : "s"} on this page
+                        {hasAppliedHistoryFilters
+                          ? " with the selected date range"
+                          : ""}
                       </td>
                     </tr>
                   )}
@@ -2148,7 +2432,7 @@ function StoreStockTransfer() {
                       <td>
                         <button
                           className="btn btn-sm btn-outline-primary"
-                          onClick={() => handleViewDetails(transfer.id)}
+                          onClick={() => handleViewDetails(transfer)}
                           style={{ fontSize: "12px" }}
                         >
                           View
@@ -2182,6 +2466,51 @@ function StoreStockTransfer() {
                   ))}
                 </tbody>
               </table>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginTop: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: "13px", color: "#64748b" }}>
+                  Showing page {historyPagination.page || 1} of{" "}
+                  {historyPagination.totalPages || 1}
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    className="btn btn-sm btn-outline-primary"
+                    disabled={(historyPagination.page || 1) <= 1}
+                    onClick={() =>
+                      setHistoryPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    style={{ fontFamily: "Poppins" }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-primary"
+                    disabled={
+                      (historyPagination.page || 1) >=
+                      (historyPagination.totalPages || 1)
+                    }
+                    onClick={() =>
+                      setHistoryPage((prev) =>
+                        Math.min(
+                          prev + 1,
+                          Number(historyPagination.totalPages || 1),
+                        ),
+                      )
+                    }
+                    style={{ fontFamily: "Poppins" }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -2207,12 +2536,13 @@ function StoreStockTransfer() {
           <div
             style={{
               backgroundColor: "#fff",
-              borderRadius: "8px",
+              borderRadius: "22px",
               padding: "24px",
               width: "90%",
-              maxWidth: "600px",
+              maxWidth: "760px",
               maxHeight: "90vh",
               overflowY: "auto",
+              boxShadow: "0 30px 80px rgba(15, 23, 42, 0.28)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2243,8 +2573,97 @@ function StoreStockTransfer() {
             <div
               style={{
                 marginBottom: "16px",
+                padding: "14px 16px",
+                borderRadius: "16px",
+                border:
+                  String(selectedTransfer.status || "").toLowerCase() ===
+                  "rejected"
+                    ? "1px solid #fecaca"
+                    : String(selectedTransfer.status || "").toLowerCase() ===
+                        "completed"
+                      ? "1px solid #bbf7d0"
+                      : "1px solid #fde68a",
+                background:
+                  String(selectedTransfer.status || "").toLowerCase() ===
+                  "rejected"
+                    ? "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)"
+                    : String(selectedTransfer.status || "").toLowerCase() ===
+                        "completed"
+                      ? "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)"
+                      : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      color:
+                        String(selectedTransfer.status || "").toLowerCase() ===
+                        "rejected"
+                          ? "#b91c1c"
+                          : String(
+                                selectedTransfer.status || "",
+                              ).toLowerCase() === "completed"
+                            ? "#166534"
+                            : "#92400e",
+                    }}
+                  >
+                    TRANSFER STATUS
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 800,
+                      lineHeight: 1.1,
+                      color:
+                        String(selectedTransfer.status || "").toLowerCase() ===
+                        "rejected"
+                          ? "#991b1b"
+                          : String(
+                                selectedTransfer.status || "",
+                              ).toLowerCase() === "completed"
+                            ? "#166534"
+                            : "#854d0e",
+                    }}
+                  >
+                    {(selectedTransfer.status || "Unknown").toUpperCase()}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    minWidth: "180px",
+                    padding: "10px 12px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.7)",
+                    border: "1px solid rgba(255,255,255,0.8)",
+                  }}
+                >
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>
+                    Transfer Code
+                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: 800 }}>
+                    {selectedTransfer.transferCode || "-"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginBottom: "18px",
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: "12px",
               }}
             >
@@ -2326,34 +2745,83 @@ function StoreStockTransfer() {
               )}
             </div>
 
-            <table
-              className="table table-sm table-bordered"
-              style={{ fontFamily: "Poppins", fontSize: "14px" }}
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "16px",
+                overflow: "hidden",
+              }}
             >
-              <thead className="table-light">
-                <tr>
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Received Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(selectedTransfer.items || []).map((item, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <div>
-                        {item.product?.name || item.productName || "Product"}
-                      </div>
-                      <small style={{ color: "#666" }}>
-                        {item.product?.sku || item.sku || ""}
-                      </small>
-                    </td>
-                    <td>{item.quantity}</td>
-                    <td>{item.receivedQuantity || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <div
+                style={{
+                  padding: "12px 16px",
+                  background: "#f8fafc",
+                  borderBottom: "1px solid #e2e8f0",
+                  fontWeight: 700,
+                  color: "#0f172a",
+                }}
+              >
+                Transfer Items
+              </div>
+              {detailLoading ? (
+                <div
+                  style={{
+                    padding: "18px 16px",
+                    fontSize: "14px",
+                    color: "#475569",
+                    background: "#fff",
+                  }}
+                >
+                  Loading item details...
+                </div>
+              ) : (
+                <table
+                  className="table table-sm table-bordered"
+                  style={{
+                    fontFamily: "Poppins",
+                    fontSize: "14px",
+                    marginBottom: 0,
+                  }}
+                >
+                  <thead className="table-light">
+                    <tr>
+                      <th>Product</th>
+                      <th>Quantity</th>
+                      <th>Received Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedTransfer.items || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: "center" }}>
+                          No transfer items found
+                        </td>
+                      </tr>
+                    ) : (
+                      (selectedTransfer.items || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <div>
+                              {item.product?.name ||
+                                item.productName ||
+                                "Product"}
+                            </div>
+                            <small style={{ color: "#666" }}>
+                              {item.product?.SKU ||
+                                item.product?.sku ||
+                                item.sku ||
+                                ""}
+                            </small>
+                          </td>
+                          <td>{item.quantity}</td>
+                          <td>{item.receivedQuantity || "-"}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
 
             <div
               style={{
@@ -2422,9 +2890,24 @@ function StoreStockTransfer() {
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => handleDownloadInvoice(selectedTransfer.id)}
+                disabled={downloadLoading}
                 style={{ fontFamily: "Poppins" }}
               >
-                <i className="bi bi-download"></i> Download Invoice
+                {downloadLoading ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm"
+                      role="status"
+                      aria-hidden="true"
+                      style={{ marginRight: "8px" }}
+                    />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-download"></i> Download Invoice
+                  </>
+                )}
               </button>
             </div>
           </div>

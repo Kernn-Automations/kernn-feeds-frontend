@@ -148,6 +148,8 @@ export default function StoreHome() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchLists = async () => {
       if (!storeId) return;
 
@@ -156,6 +158,8 @@ export default function StoreHome() {
         console.log("Fetching sales for pagination...");
         const salesRes = await storeService.getStoreSales(storeId, {
           limit: 50,
+        }, {
+          signal: controller.signal,
         });
         const salesData = salesRes.data || salesRes.sales || salesRes || [];
 
@@ -194,6 +198,8 @@ export default function StoreHome() {
         const indentsRes = await storeService.getStoreIndents(storeId, {
           limit: 50,
           status: "pending",
+        }, {
+          signal: controller.signal,
         });
         const indentsData =
           indentsRes.data || indentsRes.indents || indentsRes || [];
@@ -210,11 +216,18 @@ export default function StoreHome() {
           setFetchedIndents(mappedIndents);
         }
       } catch (err) {
+        if (err?.name === "AbortError") {
+          return;
+        }
         console.error("Error fetching dashboard lists:", err);
       }
     };
 
     fetchLists();
+
+    return () => {
+      controller.abort();
+    };
   }, [storeId]);
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
