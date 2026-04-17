@@ -855,13 +855,16 @@ function StoreStockSummary() {
     }
   };
 
-  const fetchStats = async (dates) => {
+  const fetchStats = async (dates, options = {}) => {
+    const { silent = false } = options;
     const fromDate = dates?.fromDate || from;
     const toDate = dates?.toDate || to;
 
     if (!fromDate || !toDate || !storeId) return;
 
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const params = {
         fromDate,
@@ -881,7 +884,9 @@ function StoreStockSummary() {
       );
       setIsModalOpen(true);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1060,7 +1065,7 @@ function StoreStockSummary() {
 
     if (activeTab === "summary") {
       fetchStock(dateParams);
-      fetchStats(dateParams); // Also fetch stats to get totals for the footer
+      fetchStats(dateParams, { silent: true }); // Keep footer refresh from fighting the main table loader
     } else if (activeTab === "stats") fetchStats(dateParams);
     else if (activeTab === "audit") fetchAuditTrail(dateParams);
     else if (activeTab === "opening-closing") fetchOpeningClosing(dateParams);
