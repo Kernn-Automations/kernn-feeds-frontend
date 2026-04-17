@@ -54,6 +54,7 @@ function StoreSalesOrders({ onBack }) {
   const customerSearchTimeoutRef = useRef(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   const [historyOrder, setHistoryOrder] = useState(null);
+  const [viewOrder, setViewOrder] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
 
   // Cancellation Modal States
@@ -444,6 +445,9 @@ function StoreSalesOrders({ onBack }) {
               paymentStatus: sale.paymentStatus || "pending",
               grandTotal: sale.grandTotal || sale.totalAmount || 0,
               totalAmount: sale.totalAmount || 0,
+              taxAmount: sale.taxAmount || 0,
+              discountAmount: sale.discountAmount || 0,
+              freightCharges: sale.freightCharges || 0,
               paymentMethod:
                 sale.paymentMethod ||
                 sale.modeOfPayment ||
@@ -468,6 +472,24 @@ function StoreSalesOrders({ onBack }) {
               pendingAdditionalCollection:
                 sale.pendingAdditionalCollection || 0,
               customerCreditLimit: sale.customerCreditLimit || 0,
+              saleType: sale.saleType || "retail",
+              notes: sale.notes || "",
+              createdAt: sale.createdAt || sale.saleDate || sale.invoice?.invoiceDate,
+              updatedAt: sale.updatedAt || null,
+              cancelledAt: sale.cancelledAt || sale.originalData?.cancelledAt || null,
+              cancelledBy:
+                sale.cancelledByName ||
+                sale.cancelledByEmployee?.name ||
+                sale.cancelledBy ||
+                null,
+              cancelNote: sale.cancelNote || sale.cancellationReason || "",
+              createdByName:
+                sale.createdBy?.name ||
+                sale.employee?.name ||
+                sale.createdByEmployee?.name ||
+                sale.reportedByEmployee?.name ||
+                sale.createdByName ||
+                "Employee",
               originalData: sale,
             };
           })
@@ -805,6 +827,25 @@ function StoreSalesOrders({ onBack }) {
       month: "short",
       year: "numeric",
     });
+
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "N/A";
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatCurrency = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
   const closeModal = () => setIsModalOpen(false);
 
@@ -1293,6 +1334,20 @@ function StoreSalesOrders({ onBack }) {
                         </span>
                       </td>
                       <td>
+                        <button
+                          className="btn btn-light"
+                          onClick={() => setViewOrder(order)}
+                          style={{
+                            padding: "4px 10px",
+                            fontSize: "12px",
+                            minWidth: "58px",
+                            border: "1px solid #cbd5e1",
+                            color: "#0f172a",
+                            background: "#f8fafc",
+                          }}
+                        >
+                          View
+                        </button>
                         {order.invoiceId ? (
                           <button
                             className="submitbtn"
@@ -1302,6 +1357,7 @@ function StoreSalesOrders({ onBack }) {
                               padding: "4px 12px",
                               fontSize: "12px",
                               minWidth: "80px",
+                              marginLeft: "6px",
                             }}
                           >
                             {downloadingInvoiceId === order.invoiceId
@@ -1314,22 +1370,56 @@ function StoreSalesOrders({ onBack }) {
                           </span>
                         )}
 
-                        {/* Cancellation Button */}
+                        {/* Edit / cancel stay visible for audit, but cancelled invoices should not allow either action */}
                         <button
                           className="submitbtn"
                           onClick={() => handleEditClick(order)}
                           title={
                             order.isLockedByMonthlyClose
                               ? "This invoice is locked after month close"
+                              : String(
+                                    order.status ||
+                                      order.saleStatus ||
+                                      order.paymentStatus ||
+                                      "",
+                                  ).toLowerCase() === "cancelled"
+                                ? "Cancelled invoices cannot be edited"
                               : "Edit Sale"
                           }
-                          disabled={order.isLockedByMonthlyClose}
+                          disabled={
+                            order.isLockedByMonthlyClose ||
+                            String(
+                              order.status ||
+                                order.saleStatus ||
+                                order.paymentStatus ||
+                                "",
+                            ).toLowerCase() === "cancelled"
+                          }
                           style={{
                             padding: "4px 8px",
                             fontSize: "12px",
                             minWidth: "48px",
                             marginLeft: "6px",
-                            opacity: order.isLockedByMonthlyClose ? 0.6 : 1,
+                            opacity:
+                              order.isLockedByMonthlyClose ||
+                              String(
+                                order.status ||
+                                  order.saleStatus ||
+                                  order.paymentStatus ||
+                                  "",
+                              ).toLowerCase() === "cancelled"
+                                ? 0.55
+                                : 1,
+                            cursor:
+                              order.isLockedByMonthlyClose ||
+                              String(
+                                order.status ||
+                                  order.saleStatus ||
+                                  order.paymentStatus ||
+                                  "",
+                              ).toLowerCase() === "cancelled"
+                                ? "not-allowed"
+                                : "pointer",
                           }}
                         >
                           Edit
@@ -1358,18 +1448,52 @@ function StoreSalesOrders({ onBack }) {
                           title={
                             order.isLockedByMonthlyClose
                               ? "This invoice is locked after month close"
+                              : String(
+                                    order.status ||
+                                      order.saleStatus ||
+                                      order.paymentStatus ||
+                                      "",
+                                  ).toLowerCase() === "cancelled"
+                                ? "Cancelled invoices cannot be cancelled again"
                               : "Cancel Invoice"
                           }
-                          disabled={order.isLockedByMonthlyClose}
+                          disabled={
+                            order.isLockedByMonthlyClose ||
+                            String(
+                              order.status ||
+                                order.saleStatus ||
+                                order.paymentStatus ||
+                                "",
+                            ).toLowerCase() === "cancelled"
+                          }
                           style={{
                             padding: "4px 8px",
                             fontSize: "12px",
                             minWidth: "30px",
-                            opacity: order.isLockedByMonthlyClose ? 0.6 : 1,
+                            opacity:
+                              order.isLockedByMonthlyClose ||
+                              String(
+                                order.status ||
+                                  order.saleStatus ||
+                                  order.paymentStatus ||
+                                  "",
+                              ).toLowerCase() === "cancelled"
+                                ? 0.55
+                                : 1,
                             marginLeft: "6px",
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
+                            cursor:
+                              order.isLockedByMonthlyClose ||
+                              String(
+                                order.status ||
+                                  order.saleStatus ||
+                                  order.paymentStatus ||
+                                  "",
+                              ).toLowerCase() === "cancelled"
+                                ? "not-allowed"
+                                : "pointer",
                           }}
                         >
                           <FaBan color="white" />
@@ -1382,6 +1506,263 @@ function StoreSalesOrders({ onBack }) {
             </tbody>
           </table>
         </div>
+
+        {viewOrder && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1050,
+            }}
+            onClick={() => setViewOrder(null)}
+          >
+            <div
+              style={{
+                width: "min(860px, 94vw)",
+                maxHeight: "84vh",
+                overflowY: "auto",
+                background: "#fff",
+                borderRadius: "18px",
+                padding: "22px",
+                boxShadow: "0 24px 60px rgba(15, 23, 42, 0.24)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "16px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0, color: "#0f172a" }}>Sale Details</h4>
+                  <div style={{ color: "#64748b", fontSize: "13px", marginTop: 4 }}>
+                    {viewOrder.invoiceNumber || viewOrder.saleCode}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setViewOrder(null)}
+                >
+                  Close
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                {[
+                  ["Sale Code", viewOrder.saleCode || "N/A"],
+                  ["Invoice Number", viewOrder.invoiceNumber || "N/A"],
+                  ["Customer", viewOrder.customerName || "N/A"],
+                  ["Created By", viewOrder.createdByName || "N/A"],
+                  ["Created At", formatDateTime(viewOrder.createdAt || viewOrder.date)],
+                  ["Updated At", formatDateTime(viewOrder.updatedAt)],
+                  ["Status", viewOrder.status || viewOrder.paymentStatus || "pending"],
+                  ["Payment", viewOrder.paymentMethod || "N/A"],
+                  ["Sale Type", (viewOrder.saleType || "retail").replace(/_/g, " ")],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "14px",
+                      padding: "12px 14px",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>{label}</div>
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        fontWeight: 700,
+                        color: "#0f172a",
+                        textTransform:
+                          label === "Status" || label === "Sale Type"
+                            ? "capitalize"
+                            : "none",
+                      }}
+                    >
+                      {String(value || "N/A")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                {[
+                  ["Subtotal", formatCurrency(viewOrder.totalAmount)],
+                  ["Tax", formatCurrency(viewOrder.taxAmount)],
+                  ["Discount", formatCurrency(viewOrder.discountAmount)],
+                  ["Freight", formatCurrency(viewOrder.freightCharges)],
+                  ["Grand Total", formatCurrency(viewOrder.grandTotal)],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    style={{
+                      borderRadius: "14px",
+                      padding: "12px 14px",
+                      background:
+                        label === "Grand Total"
+                          ? "linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)"
+                          : "#ffffff",
+                      border:
+                        label === "Grand Total"
+                          ? "1px solid #93c5fd"
+                          : "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>{label}</div>
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        fontWeight: 800,
+                        color: "#0f172a",
+                        fontSize: "16px",
+                      }}
+                    >
+                      {value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {String(
+                viewOrder.status ||
+                  viewOrder.saleStatus ||
+                  viewOrder.paymentStatus ||
+                  "",
+              ).toLowerCase() === "cancelled" && (
+                <div
+                  style={{
+                    marginBottom: "16px",
+                    border: "1px solid #fecaca",
+                    background: "#fff1f2",
+                    borderRadius: "16px",
+                    padding: "14px 16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#b91c1c",
+                      fontWeight: 800,
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Cancellation Details
+                  </div>
+                  <div style={{ display: "grid", gap: "6px", color: "#7f1d1d" }}>
+                    <div>Cancelled At: {formatDateTime(viewOrder.cancelledAt)}</div>
+                    <div>Cancelled By: {viewOrder.cancelledBy || "N/A"}</div>
+                    <div>Reason: {viewOrder.cancelNote || "Not provided"}</div>
+                  </div>
+                </div>
+              )}
+
+              {viewOrder.notes && (
+                <div
+                  style={{
+                    marginBottom: "16px",
+                    border: "1px solid #dbeafe",
+                    background: "#f8fbff",
+                    borderRadius: "16px",
+                    padding: "14px 16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#64748b",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Notes
+                  </div>
+                  <div style={{ color: "#334155", lineHeight: 1.5 }}>
+                    {viewOrder.notes}
+                  </div>
+                </div>
+              )}
+
+              <div
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e2e8f0",
+                    fontWeight: 800,
+                    color: "#0f172a",
+                  }}
+                >
+                  Sale Items
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table className="table" style={{ marginBottom: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(viewOrder.items || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "18px" }}>
+                            No item details available.
+                          </td>
+                        </tr>
+                      ) : (
+                        (viewOrder.items || []).map((item, index) => (
+                          <tr key={item.id || `${item.productId || "item"}-${index}`}>
+                            <td>{item.product?.name || item.productName || item.name || "Product"}</td>
+                            <td>{item.product?.SKU || item.productSku || item.sku || "N/A"}</td>
+                            <td>{Number(item.quantity || 0)}</td>
+                            <td>{formatCurrency(item.unitPrice || item.price || 0)}</td>
+                            <td>
+                              {formatCurrency(
+                                item.totalPrice ||
+                                  item.totalAmount ||
+                                  Number(item.quantity || 0) * Number(item.unitPrice || item.price || 0),
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Cancellation Confirmation Modal */}
         {historyOrder && (
