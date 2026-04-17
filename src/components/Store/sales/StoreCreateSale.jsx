@@ -399,6 +399,12 @@ export default function StoreCreateSale() {
     useState(Boolean(editSaleId));
   const [creditUsageEnabled, setCreditUsageEnabled] = useState(false);
   const deferredRecordedAt = useDeferredValue(recordedAt);
+  const effectiveProductsRecordedAt =
+    editSaleId && deferredRecordedAt
+      ? deferredRecordedAt
+      : hasManuallyChangedRecordedAt && deferredRecordedAt
+        ? deferredRecordedAt
+        : "";
 
   // Get current store ID from localStorage
   const getStoreId = () => {
@@ -470,6 +476,55 @@ export default function StoreCreateSale() {
 
     const storedTotal = Number(item?.totalPrice || 0);
     return Number.isFinite(storedTotal) ? storedTotal : 0;
+  };
+
+  const updateCartItemFromUnitPrice = (itemId, rawValue) => {
+    setCartItems((prev) => {
+      const currentItem = prev[itemId];
+      if (!currentItem) return prev;
+
+      const quantity = Number(currentItem.quantity || 0);
+      const nextUnitPrice =
+        rawValue === "" ? 0 : Number.parseFloat(rawValue || 0);
+      const safeUnitPrice = Number.isFinite(nextUnitPrice) ? nextUnitPrice : 0;
+      const nextTotal = safeUnitPrice * quantity;
+
+      return {
+        ...prev,
+        [itemId]: {
+          ...currentItem,
+          price: safeUnitPrice,
+          unitPrice: safeUnitPrice,
+          totalPrice: nextTotal,
+          finalAmount: quantity > 0 ? nextTotal : 0,
+        },
+      };
+    });
+  };
+
+  const updateCartItemFromTotal = (itemId, rawValue) => {
+    setCartItems((prev) => {
+      const currentItem = prev[itemId];
+      if (!currentItem) return prev;
+
+      const quantity = Number(currentItem.quantity || 0);
+      const nextTotal =
+        rawValue === "" ? 0 : Number.parseFloat(rawValue || 0);
+      const safeTotal = Number.isFinite(nextTotal) ? nextTotal : 0;
+      const derivedUnitPrice =
+        quantity > 0 ? Number((safeTotal / quantity).toFixed(2)) : 0;
+
+      return {
+        ...prev,
+        [itemId]: {
+          ...currentItem,
+          price: derivedUnitPrice,
+          unitPrice: derivedUnitPrice,
+          totalPrice: safeTotal,
+          finalAmount: safeTotal,
+        },
+      };
+    });
   };
 
   const normalizeCustomerResults = (customers = []) =>
@@ -982,8 +1037,8 @@ export default function StoreCreateSale() {
         return;
       }
 
-      const cacheKey = hasManuallyChangedRecordedAt
-        ? `${storeId}::${deferredRecordedAt || "current"}`
+      const cacheKey = effectiveProductsRecordedAt
+        ? `${storeId}::${effectiveProductsRecordedAt}`
         : null;
       const cached = cacheKey
         ? productListCacheRef.current.get(cacheKey)
@@ -1007,7 +1062,7 @@ export default function StoreCreateSale() {
           storeId,
           "",
           "",
-          hasManuallyChangedRecordedAt ? deferredRecordedAt : "",
+          effectiveProductsRecordedAt,
           { compact: true },
         );
 
@@ -1075,7 +1130,7 @@ export default function StoreCreateSale() {
     return () => {
       active = false;
     };
-  }, [deferredRecordedAt, hasManuallyChangedRecordedAt, storeVillages.length]);
+  }, [effectiveProductsRecordedAt, storeVillages.length, editSaleId]);
 
   useEffect(() => {
     const storeId = getStoreId();
@@ -1132,6 +1187,7 @@ export default function StoreCreateSale() {
       id: item.id,
       qty: item.quantity,
       price: item.unitPrice,
+      finalAmount: item.finalAmount,
       discount: item.discountAmount, // Included the per-item discount here
     })),
   );
@@ -1304,6 +1360,7 @@ export default function StoreCreateSale() {
         quantity: item.quantity,
         unit: item.unit,
         price: item.unitPrice,
+        unitPrice: item.unitPrice,
         total: finalAmount,
         originalTotal: item.quantity * (item.price || 0),
         editedFinalAmount: item.finalAmount, // Keep this for UI highlighting
@@ -1548,6 +1605,8 @@ export default function StoreCreateSale() {
       const existing = prev[productId] || {};
       const newQuantity = (existing.quantity || 0) + quantity;
       const unitPrice =
+        existing.unitPrice ||
+        existing.price ||
         selectedProductForQty.price ||
         selectedProductForQty.customPrice ||
         selectedProductForQty.basePrice ||
@@ -3134,19 +3193,53 @@ export default function StoreCreateSale() {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 12,
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: 12,
+              marginBottom: 16,
+              paddingBottom: 14,
+              borderBottom: "1px solid #dbeafe",
             }}
           >
             <div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>Review Order</div>
-              <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>
-                Confirm customer & cart details before payment
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: 18,
+                  color: "#0f172a",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Review Order
+              </div>
+              <p
+                style={{
+                  color: "#64748b",
+                  fontSize: 13,
+                  margin: "4px 0 0",
+                  lineHeight: 1.5,
+                }}
+              >
+                Final billing workspace for customer details, line-level pricing,
+                and invoice totals.
               </p>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ color: "#0f172a", fontWeight: 700 }}>Order ID</div>
-              <div style={{ fontSize: 14, color: "#475569" }}>
+            <div
+              style={{
+                textAlign: isMobile ? "left" : "right",
+                alignSelf: isMobile ? "stretch" : "auto",
+                padding: "10px 14px",
+                borderRadius: 14,
+                background:
+                  "linear-gradient(135deg, rgba(239,246,255,0.96) 0%, rgba(248,250,252,0.98) 100%)",
+                border: "1px solid #bfdbfe",
+                minWidth: isMobile ? "100%" : 170,
+              }}
+            >
+              <div style={{ color: "#475569", fontWeight: 700, fontSize: 12 }}>
+                Order ID
+              </div>
+              <div style={{ fontSize: 15, color: "#0f172a", fontWeight: 800 }}>
                 {reviewData?.orderId || "N/A"}
               </div>
             </div>
@@ -3171,8 +3264,8 @@ export default function StoreCreateSale() {
                 <div
                   style={{
                     border: "1px solid #dbeafe",
-                    borderRadius: 18,
-                    padding: 16,
+                    borderRadius: 20,
+                    padding: 18,
                     background:
                       "linear-gradient(180deg, rgba(239,246,255,0.95) 0%, rgba(255,255,255,0.98) 100%)",
                     boxShadow: "0 12px 28px rgba(15, 23, 42, 0.05)",
@@ -3180,24 +3273,37 @@ export default function StoreCreateSale() {
                 >
                   <div
                     style={{
-                      fontWeight: 600,
-                      color: "#1e293b",
-                      marginBottom: 6,
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      marginBottom: 10,
+                      fontSize: 15,
                     }}
                   >
                     Customer
                   </div>
-                  <div style={{ fontSize: 13, color: "#475569" }}>
+                  <div style={{ fontSize: 13, color: "#475569", display: "grid", gap: 8 }}>
                     <div>
-                      <strong>Name:</strong> {reviewData.customer.name || "-"}
+                      <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Farmer Name
+                      </div>
+                      <strong style={{ color: "#0f172a" }}>{reviewData.customer.name || "-"}</strong>
                     </div>
                     <div>
-                      <strong>Phone:</strong>{" "}
-                      {reviewData.customer.mobile || "-"}
+                      <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Mobile Number
+                      </div>
+                      <strong style={{ color: "#0f172a" }}>
+                        {reviewData.customer.mobile || "-"}
+                      </strong>
                     </div>
                     {reviewData.customer.address && (
                       <div>
-                        <strong>Address:</strong> {reviewData.customer.address}
+                        <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                          Address
+                        </div>
+                        <strong style={{ color: "#0f172a" }}>
+                          {reviewData.customer.address}
+                        </strong>
                       </div>
                     )}
                   </div>
@@ -3206,8 +3312,8 @@ export default function StoreCreateSale() {
                 <div
                   style={{
                     border: "1px solid #dbeafe",
-                    borderRadius: 18,
-                    padding: 16,
+                    borderRadius: 20,
+                    padding: 18,
                     background:
                       "linear-gradient(180deg, rgba(240,253,250,0.95) 0%, rgba(255,255,255,0.98) 100%)",
                     boxShadow: "0 12px 28px rgba(15, 23, 42, 0.05)",
@@ -3215,14 +3321,15 @@ export default function StoreCreateSale() {
                 >
                   <div
                     style={{
-                      fontWeight: 600,
-                      color: "#1e293b",
-                      marginBottom: 6,
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      marginBottom: 10,
+                      fontSize: 15,
                     }}
                   >
-                    Totals
+                    Billing Snapshot
                   </div>
-                  <div style={{ fontSize: 13, color: "#475569" }}>
+                  <div style={{ fontSize: 13, color: "#475569", display: "grid", gap: 8 }}>
                     <div>
                       <strong>Items:</strong> {reviewData.items.length}
                     </div>
@@ -3579,7 +3686,7 @@ export default function StoreCreateSale() {
                 >
                   <span>Products Review</span>
                   <span style={{ fontSize: 12, color: "#64748b" }}>
-                    Edit amount or remove/re-add items above
+                    Edit unit rate or billed total. Both fields stay in sync.
                   </span>
                 </div>
                 {reviewData.items.map((item) => {
@@ -3590,31 +3697,48 @@ export default function StoreCreateSale() {
                         display: "grid",
                         gridTemplateColumns: isMobile
                           ? "1fr"
-                          : "2fr 1fr 1fr 1fr",
-                        padding: "12px 16px",
+                          : "minmax(220px, 2fr) minmax(120px, 0.9fr) minmax(180px, 1.1fr) minmax(230px, 1.2fr)",
+                        padding: "14px 16px",
                         borderTop: "1px solid #e2e8f0",
                         fontSize: isMobile ? 12 : 13,
                         color: "#475569",
-                        gap: isMobile ? "8px" : "0",
+                        gap: isMobile ? "10px" : "16px",
                         alignItems: "center",
+                        background:
+                          item.editedFinalAmount !== undefined
+                            ? "linear-gradient(90deg, rgba(239,246,255,0.7) 0%, rgba(255,255,255,1) 100%)"
+                            : "#fff",
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                        <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>
                           {item.name}
                         </div>
-                        <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
                           {item.sku || "SKU NA"}
                         </div>
                       </div>
-                      <div>
-                        Qty: {item.quantity} {item.unit}
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 12,
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                          Quantity
+                        </div>
+                        <div style={{ fontWeight: 700, color: "#0f172a", marginTop: 4 }}>
+                          {item.quantity} {item.unit}
+                        </div>
                       </div>
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "8px",
+                          flexWrap: "wrap",
                         }}
                       >
                         <span>Price: ₹</span>
@@ -3627,29 +3751,18 @@ export default function StoreCreateSale() {
                               ? item.unitPrice
                               : item.price
                           }
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const nextUnitPrice =
-                              val === "" ? 0 : parseFloat(val);
-                            setCartItems((prev) => ({
-                              ...prev,
-                              [item.id]: {
-                                ...prev[item.id],
-                                price: nextUnitPrice,
-                                unitPrice: nextUnitPrice,
-                                totalPrice:
-                                  nextUnitPrice *
-                                  (parseFloat(prev[item.id]?.quantity) || 0),
-                                finalAmount: undefined, // Clear final amount override to let unitPrice take precedence
-                              },
-                            }));
-                          }}
+                          onChange={(e) =>
+                            updateCartItemFromUnitPrice(item.id, e.target.value)
+                          }
                           style={{
-                            width: "80px",
-                            padding: "4px",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "4px",
-                            fontSize: "13px",
+                            width: "112px",
+                            padding: "8px 10px",
+                            border: "1px solid #dbeafe",
+                            borderRadius: "10px",
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            background: "#f8fbff",
+                            color: "#0f172a",
                           }}
                         />
                       </div>
@@ -3658,6 +3771,7 @@ export default function StoreCreateSale() {
                           display: "flex",
                           alignItems: "center",
                           gap: "8px",
+                          flexWrap: "wrap",
                         }}
                       >
                         <input
@@ -3665,28 +3779,21 @@ export default function StoreCreateSale() {
                           step="0.01"
                           min="0"
                           value={item.total || ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCartItems((prev) => ({
-                              ...prev,
-                              [item.id]: {
-                                ...prev[item.id],
-                                finalAmount: val === "" ? 0 : parseFloat(val),
-                              },
-                            }));
-                          }}
+                          onChange={(e) =>
+                            updateCartItemFromTotal(item.id, e.target.value)
+                          }
                           style={{
-                            width: "100px",
-                            padding: "4px 8px",
-                            border: `1px solid ${item.editedFinalAmount !== undefined ? "#3b82f6" : "#e2e8f0"}`,
-                            borderRadius: "4px",
-                            fontSize: "13px",
-                            fontWeight: 600,
+                            width: "132px",
+                            padding: "8px 10px",
+                            border: `1px solid ${item.editedFinalAmount !== undefined ? "#60a5fa" : "#dbeafe"}`,
+                            borderRadius: "10px",
+                            fontSize: "14px",
+                            fontWeight: 700,
                             color: "#0f172a",
                             backgroundColor:
                               item.editedFinalAmount !== undefined
                                 ? "#eff6ff"
-                                : "#fff",
+                                : "#f8fbff",
                           }}
                           placeholder="Amount"
                         />
@@ -3705,19 +3812,23 @@ export default function StoreCreateSale() {
                             }}
                             type="button"
                             style={{
-                              padding: "2px 8px",
+                              padding: "8px 12px",
                               fontSize: "11px",
-                              backgroundColor: "#ef4444",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
+                              fontWeight: 700,
+                              backgroundColor: "#fee2e2",
+                              color: "#b91c1c",
+                              border: "1px solid #fecaca",
+                              borderRadius: "10px",
                               cursor: "pointer",
                             }}
-                            title="Reset to original"
+                            title="Reset to calculated amount"
                           >
                             Reset
                           </button>
                         )}
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                          Editing total recalculates the unit rate automatically.
+                        </span>
                       </div>
                     </div>
                   );
@@ -3735,6 +3846,43 @@ export default function StoreCreateSale() {
                   boxShadow: "0 16px 36px rgba(15, 23, 42, 0.05)",
                 }}
               >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 14,
+                    paddingBottom: 10,
+                    borderBottom: "1px solid #dbeafe",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 17,
+                        fontWeight: 800,
+                        color: "#0f172a",
+                      }}
+                    >
+                      Billing Totals
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                      Final payable values after line edits, discounts, and freight.
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      background: "#eff6ff",
+                      color: "#1d4ed8",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Live refresh
+                  </div>
+                </div>
                 <div
                   style={{
                     display: "flex",
@@ -5726,7 +5874,7 @@ export default function StoreCreateSale() {
                         }}
                       >
                         <span>{item.sku || "N/A"}</span>
-                        <strong>₹{(item.totalPrice || 0).toLocaleString("en-IN")}</strong>
+                        <strong>₹{getCartItemDisplayTotal(item).toLocaleString("en-IN")}</strong>
                       </div>
                     </div>
                   ))
