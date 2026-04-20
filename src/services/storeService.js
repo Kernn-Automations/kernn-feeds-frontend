@@ -1151,6 +1151,15 @@ const storeService = {
     });
     return res.json();
   },
+  revertManageStockHistoryEntry: async (storeId, historyId) => {
+    const res = await api.request(
+      `/stores/${storeId}/manage-stock/history/${historyId}/revert`,
+      {
+        method: "POST",
+      },
+    );
+    return res.json();
+  },
   async getStoreDamagedGoods(storeId, params = {}) {
     const queryParams = new URLSearchParams(params).toString();
     const res = await api.request(

@@ -18,6 +18,7 @@ import { FaArrowLeftLong, FaArrowRightLong } from "react-icons/fa6";
 import { FaBan } from "react-icons/fa"; // Importing Cancel icon
 import storeService from "../../../services/storeService";
 import { isAdmin } from "../../../utils/roleUtils";
+import { toaster } from "@/components/ui/toaster";
 import {
   handleExportExcel,
   handleExportPDF,
@@ -221,7 +222,14 @@ function StoreSalesOrders({ onBack }) {
   useEffect(() => {
     if (!location.state?.successMessage) return;
 
-    setSuccessMessage(location.state.successMessage);
+    const message = location.state.successMessage;
+    setSuccessMessage(message);
+    toaster.create({
+      type: "success",
+      title: "Success",
+      description: message,
+      closable: true,
+    });
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
       state: {},

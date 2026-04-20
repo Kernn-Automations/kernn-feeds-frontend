@@ -20,6 +20,12 @@ const REPORT_TYPES = {
   stockMovement: "stockMovement",
   paymentAnalysis: "paymentAnalysis",
   targetVsAchievement: "targetVsAchievement",
+  returnSummary: "returnSummary",
+  returnRegister: "returnRegister",
+  damageSummary: "damageSummary",
+  damageRegister: "damageRegister",
+  assetSummary: "assetSummary",
+  assetRegister: "assetRegister",
 };
 
 function buildErpReportsQuery(params) {
@@ -45,6 +51,31 @@ async function parseJsonSafe(response) {
 }
 
 class ErpReportsService {
+  async getAvailableStores() {
+    const response = await apiService.get("/reports/store-comparison/stores");
+    if (!response) {
+      return { success: false, message: "Request cancelled (not authenticated)" };
+    }
+
+    const data = await parseJsonSafe(response);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message:
+          data?.message ||
+          data?.error ||
+          `Request failed (${response.status})`,
+        data,
+      };
+    }
+
+    return {
+      success: true,
+      data: data?.data || data?.stores || [],
+    };
+  }
+
   async getErpReport({
     fromDate,
     toDate,

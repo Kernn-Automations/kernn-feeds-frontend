@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ErrorModal from "@/components/ErrorModal";
 import erpReportsService, {
   REPORT_CATEGORIES,
@@ -8,219 +8,407 @@ import {
   BarChart3,
   Calendar,
   ChevronRight,
-  FileText,
+  Database,
   Filter,
   LayoutGrid,
+  Search,
   Store,
 } from "lucide-react";
 
-/* ═══════════════════════════════════════════════════════
-   STYLES (match Inventory -> Current Stock page)
-═══════════════════════════════════════════════════════ */
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap');
-
-  .cs-page * { box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
-  .cs-page {
-    background: #f0f4fa;
+  .erp-page * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+  .erp-page {
     min-height: 100vh;
-    padding: 0 0 48px;
+    background:
+      radial-gradient(circle at top left, rgba(0,49,118,0.05), transparent 28%),
+      linear-gradient(180deg, #f6f8fc 0%, #eef3fb 100%);
+    padding: 0 0 36px;
+    color: #10213f;
   }
-
-  .cs-loader-overlay {
-    position: fixed; inset: 0; z-index: 9998;
-    background: rgba(240,244,250,0.92);
-    backdrop-filter: blur(8px);
-    display: flex; align-items: center; justify-content: center;
-    animation: loaderFadeIn 0.25s ease;
+  .erp-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 28px 0;
+    font-size: 12px;
+    color: #64748b;
   }
-  @keyframes loaderFadeIn { from { opacity:0 } to { opacity:1 } }
-  .cs-loader-card {
-    background: #fff;
-    border-radius: 24px;
-    padding: 34px 40px;
-    display: flex; flex-direction: column; align-items: center; gap: 12px;
-    box-shadow: 0 8px 48px rgba(0,49,118,0.16), 0 2px 8px rgba(0,49,118,0.08);
-    border: 1px solid rgba(0,49,118,0.08);
-    min-width: 320px;
-    animation: loaderCardIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  .erp-breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
   }
-  @keyframes loaderCardIn {
-    from { opacity:0; transform:scale(0.9) translateY(16px) }
-    to   { opacity:1; transform:scale(1) translateY(0) }
+  .erp-breadcrumb-link:hover { color: #003176; }
+  .erp-header {
+    padding: 12px 28px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  .cs-loader-bar {
-    width: 160px; height: 4px; border-radius: 99px; overflow: hidden;
-    background: #edf0f7;
+  .erp-title h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #0f172a;
   }
-  .cs-loader-bar::after {
-    content: '';
-    display: block;
-    height: 100%;
-    width: 40%;
-    background: linear-gradient(to right, transparent, #003176, #22a634, transparent);
-    border-radius: 99px;
-    animation: scanMove 1.4s ease-in-out infinite;
+  .erp-title p {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #5f6f8f;
   }
-  @keyframes scanMove { 0% { transform: translateX(-120%) } 100% { transform: translateX(360%) } }
-  .cs-loader-text { font-size: 14px; font-weight: 700; color: #1a2236; }
-  .cs-loader-sub { font-size: 12px; color: #7a88a8; }
-
-  .cs-breadcrumb {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12.5px; color: #7a88a8; padding: 16px 28px 0;
-  }
-  .cs-breadcrumb-link {
-    cursor: pointer; transition: color 0.15s;
-    display: flex; align-items: center; gap: 4px;
-  }
-  .cs-breadcrumb-link:hover { color: #003176; }
-  .cs-breadcrumb .sep { color: #c0c8dc; }
-  .cs-breadcrumb .active { color: #003176; font-weight: 600; }
-
-  .cs-page-header {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    padding: 16px 28px 0; flex-wrap: wrap; gap: 14px;
-  }
-  .cs-page-title h1 {
-    font-size: 24px; font-weight: 700; color: #0d1a36; margin: 0;
-    letter-spacing: -0.025em; line-height: 1.2;
-  }
-  .cs-page-title p { font-size: 13px; color: #7a88a8; margin: 4px 0 0; }
-
-  .cs-pill-row {
-    display: flex; flex-wrap: wrap; gap: 8px;
-    padding: 8px 28px 0; font-size: 11.5px;
-  }
-  .cs-pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 10px; border-radius: 999px;
-    background: rgba(0,49,118,0.05); color: #003176;
-    border: 1px solid rgba(0,49,118,0.12);
-    font-weight: 600;
-  }
-  .cs-pill span.key { text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; color: #7a88a8; }
-  .cs-pill span.val { font-size: 11.5px; }
-
-  .cs-toolbar-card {
+  .erp-filters {
     margin: 18px 28px 0;
-    background: radial-gradient(circle at top left, rgba(0,49,118,0.06), transparent 55%), #ffffff;
-    border-radius: 16px;
-    border: 1px solid rgba(0,49,118,0.08);
-    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.12);
-  }
-
-  .cs-toolbar {
-    display: flex; align-items: flex-end; gap: 12px;
-    padding: 20px 28px 0; flex-wrap: wrap;
-  }
-  .cs-toolbar-field { display: flex; flex-direction: column; gap: 5px; }
-  .cs-toolbar-field label {
-    font-size: 10.5px; font-weight: 700; color: #4a5878;
-    text-transform: uppercase; letter-spacing: 0.06em;
-  }
-  .cs-input, .cs-select {
-    padding: 9px 12px;
-    border: 1.5px solid #d0d8ee;
-    border-radius: 10px;
-    font-size: 13px;
-    font-family: inherit;
-    color: #1a2236;
-    background: #fff;
-    outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    min-width: 190px;
-  }
-  .cs-input:focus, .cs-select:focus {
-    border-color: #003176;
-    box-shadow: 0 0 0 3px rgba(0,49,118,0.1);
-  }
-
-  .cs-btn {
-    display: flex; align-items: center; gap: 7px;
-    padding: 9px 18px; border-radius: 10px;
-    font-size: 13px; font-weight: 600; font-family: inherit;
-    cursor: pointer; transition: all 0.16s; border: none; white-space: nowrap;
-  }
-  .cs-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-  .cs-btn-primary { background: linear-gradient(135deg,#003176,#004299); color:#fff; box-shadow:0 2px 8px rgba(0,49,118,0.22); }
-  .cs-btn-primary:hover:not(:disabled) { background: linear-gradient(135deg,#00276a,#003c8a); transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,49,118,0.3); }
-  .cs-btn-ghost { background:#fff; color:#4a5878; border:1.5px solid #d0d8ee; }
-  .cs-btn-ghost:hover:not(:disabled) { border-color:#003176; color:#003176; }
-
-  .cs-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 10px; border-radius: 999px;
-    background: rgba(0,49,118,0.07);
-    border: 1px solid rgba(0,49,118,0.15);
-    color: #003176; font-size: 12px; font-weight: 600;
-  }
-  .cs-chip input { margin: 0; }
-
-  .cs-table-wrap {
-    margin: 20px 28px 0;
-    background: #fff; border-radius: 16px;
-    border: 1px solid rgba(0,49,118,0.08);
-    box-shadow: 0 2px 12px rgba(0,49,118,0.05);
+    background: rgba(255,255,255,0.88);
+    border: 1px solid rgba(148,163,184,0.2);
+    border-radius: 22px;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
     overflow: hidden;
   }
-  .cs-table-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px; border-bottom: 1px solid #edf0f7;
-    background: linear-gradient(to right, rgba(0,49,118,0.025), transparent);
-    flex-wrap: wrap; gap: 8px;
+  .erp-filters-top {
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+    gap: 14px;
+    align-items: end;
   }
-  .cs-table-title {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 14px; font-weight: 700; color: #0d1a36;
+  .erp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
   }
-  .cs-count-badge {
-    font-size: 11px; font-weight: 700; padding: 2px 9px;
-    background: rgba(0,49,118,0.08); color: #003176; border-radius: 99px;
+  .erp-field label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: #64748b;
   }
-  .cs-filter-badge {
-    font-size: 11px; font-weight: 600; padding: 2px 9px;
-    background: rgba(34,166,52,0.1); color: #22a634; border-radius: 99px;
+  .erp-input, .erp-select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #0f172a;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
   }
-  .cs-table {
+  .erp-input:focus, .erp-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
+  }
+  .erp-filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .erp-btn {
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .erp-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .erp-btn:disabled { opacity: .6; cursor: not-allowed; }
+  .erp-btn-primary {
+    background: linear-gradient(135deg, #003176, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(0,49,118,0.18);
+  }
+  .erp-btn-secondary {
+    background: #fff;
+    color: #334155;
+    border-color: #cbd5e1;
+  }
+  .erp-store-panel {
+    border-top: 1px solid rgba(148,163,184,0.18);
+    padding: 18px 22px 22px;
+    background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(241,245,249,0.95));
+  }
+  .erp-store-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .erp-store-head-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .erp-store-head-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .erp-store-head-title p {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+  }
+  .erp-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .erp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(37,99,235,0.08);
+    color: #1d4ed8;
+    border: 1px solid rgba(37,99,235,0.12);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .erp-store-search {
+    position: relative;
+    max-width: 360px;
+    width: 100%;
+  }
+  .erp-store-search svg {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    color: #94a3b8;
+  }
+  .erp-store-search input {
+    padding-left: 38px;
+  }
+  .erp-store-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    max-height: 280px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+  .erp-store-card {
+    background: #fff;
+    border: 1px solid #dbe4f0;
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    min-height: 86px;
+    cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+  .erp-store-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 10px 24px rgba(37,99,235,0.08);
+    transform: translateY(-1px);
+  }
+  .erp-store-card.active {
+    border-color: #2563eb;
+    background: linear-gradient(180deg, #eff6ff, #ffffff);
+    box-shadow: 0 12px 24px rgba(37,99,235,0.12);
+  }
+  .erp-store-card input { margin-top: 4px; }
+  .erp-store-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .erp-store-info strong { font-size: 14px; color: #0f172a; }
+  .erp-store-info span { font-size: 12px; color: #64748b; }
+  .erp-summary-grid {
+    margin: 20px 28px 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .erp-summary-card {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid rgba(148,163,184,0.18);
+    box-shadow: 0 12px 30px rgba(15,23,42,0.06);
+    padding: 16px 18px;
+  }
+  .erp-summary-card label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .erp-summary-card strong {
+    font-size: 28px;
+    line-height: 1.1;
+    color: #0f172a;
+    display: block;
+  }
+  .erp-results {
+    margin: 20px 28px 0;
+    background: #fff;
+    border-radius: 22px;
+    border: 1px solid rgba(148,163,184,0.2);
+    box-shadow: 0 18px 40px rgba(15,23,42,0.06);
+    overflow: hidden;
+  }
+  .erp-results-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e5edf6;
+    background: linear-gradient(180deg, rgba(239,246,255,0.65), rgba(255,255,255,1));
+  }
+  .erp-results-head h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .erp-results-head p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #64748b;
+  }
+  .erp-badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .erp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(15,23,42,0.05);
+    color: #334155;
+  }
+  .erp-table-wrap {
+    overflow: auto;
+    max-height: calc(100vh - 290px);
+  }
+  .erp-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 980px;
   }
-  .cs-table thead tr { background: #f7f9fd; }
-  .cs-table thead th {
-    padding: 10px 14px; font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; color: #8a94b0;
-    border-bottom: 1px solid #edf0f7; white-space: nowrap;
-    position: sticky; top: 0; background: #f7f9fd; z-index: 2;
+  .erp-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fbff;
+    padding: 12px 14px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #dbe4f0;
+    text-align: left;
   }
-  .cs-table tbody tr { border-bottom: 1px solid #f0f3fa; transition: background 0.1s; }
-  .cs-table tbody tr:hover { background: #f7faff; }
-  .cs-table tbody td {
-    padding: 11px 14px; font-size: 13px; color: #2a3452; vertical-align: middle;
+  .erp-table tbody td {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #1e293b;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: top;
   }
-  .cs-pre {
-    max-height: 520px;
-    overflow: auto;
-    background: #0b1020;
-    color: #e8eefc;
-    padding: 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    margin: 14px 18px 18px;
+  .erp-table tbody tr:hover { background: #f8fbff; }
+  .erp-empty {
+    margin: 20px 28px 0;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    color: #64748b;
+    border-radius: 20px;
+    padding: 44px 20px;
+    text-align: center;
   }
-
+  .erp-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: rgba(241,245,249,0.84);
+    backdrop-filter: blur(7px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .erp-loader-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 30px 34px;
+    min-width: 320px;
+    box-shadow: 0 18px 50px rgba(15,23,42,0.15);
+    border: 1px solid rgba(148,163,184,0.22);
+    text-align: center;
+  }
+  .erp-loader-card strong {
+    display: block;
+    font-size: 18px;
+    color: #0f172a;
+    margin-bottom: 8px;
+  }
+  .erp-loader-card span {
+    display: block;
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 14px;
+  }
+  .erp-loader-bar {
+    height: 5px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #e2e8f0;
+  }
+  .erp-loader-bar::after {
+    content: "";
+    display: block;
+    width: 34%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #003176, #2563eb, #22c55e);
+    animation: erp-loading 1.2s ease-in-out infinite;
+  }
+  @keyframes erp-loading {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(320%); }
+  }
+  @media (max-width: 1100px) {
+    .erp-filters-top { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+  }
   @media (max-width: 768px) {
-    .cs-breadcrumb, .cs-page-header { padding-left: 16px; padding-right: 16px; }
-    .cs-toolbar-card { margin-left: 16px; margin-right: 16px; }
-    .cs-table-wrap { margin-left: 16px; margin-right: 16px; }
-    .cs-input, .cs-select { min-width: 150px; }
+    .erp-breadcrumb, .erp-header { padding-left: 16px; padding-right: 16px; }
+    .erp-filters, .erp-summary-grid, .erp-results, .erp-empty { margin-left: 16px; margin-right: 16px; }
+    .erp-filters-top { grid-template-columns: 1fr; }
+    .erp-store-grid { grid-template-columns: 1fr; }
   }
 `;
 
 const CATEGORY_TO_TYPES = {
   [REPORT_CATEGORIES.sales]: [
-    REPORT_TYPES.comparison,
     REPORT_TYPES.summary,
+    REPORT_TYPES.comparison,
     REPORT_TYPES.leaderboard,
     REPORT_TYPES.trend,
   ],
@@ -233,384 +421,484 @@ const CATEGORY_TO_TYPES = {
     REPORT_TYPES.paymentAnalysis,
   ],
   [REPORT_CATEGORIES.target]: [REPORT_TYPES.targetVsAchievement],
-  [REPORT_CATEGORIES.returns]: [],
-  [REPORT_CATEGORIES.damage]: [],
-  [REPORT_CATEGORIES.assets]: [],
+  [REPORT_CATEGORIES.returns]: [
+    REPORT_TYPES.returnSummary,
+    REPORT_TYPES.returnRegister,
+  ],
+  [REPORT_CATEGORIES.damage]: [
+    REPORT_TYPES.damageSummary,
+    REPORT_TYPES.damageRegister,
+  ],
+  [REPORT_CATEGORIES.assets]: [
+    REPORT_TYPES.assetSummary,
+    REPORT_TYPES.assetRegister,
+  ],
 };
 
-function toISODateInputValue(d) {
+function toISODateInputValue(date) {
   const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function normalizeStoreIds(input) {
-  if (!input) return [];
-  return input
-    .split(/[,\s]+/g)
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .map((x) => Number(x))
-    .filter((n) => Number.isFinite(n) && n > 0);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function prettifyKey(key) {
   return String(key)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
+    .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-function extractTableRows(payload) {
-  if (!payload) return null;
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload.data)) return payload.data;
-  if (payload.data && Array.isArray(payload.data.data)) return payload.data.data;
-  if (payload.data && Array.isArray(payload.data.rows)) return payload.data.rows;
-  if (payload.rows && Array.isArray(payload.rows)) return payload.rows;
-  return null;
-}
+function formatValue(value, type) {
+  if (value === null || value === undefined || value === "") return "-";
 
-function isPlainObject(v) {
-  return !!v && typeof v === "object" && !Array.isArray(v);
+  if (type === "currency" && typeof Number(value) === "number" && !Number.isNaN(Number(value))) {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(Number(value));
+  }
+
+  if (type === "percent" && typeof Number(value) === "number" && !Number.isNaN(Number(value))) {
+    return `${Number(value).toFixed(2)}%`;
+  }
+
+  if (type === "number" && typeof Number(value) === "number" && !Number.isNaN(Number(value))) {
+    return new Intl.NumberFormat("en-IN", {
+      maximumFractionDigits: 2,
+    }).format(Number(value));
+  }
+
+  return String(value);
 }
 
 function ErpReports({ navigate }) {
   const today = useMemo(() => new Date(), []);
   const defaultTo = useMemo(() => toISODateInputValue(today), [today]);
   const defaultFrom = useMemo(() => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - 30);
-    return toISODateInputValue(d);
+    const date = new Date(today);
+    date.setDate(date.getDate() - 30);
+    return toISODateInputValue(date);
   }, [today]);
 
   const [fromDate, setFromDate] = useState(defaultFrom);
   const [toDate, setToDate] = useState(defaultTo);
   const [reportCategory, setReportCategory] = useState(REPORT_CATEGORIES.sales);
   const [reportType, setReportType] = useState(REPORT_TYPES.summary);
-  const [customReportType, setCustomReportType] = useState("");
-  const [storeIdsText, setStoreIdsText] = useState("");
-
+  const [availableStores, setAvailableStores] = useState([]);
+  const [storeSearch, setStoreSearch] = useState("");
+  const [selectedStoreIds, setSelectedStoreIds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [storesLoading, setStoresLoading] = useState(false);
+  const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [isErrorOpen, setIsErrorOpen] = useState(false);
 
-  const [result, setResult] = useState(null);
-  const [showRaw, setShowRaw] = useState(true);
-
   const reportTypeOptions = CATEGORY_TO_TYPES[reportCategory] || [];
-  const reportTypeRequired = reportTypeOptions.length > 0;
 
-  const effectiveReportType = reportTypeRequired
-    ? reportType
-    : customReportType?.trim() || undefined;
+  useEffect(() => {
+    if (!reportTypeOptions.includes(reportType)) {
+      setReportType(reportTypeOptions[0] || "");
+    }
+  }, [reportCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadStores() {
+      try {
+        setStoresLoading(true);
+        const response = await erpReportsService.getAvailableStores();
+        if (!mounted) return;
+
+        if (!response.success) {
+          setError(response.message || "Failed to load stores");
+          setIsErrorOpen(true);
+          return;
+        }
+
+        setAvailableStores(response.data || []);
+      } catch (loadError) {
+        if (!mounted) return;
+        setError(loadError?.message || "Failed to load stores");
+        setIsErrorOpen(true);
+      } finally {
+        if (mounted) setStoresLoading(false);
+      }
+    }
+
+    loadStores();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const visibleStores = useMemo(() => {
+    const query = storeSearch.trim().toLowerCase();
+    if (!query) return availableStores;
+    return availableStores.filter((store) =>
+      [store.name, store.storeCode, String(store.id)]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [availableStores, storeSearch]);
+
+  const selectedStoreNames = useMemo(
+    () =>
+      availableStores
+        .filter((store) => selectedStoreIds.includes(store.id))
+        .map((store) => `${store.name} (${store.storeCode || store.id})`),
+    [availableStores, selectedStoreIds],
+  );
+
+  const toggleStore = (storeId) => {
+    setSelectedStoreIds((previous) =>
+      previous.includes(storeId)
+        ? previous.filter((id) => id !== storeId)
+        : [...previous, storeId],
+    );
+  };
+
+  const toggleVisibleStores = () => {
+    const visibleIds = visibleStores.map((store) => store.id);
+    const allVisibleSelected =
+      visibleIds.length > 0 &&
+      visibleIds.every((storeId) => selectedStoreIds.includes(storeId));
+
+    if (allVisibleSelected) {
+      setSelectedStoreIds((previous) =>
+        previous.filter((id) => !visibleIds.includes(id)),
+      );
+      return;
+    }
+
+    setSelectedStoreIds((previous) => [
+      ...new Set([...previous, ...visibleIds]),
+    ]);
+  };
 
   const closeError = () => setIsErrorOpen(false);
 
-  const onSubmit = async () => {
+  const runReport = async () => {
     try {
-      setLoading(true);
-      setResult(null);
-
       if (!fromDate || !toDate) {
-        setError("Please select From Date and To Date");
+        setError("Please choose both From Date and To Date.");
         setIsErrorOpen(true);
         return;
       }
 
       if (new Date(fromDate) > new Date(toDate)) {
-        setError("From Date cannot be after To Date");
+        setError("From Date cannot be after To Date.");
         setIsErrorOpen(true);
         return;
       }
 
-      if (reportTypeRequired && !reportType) {
-        setError("Please select a report type");
+      if (!reportCategory || !reportType) {
+        setError("Please choose a report category and type.");
         setIsErrorOpen(true);
         return;
       }
 
-      const storeIds = normalizeStoreIds(storeIdsText);
-
-      const res = await erpReportsService.getErpReport({
+      setLoading(true);
+      const response = await erpReportsService.getErpReport({
         fromDate,
         toDate,
         reportCategory,
-        reportType: effectiveReportType,
-        storeIds,
+        reportType,
+        storeIds: selectedStoreIds,
       });
 
-      if (!res.success) {
-        setError(res.message || "Failed to fetch ERP report");
+      if (!response.success) {
+        setError(response.message || "Failed to load ERP report");
         setIsErrorOpen(true);
-        setResult(res.data || null);
         return;
       }
 
-      setResult(res.data);
-    } catch (e) {
-      setError(e?.message || "Failed to fetch ERP report");
+      setReport(response.data?.data || response.data || null);
+    } catch (loadError) {
+      setError(loadError?.message || "Failed to load ERP report");
       setIsErrorOpen(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const onCancel = () => {
+  const resetFilters = () => {
     setFromDate(defaultFrom);
     setToDate(defaultTo);
     setReportCategory(REPORT_CATEGORIES.sales);
     setReportType(REPORT_TYPES.summary);
-    setCustomReportType("");
-    setStoreIdsText("");
-    setResult(null);
-    setShowRaw(true);
+    setStoreSearch("");
+    setSelectedStoreIds([]);
+    setReport(null);
   };
 
-  const tableRows = useMemo(() => {
-    const rows = extractTableRows(result);
-    return Array.isArray(rows) ? rows : null;
-  }, [result]);
-
-  const tableColumns = useMemo(() => {
-    if (!tableRows || tableRows.length === 0) return [];
-    const first = tableRows.find((r) => isPlainObject(r));
-    if (!first) return [];
-    return Object.keys(first).slice(0, 12);
-  }, [tableRows]);
+  const hasRows = Boolean(report?.rows?.length);
 
   return (
     <>
       <style>{css}</style>
-      <div className="cs-page">
+
+      <div className="erp-page">
         {loading && (
-          <div className="cs-loader-overlay">
-            <div className="cs-loader-card">
-              <div className="cs-loader-text">Fetching ERP report</div>
-              <div className="cs-loader-sub">
-                Applying filters and loading data…
-              </div>
-              <div className="cs-loader-bar" />
+          <div className="erp-loader">
+            <div className="erp-loader-card">
+              <strong>Building ERP report</strong>
+              <span>Pulling data, shaping summaries, and preparing the table.</span>
+              <div className="erp-loader-bar" />
             </div>
           </div>
         )}
 
-        <div className="cs-breadcrumb">
+        <div className="erp-breadcrumb">
           <span
-            className="cs-breadcrumb-link"
+            className="erp-breadcrumb-link"
             onClick={() => navigate("/reports")}
           >
             <LayoutGrid size={13} /> Reports
           </span>
-          <ChevronRight size={12} className="sep" />
-          <span className="active">ERP Reports</span>
+          <ChevronRight size={12} />
+          <span>ERP Reports</span>
         </div>
 
-        <div className="cs-page-header">
-          <div className="cs-page-title">
+        <div className="erp-header">
+          <div className="erp-title">
             <h1>ERP Reports</h1>
-            <p>Generate sales, inventory, finance and other ERP reports from your backend.</p>
+            <p>
+              Sales, inventory, finance, targets, returns, damages, and asset reports
+              from one workspace.
+            </p>
           </div>
         </div>
 
-        <div className="cs-toolbar-card">
-          <div className="cs-toolbar">
-            <div className="cs-toolbar-field">
-              <label htmlFor="fromDate">
-                <Calendar size={12} style={{ marginRight: 6 }} />
+        <div className="erp-filters">
+          <div className="erp-filters-top">
+            <div className="erp-field">
+              <label htmlFor="erpFrom">
+                <Calendar size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
                 From Date
               </label>
               <input
-                id="fromDate"
-                className="cs-input"
+                id="erpFrom"
+                className="erp-input"
                 type="date"
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+                onChange={(event) => setFromDate(event.target.value)}
               />
             </div>
 
-            <div className="cs-toolbar-field">
-              <label htmlFor="toDate">
-                <Calendar size={12} style={{ marginRight: 6 }} />
+            <div className="erp-field">
+              <label htmlFor="erpTo">
+                <Calendar size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
                 To Date
               </label>
               <input
-                id="toDate"
-                className="cs-input"
+                id="erpTo"
+                className="erp-input"
                 type="date"
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
+                onChange={(event) => setToDate(event.target.value)}
               />
             </div>
 
-            <div className="cs-toolbar-field">
-              <label htmlFor="reportCategory">
-                <FileText size={12} style={{ marginRight: 6 }} />
-                Category
+            <div className="erp-field">
+              <label htmlFor="erpCategory">
+                <Database size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                Report Category
               </label>
               <select
-                id="reportCategory"
-                className="cs-select"
+                id="erpCategory"
+                className="erp-select"
                 value={reportCategory}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setReportCategory(next);
-                  const nextTypes = CATEGORY_TO_TYPES[next] || [];
-                  if (nextTypes.length > 0) {
-                    setReportType(nextTypes[0]);
-                    setCustomReportType("");
-                  } else {
-                    setCustomReportType("");
-                  }
-                }}
+                onChange={(event) => setReportCategory(event.target.value)}
               >
-                {Object.values(REPORT_CATEGORIES).map((c) => (
-                  <option key={c} value={c}>
-                    {prettifyKey(c)}
+                {Object.values(REPORT_CATEGORIES).map((category) => (
+                  <option key={category} value={category}>
+                    {prettifyKey(category)}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="cs-toolbar-field">
-              <label htmlFor="reportType">
-                <Filter size={12} style={{ marginRight: 6 }} />
-                Type
+            <div className="erp-field">
+              <label htmlFor="erpType">
+                <Filter size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                Report Type
               </label>
-              {reportTypeRequired ? (
-                <select
-                  id="reportType"
-                  className="cs-select"
-                  value={reportType}
-                  onChange={(e) => setReportType(e.target.value)}
-                >
-                  {reportTypeOptions.map((t) => (
-                    <option key={t} value={t}>
-                      {prettifyKey(t)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id="reportType"
-                  className="cs-input"
-                  type="text"
-                  placeholder="optional"
-                  value={customReportType}
-                  onChange={(e) => setCustomReportType(e.target.value)}
-                />
-              )}
+              <select
+                id="erpType"
+                className="erp-select"
+                value={reportType}
+                onChange={(event) => setReportType(event.target.value)}
+              >
+                {reportTypeOptions.map((type) => (
+                  <option key={type} value={type}>
+                    {prettifyKey(type)}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="cs-toolbar-field">
-              <label htmlFor="storeIds">
-                <Store size={12} style={{ marginRight: 6 }} />
-                Store Ids
-              </label>
-              <input
-                id="storeIds"
-                className="cs-input"
-                type="text"
-                placeholder="e.g. 1,2,3"
-                value={storeIdsText}
-                onChange={(e) => setStoreIdsText(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: 8, marginTop: 22 }}>
-              <button className="cs-btn cs-btn-primary" onClick={onSubmit} disabled={loading}>
-                <BarChart3 size={14} /> Generate
+            <div className="erp-filter-actions">
+              <button className="erp-btn erp-btn-primary" onClick={runReport} disabled={loading || storesLoading}>
+                <BarChart3 size={16} /> Generate Report
               </button>
-              <button className="cs-btn cs-btn-ghost" onClick={onCancel} disabled={loading}>
+              <button className="erp-btn erp-btn-secondary" onClick={resetFilters} disabled={loading}>
                 Reset
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="cs-pill-row">
-          <div className="cs-pill">
-            <span className="key">Range</span>
-            <span className="val">
-              {fromDate} → {toDate}
-            </span>
-          </div>
-          <div className="cs-pill">
-            <span className="key">Category</span>
-            <span className="val">{prettifyKey(reportCategory)}</span>
-          </div>
-          <div className="cs-pill">
-            <span className="key">Type</span>
-            <span className="val">
-              {prettifyKey(
-                (reportTypeRequired ? reportType : customReportType) || "Any"
-              )}
-            </span>
-          </div>
-          {storeIdsText && (
-            <div className="cs-pill">
-              <span className="key">Stores</span>
-              <span className="val">{storeIdsText}</span>
+          <div className="erp-store-panel">
+            <div className="erp-store-head">
+              <div className="erp-store-head-title">
+                <h3>Store Filter</h3>
+                <p>
+                  Leave this empty to run the report across all stores you can access.
+                </p>
+              </div>
+
+              <div className="erp-chip-row">
+                <span className="erp-chip">
+                  <Store size={13} /> Accessible: {availableStores.length}
+                </span>
+                <span className="erp-chip">
+                  Selected: {selectedStoreIds.length || "All"}
+                </span>
+                <button
+                  type="button"
+                  className="erp-btn erp-btn-secondary"
+                  style={{ minHeight: 34, padding: "0 12px", fontSize: 12 }}
+                  onClick={toggleVisibleStores}
+                  disabled={storesLoading || visibleStores.length === 0}
+                >
+                  {visibleStores.length > 0 &&
+                  visibleStores.every((store) => selectedStoreIds.includes(store.id))
+                    ? "Clear Visible"
+                    : "Select Visible"}
+                </button>
+              </div>
             </div>
-          )}
+
+            <div className="erp-store-search">
+              <Search size={16} />
+              <input
+                className="erp-input"
+                type="text"
+                placeholder="Search by store name, code, or id"
+                value={storeSearch}
+                onChange={(event) => setStoreSearch(event.target.value)}
+              />
+            </div>
+
+            <div style={{ height: 12 }} />
+
+            <div className="erp-store-grid">
+              {visibleStores.map((store) => {
+                const checked = selectedStoreIds.includes(store.id);
+                return (
+                  <label
+                    key={store.id}
+                    className={`erp-store-card${checked ? " active" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleStore(store.id)}
+                    />
+                    <div className="erp-store-info">
+                      <strong>{store.name}</strong>
+                      <span>Code: {store.storeCode || "-"}</span>
+                      <span>Store Id: {store.id}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {selectedStoreNames.length > 0 && (
+              <div style={{ marginTop: 14 }} className="erp-chip-row">
+                {selectedStoreNames.slice(0, 10).map((name) => (
+                  <span key={name} className="erp-chip">
+                    {name}
+                  </span>
+                ))}
+                {selectedStoreNames.length > 10 && (
+                  <span className="erp-chip">+{selectedStoreNames.length - 10} more</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {!loading && result && (
-          <div className="cs-table-wrap">
-            <div className="cs-table-header">
-              <div className="cs-table-title">
-                <BarChart3 size={15} color="#003176" />
-                Result
-                {tableRows?.length ? (
-                  <span className="cs-count-badge">{tableRows.length} rows</span>
-                ) : null}
-                <span className="cs-filter-badge">
-                  <Filter size={10} /> Filtered
+        {report?.summary?.length > 0 && (
+          <div className="erp-summary-grid">
+            {report.summary.map((item) => (
+              <div key={item.label} className="erp-summary-card">
+                <label>{item.label}</label>
+                <strong>{formatValue(item.value, item.type)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {report && (
+          <div className="erp-results">
+            <div className="erp-results-head">
+              <div>
+                <h3>{report.title || "ERP Report"}</h3>
+                <p>{report.subtitle || "Report data for the selected ERP filters."}</p>
+              </div>
+
+              <div className="erp-badge-row">
+                <span className="erp-badge">
+                  Category: {prettifyKey(report.reportCategory || reportCategory)}
+                </span>
+                <span className="erp-badge">
+                  Type: {prettifyKey(report.reportType || reportType)}
+                </span>
+                <span className="erp-badge">
+                  Rows: {report.rowCount || report.rows?.length || 0}
                 </span>
               </div>
-              <label className="cs-chip">
-                <input
-                  id="showRaw"
-                  type="checkbox"
-                  checked={showRaw}
-                  onChange={(e) => setShowRaw(e.target.checked)}
-                />
-                Show raw JSON
-              </label>
             </div>
 
-            {tableRows && tableRows.length > 0 && tableColumns.length > 0 && (
-              <div style={{ overflowX: "auto" }}>
-                <table className="cs-table">
+            {hasRows ? (
+              <div className="erp-table-wrap">
+                <table className="erp-table">
                   <thead>
                     <tr>
-                      <th>S.No</th>
-                      {tableColumns.map((c) => (
-                        <th key={c}>{prettifyKey(c)}</th>
+                      {(report.columns || []).map((column) => (
+                        <th key={column.key}>{column.label || prettifyKey(column.key)}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {tableRows.slice(0, 200).map((row, idx) => (
-                      <tr key={idx}>
-                        <td>{idx + 1}</td>
-                        {tableColumns.map((c) => {
-                          const v = row?.[c];
-                          const cell =
-                            v === null || v === undefined
-                              ? "-"
-                              : typeof v === "object"
-                                ? JSON.stringify(v)
-                                : String(v);
-                          return <td key={c}>{cell}</td>;
-                        })}
+                    {report.rows.map((row, index) => (
+                      <tr key={row.id || row.code || row.sNo || index}>
+                        {(report.columns || []).map((column) => (
+                          <td key={column.key}>
+                            {formatValue(row[column.key], column.type)}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <div className="erp-empty" style={{ margin: 0, border: "none", borderRadius: 0 }}>
+                No rows matched the selected filters.
+              </div>
             )}
+          </div>
+        )}
 
-            {showRaw && <pre className="cs-pre">{JSON.stringify(result, null, 2)}</pre>}
+        {!report && !loading && (
+          <div className="erp-empty">
+            <strong style={{ display: "block", marginBottom: 8, color: "#0f172a" }}>
+              Generate an ERP report
+            </strong>
+            Pick a category, report type, optional stores, and date range to load the data.
           </div>
         )}
       </div>

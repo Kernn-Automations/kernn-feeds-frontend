@@ -589,7 +589,7 @@ function NavBg({ hover, setTab, tab, closeMobileMenu }) {
           </Link>
         </div>
 
-        {/*<div
+        <div
           className={`${
             location.pathname.includes("reports") ? styles.active : ""
           } `}
@@ -613,7 +613,7 @@ function NavBg({ hover, setTab, tab, closeMobileMenu }) {
             </svg>
             {hover && <p>Reports</p>}
           </Link>
-        </div>*/}
+        </div>
 
         <div
           className={`${
