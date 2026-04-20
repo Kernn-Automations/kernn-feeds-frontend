@@ -1,14 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import ErrorModal from "@/components/ErrorModal";
 import erpReportsService, {
   REPORT_CATEGORIES,
   REPORT_TYPES,
 } from "@/services/erpReportsService";
+import feedsLogo from "../../../images/logo-bg.png";
 import {
+  ArrowDownRight,
+  ArrowUpRight,
   BarChart3,
   Calendar,
   ChevronRight,
   Database,
+  Download,
   Filter,
   LayoutGrid,
   Search,
@@ -244,6 +251,28 @@ const css = `
     border: 1px solid rgba(148,163,184,0.18);
     box-shadow: 0 12px 30px rgba(15,23,42,0.06);
     padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .erp-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    border-radius: 18px 0 0 18px;
+    background: linear-gradient(180deg, #2563eb, #22c55e);
+  }
+  .erp-summary-card[data-tone="currency"]::before {
+    background: linear-gradient(180deg, #16a34a, #10b981);
+  }
+  .erp-summary-card[data-tone="percent"]::before {
+    background: linear-gradient(180deg, #7c3aed, #a855f7);
+  }
+  .erp-summary-card[data-tone="number"]::before {
+    background: linear-gradient(180deg, #2563eb, #06b6d4);
+  }
+  .erp-summary-card[data-tone="text"]::before {
+    background: linear-gradient(180deg, #f59e0b, #f97316);
   }
   .erp-summary-card label {
     display: block;
@@ -305,6 +334,28 @@ const css = `
     background: rgba(15,23,42,0.05);
     color: #334155;
   }
+  .erp-badge.category-sales { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+  .erp-badge.category-inventory { background: rgba(6,182,212,0.12); color: #0f766e; }
+  .erp-badge.category-finance { background: rgba(34,197,94,0.12); color: #15803d; }
+  .erp-badge.category-target { background: rgba(124,58,237,0.12); color: #6d28d9; }
+  .erp-badge.category-returns { background: rgba(245,158,11,0.14); color: #b45309; }
+  .erp-badge.category-damage { background: rgba(239,68,68,0.12); color: #b91c1c; }
+  .erp-badge.category-assets { background: rgba(168,85,247,0.12); color: #7e22ce; }
+  .erp-badge.type-pill { background: rgba(15,23,42,0.08); color: #334155; }
+  .erp-badge.row-pill { background: rgba(2,132,199,0.1); color: #0369a1; }
+  .erp-results-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .erp-btn-export {
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+  }
   .erp-table-wrap {
     overflow: auto;
     max-height: calc(100vh - 290px);
@@ -318,7 +369,7 @@ const css = `
     position: sticky;
     top: 0;
     z-index: 2;
-    background: #f8fbff;
+    background: linear-gradient(180deg, #f8fbff, #eef4ff);
     padding: 12px 14px;
     font-size: 11px;
     letter-spacing: 0.08em;
@@ -326,6 +377,22 @@ const css = `
     color: #64748b;
     border-bottom: 1px solid #dbe4f0;
     text-align: left;
+  }
+  .erp-table thead th.col-currency {
+    background: linear-gradient(180deg, #ecfdf5, #dcfce7);
+    color: #166534;
+  }
+  .erp-table thead th.col-percent {
+    background: linear-gradient(180deg, #f5f3ff, #ede9fe);
+    color: #6d28d9;
+  }
+  .erp-table thead th.col-number {
+    background: linear-gradient(180deg, #eff6ff, #dbeafe);
+    color: #1d4ed8;
+  }
+  .erp-table thead th.col-text {
+    background: linear-gradient(180deg, #fff7ed, #ffedd5);
+    color: #c2410c;
   }
   .erp-table tbody td {
     padding: 12px 14px;
@@ -335,6 +402,81 @@ const css = `
     vertical-align: top;
   }
   .erp-table tbody tr:hover { background: #f8fbff; }
+  .erp-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 26px;
+    max-width: 100%;
+  }
+  .erp-cell.currency {
+    color: #166534;
+    font-weight: 700;
+  }
+  .erp-cell.percent {
+    color: #6d28d9;
+    font-weight: 700;
+  }
+  .erp-cell.number {
+    color: #1d4ed8;
+    font-weight: 700;
+  }
+  .erp-cell.direction-up {
+    color: #15803d;
+    font-weight: 800;
+  }
+  .erp-cell.direction-down {
+    color: #b91c1c;
+    font-weight: 800;
+  }
+  .erp-cell.direction-flat {
+    color: #475569;
+    font-weight: 700;
+  }
+  .erp-direction-icon {
+    flex: 0 0 auto;
+  }
+  .erp-cell.text-muted {
+    color: #64748b;
+  }
+  .erp-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .erp-status.completed, .erp-status.approved, .erp-status.active, .erp-status.stock_received {
+    background: rgba(34,197,94,0.14);
+    color: #15803d;
+  }
+  .erp-status.pending, .erp-status.scheduled, .erp-status.paused {
+    background: rgba(245,158,11,0.15);
+    color: #b45309;
+  }
+  .erp-status.cancelled, .erp-status.rejected, .erp-status.expired, .erp-status.locked {
+    background: rgba(239,68,68,0.14);
+    color: #b91c1c;
+  }
+  .erp-status.draft, .erp-status.archived {
+    background: rgba(148,163,184,0.18);
+    color: #475569;
+  }
+  .erp-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    font-weight: 700;
+  }
   .erp-empty {
     margin: 20px 28px 0;
     background: #fff;
@@ -447,10 +589,45 @@ function prettifyKey(key) {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
+function slugifyFileName(value) {
+  return (
+    String(value || "erp-report")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "erp-report"
+  );
+}
+
+function loadImageAsDataUrl(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth || image.width;
+        canvas.height = image.naturalHeight || image.height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
 function formatValue(value, type) {
   if (value === null || value === undefined || value === "") return "-";
 
-  if (type === "currency" && typeof Number(value) === "number" && !Number.isNaN(Number(value))) {
+  if (
+    type === "currency" &&
+    typeof Number(value) === "number" &&
+    !Number.isNaN(Number(value))
+  ) {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
@@ -458,17 +635,176 @@ function formatValue(value, type) {
     }).format(Number(value));
   }
 
-  if (type === "percent" && typeof Number(value) === "number" && !Number.isNaN(Number(value))) {
+  if (
+    type === "percent" &&
+    typeof Number(value) === "number" &&
+    !Number.isNaN(Number(value))
+  ) {
     return `${Number(value).toFixed(2)}%`;
   }
 
-  if (type === "number" && typeof Number(value) === "number" && !Number.isNaN(Number(value))) {
+  if (
+    type === "number" &&
+    typeof Number(value) === "number" &&
+    !Number.isNaN(Number(value))
+  ) {
     return new Intl.NumberFormat("en-IN", {
       maximumFractionDigits: 2,
     }).format(Number(value));
   }
 
   return String(value);
+}
+
+function getColumnTone(column) {
+  const key = String(column?.key || "").toLowerCase();
+  if (column?.type) return column.type;
+  if (
+    key.includes("amount") ||
+    key.includes("sales") ||
+    key.includes("profit") ||
+    key.includes("value") ||
+    key.includes("refund") ||
+    key.includes("loss")
+  ) {
+    return "currency";
+  }
+  if (
+    key.includes("percent") ||
+    key.includes("margin") ||
+    key.includes("growth")
+  ) {
+    return "percent";
+  }
+  if (
+    key.includes("qty") ||
+    key.includes("quantity") ||
+    key.includes("count") ||
+    key.includes("stock") ||
+    key === "sno" ||
+    key.includes("bags")
+  ) {
+    return "number";
+  }
+  return "text";
+}
+
+function isDirectionalMetric(column) {
+  const key = String(column?.key || "").toLowerCase();
+  return (
+    key.includes("change") ||
+    key.includes("growth") ||
+    key.includes("delta") ||
+    key.includes("variance") ||
+    key.includes("difference") ||
+    key.includes("increase") ||
+    key.includes("decrease")
+  );
+}
+
+function formatExportCell(value, column) {
+  const key = String(column?.key || "").toLowerCase();
+  const normalized =
+    value === null || value === undefined || value === "" ? "-" : value;
+
+  if (key.includes("status")) return String(normalized);
+  if (key.includes("code") || key.includes("reference") || key === "sku") {
+    return String(normalized);
+  }
+
+  return formatValue(normalized, getColumnTone(column));
+}
+
+function formatPdfValue(value, type = "text") {
+  if (value === null || value === undefined || value === "") return "-";
+
+  const numericValue = Number(value);
+
+  if (type === "currency" && !Number.isNaN(numericValue)) {
+    return `INR ${new Intl.NumberFormat("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numericValue)}`;
+  }
+
+  if (type === "percent" && !Number.isNaN(numericValue)) {
+    return `${numericValue.toFixed(2)}%`;
+  }
+
+  if (type === "number" && !Number.isNaN(numericValue)) {
+    return new Intl.NumberFormat("en-IN", {
+      maximumFractionDigits: 2,
+    }).format(numericValue);
+  }
+
+  return String(value)
+    .replace(/₹/g, "INR ")
+    .replace(/[^\x20-\x7E\n]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatPdfCell(value, column) {
+  const key = String(column?.key || "").toLowerCase();
+  const normalized =
+    value === null || value === undefined || value === "" ? "-" : value;
+
+  if (key.includes("status")) return String(normalized);
+  if (key.includes("code") || key.includes("reference") || key === "sku") {
+    return String(normalized);
+  }
+
+  return formatPdfValue(normalized, getColumnTone(column));
+}
+
+function renderCell(value, column) {
+  const key = String(column?.key || "").toLowerCase();
+  const tone = getColumnTone(column);
+  const normalized =
+    value === null || value === undefined || value === "" ? "-" : value;
+  const numericValue = Number(value);
+
+  if (key.includes("status")) {
+    const status = String(normalized).toLowerCase().replace(/\s+/g, "_");
+    return <span className={`erp-status ${status}`}>{String(normalized)}</span>;
+  }
+
+  if (key.includes("code") || key.includes("reference") || key === "sku") {
+    return <span className="erp-code">{String(normalized)}</span>;
+  }
+
+  if (
+    normalized !== "-" &&
+    isDirectionalMetric(column) &&
+    !Number.isNaN(numericValue)
+  ) {
+    const directionClass =
+      numericValue > 0
+        ? "direction-up"
+        : numericValue < 0
+          ? "direction-down"
+          : "direction-flat";
+
+    return (
+      <span className={`erp-cell ${tone} ${directionClass}`}>
+        {numericValue > 0 && (
+          <ArrowUpRight size={15} className="erp-direction-icon" />
+        )}
+        {numericValue < 0 && (
+          <ArrowDownRight size={15} className="erp-direction-icon" />
+        )}
+        {formatValue(normalized, tone)}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`erp-cell ${tone}${normalized === "-" ? " text-muted" : ""}`}
+    >
+      {formatValue(normalized, tone)}
+    </span>
+  );
 }
 
 function ErpReports({ navigate }) {
@@ -489,6 +825,8 @@ function ErpReports({ navigate }) {
   const [selectedStoreIds, setSelectedStoreIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [storesLoading, setStoresLoading] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [isErrorOpen, setIsErrorOpen] = useState(false);
@@ -550,6 +888,27 @@ function ErpReports({ navigate }) {
     [availableStores, selectedStoreIds],
   );
 
+  const exportColumns = useMemo(
+    () =>
+      (report?.columns || []).map((column) => ({
+        key: column.key,
+        label: column.label || prettifyKey(column.key),
+        type: column.type || getColumnTone(column),
+      })),
+    [report],
+  );
+
+  const exportRows = useMemo(
+    () =>
+      (report?.rows || []).map((row) =>
+        exportColumns.reduce((acc, column) => {
+          acc[column.label] = formatExportCell(row[column.key], column);
+          return acc;
+        }, {}),
+      ),
+    [report, exportColumns],
+  );
+
   const toggleStore = (storeId) => {
     setSelectedStoreIds((previous) =>
       previous.includes(storeId)
@@ -577,6 +936,13 @@ function ErpReports({ navigate }) {
   };
 
   const closeError = () => setIsErrorOpen(false);
+
+  const exportFileBase = useMemo(() => {
+    const title = report?.title || "ERP Report";
+    const fromPart = fromDate || "from";
+    const toPart = toDate || "to";
+    return `${slugifyFileName(title)}-${fromPart}-to-${toPart}`;
+  }, [report, fromDate, toDate]);
 
   const runReport = async () => {
     try {
@@ -632,6 +998,200 @@ function ErpReports({ navigate }) {
     setReport(null);
   };
 
+  const exportToExcel = () => {
+    if (!report || !exportColumns.length) return;
+
+    try {
+      setExportingExcel(true);
+      const workbook = XLSX.utils.book_new();
+
+      const overviewRows = [
+        ["ERP Report", report.title || "ERP Report"],
+        ["Subtitle", report.subtitle || "-"],
+        ["Category", prettifyKey(report.reportCategory || reportCategory)],
+        ["Type", prettifyKey(report.reportType || reportType)],
+        ["From Date", fromDate || "-"],
+        ["To Date", toDate || "-"],
+        [
+          "Selected Stores",
+          selectedStoreNames.length
+            ? selectedStoreNames.join(", ")
+            : "All accessible stores",
+        ],
+        ["Rows", report.rowCount || report.rows?.length || 0],
+      ];
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(overviewRows),
+        "Overview",
+      );
+
+      if ((report.summary || []).length > 0) {
+        const summaryRows = [
+          ["Label", "Value"],
+          ...report.summary.map((item) => [
+            item.label,
+            formatValue(item.value, item.type || "text"),
+          ]),
+        ];
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet(summaryRows),
+          "Summary",
+        );
+      }
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.json_to_sheet(exportRows),
+        "Report Data",
+      );
+
+      XLSX.writeFile(workbook, `${exportFileBase}.xlsx`);
+    } catch (exportError) {
+      setError(exportError?.message || "Failed to export ERP report to Excel");
+      setIsErrorOpen(true);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const exportToPdf = async () => {
+    if (!report || !exportColumns.length) return;
+
+    try {
+      setExportingPdf(true);
+
+      let logoBase64 = null;
+      try {
+        logoBase64 = await loadImageAsDataUrl(feedsLogo);
+      } catch (logoError) {
+        console.warn(
+          "ERP report PDF export: logo could not be loaded.",
+          logoError,
+        );
+      }
+
+      const doc = new jsPDF("l", "pt", "a4");
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 40;
+      const brandBlue = [0, 49, 118];
+      const brandGreen = [22, 163, 74];
+      const lightBlue = [239, 246, 255];
+      const lineGray = [226, 232, 240];
+
+      doc.setFillColor(...brandBlue);
+      doc.rect(0, 0, pageWidth, 78, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text(report.title || "ERP Report", margin, 44);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text(report.subtitle || "ERP report export", margin, 62);
+
+      doc.setTextColor(17, 24, 39);
+      doc.setFillColor(...lightBlue);
+      doc.roundedRect(margin, 96, pageWidth - margin * 2, 74, 12, 12, "F");
+      doc.setDrawColor(...lineGray);
+      doc.roundedRect(margin, 96, pageWidth - margin * 2, 74, 12, 12, "S");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(
+        `Category: ${prettifyKey(report.reportCategory || reportCategory)}`,
+        margin + 18,
+        122,
+      );
+      doc.text(
+        `Type: ${prettifyKey(report.reportType || reportType)}`,
+        margin + 280,
+        122,
+      );
+      doc.text(
+        `Rows: ${report.rowCount || report.rows?.length || 0}`,
+        margin + 520,
+        122,
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(
+        `Date range: ${fromDate || "-"} to ${toDate || "-"}`,
+        margin + 18,
+        146,
+      );
+      doc.text(
+        `Stores: ${selectedStoreNames.length ? selectedStoreNames.join(", ") : "All accessible stores"}`,
+        margin + 280,
+        146,
+      );
+
+      if ((report.summary || []).length > 0) {
+        autoTable(doc, {
+          startY: 186,
+          margin: { left: margin, right: margin },
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 6 },
+          headStyles: { fillColor: brandGreen, textColor: 255 },
+          head: [["Summary", "Value"]],
+          body: report.summary.map((item) => [
+            item.label,
+            formatPdfValue(item.value, item.type || "text"),
+          ]),
+        });
+      }
+
+      autoTable(doc, {
+        startY: (doc.lastAutoTable?.finalY || 186) + 16,
+        margin: { left: margin, right: margin, bottom: 56 },
+        theme: "striped",
+        styles: { fontSize: 8.5, cellPadding: 5, overflow: "linebreak" },
+        headStyles: { fillColor: brandBlue, textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        head: [exportColumns.map((column) => column.label)],
+        body: (report.rows || []).map((row) =>
+          exportColumns.map((column) => formatPdfCell(row[column.key], column)),
+        ),
+        didDrawPage: () => {
+          const footerY = pageHeight - 28;
+          doc.setDrawColor(...lineGray);
+          doc.line(margin, footerY - 10, pageWidth - margin, footerY - 10);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(100, 116, 139);
+          doc.text(
+            `Generated on ${new Date().toLocaleString("en-IN")}`,
+            margin,
+            footerY,
+          );
+          doc.text(
+            `Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
+            pageWidth - margin - 36,
+            footerY,
+          );
+          if (logoBase64) {
+            doc.addImage(
+              logoBase64,
+              "PNG",
+              pageWidth / 2 - 34,
+              pageHeight - 36,
+              68,
+              16,
+            );
+          }
+        },
+      });
+
+      doc.save(`${exportFileBase}.pdf`);
+    } catch (exportError) {
+      setError(exportError?.message || "Failed to export ERP report to PDF");
+      setIsErrorOpen(true);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const hasRows = Boolean(report?.rows?.length);
 
   return (
@@ -643,7 +1203,9 @@ function ErpReports({ navigate }) {
           <div className="erp-loader">
             <div className="erp-loader-card">
               <strong>Building ERP report</strong>
-              <span>Pulling data, shaping summaries, and preparing the table.</span>
+              <span>
+                Pulling data, shaping summaries, and preparing the table.
+              </span>
               <div className="erp-loader-bar" />
             </div>
           </div>
@@ -664,8 +1226,8 @@ function ErpReports({ navigate }) {
           <div className="erp-title">
             <h1>ERP Reports</h1>
             <p>
-              Sales, inventory, finance, targets, returns, damages, and asset reports
-              from one workspace.
+              Sales, inventory, finance, targets, returns, damages, and asset
+              reports from one workspace.
             </p>
           </div>
         </div>
@@ -674,7 +1236,10 @@ function ErpReports({ navigate }) {
           <div className="erp-filters-top">
             <div className="erp-field">
               <label htmlFor="erpFrom">
-                <Calendar size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                <Calendar
+                  size={12}
+                  style={{ marginRight: 6, verticalAlign: "middle" }}
+                />
                 From Date
               </label>
               <input
@@ -688,7 +1253,10 @@ function ErpReports({ navigate }) {
 
             <div className="erp-field">
               <label htmlFor="erpTo">
-                <Calendar size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                <Calendar
+                  size={12}
+                  style={{ marginRight: 6, verticalAlign: "middle" }}
+                />
                 To Date
               </label>
               <input
@@ -702,7 +1270,10 @@ function ErpReports({ navigate }) {
 
             <div className="erp-field">
               <label htmlFor="erpCategory">
-                <Database size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                <Database
+                  size={12}
+                  style={{ marginRight: 6, verticalAlign: "middle" }}
+                />
                 Report Category
               </label>
               <select
@@ -721,7 +1292,10 @@ function ErpReports({ navigate }) {
 
             <div className="erp-field">
               <label htmlFor="erpType">
-                <Filter size={12} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                <Filter
+                  size={12}
+                  style={{ marginRight: 6, verticalAlign: "middle" }}
+                />
                 Report Type
               </label>
               <select
@@ -739,10 +1313,18 @@ function ErpReports({ navigate }) {
             </div>
 
             <div className="erp-filter-actions">
-              <button className="erp-btn erp-btn-primary" onClick={runReport} disabled={loading || storesLoading}>
+              <button
+                className="erp-btn erp-btn-primary"
+                onClick={runReport}
+                disabled={loading || storesLoading}
+              >
                 <BarChart3 size={16} /> Generate Report
               </button>
-              <button className="erp-btn erp-btn-secondary" onClick={resetFilters} disabled={loading}>
+              <button
+                className="erp-btn erp-btn-secondary"
+                onClick={resetFilters}
+                disabled={loading}
+              >
                 Reset
               </button>
             </div>
@@ -753,7 +1335,8 @@ function ErpReports({ navigate }) {
               <div className="erp-store-head-title">
                 <h3>Store Filter</h3>
                 <p>
-                  Leave this empty to run the report across all stores you can access.
+                  Leave this empty to run the report across all stores you can
+                  access.
                 </p>
               </div>
 
@@ -772,7 +1355,9 @@ function ErpReports({ navigate }) {
                   disabled={storesLoading || visibleStores.length === 0}
                 >
                   {visibleStores.length > 0 &&
-                  visibleStores.every((store) => selectedStoreIds.includes(store.id))
+                  visibleStores.every((store) =>
+                    selectedStoreIds.includes(store.id),
+                  )
                     ? "Clear Visible"
                     : "Select Visible"}
                 </button>
@@ -823,7 +1408,9 @@ function ErpReports({ navigate }) {
                   </span>
                 ))}
                 {selectedStoreNames.length > 10 && (
-                  <span className="erp-chip">+{selectedStoreNames.length - 10} more</span>
+                  <span className="erp-chip">
+                    +{selectedStoreNames.length - 10} more
+                  </span>
                 )}
               </div>
             )}
@@ -833,7 +1420,11 @@ function ErpReports({ navigate }) {
         {report?.summary?.length > 0 && (
           <div className="erp-summary-grid">
             {report.summary.map((item) => (
-              <div key={item.label} className="erp-summary-card">
+              <div
+                key={item.label}
+                className="erp-summary-card"
+                data-tone={item.type || "text"}
+              >
                 <label>{item.label}</label>
                 <strong>{formatValue(item.value, item.type)}</strong>
               </div>
@@ -846,19 +1437,58 @@ function ErpReports({ navigate }) {
             <div className="erp-results-head">
               <div>
                 <h3>{report.title || "ERP Report"}</h3>
-                <p>{report.subtitle || "Report data for the selected ERP filters."}</p>
+                <p>
+                  {report.subtitle ||
+                    "Report data for the selected ERP filters."}
+                </p>
               </div>
 
-              <div className="erp-badge-row">
-                <span className="erp-badge">
-                  Category: {prettifyKey(report.reportCategory || reportCategory)}
-                </span>
-                <span className="erp-badge">
-                  Type: {prettifyKey(report.reportType || reportType)}
-                </span>
-                <span className="erp-badge">
-                  Rows: {report.rowCount || report.rows?.length || 0}
-                </span>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <div className="erp-results-actions">
+                  <button
+                    className="erp-btn erp-btn-secondary erp-btn-export"
+                    onClick={exportToExcel}
+                    disabled={
+                      !exportColumns.length || exportingExcel || exportingPdf
+                    }
+                  >
+                    <Download size={14} />
+                    {exportingExcel ? "Exporting Excel..." : "Export Excel"}
+                  </button>
+                  <button
+                    className="erp-btn erp-btn-primary erp-btn-export"
+                    onClick={exportToPdf}
+                    disabled={
+                      !exportColumns.length || exportingPdf || exportingExcel
+                    }
+                  >
+                    <Download size={14} />
+                    {exportingPdf ? "Exporting PDF..." : "Export PDF"}
+                  </button>
+                </div>
+
+                <div className="erp-badge-row">
+                  <span
+                    className={`erp-badge category-${report.reportCategory || reportCategory}`}
+                  >
+                    Category:{" "}
+                    {prettifyKey(report.reportCategory || reportCategory)}
+                  </span>
+                  <span className="erp-badge type-pill">
+                    Type: {prettifyKey(report.reportType || reportType)}
+                  </span>
+                  <span className="erp-badge row-pill">
+                    Rows: {report.rowCount || report.rows?.length || 0}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -868,7 +1498,12 @@ function ErpReports({ navigate }) {
                   <thead>
                     <tr>
                       {(report.columns || []).map((column) => (
-                        <th key={column.key}>{column.label || prettifyKey(column.key)}</th>
+                        <th
+                          key={column.key}
+                          className={`col-${getColumnTone(column)}`}
+                        >
+                          {column.label || prettifyKey(column.key)}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -877,7 +1512,7 @@ function ErpReports({ navigate }) {
                       <tr key={row.id || row.code || row.sNo || index}>
                         {(report.columns || []).map((column) => (
                           <td key={column.key}>
-                            {formatValue(row[column.key], column.type)}
+                            {renderCell(row[column.key], column)}
                           </td>
                         ))}
                       </tr>
@@ -886,7 +1521,10 @@ function ErpReports({ navigate }) {
                 </table>
               </div>
             ) : (
-              <div className="erp-empty" style={{ margin: 0, border: "none", borderRadius: 0 }}>
+              <div
+                className="erp-empty"
+                style={{ margin: 0, border: "none", borderRadius: 0 }}
+              >
                 No rows matched the selected filters.
               </div>
             )}
@@ -895,10 +1533,13 @@ function ErpReports({ navigate }) {
 
         {!report && !loading && (
           <div className="erp-empty">
-            <strong style={{ display: "block", marginBottom: 8, color: "#0f172a" }}>
+            <strong
+              style={{ display: "block", marginBottom: 8, color: "#0f172a" }}
+            >
               Generate an ERP report
             </strong>
-            Pick a category, report type, optional stores, and date range to load the data.
+            Pick a category, report type, optional stores, and date range to
+            load the data.
           </div>
         )}
       </div>

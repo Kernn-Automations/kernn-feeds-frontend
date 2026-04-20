@@ -1,5 +1,7 @@
 import apiService from "./apiService";
 
+const STORE_CACHE_TTL_MS = 5 * 60 * 1000;
+
 const REPORT_CATEGORIES = {
   sales: "sales",
   inventory: "inventory",
@@ -51,7 +53,30 @@ async function parseJsonSafe(response) {
 }
 
 class ErpReportsService {
+  constructor() {
+    this.availableStoresCache = null;
+    this.availableStoresFetchedAt = 0;
+    this.availableStoresPromise = null;
+  }
+
   async getAvailableStores() {
+    const now = Date.now();
+    if (
+      this.availableStoresCache &&
+      now - this.availableStoresFetchedAt < STORE_CACHE_TTL_MS
+    ) {
+      return {
+        success: true,
+        data: this.availableStoresCache,
+        cached: true,
+      };
+    }
+
+    if (this.availableStoresPromise) {
+      return this.availableStoresPromise;
+    }
+
+    this.availableStoresPromise = (async () => {
     const response = await apiService.get("/reports/store-comparison/stores");
     if (!response) {
       return { success: false, message: "Request cancelled (not authenticated)" };
@@ -70,10 +95,21 @@ class ErpReportsService {
       };
     }
 
+    const stores = data?.data || data?.stores || [];
+    this.availableStoresCache = stores;
+    this.availableStoresFetchedAt = Date.now();
+
     return {
       success: true,
-      data: data?.data || data?.stores || [],
+      data: stores,
     };
+    })();
+
+    try {
+      return await this.availableStoresPromise;
+    } finally {
+      this.availableStoresPromise = null;
+    }
   }
 
   async getErpReport({
