@@ -681,7 +681,7 @@ function StoreStockTransfer() {
   ]);
 
   const handleQuantityChange = (productId, quantity) => {
-    const qty = parseFloat(quantity) || 0;
+    const qty = parseInt(quantity, 10) || 0;
     if (qty < 0) return;
 
     if (qty === 0) {
@@ -1971,7 +1971,7 @@ function StoreStockTransfer() {
                             fontWeight: 600,
                           }}
                         >
-                          {Number(item.quantity || 0).toFixed(2)}
+                          {Number(item.quantity || 0)}
                         </td>
                         <td style={{ fontFamily: "Poppins", fontSize: "13px" }}>
                           {TRANSFER_DISPLAY_UNIT}

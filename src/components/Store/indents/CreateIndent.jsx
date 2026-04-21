@@ -186,20 +186,20 @@ function CreateIndent({ navigate }) {
 
       // Validate that all valid items have numeric quantities > 0
       const invalidItems = validItems.filter((item) => {
-        const qty = parseFloat(item.quantity);
-        return isNaN(qty) || qty <= 0;
+        const qty = Number(item.quantity);
+        return Number.isNaN(qty) || !Number.isInteger(qty) || qty <= 0;
       });
 
       if (invalidItems.length > 0) {
         throw new Error(
-          "Please ensure all quantities are valid numbers greater than 0",
+          "Please ensure all quantities are whole numbers greater than 0",
         );
       }
 
       // Prepare items array according to backend API format
       const indentItems = validItems.map((item) => ({
         productId: parseInt(item.productId),
-        requestedQuantity: parseFloat(item.quantity),
+        requestedQuantity: parseInt(item.quantity, 10),
         // Optional: Add notes per item if needed in the future
         // notes: item.notes || ""
       }));

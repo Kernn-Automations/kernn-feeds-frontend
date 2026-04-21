@@ -56,6 +56,11 @@ export default function ViewAllIndents() {
     e.target.blur();
   };
 
+  const parseIntegerQuantity = (value, fallback = 0) => {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? fallback : parsed;
+  };
+
   const toggleSearch = (key) => {
     setShowSearch((prev) => {
       const next = { ...prev };
@@ -607,7 +612,7 @@ export default function ViewAllIndents() {
             product?.name ||
             product?.productName ||
             `Product ${item.productId}`,
-          orderedQty: parseFloat(item.quantity) || 0,
+          orderedQty: parseIntegerQuantity(item.quantity),
           damagedQty: existingRow?.damagedQty || 0,
           reason: existingRow?.reason || "",
           image: existingRow?.image || null,
@@ -629,7 +634,7 @@ export default function ViewAllIndents() {
     // Validate items
     const validItems = manualStockItems.filter(
       (item) =>
-        item.productId && item.quantity && parseFloat(item.quantity) > 0,
+        item.productId && item.quantity && parseIntegerQuantity(item.quantity) > 0,
     );
 
     if (validItems.length === 0) {
@@ -648,7 +653,7 @@ export default function ViewAllIndents() {
         // Note: indentId is NOT included for manual stock in
         items: validItems.map((item) => {
           const productId = parseInt(item.productId);
-          const quantity = parseFloat(item.quantity);
+          const quantity = parseIntegerQuantity(item.quantity);
 
           // Find damaged goods for this product if any
           const damagedRow = hasManualDamagedGoods
@@ -663,7 +668,7 @@ export default function ViewAllIndents() {
 
           const damagedQty =
             damagedRow && damagedRow.damagedQty > 0
-              ? parseFloat(damagedRow.damagedQty)
+              ? parseIntegerQuantity(damagedRow.damagedQty)
               : 0;
 
           // Extract base64 data (remove data:image/...;base64, prefix if present)
@@ -706,7 +711,7 @@ export default function ViewAllIndents() {
         isDamagedGoods: hasAnyDamagedGoods || false, // Optional flag
         items: validItems.map((item) => {
           const productId = parseInt(item.productId);
-          const quantity = parseFloat(item.quantity);
+          const quantity = parseIntegerQuantity(item.quantity);
 
           // Find damaged goods for this product if any
           const damagedRow = hasManualDamagedGoods
@@ -721,7 +726,7 @@ export default function ViewAllIndents() {
 
           const damagedQty =
             damagedRow && damagedRow.damagedQty > 0
-              ? parseFloat(damagedRow.damagedQty)
+              ? parseIntegerQuantity(damagedRow.damagedQty)
               : 0;
 
           // Extract base64 data (remove data:image/...;base64, prefix if present)
@@ -833,7 +838,7 @@ export default function ViewAllIndents() {
               product?.name ||
               product?.productName ||
               `Product ${item.productId}`,
-            orderedQty: parseFloat(item.quantity) || 0,
+            orderedQty: parseIntegerQuantity(item.quantity),
             damagedQty: 0,
             reason: "",
             image: null,
@@ -852,7 +857,7 @@ export default function ViewAllIndents() {
       const newRows = [...prev];
       const newValue =
         field === "damagedQty"
-          ? Math.min(parseFloat(value) || 0, newRows[index].orderedQty)
+          ? Math.min(parseIntegerQuantity(value), newRows[index].orderedQty)
           : value;
       newRows[index] = { ...newRows[index], [field]: newValue };
       return newRows;
@@ -944,7 +949,7 @@ export default function ViewAllIndents() {
   const handleReceivedQuantityChange = (productId, value) => {
     setReceivedQuantities((prev) => ({
       ...prev,
-      [productId]: value === "" ? "" : parseFloat(value),
+      [productId]: value === "" ? "" : parseIntegerQuantity(value),
     }));
   };
 
@@ -981,7 +986,7 @@ export default function ViewAllIndents() {
 
       const newValue =
         field === "damagedQty"
-          ? Math.min(parseFloat(value) || 0, receivedQty)
+          ? Math.min(parseIntegerQuantity(value), receivedQty)
           : value;
       newRows[index] = { ...newRows[index], [field]: newValue };
       return newRows;
@@ -1084,7 +1089,7 @@ export default function ViewAllIndents() {
         recordedAt: stockInRecordedAt,
         items: items.map((item) => {
           const productId = item.productId || item.id;
-          const receivedQty = parseFloat(
+          const receivedQty = parseIntegerQuantity(
             receivedQuantities[productId] ||
               item.requestedQuantity ||
               item.quantity ||
@@ -1104,7 +1109,7 @@ export default function ViewAllIndents() {
 
           const damagedQty =
             damagedRow && damagedRow.damagedQty > 0
-              ? parseFloat(damagedRow.damagedQty)
+              ? parseIntegerQuantity(damagedRow.damagedQty)
               : 0;
 
           // Extract base64 data (remove data:image/...;base64, prefix if present)
@@ -2519,7 +2524,7 @@ export default function ViewAllIndents() {
                           <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>Total</td>
                           <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>
                             {manualStockItems.reduce(
-                              (sum, item) => sum + (parseFloat(item.quantity) || 0),
+                              (sum, item) => sum + parseIntegerQuantity(item.quantity),
                               0
                             )}
                           </td>
@@ -2712,7 +2717,7 @@ export default function ViewAllIndents() {
                             <td></td>
                             <td style={{ fontWeight: "bold", fontFamily: "Poppins" }}>
                               {manualStockDamagedGoods.reduce(
-                                (sum, row) => sum + (parseFloat(row.damagedQty) || 0),
+                                (sum, row) => sum + parseIntegerQuantity(row.damagedQty),
                                 0
                               )}
                             </td>

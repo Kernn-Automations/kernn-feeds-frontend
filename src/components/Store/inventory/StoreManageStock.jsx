@@ -299,17 +299,18 @@ function StoreManageStock() {
       return;
     }
 
-    const parsedQuantity = parseFloat(formData.quantity);
+    const parsedQuantity = Number(formData.quantity);
     if (
       Number.isNaN(parsedQuantity) ||
+      !Number.isInteger(parsedQuantity) ||
       (formData.transactionType === "closingstock"
         ? parsedQuantity < 0
         : parsedQuantity <= 0)
     ) {
       setError(
         formData.transactionType === "closingstock"
-          ? "Closing stock must be zero or greater"
-          : "Quantity must be greater than 0",
+          ? "Closing stock must be a whole number zero or greater"
+          : "Quantity must be a whole number greater than 0",
       );
       setShowErrorModal(true);
       return;
@@ -334,7 +335,7 @@ function StoreManageStock() {
       const response = await storeService.manageStoreStock(storeId, {
         productId: parseInt(formData.productId),
         transactionType: formData.transactionType,
-        quantity: parseFloat(formData.quantity),
+        quantity: parsedQuantity,
         reason: formData.reason.trim(),
         recordedAt: formData.recordedAt,
         allowNegativeLedger,
@@ -578,13 +579,20 @@ function StoreManageStock() {
           <label>Quantity :</label>
           <input
             type="number"
-            step="0.01"
-            min={formData.transactionType === "closingstock" ? "0" : "0.01"}
-            inputMode="decimal"
+            step="1"
+            min={formData.transactionType === "closingstock" ? "0" : "1"}
+            inputMode="numeric"
             onWheel={disableWheel}
             name="quantity"
             value={formData.quantity}
-            onChange={handleInputChange}
+            onChange={(e) =>
+              handleInputChange({
+                target: {
+                  name: "quantity",
+                  value: e.target.value.replace(/[^\d]/g, ""),
+                },
+              })
+            }
             placeholder={
               formData.transactionType === "closingstock"
                 ? "Enter closing stock"
